@@ -2983,6 +2983,7 @@ export function drawHero(ctx, x, y, heroId, color, fx, fy, now, me) {
 	if (heroId === 'smith') return drawSmith(ctx, x, y, r, hero.color, lx, ux, bob);
 	if (heroId === 'stormcaller') return drawStormcaller(ctx, x, y, r, hero.color, now, bob);
 	if (heroId === 'alchemist') return drawAlchemist(ctx, x, y, r, hero.color, lx, ux, now, bob);
+	if (heroId === 'spearmaiden') return drawSpearmaiden(ctx, x, y, r, hero.color, ux, bob);
 	ctx.beginPath();
 	if (heroId === 'witch') {
 		ctx.ellipse(x, y - r * 0.55 + bob, r * 1.1, r * 0.25, 0, 0, TAU);
@@ -3040,6 +3041,41 @@ function drawHerald(ctx, x, y, r, color, now) {
 	ctx.arc(0, r * 0.22, r * 0.11, 0, TAU);
 	ctx.fill();
 	ctx.restore();
+}
+
+// Vector fallback for «Копейщица»: crested helmet and an upright spear on the facing side.
+function drawSpearmaiden(ctx, x, y, r, color, ux, bob) {
+	const side = ux >= 0 ? 1 : -1;
+	ctx.strokeStyle = '#8d6e63';
+	ctx.lineWidth = 2.5;
+	ctx.beginPath();
+	ctx.moveTo(x + side * r * 1.05, y + r * 0.9 + bob);
+	ctx.lineTo(x + side * r * 1.05, y - r * 1.9 + bob);
+	ctx.stroke();
+	ctx.fillStyle = '#cfd8dc';
+	ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+	ctx.lineWidth = 1.2;
+	ctx.beginPath();
+	ctx.moveTo(x + side * r * 1.05, y - r * 2.45 + bob);
+	ctx.lineTo(x + side * r * 1.05 - r * 0.28, y - r * 1.8 + bob);
+	ctx.lineTo(x + side * r * 1.05 + r * 0.28, y - r * 1.8 + bob);
+	ctx.closePath();
+	ctx.fill();
+	ctx.stroke();
+	// Helmet with a crest in the hero colour.
+	ctx.fillStyle = '#b0bec5';
+	ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+	ctx.lineWidth = 1.5;
+	ctx.beginPath();
+	ctx.arc(x, y - r * 0.15 + bob, r * 0.95, Math.PI, 0);
+	ctx.closePath();
+	ctx.fill();
+	ctx.stroke();
+	ctx.fillStyle = color;
+	ctx.beginPath();
+	ctx.ellipse(x - side * r * 0.1, y - r * 1.15 + bob, r * 0.75, r * 0.22, -side * 0.25, 0, Math.PI * 2);
+	ctx.fill();
+	ctx.stroke();
 }
 
 function drawSmith(ctx, x, y, r, color, lx, ux, bob) {

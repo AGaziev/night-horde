@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -110,6 +110,7 @@ export class UI {
 			const li = el('li');
 			li.appendChild(el('span', 'room-code-sm', r.code));
 			li.appendChild(el('span', 'grow', r.host ? `хост: ${r.host}` : ''));
+			li.appendChild(el('span', 'tag tag-mode', modeOf(r.mode).short));
 			li.appendChild(el('span', 'tag', `${r.players ?? '?'}/${MAX_PLAYERS}`));
 			const btn = el('button', 'btn btn-small', 'Войти');
 			btn.addEventListener('click', () => onJoin(r.code));
@@ -140,11 +141,34 @@ export class UI {
 			card.appendChild(el('div', 'hero-weapon', w ? `${w.icon} ${w.name}` : ''));
 			card.appendChild(el('div', 'hero-stats', `❤ ${h.hp} · ➜ ${h.speed}`));
 			if (h.traitDesc) card.appendChild(el('div', 'hero-trait', `★ ${h.traitDesc}`));
+			const lock = el('span', 'hero-lock', '🔒');
+			const cond = el('div', 'hero-cond');
+			card.append(lock, cond);
 			card.addEventListener('click', () => this.onHero && this.onHero(id));
 			grid.appendChild(card);
-			this.heroCards.set(id, { card, cv, img });
+			this.heroCards.set(id, { card, cv, img, lock, cond });
 		}
 		this.selectHero(selected, '#90a4ae');
+	}
+
+	// Locked heroes: padlock, the condition and the progress towards it.
+	setUnlocks(unlocked, stats) {
+		for (const [id, { card, lock, cond }] of this.heroCards) {
+			const open = unlocked.has(id);
+			card.classList.toggle('locked', !open);
+			card.setAttribute('aria-disabled', String(!open));
+			lock.hidden = open;
+			cond.hidden = open;
+			if (open || !UNLOCKS[id]) continue;
+			const u = UNLOCKS[id];
+			cond.textContent = unlockProgress(id, stats);
+			const bar = el('span', 'hero-cond-bar');
+			const fill = el('i');
+			fill.style.width = `${Math.min(100, ((+stats?.[u.stat] || 0) / u.need) * 100).toFixed(0)}%`;
+			bar.appendChild(fill);
+			cond.appendChild(bar);
+			card.title = `Закрыт: ${u.text.toLowerCase()}`;
+		}
 	}
 
 	selectHero(id, color) {
@@ -205,6 +229,7 @@ export class UI {
 			}
 		}
 		const isHost = lobby.host === me;
+		this.renderMode(lobby.mode, isHost);
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
 		readyBtn.classList.toggle('btn-on', myReady);
@@ -214,6 +239,40 @@ export class UI {
 			? (notReady ? `Не готовы: ${notReady}. Можно начать и так.` : 'Все готовы — начинайте!')
 			: 'Игру запускает хост.';
 		return myReady;
+	}
+
+	renderMode(mode, isHost) {
+		const box = $('lobby-mode');
+		const cur = modeOf(mode).id;
+		if (!box.childElementCount) {
+			for (const id of MODE_IDS) {
+				const M = MODES[id];
+				const b = el('button', 'btn mode-btn');
+				b.type = 'button';
+				b.dataset.mode = id;
+				b.setAttribute('role', 'radio');
+				b.appendChild(el('b', '', `${M.name} · ${Math.round(M.seconds / 60)} мин`));
+				b.appendChild(el('span', '', id === 'lunch' ? 'Короткий забег на перерыв' : 'Пять боссов и рассвет'));
+				b.addEventListener('click', () => this.onMode && this.onMode(id));
+				box.appendChild(b);
+			}
+		}
+		for (const b of box.children) {
+			const on = b.dataset.mode === cur;
+			b.classList.toggle('selected', on);
+			b.setAttribute('aria-checked', String(on));
+			b.disabled = !isHost;
+		}
+		$('lobby-mode-hint').textContent = isHost ? 'Режим видят все в комнате' : `Режим выбирает хост: ${modeLabel(cur)}`;
+	}
+
+	// Solo pause overlay.
+	showPause(on) {
+		$('pause').hidden = !on;
+		if (on) {
+			$('pause-sub').textContent = this.modeText || '';
+			$('pause-resume').focus({ preventScroll: true });
+		}
 	}
 
 	// Level-up panel
@@ -348,9 +407,23 @@ export class UI {
 		const title = $('over-title');
 		title.textContent = msg.win ? 'Победа!' : 'Орда победила';
 		title.className = 'over-title ' + (msg.win ? 'win' : 'lose');
-		$('over-sub').textContent = msg.win
-			? `Вы продержались ${fmtTime(msg.time)}`
-			: `Продержались ${fmtTime(msg.time)}`;
+		const len = msg.len || modeOf(msg.mode).seconds;
+		$('over-sub').textContent = `${modeOf(msg.mode).name} · ${msg.win ? 'Вы продержались' : 'Продержались'} ${fmtTime(msg.time)} из ${fmtTime(len)}`;
+		const box = $('over-unlock');
+		const fresh = Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
+		box.hidden = !fresh.length;
+		box.textContent = '';
+		if (fresh.length) {
+			box.appendChild(el('b', '', fresh.length > 1 ? 'Открыты новые герои!' : 'Открыт новый герой!'));
+			const row = el('div', 'unlock-heroes');
+			for (const id of fresh) {
+				const it = el('span', 'unlock-hero');
+				it.append(heroMark(id, HEROES[id].color), el('span', '', HEROES[id].name));
+				row.appendChild(it);
+			}
+			box.appendChild(row);
+			box.appendChild(el('div', 'muted small', 'Выберите его в лобби перед следующим забегом'));
+		}
 		const body = $('over-stats');
 		body.textContent = '';
 		const stats = (Array.isArray(msg.stats) ? msg.stats : []).slice().sort((a, b) => (b.kills | 0) - (a.kills | 0));
@@ -388,6 +461,8 @@ export class UI {
 	updateHud(game) {
 		const snap = game.latest();
 		this.set('hud-time', 'text', fmtTime(game.view.tm));
+		this.set('hud-mode', 'text', this.modeText || '');
+		this.set('hud-pause', 'hidden', !game.solo());
 		const pk = game.peak();
 		this.set('hud-peak', 'hidden', !pk);
 		if (pk) this.set('hud-peak', 'text', `${pk.def.name} · ${Math.ceil(pk.left)} с`);

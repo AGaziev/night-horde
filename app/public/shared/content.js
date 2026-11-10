@@ -56,7 +56,67 @@ export const HEROES = {
 		name: 'Алхимик', desc: 'Контроль толпы зельями', hp: 110, speed: 155, weapon: 'flask', color: '#e6ee9c',
 		trait: { puddleSlow: 0.35 }, traitDesc: 'Лужи замедляют врагов на 35%',
 	},
+	spearmaiden: {
+		name: 'Копейщица', desc: 'Прошивает строй копьём', hp: 150, speed: 150, weapon: 'spear', color: '#ef9a9a',
+		trait: { spearRam: 0.12, spearKb: 2 }, traitDesc: 'Таран: копья отбрасывают вдвое дальше и бьют на 12% сильнее за каждого пронзённого',
+	},
 };
+
+// Run modes: «Обед» squeezes the night into 10 minutes. Night time (`nightTime`) drives waves, pressure,
+// bosses and elites, so every minute of «Обед» plays like 1.5 minutes of the night; xp follows (xpMul),
+// hpMul (index = players - 1, the last one for bigger groups) keeps the share of wins close to the night.
+export const MODES = {
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1 },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13] },
+};
+export const MODE_IDS = Object.keys(MODES);
+export const DEFAULT_MODE = 'night';
+export const modeOf = (id) => MODES[id] ?? MODES[DEFAULT_MODE];
+export const modeHpMul = (id, players = 1) => {
+	const m = modeOf(id).hpMul ?? 1;
+	return Array.isArray(m) ? m[Math.min(Math.max(1, players), m.length) - 1] : m;
+};
+export const modeLabel = (id) => `${modeOf(id).name} · ${Math.round(modeOf(id).seconds / 60)} мин`;
+// Real seconds -> night seconds factor for a run length.
+export const timeScale = (runLength = RUN_SECONDS) => RUN_SECONDS / runLength;
+// Boss times for a run length: regular ones scale, the final boss keeps its distance from the end.
+export const bossTimes = (runLength = RUN_SECONDS) => {
+	const k = timeScale(runLength);
+	return [...BOSS_SCHEDULE.map((t) => Math.round(t / k)), runLength - (RUN_SECONDS - FINAL_BOSS.at)];
+};
+
+// Hero unlocks (M2): one hero per role is open from the start, the rest open by achievements.
+// Progress lives in the browser; the server counts per-run stats (`runAchievements`) and sends them in `over`.
+// agg: how a run's value joins the total — sum or best.
+export const START_HEROES = ['knight', 'witch', 'alchemist'];
+export const UNLOCKS = {
+	stormcaller: { stat: 'wins', agg: 'sum', need: 1, text: 'Победите любым героем' },
+	smith: { stat: 'knightBest', agg: 'max', need: 300, text: 'Продержитесь 5:00 Стражем', time: true },
+	herald: { stat: 'revives', agg: 'sum', need: 10, text: 'Поднимите союзников' },
+	ranger: { stat: 'knifeKills', agg: 'sum', need: 600, text: 'Убейте врагов ножами' },
+	spearmaiden: { stat: 'bosses', agg: 'sum', need: 5, text: 'Одолейте боссов' },
+};
+export const ACH_STATS = ['wins', 'knightBest', 'revives', 'knifeKills', 'bosses'];
+export const unlockAgg = (stat) => Object.values(UNLOCKS).find((u) => u.stat === stat)?.agg ?? 'sum';
+// Adds one run's stats to the stored totals (both plain objects); returns a new object.
+export function mergeAchStats(total, run) {
+	const out = {};
+	for (const k of ACH_STATS) {
+		const a = Math.max(0, +total?.[k] || 0), b = Math.max(0, +run?.[k] || 0);
+		out[k] = unlockAgg(k) === 'max' ? Math.max(a, b) : a + b;
+	}
+	return out;
+}
+// Hero ids open for these totals (start heroes first, in HEROES order).
+export const unlockedHeroes = (stats) => Object.keys(HEROES).filter((id) => START_HEROES.includes(id) || (UNLOCKS[id] && (+stats?.[UNLOCKS[id].stat] || 0) >= UNLOCKS[id].need));
+// «Поднимите союзников: 3/10», «Продержитесь 5:00 Стражем: 3:12/5:00».
+export function unlockProgress(id, stats) {
+	const u = UNLOCKS[id];
+	if (!u) return '';
+	const fmt = (v) => (u.time ? `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}` : String(Math.floor(v)));
+	const v = Math.min(u.need, Math.max(0, +stats?.[u.stat] || 0));
+	return `${u.text}: ${fmt(v)}/${fmt(u.need)}`;
+}
 
 // Hero traits (all optional, read by the server from HEROES[id].trait):
 //   auraHeal   — hp/s healed to other alive players inside this hero's aura
@@ -64,7 +124,8 @@ export const HEROES = {
 //   taunt      — enemies within this distance target this hero instead of the nearest player
 //   chainBonus — extra lightning chain jumps
 //   puddleSlow — fraction of speed enemies lose while inside this hero's puddles
-export const NO_TRAIT = Object.freeze({ auraHeal: 0, dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0 });
+//   spearRam   — spear damage bonus per enemy the spear has already pierced; spearKb — spear knockback multiplier
+export const NO_TRAIT = Object.freeze({ auraHeal: 0, dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0, spearRam: 0, spearKb: 1 });
 export const heroTrait = (heroId) => ({ ...NO_TRAIT, ...(HEROES[heroId]?.trait ?? {}) });
 
 // Weapon stats per level: index 0 = level 1. `cd` is cooldown in seconds.

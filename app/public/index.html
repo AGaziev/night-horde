@@ -15,7 +15,7 @@
 	<section id="screen-menu" class="screen" hidden>
 		<div class="panel menu-panel">
 			<h1 class="logo">Ночная <span>орда</span></h1>
-			<p class="tagline">Продержитесь 15 минут вместе. Оружие бьёт само — вы только двигаетесь.</p>
+			<p class="tagline">Продержитесь до рассвета вместе: 10 минут на обеде или 15 — полную ночь. Оружие бьёт само — вы только двигаетесь.</p>
 			<label class="field">
 				<span>Ваше имя</span>
 				<input id="menu-name" type="text" maxlength="20" autocomplete="off" spellcheck="false">
@@ -47,6 +47,9 @@
 					<button id="lobby-leave" class="btn btn-ghost btn-small">Выйти</button>
 				</div>
 			</div>
+			<h2>Режим</h2>
+			<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
+			<p id="lobby-mode-hint" class="muted small mode-hint"></p>
 			<h2>Выберите героя</h2>
 			<div id="lobby-heroes" class="hero-grid"></div>
 			<h2>Игроки <span id="lobby-count" class="muted"></span></h2>
@@ -71,10 +74,12 @@
 			</div>
 			<div class="hud-center">
 				<div id="hud-time" class="hud-time">00:00</div>
+				<div id="hud-mode" class="hud-mode"></div>
 				<div id="hud-peak" class="hud-peak" hidden></div>
 				<div class="hud-kills">☠ <span id="hud-kills">0</span></div>
 			</div>
 			<div class="hud-right">
+				<button id="hud-pause" class="hud-pause" type="button" aria-label="Пауза" title="Пауза (Esc)" hidden>⏸</button>
 				<ul id="hud-allies" class="hud-allies"></ul>
 			</div>
 		</div>
@@ -97,11 +102,25 @@
 		</div>
 	</div>
 
+	<!-- Solo pause -->
+	<div id="pause" class="pause" hidden>
+		<div class="panel pause-panel" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+			<h1 id="pause-title" class="pause-title">Пауза</h1>
+			<p id="pause-sub" class="muted center small"></p>
+			<div class="pause-actions">
+				<button id="pause-resume" class="btn btn-primary" type="button">Продолжить</button>
+				<button id="pause-quit" class="btn" type="button">Выйти в лобби</button>
+			</div>
+			<p class="muted center small"><kbd>Esc</kbd> — продолжить</p>
+		</div>
+	</div>
+
 	<!-- Game over -->
 	<section id="screen-over" class="screen screen-dim" hidden>
 		<div class="panel over-panel">
 			<h1 id="over-title" class="over-title">Победа</h1>
 			<p id="over-sub" class="muted center"></p>
+			<div id="over-unlock" class="over-unlock" hidden></div>
 			<div class="table-wrap">
 				<table class="stats">
 					<thead><tr><th>Игрок</th><th>Герой</th><th>Ур.</th><th>Убийства</th><th>Урон</th></tr></thead>

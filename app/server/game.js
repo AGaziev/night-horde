@@ -12,6 +12,7 @@ import {
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
 	beaconAngle, PEAK_WARN, peakSchedule, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
+	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul,
 } from '../public/shared/content.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
@@ -108,6 +109,15 @@ export function sanitizeName(v) {
 }
 
 const sanitizeHero = (v) => (typeof v === 'string' && Object.hasOwn(HEROES, v) ? v : null);
+const sanitizeMode = (v) => (typeof v === 'string' && Object.hasOwn(MODES, v) ? v : null);
+// Heroes a client says it has opened (trusted, see UNLOCKS); null = no list, everything allowed.
+export const sanitizeUnlocked = (v) => {
+	if (!Array.isArray(v)) return null;
+	const set = new Set(v.slice(0, 32).map(sanitizeHero).filter(Boolean));
+	return set.size ? set : null;
+};
+// Kills by knives or anything grown out of them count for the «Следопыт» unlock.
+const KNIFE_SRC = new Set(['knives', EVO_BY_WEAPON.knives, ...DUO_IDS.filter((id) => DUOS[id].parts.includes('knives'))]);
 
 class Grid {
 	constructor(cell) {
@@ -184,7 +194,7 @@ function makeHero(member, x, y) {
 		trait: heroTrait(member.hero),
 		passives: new Map(),
 		mods: baseMods(),
-		kills: 0, dmg: 0, dmgBy: {},
+		kills: 0, dmg: 0, dmgBy: {}, revives: 0, knifeKills: 0,
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0,
@@ -195,7 +205,13 @@ export class Room {
 	constructor(code, send) {
 		this.code = code;
 		this.send = send;
-		this.runLength = RUN_SECONDS; // a run mode may set it before start(); peaks follow it
+		this.mode = DEFAULT_MODE;
+		this.runLength = RUN_SECONDS; // setMode() or a sim may change it before start(); peaks, bosses and waves follow it
+		this.tscale = 1;
+		this.xpMul = 1;
+		this.modeHp = 1;
+		this.paused = false; // solo pause from the menu
+		this.frozen = false; // pause or a solo level-up offer: the tick stands still
 		this.state = 'lobby';
 		this.members = new Map(); // pid -> {pid, name, hero, ready, color}
 		this.host = null;
@@ -211,12 +227,27 @@ export class Room {
 		for (const pid of this.members.keys()) this.send(pid, msg, json);
 	}
 
-	addPlayer(pid, name, hero) {
+	// Night time: the clock of waves, pressure and elites (runs faster in shorter modes).
+	get nt() {
+		return this.time * this.tscale;
+	}
+
+	setMode(id) {
+		const mode = sanitizeMode(id);
+		if (!mode) return false;
+		this.mode = mode;
+		this.runLength = MODES[mode].seconds;
+		return true;
+	}
+
+	addPlayer(pid, name, hero, unlocked = null) {
 		if (this.state !== 'lobby') return 'Игра уже идёт';
 		if (this.members.size >= MAX_PLAYERS) return 'Комната заполнена';
 		const usedColors = new Set([...this.members.values()].map((m) => m.color));
 		const color = PLAYER_COLORS.find((c) => !usedColors.has(c)) ?? PLAYER_COLORS[0];
-		this.members.set(pid, { pid, name, hero: sanitizeHero(hero) ?? 'knight', ready: false, color });
+		let pick = sanitizeHero(hero) ?? 'knight';
+		if (unlocked && !unlocked.has(pick)) pick = unlocked.has('knight') ? 'knight' : unlocked.values().next().value;
+		this.members.set(pid, { pid, name, hero: pick, ready: false, color, unlocked });
 		if (this.host === null) this.host = pid;
 		this.sendLobby();
 		return null;
@@ -242,7 +273,7 @@ export class Room {
 
 	lobbyMsg() {
 		return {
-			t: 'lobby', code: this.code, host: this.host,
+			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
 		};
 	}
@@ -253,7 +284,7 @@ export class Room {
 
 	startMsg() {
 		return {
-			t: 'start',
+			t: 'start', mode: this.mode, len: this.runLength, paused: this.frozen, menu: this.paused,
 			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y) })),
 			broken: this.brokenList ?? [],
 		};
@@ -282,11 +313,31 @@ export class Room {
 			case 'hero': {
 				const hero = sanitizeHero(msg.hero);
 				if (this.state === 'lobby' && hero) {
+					if (m.unlocked && !m.unlocked.has(hero)) {
+						this.send(pid, { t: 'err', msg: 'Этот герой ещё не открыт' });
+						break;
+					}
 					m.hero = hero;
 					this.sendLobby();
 				}
 				break;
 			}
+			case 'heroes':
+				// A hero opened during the session (end of a run): the client resends its list.
+				m.unlocked = sanitizeUnlocked(msg.heroes) ?? m.unlocked;
+				break;
+			case 'mode':
+				if (this.state !== 'lobby') break;
+				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Режим выбирает хост' });
+				else if (this.setMode(msg.mode)) this.sendLobby();
+				break;
+			case 'pause':
+				this.setPaused(msg.v === true);
+				break;
+			case 'quit':
+				// Solo only: leave the run for the room lobby without results.
+				if (this.state === 'play' && this.isSolo()) this.toLobby();
+				break;
 			case 'ready':
 				if (this.state === 'lobby') {
 					m.ready = msg.v === true;
@@ -323,6 +374,8 @@ export class Room {
 
 	toLobby() {
 		this.state = 'lobby';
+		this.paused = false;
+		this.frozen = false;
 		this.heroes.clear();
 		this.resetSim();
 		for (const m of this.members.values()) m.ready = false;
@@ -331,6 +384,13 @@ export class Room {
 
 	resetSim() {
 		this.time = 0;
+		this.bossKills = 0;
+		this.tscale = timeScale(this.runLength);
+		this.xpMul = MODES[this.mode].seconds === this.runLength ? MODES[this.mode].xpMul : this.tscale;
+		this.bossAt = bossTimes(this.runLength);
+		this.modeHp = MODES[this.mode].seconds === this.runLength ? modeHpMul(this.mode, this.members.size) : 1;
+		this.paused = false;
+		this.frozen = false;
 		this.kills = 0;
 		this.tickNo = 0;
 		this.nextId = 1;
@@ -347,9 +407,9 @@ export class Room {
 		this.items = [];
 		this.broken = new Set();
 		this.brokenList = [];
-		this.nextEliteT = ELITE_START;
-		this.nextInvasionT = INVASION.from;
-		this.peaks = peakSchedule(this.runLength, BOSS_TIMES);
+		this.nextEliteT = ELITE_START / this.tscale;
+		this.nextInvasionT = INVASION.from / this.tscale;
+		this.peaks = peakSchedule(this.runLength, this.bossAt);
 		this.peakIdx = 0;
 		this.peakWarned = 0;
 		this.peak = null;
@@ -390,8 +450,32 @@ export class Room {
 		this.broadcast(this.startMsg());
 	}
 
+	// --- solo pause: the menu (Esc / ⏸) and an open level-up offer both stop the tick ---
+
+	isSolo() {
+		return this.heroes.size === 1;
+	}
+
+	setPaused(on) {
+		if (this.state !== 'play' || (on && !this.isSolo())) return;
+		this.paused = on;
+		this.updateFrozen();
+	}
+
+	updateFrozen() {
+		const solo = this.isSolo();
+		if (!solo) this.paused = false;
+		const offer = solo && [...this.heroes.values()].some((h) => h.offer);
+		const frozen = this.state === 'play' && (this.paused || offer);
+		if (frozen === this.frozen) return;
+		this.frozen = frozen;
+		// The last tick's state goes out first so the client freezes on it.
+		if (frozen && this.tickNo % SNAPSHOT_EVERY !== 0) this.snapshot();
+		this.broadcast({ t: 'pause', on: frozen, menu: this.paused });
+	}
+
 	onPos(pid, msg) {
-		if (this.state !== 'play') return;
+		if (this.state !== 'play' || this.frozen) return;
 		const h = this.heroes.get(pid);
 		if (!h || h.st !== 0) return;
 		const x = num(msg.x), y = num(msg.y);
@@ -737,6 +821,10 @@ export class Room {
 
 	tick(dt) {
 		if (this.state !== 'play') return;
+		if (this.frozen) {
+			this.updateFrozen();
+			if (this.frozen) return;
+		}
 		this.time += dt;
 		this.tickNo++;
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
@@ -764,11 +852,11 @@ export class Room {
 		this.updateRevive(dt);
 		if (alive.length) {
 			if (this.time >= this.nextEliteT) {
-				this.nextEliteT = this.time + (this.time >= 600 ? ELITE_EVERY_LATE : ELITE_EVERY);
+				this.nextEliteT = this.time + (this.nt >= 600 ? ELITE_EVERY_LATE : ELITE_EVERY) / this.tscale;
 				this.makeElite(alive);
 			}
 			if (this.time >= this.nextInvasionT) {
-				this.nextInvasionT = this.time + INVASION.every;
+				this.nextInvasionT = this.time + INVASION.every / this.tscale;
 				if (!this.nearPeak()) this.invasion(alive);
 			}
 			if (this.time >= this.nextGemSweep) {
@@ -785,6 +873,7 @@ export class Room {
 			return;
 		}
 		if (this.tickNo % SNAPSHOT_EVERY === 0) this.snapshot();
+		this.updateFrozen();
 	}
 
 	randomRingPos(alive) {
@@ -797,10 +886,10 @@ export class Room {
 	spawnEnemy(type, alive, hpMul) {
 		const E = ENEMIES[type];
 		const [x, y] = this.randomRingPos(alive);
-		const hp = E.hp * hpMul;
+		const hp = E.hp * hpMul * this.modeHp;
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
-			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.time, this.heroes.size), dmgMul: enemyDmgScale(this.time, this.heroes.size), r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
+			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size), dmgMul: enemyDmgScale(this.nt, this.heroes.size), r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
 			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
@@ -814,7 +903,7 @@ export class Room {
 
 	spawn(dt, alive) {
 		const n = this.heroes.size;
-		while (this.bossIdx < BOSS_TIMES.length && this.time >= BOSS_TIMES[this.bossIdx]) {
+		while (this.bossIdx < this.bossAt.length && this.time >= this.bossAt[this.bossIdx]) {
 			const type = this.bossIdx < BOSS_SCHEDULE.length ? this.bossPlan[this.bossIdx % this.bossPlan.length] : FINAL_BOSS.type;
 			this.bossIdx++;
 			this.spawnBoss(type, alive);
@@ -822,7 +911,7 @@ export class Room {
 		const wave = this.currentWave();
 		this.spawnAcc += wave.rate * spawnRateScale(n) * (this.peak?.spawnMul ?? 1) * dt;
 		if (this.spawnAcc < 1) return;
-		const hpMul = enemyHpScale(this.time, n);
+		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
 		while (this.spawnAcc >= 1) {
 			this.spawnAcc -= 1;
@@ -835,7 +924,7 @@ export class Room {
 	}
 
 	spawnBoss(type, alive) {
-		const b = this.spawnEnemy(type, alive, bossHpScale(this.time, this.heroes.size));
+		const b = this.spawnEnemy(type, alive, bossHpScale(this.nt, this.heroes.size));
 		b.group = b.id;
 		this.bosses.push(b);
 		this.fx.push(['boss', ENEMIES[type].name]);
@@ -845,7 +934,7 @@ export class Room {
 
 	currentWave() {
 		let wave = WAVES[0];
-		for (const w of WAVES) if (w.at <= this.time) wave = w;
+		for (const w of WAVES) if (w.at <= this.nt) wave = w;
 		return wave;
 	}
 
@@ -887,7 +976,7 @@ export class Room {
 	// One ring per cluster of alive players: `count` enemies (scaled like spawn) on a circle around the cluster.
 	peakRing(R, alive) {
 		const wave = this.currentWave();
-		const hpMul = enemyHpScale(this.time, this.heroes.size);
+		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const left = new Set(alive);
 		let spawned = 0;
 		for (const h of alive) {
@@ -924,9 +1013,9 @@ export class Room {
 	// A ring of the current wave's enemies around every alive player, closing in (may exceed the cap a little).
 	invasion(alive) {
 		const wave = this.currentWave();
-		const count = invasionCount(this.time, this.heroes.size);
+		const count = invasionCount(this.nt, this.heroes.size);
 		if (count <= 0) return;
-		const hpMul = enemyHpScale(this.time, this.heroes.size);
+		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const cap = MAX_ENEMIES + 60;
 		for (const h of alive) {
 			this.fx.push(['inv', h.pid, INVASION.radius]);
@@ -1202,7 +1291,7 @@ export class Room {
 		const alive = [...this.heroes.values()].filter((h) => h.st === 0);
 		if (!alive.length) return;
 		const count = Math.round(call.count * (1 + 0.25 * (this.heroes.size - 1)));
-		const hpMul = enemyHpScale(this.time, this.heroes.size);
+		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 60; i++) {
 			const m = this.spawnEnemy(call.type, alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
@@ -1488,7 +1577,10 @@ export class Room {
 	killEnemy(e, h, src = SRC_NONE) {
 		e.dead = true;
 		this.kills++;
-		if (h) h.kills++;
+		if (h) {
+			h.kills++;
+			if (KNIFE_SRC.has(src.weapon)) h.knifeKills++;
+		}
 		if (this.dieFx < MAX_DIE_FX) {
 			this.dieFx++;
 			this.fx.push(['die', Math.round(e.x), Math.round(e.y), e.type]);
@@ -1518,6 +1610,7 @@ export class Room {
 			if (!this.bosses.some((o) => o.group === e.group)) {
 				this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
 				this.runLog?.bossKilled(this, e);
+				this.bossKills++;
 				for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p, false, CHEST_FLOOR.boss);
 			}
 		}
@@ -3079,13 +3172,15 @@ export class Room {
 				if (dist2(e.x, e.y, p.x, p.y) >= min * min) continue;
 				p.hit.push(e.id);
 				p.anyHit = true;
-				this.hurtEnemy(e, p.dmg, p.owner, p.src);
+				// «Таран» (Копейщица): her spears hit harder for every enemy already pierced.
+				const ram = p.kind === KIND_INDEX.spear ? p.owner.trait.spearRam : 0;
+				this.hurtEnemy(e, ram ? p.dmg * (1 + ram * (p.hit.length - 1)) : p.dmg, p.owner, p.src);
 				if (this.lastCrit && p.src === SRC.knives && !p.critPierced) { // Ножи + Острота
 					p.critPierced = true;
 					p.pierce++;
 				}
 				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
-				if (p.kb && !e.dead && !e.boss) this.knock(e, e.x - p.vx, e.y - p.vy, p.kb);
+				if (p.kb && !e.dead && !e.boss) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
 				if (p.split) this.splitSpark(p, e);
 				if (--p.pierce <= 0) break;
 				if (p.target === e) {
@@ -3251,6 +3346,7 @@ export class Room {
 	}
 
 	collectGem(h, xp) {
+		xp *= this.xpMul;
 		this.addXp(h, xp * h.mods.xpMul);
 		for (const o of this.heroes.values()) if (o !== h) this.addXp(o, xp * o.mods.xpMul);
 	}
@@ -3271,13 +3367,11 @@ export class Room {
 		const rate = (100 / REVIVE_SECONDS) * dt;
 		for (const h of this.heroes.values()) {
 			if (h.st !== 1) continue;
-			let helped = false;
+			const helpers = [];
 			for (const o of this.heroes.values()) {
-				if (o.st === 0 && dist2(o.x, o.y, h.x, h.y) < REVIVE_RADIUS * REVIVE_RADIUS) {
-					helped = true;
-					break;
-				}
+				if (o.st === 0 && dist2(o.x, o.y, h.x, h.y) < REVIVE_RADIUS * REVIVE_RADIUS) helpers.push(o);
 			}
+			const helped = helpers.length > 0;
 			h.rev = helped ? h.rev + rate : Math.max(0, h.rev - rate * 0.5);
 			if (h.rev >= 100) {
 				h.st = 0;
@@ -3285,6 +3379,7 @@ export class Room {
 				h.hp = h.maxHp * REVIVE_HP_FRACTION;
 				h.iframes = REVIVE_IFRAMES;
 				h.lastPosT = this.time;
+				for (const o of helpers) o.revives++;
 				this.fx.push(['up', h.pid]);
 				this.runLog?.up(this, h);
 			}
@@ -3298,9 +3393,22 @@ export class Room {
 		return true;
 	}
 
+	// This run's share of the hero-unlock stats (UNLOCKS) for one player; the client adds it to its totals.
+	runAchievements(h, win) {
+		return {
+			wins: win ? 1 : 0,
+			knightBest: h.hero === 'knight' ? Math.floor(this.time) : 0,
+			revives: h.revives,
+			knifeKills: h.knifeKills,
+			bosses: this.bossKills ?? 0,
+		};
+	}
+
 	finish(win) {
 		this.snapshot();
 		this.state = 'over';
+		this.paused = false;
+		this.frozen = false;
 		for (const h of this.heroes.values()) {
 			h.offer = null;
 			h.queue = 0;
@@ -3309,8 +3417,10 @@ export class Room {
 		if (log) runStore.add(log);
 		this.lastLog = log;
 		this.overMsg = {
-			t: 'over', win, time: Math.round(this.time * 10) / 10, host: this.host,
-			stats: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level })),
+			t: 'over', win, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
+			stats: [...this.heroes.values()].map((h) => ({
+				pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
+			})),
 			runId: log?.id ?? null, log,
 		};
 		this.broadcast(this.overMsg);
@@ -3443,7 +3553,7 @@ export class Hub {
 		const out = [];
 		for (const r of this.rooms.values()) {
 			if (r.state !== 'lobby') continue;
-			out.push({ code: r.code, host: r.members.get(r.host)?.name ?? '', players: r.size, state: r.state });
+			out.push({ code: r.code, host: r.members.get(r.host)?.name ?? '', players: r.size, state: r.state, mode: r.mode });
 		}
 		return out;
 	}
@@ -3486,8 +3596,9 @@ export class Hub {
 			case 'create': {
 				this.leaveRoom(pid);
 				const room = new Room(this.newCode(), this.send);
+				room.setMode(msg.mode);
 				this.rooms.set(room.code, room);
-				room.addPlayer(pid, p.name, msg.hero);
+				room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes));
 				p.room = room;
 				this.pushRooms();
 				return;
@@ -3503,7 +3614,7 @@ export class Hub {
 				if (room.state !== 'lobby') return err('Игра в этой комнате уже идёт');
 				if (room.size >= MAX_PLAYERS) return err('Комната заполнена');
 				this.leaveRoom(pid);
-				const e = room.addPlayer(pid, p.name, msg.hero);
+				const e = room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes));
 				if (e) return err(e);
 				p.room = room;
 				this.pushRooms();
@@ -3516,7 +3627,7 @@ export class Hub {
 				const room = p.room;
 				if (!room) return;
 				room.handle(pid, msg);
-				if (msg.t === 'start' || msg.t === 'again') this.pushRooms();
+				if (msg.t === 'start' || msg.t === 'again' || msg.t === 'mode') this.pushRooms();
 			}
 		}
 	}

@@ -137,6 +137,9 @@ export class Game {
 	begin(msg) {
 		this.reset();
 		this.running = true;
+		this.frozen = msg.paused === true;
+		this.menuPause = this.frozen && msg.menu === true;
+		this.count = Array.isArray(msg.players) ? msg.players.length : 1;
 		const br = Array.isArray(msg.broken) ? msg.broken : EMPTY;
 		for (let i = 0; i + 1 < br.length; i += 2) this.broken.add((br[i] | 0) * 100003 + (br[i + 1] | 0));
 		const list = Array.isArray(msg.players) ? msg.players : EMPTY;
@@ -167,6 +170,27 @@ export class Game {
 	stop() {
 		this.running = false;
 		this.offer = null;
+		this.frozen = false;
+		this.menuPause = false;
+	}
+
+	// One hero in the run: Esc / ⏸ pause and level-up offers stop the server.
+	solo() {
+		if (!this.running) return false;
+		const s = this.latest();
+		return (s ? s.p.length : this.count) === 1;
+	}
+
+	// Server pause state. After a pause the snapshot clock restarts, so the world does not jump.
+	setPause(on, menu) {
+		const was = this.frozen;
+		this.frozen = !!on;
+		this.menuPause = !!on && !!menu;
+		if (was && !on) {
+			// Keep drawing the frozen frame until the first new snapshot re-anchors the clock.
+			this.offs = [];
+			this.gaps = [];
+		}
 	}
 
 	setLobbyPlayers(list) {
@@ -315,7 +339,9 @@ export class Game {
 		this.advanceShots();
 		this.advanceHostile();
 
-		if (this.running) {
+		// Frozen by the server, or about to be (own offer open in solo): stand still.
+		const still = this.frozen || (this.offer && this.solo());
+		if (this.running && !still) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {

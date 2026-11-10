@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {
-	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES,
+	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES, modeOf,
 } from '../public/shared/content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
@@ -54,8 +54,8 @@ export class RunLog {
 		const dealt = heroes.reduce((s, h) => s + h.dmg, 0);
 		const alive = heroes.filter((h) => h.st === 0).length;
 		this.minutes.push({
-			m: this.minutes.length + 1, enemies: room.enemies.length, hpMul: r1(enemyHpScale(room.time, room.heroes.size)),
-			dmgMul: Math.round(enemyDmgScale(room.time, room.heroes.size) * 100) / 100, alive, lvl: heroes.map((h) => h.level),
+			m: this.minutes.length + 1, enemies: room.enemies.length, hpMul: r1(enemyHpScale(room.nt ?? room.time, room.heroes.size)),
+			dmgMul: Math.round(enemyDmgScale(room.nt ?? room.time, room.heroes.size) * 100) / 100, alive, lvl: heroes.map((h) => h.level),
 			taken: Math.round(this.acc.taken), downs: this.acc.downs, kills: room.kills - this.acc.kills,
 			dps: Math.round((dealt - this.acc.dealt) / 60), maxHp: Math.round(heroes.reduce((s, h) => s + h.maxHp, 0) / heroes.length),
 		});
@@ -144,7 +144,7 @@ export class RunLog {
 				pid: h.pid, name: h.name, hero: h.hero, heroName: HEROES[h.hero]?.name ?? h.hero, level: h.level,
 				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
-				duos: p.duos, evos: p.evos, rarity: p.rar,
+				duos: p.duos, evos: p.evos, rarity: p.rar, ach: room.runAchievements?.(h, win),
 				build: {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 					passives: [...h.passives].map(([id, l]) => `${id}${l}`),
@@ -155,7 +155,7 @@ export class RunLog {
 		});
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
-			win, time: r1(room.time), kills: room.kills,
+			mode: room.mode ?? 'night', runLength: room.runLength, win, time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common',
 			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), peaks: this.peaks, team: players,
 			reactions: { ...(room.reactN ?? {}) },
@@ -174,12 +174,15 @@ export class RunLog {
 export function summarize(log) {
 	const out = [];
 	const outcome = log.win ? `победа на ${mmss(log.time)}` : `группа пала на ${mmss(log.time)}`;
-	out.push(`Ночная орда ${log.v} · лог #${log.id} · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
+	const len = log.runLength ?? modeOf(log.mode).seconds;
+	out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
 	const all = {};
 	let tot = 0;
 	for (const p of log.team) for (const d of p.dmgBy) { all[d.id] = (all[d.id] ?? 0) + d.dmg; tot += d.dmg; }
 	const top = Object.entries(all).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, v]) => `${srcName(id)} ${Math.round((v / (tot || 1)) * 100)}%`);
 	if (top.length) out.push(`Топ-3 оружия по доле урона: ${top.join(', ')}`);
+	const builds = log.team.map((p) => (p.evos?.length ?? 0) + (p.duos?.length ?? 0));
+	if (builds.length) out.push(`Эволюций и связок за забег: ${builds.join(', ')} (в среднем ${r1(builds.reduce((a, b) => a + b, 0) / builds.length)})`);
 	const rx = Object.entries(log.reactions ?? {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
 	if (rx.length) out.push('Реакции: ' + rx.map(([k, n]) => `${REACTIONS[k]?.name ?? k} ×${n}`).join(', '));
 	const hard = [], easy = [];
@@ -246,7 +249,7 @@ export const runStore = {
 	},
 	list() {
 		return this.runs.slice().reverse().map((r) => ({
-			id: r.id, at: r.at, v: r.v, win: r.win, time: r.time, players: r.team.map((p) => ({ name: p.name, hero: p.hero, level: p.level })),
+			id: r.id, at: r.at, v: r.v, mode: r.mode ?? 'night', win: r.win, time: r.time, players: r.team.map((p) => ({ name: p.name, hero: p.hero, level: p.level })),
 		}));
 	},
 	persist(dir) {

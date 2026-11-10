@@ -449,5 +449,20 @@
       60
     ],
     "bodyRadius": 0
+  },
+  "spearmaiden": {
+    "file": "spearmaiden.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "spearmaiden_mask.png"
   }
 }

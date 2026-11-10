@@ -16,6 +16,8 @@ import {
 	PEAKS, PEAK_WARN, PEAK_BOSS_GAP, RUN_SECONDS, INVASION, spawnRateScale, peakSchedule,
 	RARITIES, CHEST_FLOOR, rollRarity, rarityWeights, passiveStep, passiveDesc, PASSIVE_BASE,
 } from '../public/shared/content.js';
+import * as C from '../public/shared/content.js';
+const enemyHpScaleOf = (r) => C.enemyHpScale(r.nt, r.heroes.size);
 
 const isInt = (v) => Number.isInteger(v);
 
@@ -1363,6 +1365,8 @@ console.log('over/again/leave: ok');
 	const step = (r, sec, each) => {
 		for (let i = 0; i < Math.round(sec * TICK_HZ); i++) {
 			for (const h of r.heroes.values()) { h.hp = h.maxHp; r.handle(h.pid, { t: 'pos', x: h.x, y: h.y, fx: 1, fy: 0 }); }
+			// A solo level-up offer pauses the room; decline it like a player would.
+			for (const h of r.heroes.values()) while (h.offer) r.handle(h.pid, { t: 'skip' });
 			each?.();
 			r.tick(dt);
 		}
@@ -1778,6 +1782,208 @@ console.log('over/again/leave: ok');
 	assert.equal(last[6], c0.rar, 'pick entry keeps rarity');
 	assert.ok(log.summary.some((l) => l.startsWith('Редкость карточек:')));
 	console.log(`card rarity: ok (offers ${seen.map((x) => (x / n * 100).toFixed(1)).join('/')}%)`);
+}
+
+// --- v14: «Обед» (10 min), solo pause, hero unlocks ---
+{
+	const dt1 = 1 / C.TICK_HZ;
+	// Lunch: bosses, waves, peaks and dawn squeeze into 10:00; night time runs 1.5× faster; xp follows.
+	{
+		const r = new Room('LNCH', () => {});
+		assert.ok(r.setMode('lunch') && r.runLength === 600);
+		r.addPlayer(1, 'L', 'knight');
+		r.start();
+		assert.equal(r.tscale, 1.5);
+		assert.equal(r.xpMul, C.MODES.lunch.xpMul);
+		assert.deepEqual(r.bossAt, [120, 240, 360, 480, 570]);
+		const pk = Object.fromEntries(r.peaks.map((p) => [p.id, p]));
+		assert.equal(pk.ring.at, 100);
+		assert.equal(pk.tide.at, 300);
+		assert.ok(pk.eclipse.at >= 490 && pk.eclipse.at < 520);
+		assert.ok(pk.dawn.burn && pk.dawn.at > 570 && pk.dawn.at + pk.dawn.dur === 600, 'dawn ends the lunch');
+		assert.equal(r.nextEliteT, C.ELITE_START / 1.5);
+		assert.equal(r.nextInvasionT, C.INVASION.from / 1.5);
+		r.time = 400;
+		assert.equal(r.nt, 600);
+		assert.equal(r.currentWave().at, 600, 'wave by night time');
+		const night = new Room('NGHT', () => {});
+		night.addPlayer(1, 'N', 'knight');
+		night.start();
+		night.time = 600;
+		assert.equal(enemyHpScaleOf(r), enemyHpScaleOf(night), 'pressure by night time');
+		// Gems are worth xpMul more in lunch.
+		const h = r.heroes.get(1), hn = night.heroes.get(1);
+		r.collectGem(h, 2);
+		night.collectGem(hn, 2);
+		assert.ok(Math.abs(h.xp - hn.xp * C.MODES.lunch.xpMul) < 1e-9);
+		// The run ends at 10:00 with the dawn burn and a win.
+		const out = [];
+		const r2 = new Room('LN2', (pid, m) => out.push(m));
+		r2.setMode('lunch');
+		r2.addPlayer(1, 'L', 'knight');
+		r2.start();
+		r2.spawn = () => {};
+		const h2 = r2.heroes.get(1);
+		h2.iframes = 1e9;
+		r2.time = 599.9;
+		for (let i = 0; i < 10 && r2.state === 'play'; i++) { while (h2.offer) r2.handle(1, { t: 'skip' }); r2.tick(dt1); }
+		const over = out.find((m) => m.t === 'over');
+		assert.ok(over && over.win && over.mode === 'lunch' && over.len === 600, 'lunch win at 10:00');
+		assert.ok(over.log.mode === 'lunch' && over.log.summary[0].includes('«Обед»'), 'run log shows the mode');
+		// Mode in the lobby and the room list; only the host changes it.
+		const msgs = [];
+		const hub = new Hub((pid, m) => msgs.push([pid, m]));
+		hub.addPlayer(1, 'A');
+		hub.addPlayer(2, 'B');
+		hub.handle(1, { t: 'create', hero: 'knight', mode: 'lunch' });
+		const room = hub.players.get(1).room;
+		assert.equal(room.mode, 'lunch');
+		assert.equal(hub.roomList()[0].mode, 'lunch');
+		hub.handle(2, { t: 'join', code: room.code, hero: 'witch' });
+		hub.handle(2, { t: 'mode', mode: 'night' });
+		assert.equal(room.mode, 'lunch', 'guest cannot change the mode');
+		hub.handle(1, { t: 'mode', mode: 'night' });
+		assert.equal(room.mode, 'night');
+		assert.equal(msgs.filter(([pid, m]) => pid === 2 && m.t === 'lobby').pop()[1].mode, 'night', 'everyone sees the mode');
+		// Lunch groups get extra enemy hp (balance), solo does not; the night has none.
+		assert.equal(r.modeHp, 1);
+		const pair = new Room('LP', () => {});
+		pair.setMode('lunch');
+		pair.addPlayer(1, 'A', 'knight');
+		pair.addPlayer(2, 'B', 'witch');
+		pair.start();
+		assert.equal(pair.modeHp, C.modeHpMul('lunch', 2));
+		assert.ok(pair.modeHp > 1 && night.modeHp === 1);
+		const eL = pair.spawnEnemy('bat', [...pair.heroes.values()], 1);
+		assert.ok(Math.abs(eL.maxHp - C.ENEMIES.bat.hp * pair.modeHp) < 1e-9);
+		console.log('lunch mode: ok');
+	}
+	// Solo pause: menu pause and an open offer stop the clock; groups cannot pause.
+	{
+		const out = [];
+		const r = new Room('PAUS', (pid, m) => out.push(m));
+		r.addPlayer(1, 'S', 'witch');
+		r.start();
+		const h = r.heroes.get(1);
+		for (let i = 0; i < 30; i++) { while (h.offer) r.handle(1, { t: 'skip' }); r.tick(dt1); }
+		r.handle(1, { t: 'pause', v: true });
+		assert.ok(r.frozen && out.some((m) => m.t === 'pause' && m.on && m.menu));
+		const t0 = r.time, e0 = r.enemies.length, cd0 = JSON.stringify([...h.weapons]), x0 = h.x;
+		for (let i = 0; i < 90; i++) r.tick(dt1);
+		r.handle(1, { t: 'pos', x: h.x + 50, y: h.y, fx: 1, fy: 0 });
+		assert.equal(r.time, t0, 'clock stands');
+		assert.equal(r.enemies.length, e0);
+		assert.equal(JSON.stringify([...h.weapons]), cd0, 'cooldowns stand');
+		assert.equal(h.x, x0, 'no moving while paused');
+		r.handle(1, { t: 'pause', v: false });
+		assert.ok(!r.frozen && out[out.length - 1].t === 'pause' && !out[out.length - 1].on);
+		r.tick(dt1);
+		assert.ok(r.time > t0, 'clock goes on');
+		// Level-up offer pauses solo.
+		r.grantOffer(h);
+		r.tick(dt1);
+		const t1 = r.time;
+		for (let i = 0; i < 30; i++) r.tick(dt1);
+		assert.ok(r.frozen && r.time === t1, 'offer pauses solo');
+		r.handle(1, { t: 'pick', i: 0 });
+		while (h.offer) r.handle(1, { t: 'skip' });
+		r.tick(dt1);
+		assert.ok(!r.frozen && r.time > t1);
+		// Quit to the lobby.
+		r.handle(1, { t: 'pause', v: true });
+		r.handle(1, { t: 'quit' });
+		assert.ok(r.state === 'lobby' && !r.frozen && !r.paused);
+		// Two players: no pause, offers do not stop the clock.
+		const g = new Room('DUO', () => {});
+		g.addPlayer(1, 'A', 'knight');
+		g.addPlayer(2, 'B', 'witch');
+		g.start();
+		g.handle(1, { t: 'pause', v: true });
+		g.grantOffer(g.heroes.get(1));
+		const tg = g.time;
+		for (let i = 0; i < 10; i++) g.tick(dt1);
+		assert.ok(!g.frozen && !g.paused && g.time > tg, 'no pause in a group');
+		g.handle(2, { t: 'quit' });
+		assert.equal(g.state, 'play', 'no quit in a group');
+		console.log('solo pause: ok');
+	}
+	// Hero unlocks: start heroes, server-side run stats, merge on the client, locked picks refused.
+	{
+		assert.deepEqual(C.unlockedHeroes({}), C.START_HEROES);
+		assert.equal(new Set(C.START_HEROES.map((id) => C.HEROES[id])).size, 3);
+		for (const id of Object.keys(C.HEROES)) assert.ok(C.START_HEROES.includes(id) || C.UNLOCKS[id], `${id} has a way to open`);
+		let tot = {};
+		tot = C.mergeAchStats(tot, { wins: 0, knightBest: 200, revives: 3, knifeKills: 100 });
+		tot = C.mergeAchStats(tot, { wins: 1, knightBest: 120, revives: 4, knifeKills: 50 });
+		assert.deepEqual(tot, { wins: 1, knightBest: 200, revives: 7, knifeKills: 150, bosses: 0 });
+		assert.ok(C.unlockedHeroes(tot).includes('stormcaller') && !C.unlockedHeroes(tot).includes('smith'));
+		assert.equal(C.unlockProgress('herald', tot), 'Поднимите союзников: 7/10');
+		assert.equal(C.unlockProgress('smith', tot), 'Продержитесь 5:00 Стражем: 3:20/5:00');
+		tot = C.mergeAchStats(tot, { knightBest: 301 });
+		assert.ok(C.unlockedHeroes(tot).includes('smith'));
+		// Server counts revives given, knife kills, the knight's time and the win.
+		const out = [];
+		const r = new Room('ACH', (pid, m) => out.push([pid, m]));
+		r.addPlayer(1, 'K', 'knight', new Set(['knight', 'witch', 'alchemist']));
+		r.addPlayer(2, 'R', 'ranger');
+		r.handle(1, { t: 'hero', hero: 'smith' });
+		assert.equal(r.members.get(1).hero, 'knight', 'locked hero refused');
+		assert.ok(out.some(([pid, m]) => pid === 1 && m.t === 'err'));
+		r.addPlayer(3, 'X', 'smith', new Set(['witch']));
+		assert.equal(r.members.get(3).hero, 'witch', 'locked start hero falls back');
+		r.removePlayer(3);
+		r.handle(1, { t: 'heroes', heroes: ['knight', 'witch', 'alchemist', 'stormcaller'] });
+		r.handle(1, { t: 'hero', hero: 'stormcaller' });
+		assert.equal(r.members.get(1).hero, 'stormcaller', 'hero opened mid-session');
+		r.handle(1, { t: 'hero', hero: 'knight' });
+		r.start();
+		const k = r.heroes.get(1), rg = r.heroes.get(2);
+		r.spawn = () => {};
+		k.iframes = rg.iframes = 1e9;
+		rg.st = 1;
+		rg.x = k.x + 10;
+		rg.y = k.y;
+		for (let i = 0; i < 4 * C.TICK_HZ && rg.st === 1; i++) { r.handle(1, { t: 'pos', x: k.x, y: k.y }); r.tick(dt1); }
+		assert.equal(rg.st, 0);
+		assert.equal(k.revives, 1, 'revive credited to the helper');
+		const e = r.spawnEnemy('bat', [k], 1);
+		r.hurtEnemy(e, 1e6, rg, { weapon: 'knives', tags: ['phys', 'proj'] });
+		assert.equal(rg.knifeKills, 1);
+		r.time = 320;
+		r.finish(true);
+		const over = out.filter(([, m]) => m.t === 'over').pop()[1];
+		const a1 = over.stats.find((s) => s.pid === 1).ach, a2 = over.stats.find((s) => s.pid === 2).ach;
+		assert.deepEqual(a1, { wins: 1, knightBest: 320, revives: 1, knifeKills: 0, bosses: 0 });
+		assert.deepEqual(a2, { wins: 1, knightBest: 0, revives: 0, knifeKills: 1, bosses: 0 });
+		assert.ok(C.unlockedHeroes(C.mergeAchStats({}, a1)).includes('smith'), 'knight 5:20 opens the smith');
+		// Boss kills count for every player in the room (Копейщица).
+		const rb = new Room('BK', () => {});
+		rb.addPlayer(1, 'A', 'witch');
+		rb.addPlayer(2, 'B', 'knight');
+		rb.start();
+		const bb = rb.spawnBoss('ram', [...rb.heroes.values()]);
+		rb.hurtEnemy(bb, 1e9, rb.heroes.get(1));
+		assert.equal(rb.runAchievements(rb.heroes.get(2), false).bosses, 1);
+		assert.ok(C.unlockedHeroes({ bosses: 5 }).includes('spearmaiden') && !C.unlockedHeroes({ bosses: 4 }).includes('spearmaiden'));
+		// «Таран»: her spear hits the 3rd pierced enemy harder and knocks back twice as far as a plain spear.
+		const hit = (hero) => {
+			const r = new Room('RAM', () => {});
+			r.addPlayer(1, 'S', hero);
+			r.start();
+			r.spawn = () => {};
+			const h = r.heroes.get(1);
+			h.weapons = new Map();
+			const es = [0, 1, 2].map((i) => { const e = r.spawnEnemy('brute', [h], 100); e.x = 60 + i * 50; e.y = 0; e.speed = 0; return e; });
+			r.rebuildGrid();
+			r.addProjectile(h, 'spear', 0, 700, 30, 5, 0.5, null, 0, { src: { weapon: 'spear', tags: ['phys', 'proj'] }, kb: 40, r: 8 });
+			for (let i = 0; i < 12; i++) { r.rebuildGrid(); r.updateProjectiles(dt1); }
+			return es.map((e) => [e.maxHp - e.hp, e.x]);
+		};
+		const plain = hit('witch'), ram = hit('spearmaiden');
+		assert.ok(Math.abs(ram[0][0] - plain[0][0]) < 1e-6 && ram[2][0] > plain[2][0] * 1.2, 'ram: more damage deeper in the line');
+		assert.ok(ram[0][1] - 60 > (plain[0][1] - 60) * 1.8, 'ram: knockback ×2');
+		console.log('hero unlocks: ok');
+	}
 }
 
 console.log('OK');

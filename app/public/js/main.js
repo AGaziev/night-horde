@@ -1,9 +1,9 @@
-import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN } from '/shared/content.js';
+import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
 import { Renderer } from './render.js';
-import { UI, rememberDuo } from './ui.js';
+import { UI, rememberDuo, fmtTime } from './ui.js';
 import { Sound } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -21,10 +21,21 @@ const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
 
+// Hero unlocks live in this browser: totals of per-run stats the server sends in `over`.
+// ?unlockall=1 opens everyone (debug, remembered); ?unlockall=0 turns it off.
+const params = new URLSearchParams(location.search);
+if (params.has('unlockall')) store.set('nh.unlockall', params.get('unlockall') === '1' ? '1' : '');
+const unlockAll = store.get('nh.unlockall') === '1';
+const readJson = (k) => { try { return JSON.parse(store.get(k) || '{}') || {}; } catch { return {}; } };
+const ach = { stats: readJson('nh.ach') };
+const unlocked = () => new Set(unlockAll ? Object.keys(HEROES) : unlockedHeroes(ach.stats));
+const savedHero = store.get('nh.hero');
+
 const state = {
 	me: null,
 	name: '',
-	hero: HEROES[store.get('nh.hero')] ? store.get('nh.hero') : 'knight',
+	hero: HEROES[savedHero] && unlocked().has(savedHero) ? savedHero : START_HEROES[0],
+	mode: MODES[store.get('nh.mode')] ? store.get('nh.mode') : DEFAULT_MODE,
 	lobby: null,
 	host: null,
 	myReady: false,
@@ -55,7 +66,7 @@ function joinRoom(code) {
 		ui.toast('Введите код комнаты');
 		return;
 	}
-	net.send({ t: 'join', code, hero: state.hero });
+	net.send({ t: 'join', code, hero: state.hero, heroes: [...unlocked()] });
 }
 
 // Network events
@@ -97,6 +108,11 @@ net.on('lobby', (msg) => {
 	input.setEnabled(false);
 	state.lobby = msg;
 	state.host = msg.host;
+	ui.showPause(false);
+	if (MODES[msg.mode] && msg.host === state.me) {
+		state.mode = msg.mode;
+		store.set('nh.mode', msg.mode);
+	}
 	game.setLobbyPlayers(msg.players);
 	if (ui.screen !== 'lobby') ui.show('lobby');
 	sound.setMode('lobby');
@@ -112,7 +128,37 @@ let overTimer = 0;
 net.on('start', (msg) => {
 	clearTimeout(overTimer);
 	game.begin(msg);
+	const len = +msg.len || modeOf(msg.mode).seconds;
+	ui.modeText = `${modeOf(msg.mode).name} · до ${fmtTime(len)}`;
 	goGame();
+	ui.showPause(game.menuPause);
+});
+
+net.on('pause', (msg) => {
+	if (!game.running) return;
+	game.setPause(msg.on, msg.menu);
+	ui.showPause(game.menuPause);
+	input.setEnabled(!game.menuPause);
+});
+
+function togglePause(on = !game.menuPause) {
+	if (ui.screen !== 'game' || !game.solo()) return;
+	if (on && !ui.levelup.hidden) return; // the offer already holds the run
+	net.send({ t: 'pause', v: on });
+}
+$('hud-pause').addEventListener('click', (e) => {
+	togglePause(true);
+	e.currentTarget.blur();
+});
+$('pause-resume').addEventListener('click', () => togglePause(false));
+$('pause-quit').addEventListener('click', () => net.send({ t: 'quit' }));
+addEventListener('keydown', (e) => {
+	if (e.code !== 'Escape' || e.repeat) return;
+	togglePause();
+});
+// A solo run pauses itself when the tab goes to the background.
+document.addEventListener('visibilitychange', () => {
+	if (document.hidden && !game.menuPause) togglePause(true);
 });
 
 net.on('s', (msg) => {
@@ -136,8 +182,25 @@ net.on('over', (msg) => {
 	else showOver(msg);
 });
 
+// Adds this run's stats to the browser's totals and returns heroes opened by it.
+function takeAchievements(msg) {
+	const mine = (Array.isArray(msg.stats) ? msg.stats : []).find((s) => s.pid === state.me);
+	// The server resends `over` on reconnect: a run counts once.
+	if (!mine?.ach || (msg.runId && store.get('nh.achRun') === msg.runId)) return [];
+	if (msg.runId) store.set('nh.achRun', msg.runId);
+	const before = unlocked();
+	ach.stats = mergeAchStats(ach.stats, mine.ach);
+	store.set('nh.ach', JSON.stringify(ach.stats));
+	ui.setUnlocks(unlocked(), ach.stats);
+	net.send({ t: 'heroes', heroes: [...unlocked()] });
+	return unlockAll ? [] : [...unlocked()].filter((id) => !before.has(id));
+}
+
 function showOver(msg) {
 	game.stop();
+	ui.showPause(false);
+	msg.unlockedNow ??= takeAchievements(msg);
+	if (msg.unlockedNow.length) sound.legendary();
 	if (msg.host !== undefined) state.host = msg.host;
 	const stats = (Array.isArray(msg.stats) ? msg.stats : []).map((s) => ({ ...s, color: game.meta(s.pid).color }));
 	ui.renderOver({ ...msg, stats }, state.me, state.host === state.me);
@@ -239,12 +302,18 @@ ui.onSkip = input.onSkip = skip;
 // DOM controls
 
 ui.onHero = (id) => {
+	if (!unlocked().has(id)) {
+		ui.toast(`${HEROES[id].name} пока закрыт. ${unlockProgress(id, ach.stats)}`, 'info');
+		return;
+	}
 	state.hero = id;
 	store.set('nh.hero', id);
 	net.send({ t: 'hero', hero: id });
 	ui.selectHero(id, state.lobby?.players?.find((p) => p.pid === state.me)?.color || '#90a4ae');
 };
+ui.onMode = (id) => net.send({ t: 'mode', mode: id });
 ui.buildHeroCards(state.hero);
+ui.setUnlocks(unlocked(), ach.stats);
 
 $('menu-name').addEventListener('change', (e) => {
 	const name = e.target.value.trim().slice(0, 20);
@@ -253,7 +322,7 @@ $('menu-name').addEventListener('change', (e) => {
 	store.set('nh.name', name);
 	net.send({ t: 'name', name });
 });
-$('menu-create').addEventListener('click', () => net.send({ t: 'create', hero: state.hero }));
+$('menu-create').addEventListener('click', () => net.send({ t: 'create', hero: state.hero, mode: state.mode, heroes: [...unlocked()] }));
 $('menu-join').addEventListener('click', () => joinRoom($('menu-code').value));
 $('menu-code').addEventListener('keydown', (e) => {
 	if (e.key === 'Enter') joinRoom(e.target.value);
@@ -404,4 +473,4 @@ ui.setConnecting(true);
 net.start();
 
 // Debug handle for manual testing.
-window.__nh = { net, game, ui, state, input, P, renderer, sound };
+window.__nh = { net, game, ui, state, input, P, renderer, sound, ach, unlocked };
