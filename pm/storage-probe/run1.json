@@ -1,0 +1,115 @@
+{
+ "missing": {
+  "status": 404,
+  "ms": 327,
+  "body": "{\"success\":false,\"error\":{\"code\":\"STORAGE_OBJECT_NOT_FOUND\",\"message\":\"Object probe/does-not-exist.json not found\"}}"
+ },
+ "write1": {
+  "status": 200,
+  "ms": 726,
+  "body": "{\"object\":{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"13\",\"sha256\":\"66a9a8814419bf26fbdcf7bf24afed39e907bcbcc6dc80b2a49153a96142c385\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":n"
+ },
+ "read1": {
+  "status": 302,
+  "s3": 200,
+  "msRedirect": 166,
+  "msTotal": 405,
+  "body": "{\"v\":1,\"a\":1}",
+  "host": "vibe-storage-prod.storage.yandexcloud.net"
+ },
+ "replace": {
+  "status": 200,
+  "ms": 309,
+  "body": "{\"object\":{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"13\",\"sha256\":\"31200c9df9b26f17bf8bbea9855a1ed024cfb52ab7c3887970b87507ae2f57ba\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":n"
+ },
+ "read2": {
+  "status": 302,
+  "s3": 200,
+  "msRedirect": 130,
+  "msTotal": 192,
+  "body": "{\"v\":1,\"a\":2}",
+  "host": "vibe-storage-prod.storage.yandexcloud.net"
+ },
+ "latency": {
+  "writes": [
+   557,
+   453,
+   776,
+   410,
+   201
+  ],
+  "reads": [
+   167,
+   220,
+   272,
+   189,
+   238
+  ]
+ },
+ "concurrent": [
+  {
+   "status": 200,
+   "ms": 138
+  },
+  {
+   "status": 200,
+   "ms": 315
+  },
+  {
+   "status": 200,
+   "ms": 2406
+  },
+  {
+   "status": 200,
+   "ms": 1575
+  },
+  {
+   "status": 200,
+   "ms": 1340
+  }
+ ],
+ "afterConcurrent": {
+  "status": 302,
+  "s3": 200,
+  "msRedirect": 76,
+  "msTotal": 139,
+  "body": "{\"v\":1,\"c\":3}",
+  "host": "vibe-storage-prod.storage.yandexcloud.net"
+ },
+ "list": {
+  "status": 200,
+  "body": "{\"data\":[{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"13\",\"sha256\":\"4503d499d088b24783925d1f9e69d9062155f3c68566321386a5e23a4f0e7f70\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":null,\"contentUpdatedAt\":\"2026-11-10T12:06:28.239Z\"}],\"cursor\":null,\"total\":1}"
+ },
+ "del": {
+  "status": 200,
+  "ms": 364,
+  "body": "{\"object\":{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"13\",\"sha256\":\"4503d499d088b24783925d1f9e69d9062155f3c68566321386a5e23a4f0e7f70\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":\""
+ },
+ "readDeleted": {
+  "status": 410,
+  "ms": 79,
+  "body": "{\"success\":false,\"error\":{\"code\":\"STORAGE_OBJECT_DELETED\",\"message\":\"Object probe/v22-test.json was deleted\"}}"
+ },
+ "reupload": {
+  "status": 200,
+  "ms": 356,
+  "body": "{\"object\":{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"22\",\"sha256\":\"72227776fbebe5211ad674eef93fd09b6ab864b945f2b00d3b59f23dd5ad0012\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":n"
+ },
+ "readRevived": {
+  "status": 302,
+  "s3": 200,
+  "msRedirect": 66,
+  "msTotal": 131,
+  "body": "{\"v\":1,\"revived\":true}",
+  "host": "vibe-storage-prod.storage.yandexcloud.net"
+ },
+ "del2": {
+  "status": 200,
+  "ms": 90,
+  "body": "{\"object\":{\"id\":\"cmwan9itw01jt4bm9zfyyue2z\",\"key\":\"probe/v22-test.json\",\"contentType\":\"application/json\",\"sizeBytes\":\"22\",\"sha256\":\"72227776fbebe5211ad674eef93fd09b6ab864b945f2b00d3b59f23dd5ad0012\",\"visibility\":\"PRIVATE\",\"uploadStatus\":\"COMPLETED\",\"createdAt\":\"2026-11-10T12:06:22.100Z\",\"deletedAt\":\""
+ },
+ "listAfter": {
+  "status": 200,
+  "body": "{\"data\":[],\"cursor\":null,\"total\":0}"
+ }
+}

@@ -1,0 +1,468 @@
+{
+  "knight": {
+    "file": "knight.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "knight_mask.png"
+  },
+  "witch": {
+    "file": "witch.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "witch_mask.png"
+  },
+  "ranger": {
+    "file": "ranger.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "ranger_mask.png"
+  },
+  "herald": {
+    "file": "herald.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "herald_mask.png"
+  },
+  "smith": {
+    "file": "smith.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "smith_mask.png"
+  },
+  "stormcaller": {
+    "file": "stormcaller.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "stormcaller_mask.png"
+  },
+  "alchemist": {
+    "file": "alchemist.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "alchemist_mask.png"
+  },
+  "bat": {
+    "file": "bat.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      46
+    ],
+    "bodyRadius": 10
+  },
+  "ghoul": {
+    "file": "ghoul.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 14
+  },
+  "wisp": {
+    "file": "wisp.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      46
+    ],
+    "bodyRadius": 8
+  },
+  "skel": {
+    "file": "skel.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 13
+  },
+  "brute": {
+    "file": "brute.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 22
+  },
+  "spitter": {
+    "file": "spitter.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 12
+  },
+  "bloater": {
+    "file": "bloater.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 8,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 13
+  },
+  "boss": {
+    "file": "boss.png",
+    "cell": [
+      192,
+      192
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      96,
+      184
+    ],
+    "bodyRadius": 40,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "brood": {
+    "file": "brood.png",
+    "cell": [
+      192,
+      192
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      96,
+      184
+    ],
+    "bodyRadius": 44,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "ram": {
+    "file": "ram.png",
+    "cell": [
+      192,
+      192
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      96,
+      184
+    ],
+    "bodyRadius": 38,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "gunner": {
+    "file": "gunner.png",
+    "cell": [
+      192,
+      192
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      96,
+      184
+    ],
+    "bodyRadius": 36,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "twin": {
+    "file": "twin.png",
+    "cell": [
+      192,
+      192
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      96,
+      184
+    ],
+    "bodyRadius": 40,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "twinhalf": {
+    "file": "twinhalf.png",
+    "cell": [
+      128,
+      128
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      64,
+      122
+    ],
+    "bodyRadius": 28,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "bolt": {
+    "file": "bolt.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "knife": {
+    "file": "knife.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "sickle": {
+    "file": "sickle.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "icedisc": {
+    "file": "icedisc.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "spear": {
+    "file": "spear.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "hostile": {
+    "file": "hostile.png",
+    "cell": [
+      32,
+      32
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      16,
+      16
+    ],
+    "bodyRadius": 4
+  },
+  "ground": {
+    "file": "ground.png",
+    "cell": [
+      256,
+      256
+    ],
+    "frames": 1,
+    "fps": 0,
+    "anchor": [
+      128,
+      128
+    ],
+    "bodyRadius": 0
+  },
+  "prop_gravestone": {
+    "file": "prop_gravestone.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 1,
+    "fps": 0,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 0
+  },
+  "prop_stump": {
+    "file": "prop_stump.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 1,
+    "fps": 0,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 0
+  },
+  "prop_mushrooms": {
+    "file": "prop_mushrooms.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 1,
+    "fps": 0,
+    "anchor": [
+      32,
+      60
+    ],
+    "bodyRadius": 0
+  },
+  "spearmaiden": {
+    "file": "spearmaiden.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 5,
+    "fps": 8,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 14,
+    "mask": "spearmaiden_mask.png"
+  }
+}

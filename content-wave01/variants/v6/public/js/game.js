@@ -1,0 +1,739 @@
+// Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
+import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS } from '/shared/content.js';
+
+// Render clock. Snapshots arrive unevenly (tunnel bursts, server tick stalls), so the delay adapts:
+// render time = now - p90(arrival - tm) over the last CLOCK_WINDOW snapshots - p90(snapshot gap) - margin.
+const CLOCK_WINDOW = 40;
+const CLOCK_PCT = 0.9;
+const CLOCK_MARGIN = 0.02;
+const CLOCK_SLEW = 0.12; // max playback speed deviation while catching up
+const CLOCK_GAIN = 2;
+const CLOCK_SNAP = 0.5; // jump instead of slewing when this far off
+const MAX_EXTRAPOLATE = 0.2;
+// An enemy that moved farther than this between two snapshots is placed, not slid across the map.
+const TELEPORT_DIST = 200;
+const TELEPORT_SPEED = 400;
+const RECONCILE_DIST = 150;
+const MAX_SNAPS = 8;
+const MAX_PARTICLES = 700;
+const MAX_NUMBERS = 90;
+// Enemies are flat records of E_STRIDE: [id, type, x, y, hpPct, stateBits].
+export const E_STRIDE = 6;
+const SICKLE_CATCH = 24;
+const ICEDISC = PROJECTILE_KINDS.indexOf('icedisc');
+const ICE_TRAIL_LIFE = 2.5;
+// Puddle looks announced by 'zk': 1 burning pool, 2 censer cloud.
+export const ZK_FIRE = 1, ZK_CLOUD = 2;
+// Trap records in snapshot `tr`: [id, x, y, kind, ownerPid]; kind 0 trap, 1 mine, 2 mine recharging, 3 spike.
+export const TR_STRIDE = 5;
+
+// Player row indexes in snapshot `p`.
+export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12 };
+
+const EMPTY = [];
+
+function indexFlat(arr, stride) {
+	const m = new Map();
+	if (!Array.isArray(arr)) return m;
+	for (let i = 0; i + stride <= arr.length; i += stride) m.set(arr[i], i);
+	return m;
+}
+
+const SHOT_STEP = 1 / 60;
+const MIN_SHOT_VISIBLE = 0.08;
+
+export class Game {
+	constructor(net) {
+		this.net = net;
+		this.me = null;
+		this.running = false;
+		this.players = new Map(); // pid -> {pid, name, hero, color}
+		this.snaps = [];
+		this.resetClock();
+		this.local = { x: 0, y: 0, fx: 1, fy: 0 };
+		this.passives = {};
+		this.offer = null;
+		this.posTimer = 0;
+		this.lastSent = { x: NaN, y: NaN };
+		// t: 0..1 between a and b; et: same, but may exceed 1 while extrapolating past the newest snapshot.
+		this.view = { tm: 0, a: null, b: null, t: 0, et: 0 };
+
+		this.shots = new Map(); // projectile id -> locally simulated projectile
+		this.numbers = [];
+		this.particles = [];
+		this.zaps = [];
+		this.slashes = [];
+		this.rings = [];
+		this.shake = 0;
+		this.hurtFlash = 0;
+		this.hostile = new Map(); // enemy projectile id -> {x, y, vx, vy, st, end}
+		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
+		this.warns = [];
+		this.broken = new Set(); // broken prop tiles, key tx * 100003 + ty
+		this.eliteAffix = new Map(); // enemy id -> index in ELITE_AFFIXES
+		this.orbs = new Map(); // ball lightning id -> {x0, y0, x1, y1, speed, st, life, r}
+		this.zk = new Map(); // puddle id -> look (ZK_*)
+		this.iceTrail = []; // {x, y, t} points left by ice discs
+		this.tslashes = []; // Thunder Slash swings {pid, range, width, big, t}
+		this.fans = []; // Thunder Slash fans {pid, r, t}
+		this.syn = 0; // «Слаженность», %
+		this.onEvent = () => {};
+	}
+
+	reset() {
+		this.snaps.length = 0;
+		this.resetClock();
+		this.passives = {};
+		this.offer = null;
+		this.shots.clear();
+		this.numbers.length = 0;
+		this.particles.length = 0;
+		this.zaps.length = 0;
+		this.slashes.length = 0;
+		this.rings.length = 0;
+		this.shake = 0;
+		this.hurtFlash = 0;
+		this.hostile.clear();
+		this.lobs.clear();
+		this.warns.length = 0;
+		this.broken.clear();
+		this.eliteAffix.clear();
+		this.orbs.clear();
+		this.zk.clear();
+		this.iceTrail.length = 0;
+		this.tslashes.length = 0;
+		this.fans.length = 0;
+		this.syn = 0;
+		this.view.a = this.view.b = null;
+		this.view.tm = 0;
+	}
+
+	begin(msg) {
+		this.reset();
+		this.running = true;
+		const br = Array.isArray(msg.broken) ? msg.broken : EMPTY;
+		for (let i = 0; i + 1 < br.length; i += 2) this.broken.add((br[i] | 0) * 100003 + (br[i + 1] | 0));
+		const list = Array.isArray(msg.players) ? msg.players : EMPTY;
+		list.forEach((p, i) => {
+			this.players.set(p.pid, {
+				pid: p.pid,
+				name: p.name || 'Игрок',
+				hero: HEROES[p.hero] ? p.hero : 'knight',
+				color: p.color || PLAYER_COLORS[i % PLAYER_COLORS.length],
+			});
+			if (p.pid === this.me) {
+				this.local.x = +p.x || 0;
+				this.local.y = +p.y || 0;
+				this.local.fx = 1;
+				this.local.fy = 0;
+			}
+		});
+	}
+
+	resetClock() {
+		this.offs = [];
+		this.gaps = [];
+		this.clockRef = null;
+		this.renderTm = null;
+		this.lastNow = 0;
+	}
+
+	stop() {
+		this.running = false;
+		this.offer = null;
+	}
+
+	setLobbyPlayers(list) {
+		for (const p of list || EMPTY) {
+			this.players.set(p.pid, { pid: p.pid, name: p.name, hero: p.hero, color: p.color });
+		}
+	}
+
+	meta(pid) {
+		let m = this.players.get(pid);
+		if (!m) {
+			m = { pid, name: 'Игрок', hero: 'knight', color: PLAYER_COLORS[Math.abs(pid | 0) % PLAYER_COLORS.length] };
+			this.players.set(pid, m);
+		}
+		return m;
+	}
+
+	passiveLevel(id) { return this.passives[id] || 0; }
+	speedMul() { return 1 + PASSIVES.swift.perLevel * this.passiveLevel('swift'); }
+	areaMul() { return 1 + PASSIVES.area.perLevel * this.passiveLevel('area'); }
+
+	pick(i) {
+		const offer = this.offer;
+		if (!offer || !offer.choices[i]) return false;
+		const c = offer.choices[i];
+		if (c.kind === 'passive' && PASSIVES[c.id]) this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
+		this.net.send({ t: 'pick', i });
+		this.offer = null;
+		return true;
+	}
+
+	reroll() {
+		if (!this.offer || !(this.offer.rerolls > 0)) return false;
+		this.net.send({ t: 'reroll' });
+		return true;
+	}
+
+	skip() {
+		if (!this.offer) return false;
+		this.net.send({ t: 'skip' });
+		this.offer = null;
+		return true;
+	}
+
+	onSnapshot(msg) {
+		const now = performance.now() / 1000;
+		const tm = +msg.tm || 0;
+		const last = this.snaps[this.snaps.length - 1];
+		if (last && tm < last.tm - 1) {
+			// Server time went backwards: a new run.
+			this.snaps.length = 0;
+			this.resetClock();
+			this.shots.clear();
+			this.hostile.clear();
+			this.lobs.clear();
+		}
+		const prevTm = this.snaps.length ? this.snaps[this.snaps.length - 1].tm : null;
+		if (prevTm !== null && tm <= prevTm) {
+			// Duplicate or stale snapshot: keep projectile events, skip the rest.
+			if (Array.isArray(msg.fx)) for (const ev of msg.fx) if (Array.isArray(ev)) this.shotEvent(ev);
+			return;
+		}
+		const snap = {
+			tm,
+			k: msg.k | 0,
+			p: Array.isArray(msg.p) ? msg.p : EMPTY,
+			pMap: new Map(),
+			e: Array.isArray(msg.e) ? msg.e : EMPTY,
+			b: Array.isArray(msg.b) ? msg.b : EMPTY,
+			g: Array.isArray(msg.g) ? msg.g : EMPTY,
+			z: Array.isArray(msg.z) ? msg.z : EMPTY,
+			tr: Array.isArray(msg.tr) ? msg.tr : EMPTY,
+			it: Array.isArray(msg.it) ? msg.it : EMPTY,
+			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
+			boss: Array.isArray(msg.boss) ? msg.boss : null,
+			applied: false,
+		};
+		for (const row of snap.p) if (Array.isArray(row)) snap.pMap.set(row[P.pid], row);
+		for (const ev of snap.fx) if (Array.isArray(ev)) this.shotEvent(ev);
+		snap.eIdx = indexFlat(snap.e, E_STRIDE);
+		this.syn = msg.syn | 0;
+		snap.bIdx = indexFlat(snap.b, 5);
+		snap.gIdx = indexFlat(snap.g, 4);
+		this.snaps.push(snap);
+		if (this.snaps.length > MAX_SNAPS) this.snaps.shift();
+
+		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
+
+		const mine = snap.pMap.get(this.me);
+		if (mine) {
+			const sx = +mine[P.x], sy = +mine[P.y];
+			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
+				this.local.x = sx;
+				this.local.y = sy;
+			}
+		}
+	}
+
+	trackClock(off, gap) {
+		pushWindow(this.offs, off);
+		if (gap !== null) pushWindow(this.gaps, gap);
+		const gapRef = this.gaps.length ? percentile(this.gaps, CLOCK_PCT) : 0.1;
+		this.clockRef = percentile(this.offs, CLOCK_PCT) + gapRef + CLOCK_MARGIN;
+	}
+
+	latest() { return this.snaps[this.snaps.length - 1] || null; }
+
+	myRow() {
+		const s = this.latest();
+		return s ? s.pMap.get(this.me) || null : null;
+	}
+
+	isAlive() {
+		const r = this.myRow();
+		return !r || r[P.st] !== 1;
+	}
+
+	update(dt, input) {
+		const now = performance.now() / 1000;
+		this.updateView(now);
+		this.applyEffects();
+		this.advanceShots();
+		this.advanceHostile();
+
+		if (this.running) {
+			const row = this.myRow();
+			const alive = !row || row[P.st] !== 1;
+			if (alive) {
+				const v = input.vector();
+				if (v.x || v.y) {
+					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
+					const sp = hero.speed * this.speedMul();
+					this.local.x += v.x * sp * dt;
+					this.local.y += v.y * sp * dt;
+					const len = Math.hypot(v.x, v.y);
+					this.local.fx = v.x / len;
+					this.local.fy = v.y / len;
+				}
+				this.posTimer -= dt;
+				if (this.posTimer <= 0 && this.me !== null) {
+					this.posTimer += 1 / POS_HZ;
+					if (this.posTimer < 0) this.posTimer = 0;
+					this.net.send({
+						t: 'pos',
+						x: Math.round(this.local.x * 10) / 10,
+						y: Math.round(this.local.y * 10) / 10,
+						fx: Math.round(this.local.fx * 1000) / 1000,
+						fy: Math.round(this.local.fy * 1000) / 1000,
+					});
+				}
+			} else if (row) {
+				this.local.x = +row[P.x];
+				this.local.y = +row[P.y];
+			}
+		}
+
+		this.updateEffects(dt);
+	}
+
+	updateView(now) {
+		const v = this.view;
+		const n = this.snaps.length;
+		if (!n || this.clockRef === null) {
+			v.a = v.b = null;
+			return;
+		}
+		// Slew the render clock towards its target so a changed delay never makes the world jump.
+		const target = now - this.clockRef;
+		const dt = now - this.lastNow;
+		this.lastNow = now;
+		if (this.renderTm === null || dt < 0 || dt > 0.25 || Math.abs(target - this.renderTm) > CLOCK_SNAP) {
+			this.renderTm = target;
+		} else {
+			const err = target - this.renderTm;
+			this.renderTm += dt * (1 + Math.max(-CLOCK_SLEW, Math.min(CLOCK_SLEW, err * CLOCK_GAIN)));
+		}
+		const rt = this.renderTm;
+		const last = this.snaps[n - 1];
+		let a = this.snaps[0], b = a, et = 1;
+		if (rt >= last.tm) {
+			// Newest snapshot is late: keep things moving along their last velocity for a short while.
+			if (n >= 2) {
+				a = this.snaps[n - 2];
+				b = last;
+				et = (Math.min(rt, last.tm + MAX_EXTRAPOLATE) - a.tm) / (b.tm - a.tm);
+			} else {
+				a = b = last;
+			}
+		} else if (rt > a.tm) {
+			for (let i = 1; i < n; i++) {
+				if (this.snaps[i].tm >= rt) {
+					a = this.snaps[i - 1];
+					b = this.snaps[i];
+					break;
+				}
+			}
+			et = (rt - a.tm) / (b.tm - a.tm);
+		}
+		v.a = a;
+		v.b = b;
+		v.et = et;
+		v.t = Math.min(1, Math.max(0, et));
+		// Displayed time keeps flowing smoothly, but never runs far ahead of the newest snapshot.
+		v.tm = Math.max(0, Math.min(rt, last.tm + 0.3));
+	}
+
+	// Interpolated position of another player; returns null if unknown.
+	playerPos(pid, out) {
+		const { a, b, et: t } = this.view;
+		if (pid === this.me && this.running) {
+			out.x = this.local.x;
+			out.y = this.local.y;
+			return out;
+		}
+		if (!b) return null;
+		const rb = b.pMap.get(pid);
+		if (!rb) return null;
+		const ra = a.pMap.get(pid) || rb;
+		out.x = ra[P.x] + (rb[P.x] - ra[P.x]) * t;
+		out.y = ra[P.y] + (rb[P.y] - ra[P.y]) * t;
+		return out;
+	}
+
+	// Shot events are taken in as soon as a snapshot arrives: a projectile may start and end between two snapshots.
+	shotEvent(ev) {
+		switch (ev[0]) {
+			case 'shot': {
+				const st = +ev[9] || 0;
+				this.shots.set(ev[1], {
+					kind: ev[2] | 0, x: +ev[3], y: +ev[4], vx: +ev[5], vy: +ev[6],
+					speed: Math.hypot(+ev[5], +ev[6]) || 1, target: ev[8] | 0, retarget: null,
+					st, simT: st, end: st + (+ev[7] || 1), endX: null, endY: null, show: false,
+					// Returning projectile (sickle): owner pid and the time it turns back.
+					owner: ev.length >= 12 ? ev[10] : null, turn: ev.length >= 12 ? st + (+ev[11] || 0) : Infinity,
+				});
+				break;
+			}
+			case 'eshot': {
+				const st = +ev[7] || 0;
+				this.hostile.set(ev[1], { x0: +ev[2], y0: +ev[3], vx: +ev[4], vy: +ev[5], st, end: st + (+ev[6] || 1), x: +ev[2], y: +ev[3], show: false });
+				break;
+			}
+			case 'epend': {
+				const s = this.hostile.get(ev[1]);
+				if (s) s.end = Math.max(s.st + MIN_SHOT_VISIBLE, +ev[2] || 0);
+				break;
+			}
+			case 'lob':
+				this.lobs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], fuse: +ev[6] || 0.6, st: +ev[7] || 0, kind: ev[8] | 0 });
+				break;
+			case 'orb':
+				this.orbs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], speed: +ev[6] || 120, life: +ev[7] || 4, st: +ev[8] || 0, r: +ev[9] || 90, x: +ev[2], y: +ev[3], show: false });
+				break;
+			case 'zk':
+				this.zk.set(ev[1], ev[2] | 0);
+				break;
+			case 'brk':
+				this.broken.add((ev[1] | 0) * 100003 + (ev[2] | 0));
+				break;
+			case 'elite':
+				this.eliteAffix.set(ev[1], ev[2] | 0);
+				break;
+			case 'ptgt': {
+				const s = this.shots.get(ev[1]);
+				if (s) s.retarget = { tm: +ev[3] || 0, target: ev[2] | 0 };
+				break;
+			}
+			case 'pend': {
+				const s = this.shots.get(ev[1]);
+				if (!s) break;
+				s.end = Math.max(+ev[4] || 0, s.st + MIN_SHOT_VISIBLE);
+				s.endX = +ev[2];
+				s.endY = +ev[3];
+				break;
+			}
+		}
+	}
+
+	enemyPos(id, out) {
+		const b = this.view.b;
+		if (!b) return null;
+		const i = b.eIdx.get(id);
+		if (i === undefined) return null;
+		return lerpEnemy(this.view, i, out);
+	}
+
+	advanceShots() {
+		const vt = this.view.tm;
+		const tp = this.tmpShot ??= { x: 0, y: 0 };
+		for (const [id, s] of this.shots) {
+			if (vt >= s.end) {
+				this.shots.delete(id);
+				continue;
+			}
+			s.show = vt >= s.st;
+			// Same steering as the server (fixed steps so the curve does not depend on the frame rate).
+			while (s.simT + SHOT_STEP <= vt) {
+				if (s.retarget && s.simT >= s.retarget.tm) {
+					s.target = s.retarget.target;
+					s.retarget = null;
+				}
+				if (s.simT >= s.turn && s.owner !== null && this.playerPos(s.owner, tp)) {
+					// Same rule as the server: straight back to the owner.
+					const dx = tp.x - s.x, dy = tp.y - s.y;
+					const d = Math.hypot(dx, dy) || 1;
+					if (d < SICKLE_CATCH) break;
+					s.vx = (dx / d) * s.speed;
+					s.vy = (dy / d) * s.speed;
+				} else if (s.target >= 0 && this.enemyPos(s.target, tp)) {
+					const dx = tp.x - s.x, dy = tp.y - s.y;
+					const d = Math.hypot(dx, dy) || 1;
+					const k = Math.min(1, SHOT_STEP * 10);
+					s.vx += ((dx / d) * s.speed - s.vx) * k;
+					s.vy += ((dy / d) * s.speed - s.vy) * k;
+					const v = Math.hypot(s.vx, s.vy) || 1;
+					s.vx = (s.vx / v) * s.speed;
+					s.vy = (s.vy / v) * s.speed;
+				}
+				s.x += s.vx * SHOT_STEP;
+				s.y += s.vy * SHOT_STEP;
+				s.simT += SHOT_STEP;
+			}
+			// Never overshoot the point where the server ended it.
+			if (s.endX !== null && s.simT >= s.end - SHOT_STEP) {
+				s.x = s.endX;
+				s.y = s.endY;
+			}
+		}
+	}
+
+	// Enemy projectiles fly straight: position is a function of the render time.
+	advanceHostile() {
+		const vt = this.view.tm;
+		for (const [id, s] of this.hostile) {
+			if (vt >= s.end) {
+				this.hostile.delete(id);
+				continue;
+			}
+			s.show = vt >= s.st;
+			const k = Math.max(0, vt - s.st);
+			s.x = s.x0 + s.vx * k;
+			s.y = s.y0 + s.vy * k;
+		}
+		for (const [id, l] of this.lobs) if (vt > l.st + l.fuse + 0.05) this.lobs.delete(id);
+		for (const [id, o] of this.orbs) {
+			const k = vt - o.st;
+			if (k > o.life) {
+				this.orbs.delete(id);
+				continue;
+			}
+			o.show = k >= 0;
+			// Same motion as the server: straight to the target point at constant speed, then hover.
+			const dx = o.x1 - o.x0, dy = o.y1 - o.y0, d = Math.hypot(dx, dy) || 1;
+			const f = Math.min(1, (Math.max(0, k) * o.speed) / d);
+			o.x = o.x0 + dx * f;
+			o.y = o.y0 + dy * f;
+		}
+		// Ice discs leave a frosty trail; the server keeps the same zones for the slow.
+		for (const s of this.shots.values()) {
+			if (s.kind !== ICEDISC || !s.show) continue;
+			const last = s.trailAt;
+			if (!last || Math.hypot(last.x - s.x, last.y - s.y) > 26) {
+				s.trailAt = { x: s.x, y: s.y };
+				this.iceTrail.push({ x: s.x, y: s.y, t: 0, seed: Math.random() * 6 });
+			}
+		}
+		if (this.iceTrail.length > 400) this.iceTrail.splice(0, this.iceTrail.length - 400);
+	}
+
+	applyEffects() {
+		const rt = this.view.tm;
+		const n = this.snaps.length;
+		for (let i = 0; i < n; i++) {
+			const s = this.snaps[i];
+			// Effects play when the render clock reaches their snapshot; never lag more than two snapshots.
+			if (s.applied || (s.tm > rt + 0.001 && i >= n - 2)) continue;
+			s.applied = true;
+			for (const ev of s.fx) if (Array.isArray(ev)) this.effect(ev);
+		}
+	}
+
+	effect(ev) {
+		switch (ev[0]) {
+			case 'hit': {
+				const crit = ev[4] === 1;
+				if (this.numbers.length < MAX_NUMBERS || crit) {
+					this.numbers.push({ x: +ev[1] + (Math.random() - 0.5) * 10, y: +ev[2] - 10, v: Math.round(+ev[3] || 0), t: 0, crit, mine: crit && ev[5] === this.me });
+				}
+				if (crit) this.burst(+ev[1], +ev[2] - 6, ev[5] === this.me ? '#ffee58' : '#fff59d', ev[5] === this.me ? 6 : 3, 2);
+				break;
+			}
+			case 'die': {
+				const def = ENEMIES[ENEMY_TYPES[ev[3]]] || ENEMIES.bat;
+				this.burst(+ev[1], +ev[2], def.color, def === ENEMIES.boss ? 60 : def.r > 15 ? 14 : 8, def.r);
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.3, r0: def.r * 0.5, r1: def.r * 2, color: def.color });
+				break;
+			}
+			case 'zap':
+				this.zaps.push({ pts: jagged(+ev[1], +ev[2], +ev[3], +ev[4]), t: 0 });
+				break;
+			case 'slash':
+				this.slashes.push({ pid: ev[1], dir: ev[2] < 0 ? -1 : 1, range: +ev[3] || 110, width: +ev[4] || 40, t: 0 });
+				break;
+			case 'hurt':
+				if (ev[1] === this.me) {
+					this.shake = Math.min(14, this.shake + 7);
+					this.hurtFlash = 1;
+				}
+				break;
+			case 'down':
+				this.onEvent('down', ev[1]);
+				if (ev[1] === this.me) this.shake = 16;
+				break;
+			case 'up':
+				this.onEvent('up', ev[1]);
+				break;
+			case 'lvl': {
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.7, r0: 10, r1: 90, color: '#80deea', pid: ev[1] });
+				break;
+			}
+			case 'boss':
+				this.shake = 12;
+				this.onEvent('boss', ev[1]);
+				break;
+			case 'chest':
+				this.burst(+ev[1], +ev[2], '#ffd54f', 40, 20);
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 1, r0: 10, r1: 160, color: '#ffd54f' });
+				this.onEvent('chest');
+				break;
+			case 'boom': {
+				const x = +ev[1], y = +ev[2], r = +ev[3] || 60, kind = ev[4] | 0;
+				// 0 petard, 1 bloater, 2 volatile, 3 ball lightning, 4 ice grenade, 5 mine, 6 molotov.
+				const color = ['#ffb74d', '#ef9a9a', '#ef9a9a', '#e1f5fe', '#81d4fa', '#ffa726', '#ff7043'][kind] || '#ffb74d';
+				this.burst(x, y, color, 18, r * 0.3);
+				this.burst(x, y, '#fff3e0', 8, r * 0.15);
+				this.rings.push({ x, y, t: 0, life: 0.35, r0: r * 0.3, r1: r, color, fill: true });
+				if (Math.hypot(x - this.local.x, y - this.local.y) < 260) this.shake = Math.min(12, this.shake + (kind === 0 ? 3 : 6));
+				break;
+			}
+			case 'warn':
+				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+				break;
+			case 'frost': {
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.45, r0: 16, r1: +ev[2] || 110, color: '#b3e5fc', pid: ev[1], frost: true });
+				break;
+			}
+			case 'tslash':
+				this.tslashes.push({ pid: ev[1], range: +ev[2] || 150, width: +ev[3] || 60, big: ev[4] === 1, t: 0, seed: Math.random() * 100 });
+				break;
+			case 'tfan': {
+				this.fans.push({ pid: ev[1], r: +ev[2] || 200, t: 0 });
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt && ev[1] === this.me) this.shake = Math.min(10, this.shake + 4);
+				if (pt) this.burst(pt.x, pt.y, '#b3e5fc', 16, 10);
+				break;
+			}
+			case 'shard':
+				this.burst(+ev[1], +ev[2], '#e1f5fe', 10, 6);
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.25, r0: 6, r1: 40, color: '#b3e5fc' });
+				break;
+			case 'duo':
+				this.onEvent('duo', ev[1], ev[2]);
+				if (DUOS[ev[2]]) {
+					const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+					if (pt) {
+						this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.9, r0: 10, r1: 220, color: '#ffe082', pid: ev[1] });
+						this.burst(pt.x, pt.y, '#ffe082', 30, 14);
+					}
+				}
+				break;
+			case 'snap':
+				this.burst(+ev[1], +ev[2], '#bcaaa4', 8, 4);
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.25, r0: 6, r1: 26, color: '#d7ccc8' });
+				break;
+			case 'brk':
+				this.broken.add((ev[1] | 0) * 100003 + (ev[2] | 0));
+				this.onEvent('brk', ev[1] | 0, ev[2] | 0);
+				break;
+			case 'item': {
+				const type = ITEM_TYPES[ev[2] | 0];
+				this.burst(+ev[3], +ev[4], type === 'rage' ? '#ff7043' : type === 'dew' ? '#80deea' : '#fff59d', 14, 6);
+				this.onEvent('item', ev[1], type);
+				break;
+			}
+			case 'open':
+				this.burst(+ev[2], +ev[3], '#ffd54f', 26, 12);
+				this.rings.push({ x: +ev[2], y: +ev[3], t: 0, life: 0.7, r0: 10, r1: 90, color: '#ffd54f' });
+				break;
+			case 'elite':
+				this.onEvent('elite', ev[2] | 0);
+				break;
+			case 'blink':
+				this.burst(+ev[1], +ev[2], '#b388ff', 12, 6);
+				break;
+			case 'inv': {
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 1.2, r0: +ev[2] || 430, r1: 120, color: '#ff5252', pid: ev[1] });
+				if (ev[1] === this.me) this.onEvent('inv');
+				break;
+			}
+		}
+	}
+
+	burst(x, y, color, n, spread) {
+		for (let i = 0; i < n && this.particles.length < MAX_PARTICLES; i++) {
+			const a = Math.random() * Math.PI * 2;
+			const s = 40 + Math.random() * (80 + spread * 4);
+			this.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0, life: 0.35 + Math.random() * 0.35, color, size: 2 + Math.random() * 3 });
+		}
+	}
+
+	updateEffects(dt) {
+		this.shake = Math.max(0, this.shake - dt * 40);
+		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
+		compact(this.numbers, (n) => (n.t += dt) < 0.8);
+		compact(this.particles, (p) => {
+			p.t += dt;
+			p.x += p.vx * dt;
+			p.y += p.vy * dt;
+			p.vx *= 0.9;
+			p.vy *= 0.9;
+			return p.t < p.life;
+		});
+		compact(this.zaps, (z) => (z.t += dt) < 0.25);
+		compact(this.slashes, (s) => (s.t += dt) < 0.22);
+		compact(this.rings, (r) => (r.t += dt) < r.life);
+		compact(this.warns, (w) => (w.t += dt) < w.life);
+		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
+		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
+		compact(this.fans, (f) => (f.t += dt) < 0.45);
+		if (this.zk.size > 256 && this.view.b) {
+			const live = new Set();
+			const z = this.view.b.z;
+			for (let i = 0; i + 4 <= z.length; i += 4) live.add(z[i]);
+			for (const id of this.zk.keys()) if (!live.has(id)) this.zk.delete(id);
+		}
+		if (this.eliteAffix.size > 64 && this.view.b) {
+			for (const id of this.eliteAffix.keys()) if (!this.view.b.eIdx.has(id)) this.eliteAffix.delete(id);
+		}
+	}
+}
+
+// Enemy at flat index i of view.b, interpolated (or briefly extrapolated) from view.a.
+// out.dx is the movement between the two snapshots (for facing).
+export function lerpEnemy(view, i, out) {
+	const { a, b, et } = view;
+	const bx = b.e[i + 2], by = b.e[i + 3];
+	const j = a.eIdx.get(b.e[i]);
+	const ax = j === undefined ? bx : a.e[j + 2];
+	const ay = j === undefined ? by : a.e[j + 3];
+	if (Math.abs(bx - ax) + Math.abs(by - ay) > Math.max(TELEPORT_DIST, TELEPORT_SPEED * (b.tm - a.tm))) {
+		// Respawned on a new ring or reappeared after leaving the view: no slide across the map.
+		out.x = bx;
+		out.y = by;
+		out.dx = 0;
+		return out;
+	}
+	out.x = ax + (bx - ax) * et;
+	out.y = ay + (by - ay) * et;
+	out.dx = bx - ax;
+	return out;
+}
+
+function pushWindow(arr, v) {
+	arr.push(v);
+	if (arr.length > CLOCK_WINDOW) arr.shift();
+}
+
+function percentile(arr, q) {
+	const s = arr.slice().sort((x, y) => x - y);
+	return s[Math.min(s.length - 1, Math.floor(q * (s.length - 1)))];
+}
+
+// In-place filter without allocating.
+function compact(arr, keep) {
+	let j = 0;
+	for (let i = 0; i < arr.length; i++) if (keep(arr[i])) arr[j++] = arr[i];
+	arr.length = j;
+}
+
+function jagged(x1, y1, x2, y2) {
+	const pts = [x1, y1];
+	const segs = 7;
+	const dx = x2 - x1, dy = y2 - y1;
+	const len = Math.hypot(dx, dy) || 1;
+	const nx = -dy / len, ny = dx / len;
+	for (let i = 1; i < segs; i++) {
+		const k = i / segs;
+		const off = (Math.random() - 0.5) * Math.min(40, len * 0.15);
+		pts.push(x1 + dx * k + nx * off, y1 + dy * k + ny * off);
+	}
+	pts.push(x2, y2);
+	return pts;
+}

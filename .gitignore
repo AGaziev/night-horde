@@ -19,3 +19,6 @@ sprites/_generated/
 sprites/shots/
 *.log
 .DS_Store
+
+# scratch lab with its own empty repo
+perf-lab/

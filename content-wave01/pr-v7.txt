@@ -1,0 +1,24 @@
+
+## pr-v7-n1.json: 1 bot(s), 8 runs; survived to 15:00: 0/8; ends 565,374,471,434,535,336,283,798; downs 1,1,1,1,1,1,1,1; lvl 5:00 8.3 (n=7), 15:00 —; heroes knight | witch | ranger | herald | smith | stormcaller | alchemist | knight
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     0    0   15   19   36   49   22  124   53   75   20  134   57  228    —
+hp<50 |     0    0    0   10   22   50   46   50   67   50    0    8  100  100    —
+near  |   4.5  9.6 14.5 16.4 19.2 21.0 18.2 20.8 17.7 21.1 15.7 24.6 17.1 29.9    —
+life  |   4.7  9.4 17.5 22.1 35.6 44.4 46.2 85.9160.7190.5226.6214.2274.5303.8    —
+alive runs per minute: 8 8 8 8 8 7 6 5 3 2 1 1 1 1 0
+
+## pr-v7-n2.json: 2 bot(s), 8 runs; survived to 15:00: 2/8; ends 521,586,336,387,900,900,230,444; downs 2,2,2,2,2,0,2,2; lvl 5:00 13.9 (n=7), 15:00 58.5 (n=2); heroes knight+witch | ranger+herald | smith+stormcaller | alchemist+knight | witch+ranger | herald+smith | stormcaller+alchemist | knight+witch
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     2    5   21   54   37   39   30   78   82   21    6   27   26   60  149
+hp<50 |     0    0    2   19   35   47   42   39   29   50   35   28   25   25   31
+near  |   8.3 14.8 18.2 19.0 17.5 17.8 17.4 16.0 19.2 17.9  3.2  7.2  9.4 19.4 25.9
+life  |   4.9  8.7 13.7 18.4 18.1 17.4 20.4 19.5 28.5 30.8  1.7  1.7  2.2  3.1  4.1
+alive runs per minute: 8 8 8 8 7 7 6 5 4 3 2 2 2 2 2
+
+## pr-v7-n4.json: 4 bot(s), 8 runs; survived to 15:00: 6/8; ends 900,332,900,900,900,280,900,900; downs 0,5,0,3,5,4,0,3; lvl 5:00 14.6 (n=7), 15:00 42.8 (n=6); heroes knight+witch+ranger+herald | smith+stormcaller+alchemist+knight | witch+ranger+herald+smith | stormcaller+alchemist+knight+witch | ranger+herald+smith+stormcaller | alchemist+knight+witch+ranger | herald+smith+stormcaller+alchemist | knight+witch+ranger+herald
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     3    6   35   71   51   29   30   38   54   37   38   29   58  137   76
+hp<50 |     0    0    0   20   39   22    6   14   12    3    9    0    0   10    5
+near  |  15.2 23.5 24.3 24.8 35.1 42.8 35.6 37.0 36.0 36.9 36.5 40.1 41.7 47.5 45.1
+life  |   6.7  8.7 12.3 10.0 22.6 24.1 33.5 42.1 61.6 73.9 87.3 90.5108.6125.2147.9
+alive runs per minute: 8 8 8 8 8 7 6 6 6 6 6 6 6 6 6

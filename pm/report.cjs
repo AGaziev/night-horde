@@ -1,0 +1,1 @@
+const j=require(process.argv[2]);for(const r of j.runs)console.log(j.N+'p',j.heroes.join('/'),"end",r.end,"win",r.win,"downs",r.downs,"rev",r.revives,"firstDown",r.firstDown&&r.firstDown.toFixed(0),"firstLvl",r.firstLvl.toFixed(1),"lvl@",JSON.stringify(r.lvlMs),"kills",r.kills,r.weapons)

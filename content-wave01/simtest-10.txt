@@ -1,0 +1,10 @@
+run 1 OK | tick wall avg 0.955 ms, worst 4.15 ms; CPU avg without worst 1%: 1.182 ms; snapshot avg 14417 B
+run 2 OK | tick wall avg 1.033 ms, worst 8.15 ms; CPU avg without worst 1%: 1.260 ms; snapshot avg 14712 B
+run 3 OK | tick wall avg 0.988 ms, worst 4.93 ms; CPU avg without worst 1%: 1.377 ms; snapshot avg 14164 B
+run 4 OK | tick wall avg 1.254 ms, worst 32.01 ms; CPU avg without worst 1%: 1.242 ms; snapshot avg 14264 B
+run 5 OK | tick wall avg 1.227 ms, worst 7.09 ms; CPU avg without worst 1%: 1.340 ms; snapshot avg 13748 B
+run 6 OK | tick wall avg 1.151 ms, worst 15.41 ms; CPU avg without worst 1%: 1.272 ms; snapshot avg 13865 B
+run 7 OK | tick wall avg 1.116 ms, worst 6.83 ms; CPU avg without worst 1%: 1.256 ms; snapshot avg 13997 B
+run 8 OK | tick wall avg 1.049 ms, worst 3.15 ms; CPU avg without worst 1%: 1.355 ms; snapshot avg 14215 B
+run 9 OK | tick wall avg 0.914 ms, worst 4.59 ms; CPU avg without worst 1%: 1.133 ms; snapshot avg 13830 B
+run 10 OK | tick wall avg 0.900 ms, worst 2.66 ms; CPU avg without worst 1%: 1.106 ms; snapshot avg 13401 B

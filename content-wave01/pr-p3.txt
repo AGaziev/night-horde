@@ -1,0 +1,24 @@
+
+## pr-p3-n1.json: 1 bot(s), 6 runs; survived to 15:00: 0/6; ends 825,387,793,612,593,684; downs 1,1,1,1,1,1; lvl 5:00 11.3, 15:00 0.0; heroes knight | witch | ranger | herald | smith | stormcaller
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     0    1   17   28   23   22   34   23   97  105   89  128  207  297    —
+hp<50 |     0    0    0    6   20   31   38    0    1   40   50   33   19   59    —
+near  |   4.3  9.1 12.7 14.8 15.6 14.0 13.5 12.5 12.6 11.3 14.1 13.6 17.1 19.8    —
+life  |   4.8  7.6 10.5 21.6 40.7 52.8 37.7 64.6 43.3 64.2 56.3  3.6  3.7  4.8    —
+alive runs per minute: 6 6 6 6 6 6 6 5 5 5 4 3 2 2 0
+
+## pr-p3-n2.json: 2 bot(s), 6 runs; survived to 15:00: 2/6; ends 812,793,810,504,900,900; downs 2,4,2,2,1,1; lvl 5:00 16.3, 15:00 12.5; heroes knight+witch | ranger+herald | smith+stormcaller | alchemist+knight | witch+ranger | herald+smith
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     0    1   17   24   36   33   25   21   47   40   14   58  144  268   65
+hp<50 |     0    0    0    4   30   24   29   29   26   14    9    8   13   26    0
+near  |   5.5  9.0 10.4  9.6  9.6 13.2 15.8 14.4 12.3  8.3 11.4 16.2 25.7 36.0 40.3
+life  |   3.5  4.4  9.7 15.4 14.5 18.2 16.8 21.9 21.9 16.4  5.5  2.7  6.5 26.7 24.7
+alive runs per minute: 6 6 6 6 6 6 6 6 6 5 5 5 5 5 2
+
+## pr-p3-n4.json: 4 bot(s), 6 runs; survived to 15:00: 3/6; ends 900,807,434,900,900,869; downs 0,11,4,6,1,16; lvl 5:00 20.1, 15:00 29.1; heroes knight+witch+ranger+herald | smith+stormcaller+alchemist+knight | witch+ranger+herald+smith | stormcaller+alchemist+knight+witch | ranger+herald+smith+stormcaller | alchemist+knight+witch+ranger
+min   |     1    2    3    4    5    6    7    8    9   10   11   12   13   14   15
+dmg/m |     0    1   33   47   35   33   20   36   34   41   25   80  119  226  203
+hp<50 |     0    0    7   17   31   24   30   36   13    9    1    4   12   24   20
+near  |  10.9 12.5 12.6 12.9 10.0 13.4 24.3 27.1  8.1  6.2  8.9 20.5 34.5 41.6 49.0
+life  |   4.7  4.1  6.3  7.2  5.1  6.1 13.1  9.7  2.8  2.2  1.8  2.5  3.4  6.6 20.0
+alive runs per minute: 6 6 6 6 6 6 6 6 5 5 5 5 5 5 4

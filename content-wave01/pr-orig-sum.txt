@@ -1,0 +1,56 @@
+pr-orig-n1.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '9.3',
+  lvl600: 'NaN',
+  lvl900: 'NaN',
+  end: [ 643, 394, 900 ],
+  downs: [ 1, 1, 0 ],
+  revives: [ 0, 0, 0 ],
+  elites: [ 0, 0, 0 ],
+  items: [ 0, 0, 0 ],
+  brk: [ 0, 0, 0 ],
+  tickMs: [ 0.869, 0.982, 0.054 ],
+  snap: [ 4722, 3553, 1592 ]
+}
+  dmg share: 
+   knight:whip2/knives1/aura1/orbit1/bolt2/flask1|area1/magnet1/haste1
+   witch:bolt1/aura1|vigor1/magnet1/might1/swift1/area1
+   ranger:knives2/flask5/bolt5/orbit5/whip2/lightning4|might5/area3/swift3/haste3/vigor5/regen3
+pr-orig-n2.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '6.2',
+  lvl600: 'NaN',
+  lvl900: 'NaN',
+  end: [ 500, 900, 900 ],
+  downs: [ 2, 1, 0 ],
+  revives: [ 0, 0, 0 ],
+  elites: [ 0, 0, 0 ],
+  items: [ 0, 0, 0 ],
+  brk: [ 0, 0, 0 ],
+  tickMs: [ 0.853, 1.035, 0.885 ],
+  snap: [ 4264, 6039, 4714 ]
+}
+  dmg share: 
+   knight:whip3/flask2/aura1/orbit1/lightning1|magnet1 witch:bolt1/lightning1/flask1/orbit2/knives1/aura1|vigor2/area1
+   ranger:knives1/orbit1/flask1/aura1|swift2/regen1 herald:aura3|regen1/haste1/might1
+   smith:orbit1/whip1/flask1/bolt2/aura1|might1/regen2/swift4/area1/vigor1/magnet1 stormcaller:lightning2/whip1/orbit2/knives1|haste2/regen1/area1/vigor2/swift2/might1
+pr-orig-n4.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '7.5',
+  lvl600: '8.0',
+  lvl900: '8.0',
+  end: [ 900, 900, 900 ],
+  downs: [ 1, 3, 1 ],
+  revives: [ 0, 2, 0 ],
+  elites: [ 0, 0, 0 ],
+  items: [ 0, 0, 0 ],
+  brk: [ 0, 0, 0 ],
+  tickMs: [ 1.041, 0.932, 0.537 ],
+  snap: [ 6585, 5587, 5925 ]
+}
+  dmg share: 
+   knight:whip1/bolt1/knives1/aura1/lightning1|regen1 witch:bolt1/lightning1/aura1/whip1|vigor1/regen1 ranger:knives1/lightning1/aura2/flask1|area1/haste1 herald:aura2/lightning1/orbit1|haste1/vigor1
+   smith:orbit2/lightning1/bolt1/whip1|haste2/might2/vigor1/swift1 stormcaller:lightning2/bolt2/orbit2/flask1|magnet2/area1/might1/vigor1/haste1/swift1 alchemist:flask2/lightning1/orbit2|regen1/area1/magnet1/might2/vigor1 knight:whip1/aura2/flask2/lightning1|haste1/regen2/area1/magnet1
+   witch:bolt2|area2/haste1 ranger:knives1/lightning2/aura1|vigor1/magnet1 herald:aura1/whip1|magnet2/swift1 smith:orbit3/knives1/whip1/lightning2|
+DIVERSITY bots 21: distinct weapon sets 20, distinct weapon+passive builds 21, mean pairwise weapon overlap (Jaccard) 0.36, avg weapons 3.8, avg passives 3.1
+  weapon pick counts {"aura":14,"bolt":10,"flask":10,"knives":9,"orbit":12,"whip":11,"lightning":14}

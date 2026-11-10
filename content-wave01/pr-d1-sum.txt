@@ -1,0 +1,156 @@
+pr-d1-n1.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '14.7 (n=7)',
+  lvl600: '35.8 (n=4)',
+  lvl900: '56.3 (n=3)',
+  end: [
+    381, 900, 900,
+    582, 225, 871,
+    900, 566
+  ],
+  downs: [
+    1, 0, 0, 1,
+    1, 1, 0, 1
+  ],
+  revives: [
+    0, 0, 0, 0,
+    0, 0, 0, 0
+  ],
+  elites: [
+    8, 24, 24, 15,
+    0, 24, 24, 15
+  ],
+  items: [
+    2, 22, 15, 11,
+    0, 20, 17, 11
+  ],
+  brk: [
+    11, 41, 37, 22,
+     0, 28, 14, 32
+  ],
+  tickMs: [
+    0.226, 0.023,
+    0.026, 0.244,
+    0.106, 0.056,
+     0.03, 0.048
+  ],
+  snap: [
+    4197, 2306, 2622,
+    5026, 3046, 2770,
+    2609, 2738
+  ]
+}
+  dmg share: orb 21.6%, lightning 16.3%, bolt 13.3%, knives 12.7%, molotov 9.6%, bomb 5.1%, flask 4.9%, orrery 4.2%, fanback 4.0%, censer 3.4%, tripwire 1.7%, blast 1.1%, aura 0.6%, traps 0.5%, sickle 0.3%, whip 0.3%, thunderslash 0.3%, orbit 0.1%, frost 0.0%, cracker 0.0%
+   knight:whip2|swift2/crit1
+   witch:orrery3/bomb5/lightning5/knives5|echo5/mail5/vigor5/haste5
+   ranger:fanback3/orb3/flask5/traps5|vigor5/might5/haste5/echo5
+   herald:aura5/traps4/flask1|mail3/crit3
+   smith:orbit3|area2
+   stormcaller:orb3/censer3/knives5/sickle4|area5/regen5/swift5/vigor5
+   alchemist:molotov3/bolt5/whip5/knives5|vigor5/regen5/haste5/echo5
+   knight:thunderslash2/tripwire3/frost3/bomb1|haste4/vigor4/area3/echo3
+pr-d1-n2.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '14.4 (n=7)',
+  lvl600: '30.6 (n=6)',
+  lvl900: '49.3 (n=5)',
+  end: [
+    689, 579, 900,
+    280, 900, 900,
+    900, 900
+  ],
+  downs: [
+    2, 2, 1, 4,
+    3, 1, 0, 4
+  ],
+  revives: [
+    0, 0, 1, 2,
+    3, 0, 0, 3
+  ],
+  elites: [
+    18, 15, 24,  2,
+    24, 24, 24, 24
+  ],
+  items: [
+     7,  4, 18,  4,
+    21, 14, 12, 14
+  ],
+  brk: [
+    34, 41, 14,  2,
+    49, 16, 41, 38
+  ],
+  tickMs: [
+    0.288, 0.305,
+    0.054,  0.02,
+    0.033,  0.32,
+    0.061, 0.106
+  ],
+  snap: [
+    7412, 6598, 4396,
+    2116, 3833, 6847,
+    4079, 6015
+  ]
+}
+  dmg share: lightning 16.6%, orb 16.2%, molotov 12.3%, icebomb 7.1%, bomb 6.9%, knives 6.9%, windmill 6.9%, bolt 5.8%, tripwire 4.8%, icedisc 3.5%, flask 3.4%, fanback 3.2%, blast 1.8%, sickle 1.4%, orbit 1.0%, traps 0.6%, frost 0.4%, whip 0.4%, aura 0.4%, cracker 0.3%
+   knight:whip3|mail4/echo1 witch:bolt4/sickle2/lightning1/frost2|hourglass2/swift4/might3
+   ranger:knives5/whip3/traps3|vigor5/magnet4/might5/echo5 herald:aura3/traps4|vigor3/area2/might2
+   smith:windmill3/icebomb3/knives5/aura5|area5/crit5/mail5/haste5 stormcaller:orb3/icedisc3/aura5/orbit5|magnet5/echo5/vigor5/swift5
+   alchemist:flask5/orbit3|swift5/area2/vigor3/might3 knight:whip1/lightning2/orbit5/traps1|area5/crit1
+   witch:orb3/tripwire3/whip5/orbit5|might5/echo5/mail5/vigor5 ranger:fanback3/molotov3/lightning5/orbit5|echo5/might5/haste5/swift5
+   herald:aura5|vigor5/swift2/crit2 smith:orbit5/traps1|magnet5/haste2/swift3/echo2
+   stormcaller:lightning5/tripwire3/flask5/frost5|might5/haste5/mail5/echo5 alchemist:molotov3/knives5/lightning5/frost5|haste5/crit5/vigor5/might5
+   knight:whip5/bolt5/bomb5/aura5|regen5/swift5/mail5/hourglass5 witch:bolt5/traps5/icedisc3/knives2|hourglass5/area5/swift5/haste5
+pr-d1-n4.json {
+  heroes: 'knight,witch,ranger,herald,smith,stormcaller,alchemist',
+  lvl300: '17.9 (n=8)',
+  lvl600: '37.7 (n=6)',
+  lvl900: '63.6 (n=5)',
+  end: [
+    427, 325, 900,
+    900, 900, 900,
+    900, 694
+  ],
+  downs: [
+    4,  4, 31, 0,
+    0, 15,  0, 5
+  ],
+  revives: [
+    0,  0, 29, 0,
+    0, 14,  0, 1
+  ],
+  elites: [
+    10,  4, 24, 24,
+    24, 24, 24, 18
+  ],
+  items: [
+     9, 4, 27, 16,
+    12, 7, 16, 16
+  ],
+  brk: [
+    45,  0, 52, 47,
+    31, 20, 27, 27
+  ],
+  tickMs: [
+    0.273, 0.041,
+    0.122, 0.202,
+    0.095, 0.109,
+    0.082, 0.281
+  ],
+  snap: [
+    7198, 3634, 6273,
+    7946, 6726, 6682,
+    6376, 8457
+  ]
+}
+  dmg share: molotov 35.1%, bomb 13.3%, orb 7.3%, knives 5.8%, sickle 5.3%, bolt 4.9%, flask 4.7%, windmill 4.2%, orrery 3.8%, lightning 3.8%, tripwire 2.3%, blast 2.2%, frost 1.9%, thunderslash 1.5%, fanback 1.0%, whip 0.8%, orbit 0.5%, cracker 0.4%, aurora 0.4%, traps 0.3%, aura 0.2%, censer 0.1%
+   knight:whip3/flask2/bomb1|mail2/vigor4/area1/echo1 witch:bolt4|haste2/magnet3 ranger:knives4/sickle1/aura2/traps1|swift5/vigor2/hourglass3/might5 herald:aura2|mail3/haste4
+   smith:orbit5/sickle3/frost4/flask3|might4 stormcaller:lightning5/bolt2/aura4/knives2|vigor4/swift3/crit3 alchemist:flask5/orbit5/lightning1|crit5/mail5 knight:whip5|magnet5/echo5/swift4/might5
+   witch:orrery3/molotov3/aura5/frost5|hourglass5/might5/area5/haste5 ranger:fanback3/aura5/bolt5/bomb5|hourglass5/might5/swift5/crit5 herald:aurora3/sickle5/orrery3/knives5|crit5/haste5/echo5/vigor5 smith:windmill3/aurora3/bomb5/sickle5|crit5/magnet5/regen5/swift5
+   stormcaller:lightning5/orbit5/frost5/traps5|hourglass5/area5/haste5/mail5 alchemist:censer3/lightning3/knives5/frost1|regen4/hourglass4/magnet5/haste5 knight:whip5/frost5/orbit2/bolt5|echo5/hourglass5/mail5/crit5 witch:orrery3/frost5/flask5/knives5|might5/mail5/swift5/area5
+   ranger:tripwire3/windmill3/bomb5/lightning5|magnet5/echo5/area5/swift5 herald:censer3/knives5/frost5/whip5|magnet5/swift5/vigor5/mail5 smith:orbit5/orb3/frost5/flask5|regen5/area5/magnet5/haste5 stormcaller:thunderslash3/bomb5/aurora3/bolt5|magnet5/might5/echo5/hourglass5
+   alchemist:molotov3/aura5/knives5/whip5|echo5/area5/hourglass5/mail5 knight:whip5/aurora3/tripwire3/flask5|crit5/magnet5/area5/swift5 witch:bolt5/whip5/traps5/sickle5|vigor5/hourglass5/haste5/area5 ranger:tripwire3/molotov3/sickle5/frost5|mail5/area5/magnet5/vigor5
+   herald:aurora3/molotov3/knives5/traps5|area5/might5/vigor5/hourglass5 smith:windmill3/molotov3/bolt5/knives5|might5/vigor5/hourglass5/mail5 stormcaller:thunderslash3/censer3/sickle5/bomb5|area5/echo5/vigor5/magnet5 alchemist:molotov3/windmill3/traps5/knives5|hourglass5/echo5/swift5/regen5
+   knight:whip3/traps3|mail2/hourglass2 witch:bolt2/lightning1|regen1/hourglass3/might2/area1 ranger:knives5/windmill1/frost4|crit4/echo5/regen4/magnet4 herald:aura2/lightning3/frost1|crit4
+DIVERSITY bots 56: distinct weapon sets 53, distinct weapon+passive builds 56, mean pairwise weapon overlap (Jaccard) 0.11, avg weapons 3.3, avg passives 3.5
+  weapon pick counts {"whip":15,"bomb":9,"knives":18,"lightning":13,"orrery":4,"fanback":3,"flask":10,"orb":5,"traps":13,"aura":13,"orbit":12,"censer":4,"sickle":9,"bolt":12,"molotov":9,"frost":15,"thunderslash":3,"tripwire":6,"icebomb":1,"windmill":6,"icedisc":2,"aurora":5}
+ARCHETYPES bots with a duo 30/56, distinct duo sets 25: [["(без связок)",26],["molotov",3],["orrery",2],["censer",2],["molotov+windmill",2],["fanback+orb",1],["censer+orb",1],["thunderslash+tripwire",1],["icebomb+windmill",1],["icedisc+orb",1],["orb+tripwire",1],["fanback+molotov",1],["tripwire",1],["icedisc",1],["molotov+orrery",1],["fanback",1],["aurora+orrery",1],["aurora+windmill",1],["tripwire+windmill",1],["orb",1],["aurora+thunderslash",1],["aurora+tripwire",1],["molotov+tripwire",1],["aurora+molotov",1],["censer+thunderslash",1],["windmill",1]]

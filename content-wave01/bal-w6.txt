@@ -1,0 +1,38 @@
+bal-w6-a.json {
+  heroes: 'knight,witch,ranger,herald',
+  lvl300: '17.7',
+  lvl600: '36.0',
+  lvl900: '54.5',
+  end: [ 900, 900, 900 ],
+  downs: [ 0, 0, 0 ],
+  revives: [ 0, 0, 0 ],
+  elites: [ 21, 21, 21 ],
+  items: [ 20, 29, 13 ],
+  brk: [ 44, 78, 37 ],
+  tickMs: [ 0.25, 0.229, 0.165 ],
+  snap: [ 4521, 5744, 4517 ]
+}
+  dmg share: bolt 40.5%, knives 18.9%, sickle 13.1%, lightning 11.8%, bomb 8.6%, flask 3.6%, traps 2.0%, blast 0.7%, aura 0.3%, whip 0.2%, cracker 0.2%, frost 0.2%, orbit 0.0%
+   knight:whip5/sickle5/flask5/bolt5/traps5|crit5/mail5/swift5/hourglass5/echo5/magnet5 witch:bolt5/aura5/sickle5/knives5/orbit5/whip2|crit5/haste5/vigor5/magnet5/regen5/area5 ranger:knives5/bolt5/flask5/aura5/sickle5/frost5|swift5/vigor5/crit5/magnet5/mail5/regen5 herald:aura5/frost5/sickle5/traps5/bomb5/orbit3|might5/magnet5/area5/vigor4/swift5/haste3
+   knight:whip5/aura5/traps5/lightning5/bolt5|magnet5/crit5/might5/vigor5/echo5/hourglass5 witch:bolt5/knives5/sickle5/whip5/aura5/flask1|area5/haste5/echo5/vigor5/hourglass5/swift5 ranger:knives5/traps5/bolt5/sickle5/bomb5/flask5|hourglass5/area5/regen5/haste5/echo5/vigor5 herald:aura5/bomb5/knives4/bolt4/frost2/orbit1|crit5/haste5/hourglass5/echo4/regen3/magnet4
+   knight:whip5/bolt5/lightning5/traps5/flask4/orbit3|echo5/area5/regen5/magnet5/haste5/vigor5 witch:bolt5/whip5/bomb5/lightning5/flask5/knives4|hourglass5/echo5/haste5/magnet5/regen5/might2 ranger:knives5/aura5/sickle5/bolt5/lightning5/bomb5|echo5/vigor5/area5/might5/regen5/magnet5 herald:aura5/knives5/bomb3/sickle5/whip5/orbit5|echo5/crit5/hourglass4/mail5/vigor3/might3
+bal-w6-b.json {
+  heroes: 'smith,stormcaller,alchemist,knight',
+  lvl300: '17.5',
+  lvl600: '36.8',
+  lvl900: '55.7',
+  end: [ 900, 900, 900 ],
+  downs: [ 0, 0, 0 ],
+  revives: [ 0, 0, 0 ],
+  elites: [ 21, 21, 21 ],
+  items: [ 15, 33, 24 ],
+  brk: [ 25, 60, 51 ],
+  tickMs: [ 0.213, 0.177, 0.107 ],
+  snap: [ 4214, 4264, 4076 ]
+}
+  dmg share: lightning 49.1%, bolt 22.6%, flask 8.9%, bomb 6.0%, knives 3.9%, sickle 3.6%, orbit 1.6%, traps 1.4%, whip 1.1%, frost 0.8%, blast 0.7%, cracker 0.2%, aura 0.0%
+   smith:orbit5/frost5/aura5/bomb3/flask3/whip1|might5/area5/regen5/echo5/haste5/vigor5 stormcaller:lightning5/whip5/sickle5/bolt5/bomb5|might5/haste5/regen5/echo5/magnet5/crit5 alchemist:flask5/whip5/frost5/bolt5/sickle5/lightning5|regen5/vigor5/haste5/mail5/swift5/might4 knight:whip5/orbit5/frost5/bomb5/sickle5/lightning5|area5/regen5/swift5/might5/crit5/haste5
+   smith:orbit5/traps5/lightning5/aura5/whip5/knives5|echo5/swift5/haste5/regen5/magnet5/vigor5 stormcaller:lightning5/bolt5/bomb5/orbit5/knives5/flask5|echo5/hourglass5/magnet5/swift5/crit5/regen5 alchemist:flask5/whip5/frost5/traps4/lightning4/bomb3|magnet5/mail2/area5/regen5/haste5/hourglass5 knight:whip5/lightning5/orbit5/aura5/bolt5|hourglass5/regen5/haste5/magnet5/crit5/swift5
+   smith:orbit5/bolt5/traps5/knives4/lightning1/frost5|mail5/might5/magnet5/haste5/area5/vigor2 stormcaller:lightning5/aura5/bomb5/orbit5/whip5/sickle5|crit5/haste5/hourglass5/vigor5/echo5/might5 alchemist:flask5/lightning5/aura5/traps5/whip5/orbit5|magnet5/vigor5/swift5/hourglass5/echo5/regen5 knight:whip5/bolt5/knives5/traps5/orbit5/frost5|magnet5/vigor5/crit5/echo5/mail5/swift5
+DIVERSITY bots 24: distinct weapon sets 24, distinct weapon+passive builds 24, mean pairwise weapon overlap (Jaccard) 0.37, avg weapons 5.8, avg passives 6.0
+  weapon pick counts {"bolt":16,"flask":11,"sickle":12,"traps":10,"whip":17,"aura":13,"knives":12,"orbit":14,"frost":9,"bomb":12,"lightning":14}
