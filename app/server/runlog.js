@@ -44,6 +44,7 @@ export class RunLog {
 		this.bosses = [];
 		this.peaks = [];
 		this.events = [];
+		this.left = []; // [time, players before, after]
 		// v18 specials: spawned / killed / shots fired, damage blocked by the shield; damage to players comes from `taken`.
 		this.specials = Object.fromEntries(SPECIAL_IDS.map((id) => [id, { spawned: 0, killed: 0, shots: 0, blocked: 0, first: null }]));
 		for (const h of room.heroes.values()) {
@@ -51,7 +52,7 @@ export class RunLog {
 				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
 				minHp: h.maxHp, minHpT: 0, rar: newRar(),
 				// v15: per-minute hp [end, min, max] and weapon dps, recent hits, down details, declined new weapons.
-				hpMin: [], minuteMin: h.hp, dps: [], lastDmgBy: {}, hits: [], deaths: [], declinedW: 0, declinedLonely: 0,
+				hpMin: [], minuteMin: h.hp, dps: [], lastDmgBy: {}, hits: [], deaths: [], declinedW: 0, declinedLonely: 0, drops: [],
 			});
 		}
 	}
@@ -135,31 +136,36 @@ export class RunLog {
 			p.minHp = h.hp;
 			p.minHpT = room.time;
 		}
-		if (h.hp <= 0) {
-			this.acc.downs++;
-			p.downs.push([r1(room.time), from]);
-			const last = {};
-			for (const [, k, v] of p.hits) last[k] = (last[k] ?? 0) + v;
-			let crowd = 0, shooters = 0;
-			for (const e of room.enemies) {
-				if (e.dead) continue;
-				const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2;
-				if (d2 < CROWD_R * CROWD_R) crowd++;
-				if (d2 < SHOOT_R * SHOOT_R && SHOOTERS.has(e.type)) shooters++;
-			}
-			p.deaths.push({
-				t: r1(room.time), from, crowd, shooters, peak: room.peak?.name ?? null, lvl: h.level, maxHp: h.maxHp,
-				last10: Object.fromEntries(Object.entries(last).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v)])),
-				weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
-			});
-			const pk = this.peaks[this.peaks.length - 1];
-			if (pk && pk.end === null) pk.downs++;
-			const kind = from.split(':')[0];
-			for (const b of this.bosses) {
-				if (b.killedAt !== null) continue;
-				b.downs[h.name] = (b.downs[h.name] ?? 0) + 1;
-				if (kind === b.type || (b.type === 'twin' && kind === 'twinhalf')) b.downsByBoss++;
-			}
+		if (h.hp <= 0) this.down(room, h, from);
+	}
+
+	// A down: by a hit (from hurt) or without one (v19: dropped connection, from = 'offline').
+	down(room, h, from) {
+		const p = this.p.get(h.pid);
+		if (!p) return;
+		this.acc.downs++;
+		p.downs.push([r1(room.time), from]);
+		const last = {};
+		for (const [, k, v] of p.hits) last[k] = (last[k] ?? 0) + v;
+		let crowd = 0, shooters = 0;
+		for (const e of room.enemies) {
+			if (e.dead) continue;
+			const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2;
+			if (d2 < CROWD_R * CROWD_R) crowd++;
+			if (d2 < SHOOT_R * SHOOT_R && SHOOTERS.has(e.type)) shooters++;
+		}
+		p.deaths.push({
+			t: r1(room.time), from, crowd, shooters, peak: room.peak?.name ?? null, lvl: h.level, maxHp: h.maxHp,
+			last10: Object.fromEntries(Object.entries(last).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v)])),
+			weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
+		});
+		const pk = this.peaks[this.peaks.length - 1];
+		if (pk && pk.end === null) pk.downs++;
+		const kind = from.split(':')[0];
+		for (const b of this.bosses) {
+			if (b.killedAt !== null) continue;
+			b.downs[h.name] = (b.downs[h.name] ?? 0) + 1;
+			if (kind === b.type || (b.type === 'twin' && kind === 'twinhalf')) b.downsByBoss++;
 		}
 	}
 
@@ -203,6 +209,18 @@ export class RunLog {
 		if (p && h.hp < p.minuteMin) p.minuteMin = h.hp;
 	}
 
+	// v19: connection drops and returns mid-run ([from, back|null] per player), group size changes when a player leaves.
+	offline(room, h, off) {
+		const p = this.p.get(h.pid);
+		if (!p) return;
+		if (off) p.drops.push([r1(room.time), null]);
+		else if (p.drops.length && p.drops[p.drops.length - 1][1] === null) p.drops[p.drops.length - 1][1] = r1(room.time);
+	}
+
+	groupChange(room, from, to) {
+		this.left.push([r1(room.time), from, to]);
+	}
+
 	special(room, e, key, n = 1) {
 		const S = this.specials[enemyKey(e)];
 		if (!S) return;
@@ -232,7 +250,7 @@ export class RunLog {
 				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
 				duos: p.duos, evos: p.evos, rarity: p.rar, ach: room.runAchievements?.(h, win),
-				hpByMin: p.hpMin, dpsByMin: p.dps, deaths: p.deaths, declinedNewWeapon: p.declinedW, declinedNewWeaponLonely: p.declinedLonely,
+				hpByMin: p.hpMin, dpsByMin: p.dps, deaths: p.deaths, drops: p.drops ?? [], declinedNewWeapon: p.declinedW, declinedNewWeaponLonely: p.declinedLonely,
 				build: {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 					passives: [...h.passives].map(([id, l]) => `${id}${l}`),
@@ -253,6 +271,7 @@ export class RunLog {
 			})),
 			reactions: { ...(room.reactN ?? {}) },
 			events: this.events,
+			left: this.left,
 			specials: Object.fromEntries(Object.entries(this.specials).map(([id, S]) => {
 				const hit = {};
 				for (const p of players) for (const [k, v] of Object.entries(p.taken)) if (k.split(':')[0] === id) hit[k] = (hit[k] ?? 0) + v;
@@ -330,6 +349,9 @@ export function summarize(log) {
 			return `${D?.name ?? e.id} (${mmss(e.at)}) — ${D?.done[e.res] ?? e.res}${det.length ? ' (' + det.join('; ') + ')' : ''}`;
 		}).join('; '));
 	}
+	const drops = log.team.filter((p) => p.drops?.length).map((p) => `${p.name} ${p.drops.map(([a, b]) => `${mmss(a)}–${b === null ? 'не вернулся' : mmss(b)}`).join(', ')}`);
+	if (drops.length) out.push(`Обрывы связи: ${drops.join('; ')}`);
+	if (log.left?.length) out.push('Состав менялся: ' + log.left.map(([t, a, b]) => `${a} → ${b} на ${mmss(t)}`).join(', '));
 	const calm = longestRun(log.minutes.filter((m) => m.m > 1 && easy.includes(m.m)).map((m) => m.m));
 	out.push(calm && calm[1] - calm[0] + 1 >= 3
 		? `Легко на минутах ${calm[0]}–${calm[1]}: урон по группе меньше 10% здоровья в минуту и без падений.`

@@ -13,6 +13,8 @@ const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.resolve(fileURLToPath(new URL('../public/', import.meta.url)));
 const MAX_BODY = 64 * 1024;
 const DISCONNECT_GRACE_MS = 20_000;
+// v19: during a run a dropped player is kept this long (the hero lies down at once, allies can lift it).
+const PLAY_GRACE_MS = 120_000;
 const UNUSED_SESSION_MS = 60_000;
 const SSE_HEARTBEAT_MS = 10_000;
 const WS_PING_MS = 20_000;
@@ -99,6 +101,7 @@ function attach(s, conn, proto) {
 	s.timer = null;
 	if (old) old.close();
 	clientProto.set(s.pid, proto);
+	hub.setOffline(s.pid, false);
 	hub.welcome(s.pid);
 	if (proto < PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
 }
@@ -106,7 +109,10 @@ function attach(s, conn, proto) {
 function detach(s, conn) {
 	if (s.conn !== conn) return;
 	s.conn = null;
-	if (sessions.get(s.sid) === s) scheduleRemoval(s, DISCONNECT_GRACE_MS);
+	if (sessions.get(s.sid) !== s) return;
+	const inRun = hub.inRun(s.pid);
+	scheduleRemoval(s, inRun ? PLAY_GRACE_MS : DISCONNECT_GRACE_MS);
+	if (inRun) hub.setOffline(s.pid, true);
 }
 
 function allowMessage(s) {

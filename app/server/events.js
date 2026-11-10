@@ -256,7 +256,9 @@ export class Events {
 		[ev.x, ev.y] = [h.x, h.y];
 		ev.r = CURSED.ring;
 		const wave = room.currentWave();
-		const count = Math.round((CURSED.base + CURSED.perMin * room.nt / 60) * spawnRateScale(room.heroes.size));
+		// v19: the wave is sized for the players who can actually fight it — alive and inside the ring around the opener.
+		const near = alive.filter((o) => dist2(o.x, o.y, h.x, h.y) <= CURSED.ring * CURSED.ring).length;
+		const count = Math.round((CURSED.base + CURSED.perMin * room.nt / 60) * spawnRateScale(Math.max(1, near)));
 		const hpMul = enemyHpScale(room.nt, room.heroes.size);
 		room.fx.push(['open', h.pid, Math.round(h.x), Math.round(h.y)]);
 		room.fx.push(['pring', Math.round(h.x), Math.round(h.y), CURSED.ring]);

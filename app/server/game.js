@@ -205,7 +205,7 @@ function makeHero(member, x, y) {
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
-		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null,
+		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null, downT: 0, offline: false,
 	};
 }
 
@@ -263,11 +263,62 @@ export class Room {
 
 	removePlayer(pid) {
 		if (!this.members.delete(pid)) return;
+		const had = this.heroes.size;
 		this.heroes.delete(pid);
 		if (this.host === pid) this.host = this.members.keys().next().value ?? null;
 		if (this.members.size === 0) return;
 		if (this.state === 'lobby') this.sendLobby();
-		else if (this.state === 'play') this.checkAllDown();
+		else if (this.state === 'play') {
+			if (this.heroes.size && this.heroes.size < had) this.rescaleGroup(had, this.heroes.size);
+			this.checkAllDown();
+			this.updateFrozen();
+		}
+	}
+
+	// v19: a player left mid-run — living enemies, bosses and the mode multipliers follow the new group size,
+	// so the rest does not fight enemies sized for the old group.
+	rescaleGroup(from, to) {
+		const nt = this.nt;
+		const own = MODES[this.mode].seconds === this.runLength;
+		const hpOld = own ? modeHpMul(this.mode, from) : 1, hpNew = own ? modeHpMul(this.mode, to) : 1;
+		const dmgOld = own ? modeDmgMul(this.mode, from) : 1, dmgNew = own ? modeDmgMul(this.mode, to) : 1;
+		this.modeHp = hpNew;
+		this.modeDmg = dmgNew;
+		const hpK = (enemyHpScale(nt, to) / enemyHpScale(nt, from)) * (hpNew / hpOld);
+		const bossK = (bossHpScale(nt, to) / bossHpScale(nt, from)) * (hpNew / hpOld);
+		const dmgK = (enemyDmgScale(nt, to) / enemyDmgScale(nt, from)) * (dmgNew / dmgOld);
+		for (const e of this.enemies) {
+			if (e.dead) continue;
+			const k = e.boss ? bossK : hpK;
+			e.hp *= k;
+			e.maxHp *= k;
+			if (e.barMax) e.barMax *= k;
+			e.dmg *= dmgK;
+			e.dmgMul *= dmgK;
+		}
+		this.runLog?.groupChange(this, from, to);
+	}
+
+	// v19: a dropped connection mid-run. The hero lies down at once (allies can lift it) instead of standing as a
+	// free target; with nobody left online the run waits (solo too). The server keeps the hero for PLAY_GRACE.
+	setOffline(pid, off) {
+		const h = this.heroes.get(pid);
+		if (!h || this.state !== 'play' || h.offline === off) return;
+		h.offline = off;
+		this.runLog?.offline(this, h, off);
+		const online = [...this.heroes.values()].some((o) => !o.offline);
+		if (off && online && h.st === 0) this.downHero(h, 'offline');
+		this.updateFrozen();
+	}
+
+	downHero(h, from) {
+		h.hp = 0;
+		h.st = 1;
+		h.rev = 0;
+		h.downT = this.time;
+		this.fx.push(['down', h.pid]);
+		this.events.onDown(h);
+		this.runLog?.down(this, h, from);
 	}
 
 	rename(pid, name) {
@@ -478,7 +529,8 @@ export class Room {
 		const solo = this.isSolo();
 		if (!solo) this.paused = false;
 		const offer = solo && [...this.heroes.values()].some((h) => h.offer);
-		const frozen = this.state === 'play' && (this.paused || offer);
+		const away = this.heroes.size > 0 && [...this.heroes.values()].every((h) => h.offline);
+		const frozen = this.state === 'play' && (this.paused || offer || away);
 		if (frozen === this.frozen) return;
 		this.frozen = frozen;
 		// The last tick's state goes out first so the client freezes on it.
@@ -929,6 +981,8 @@ export class Room {
 
 	spawn(dt, alive) {
 		const n = this.heroes.size;
+		// v19: downed (and dropped) players do not thin the spawn for the rest, but one lying ally cuts it by one at most.
+		const spawnN = Math.max(alive.length, n - 1);
 		while (this.bossIdx < this.bossAt.length && this.time >= this.bossAt[this.bossIdx]) {
 			const slot = this.bossIdx;
 			const type = slot < BOSS_SCHEDULE.length ? this.bossPlan[slot % this.bossPlan.length] : FINAL_BOSS.type;
@@ -939,7 +993,7 @@ export class Room {
 		const wave = this.currentWave();
 		const pk = this.peak;
 		const peakMul = pk?.spawnMul ? 1 + (pk.spawnMul - 1) * Math.min(1, pk.ramp ? (this.time - pk.at) / pk.ramp : 1) : 1;
-		this.spawnAcc += wave.rate * spawnRateScale(n) * peakMul * dt;
+		this.spawnAcc += wave.rate * spawnRateScale(spawnN) * peakMul * dt;
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
@@ -1475,8 +1529,12 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
-			const len = E.shotSpeed * E.shotLife;
-			this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + e.bvx * len), Math.round(e.y + e.bvy * len), E.shotR * 2 + 8, round3(E.windup)]);
+			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
+			const len = E.shotSpeed * E.shotLife, a0 = Math.atan2(e.bvy, e.bvx);
+			for (let i = 0; i < E.fan; i++) {
+				const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
+				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + Math.cos(a) * len), Math.round(e.y + Math.sin(a) * len), E.shotR * 2 + 8, round3(E.windup)]);
+			}
 			return true;
 		}
 		return false;
@@ -2067,6 +2125,7 @@ export class Room {
 			h.hp = 0;
 			h.st = 1;
 			h.rev = 0;
+			h.downT = this.time;
 			this.fx.push(['down', h.pid]);
 			this.events.onDown(h);
 		}
@@ -3598,7 +3657,8 @@ export class Room {
 	runAchievements(h, win) {
 		return {
 			wins: win ? 1 : 0,
-			knightBest: h.hero === 'knight' ? Math.floor(this.time) : 0,
+			// v19: a Knight lying at the end counts up to his last down; lifted ones go on counting.
+			knightBest: h.hero === 'knight' ? Math.floor(h.st === 0 ? this.time : h.downT) : 0,
 			revives: h.revives,
 			knifeKills: h.knifeKills,
 			bosses: this.bossKills ?? 0,
@@ -3755,6 +3815,15 @@ export class Hub {
 	removePlayer(pid) {
 		this.leaveRoom(pid);
 		this.players.delete(pid);
+	}
+
+	// v19: is the player in a running game (the server keeps a dropped one longer then)?
+	inRun(pid) {
+		return this.players.get(pid)?.room?.state === 'play';
+	}
+
+	setOffline(pid, off) {
+		this.players.get(pid)?.room?.setOffline(pid, off);
 	}
 
 	leaveRoom(pid) {

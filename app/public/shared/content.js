@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v18.1';
+export const GAME_VERSION = 'v19';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -72,7 +72,7 @@ export const HEROES = {
 // dmgMul (v18, same indexing): pairs fell to hits (Трубач shots first), not to enemy hp, so only their enemy damage is softer.
 export const MODES = {
 	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 1] },
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.75, 1] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.85, 1] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -445,19 +445,19 @@ export const ENEMIES = {
 	// Final boss: shock ring around itself, ring of bolts, swarm call; all three faster below half hp.
 	boss: {
 		name: 'Владыка ночи', hp: 5000, speed: 70, dmg: 30, r: 40, xp: 150, color: '#d32f2f', boss: true, bk: 'lord',
-		cd: 2.6, rage: 0.5, wave: { r: 190, warn: 0.9, dmg: 26 }, ring: { windup: 0.8, shots: 20, speed: 200, dmg: 12, life: 3 },
+		cd: 2.6, rage: 0.5, wave: { r: 190, warn: 1.2, dmg: 26 }, ring: { windup: 0.8, shots: 20, speed: 200, dmg: 12, life: 3 },
 		call: { warn: 1.0, type: 'bat', count: 12, ring: 160 },
 	},
 	// Summons rings of bats around the nearest player; takes ×2 damage while calling. Charges below half hp.
 	brood: {
 		name: 'Матерь роя', hp: 3000, speed: 60, dmg: 24, r: 44, xp: 100, color: '#7b1fa2', boss: true, bk: 'brood',
 		callCd: 7, windup: 1.5, vuln: 2, call: { type: 'bat', count: 10, ring: 150 }, rage: 0.5,
-		trigger: 420, dashWarn: 0.8, dashSpeed: 520, dashTime: 0.7, rest: 1.6,
+		trigger: 420, dashWarn: 1.2, dashSpeed: 520, dashTime: 0.7, rest: 1.6,
 	},
 	// Telegraphed charges: a red lane for dashWarn seconds, then a straight dash.
 	ram: {
 		name: 'Рогач', hp: 2600, speed: 70, dmg: 24, r: 38, xp: 100, color: '#a1887f', boss: true, bk: 'ram',
-		trigger: 480, dashWarn: 0.8, dashSpeed: 600, dashTime: 0.75, rest: 1.8,
+		trigger: 480, dashWarn: 1.2, dashSpeed: 600, dashTime: 0.75, rest: 1.8,
 	},
 	// Keeps distance and fires rings of bone shards; two rings in a row below half hp.
 	gunner: {
@@ -469,7 +469,7 @@ export const ENEMIES = {
 		name: 'Двуликий', hp: 2800, speed: 80, dmg: 24, r: 40, xp: 60, color: '#26a69a', boss: true, bk: 'twin', splitAt: 0.5, halfHp: 0.32,
 	},
 	twinhalf: {
-		name: 'Двуликий', hp: 1, speed: 110, dmg: 18, r: 28, xp: 40, color: '#4db6ac', boss: true, bk: 'half', blinkCd: 4.5, blinkWarn: 0.7, blinkDist: 220,
+		name: 'Двуликий', hp: 1, speed: 110, dmg: 18, r: 28, xp: 40, color: '#4db6ac', boss: true, bk: 'half', blinkCd: 4.5, blinkWarn: 1.2, blinkDist: 220,
 	},
 	spitter: {
 		name: 'Плевун', hp: 20, speed: 70, dmg: 6, r: 12, xp: 3, color: '#9ccc65',
@@ -489,7 +489,7 @@ export const ENEMIES = {
 	// Up close it bashes: a lane telegraph for dashWarn s, then a short dash (like Рогач).
 	shield: {
 		name: 'Щитоносец', hp: 150, speed: 44, dmg: 16, r: 21, xp: 16, color: '#90a4ae', special: true,
-		ai: 'shield', front: 0.2, arc: 65, turn: 0.85, trigger: 230, dashWarn: 0.8, dashSpeed: 420, dashTime: 0.6, rest: 1.2, dashCd: 3,
+		ai: 'shield', front: 0.2, arc: 65, turn: 0.85, trigger: 230, dashWarn: 1.2, dashSpeed: 420, dashTime: 0.6, rest: 1.2, dashCd: 3,
 	},
 	// Event «Золотая тень»: slower than every hero, runs loops around the nearest player (away when close, back when far),
 	// a kill drops a chest. Leaves after `life` s, or when farther than `escape` px from everyone after `grace` s (v18.1).
@@ -499,6 +499,9 @@ export const ENEMIES = {
 		near: 480, far: 780, turn: 3, show: 3, showSpeed: 1,
 	},
 };
+
+// v19: every charge, blink and the Lord's shock wave warn ≥ WARN_MIN s ahead (a person needs ~1–1.5 s to react and step out).
+export const WARN_MIN = 1.2;
 
 // Numeric ids used in snapshots (index into this array).
 // New types are appended at the end so old indexes stay valid.

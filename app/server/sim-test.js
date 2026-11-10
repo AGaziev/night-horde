@@ -838,6 +838,8 @@ console.log('over/again/leave: ok');
 		r.gems = [{ id: 1, x: 2000, y: 0, xp: 5, gold: false, pull: null }];
 		pick('magnet');
 		assert.equal(r.gems[0].pull, h, 'magnet pulls every gem');
+		r.enemies.length = 0; // only the two below: a kill that drops an item (an elite, the golden shade) would fail the check
+		r.events.next = Infinity;
 		const e1 = put(r, 'skel', 200, 0, 30), boss = put(r, 'boss', 300, 0, 1000);
 		boss.boss = true;
 		h.hp = h.maxHp; // a low-hp kill may drop «Чаша росы» (DEW_DROP) and leave an item behind
@@ -1591,7 +1593,7 @@ console.log('over/again/leave: ok');
 		b.bcd = 0;
 		let warned = null;
 		const hp1 = [];
-		for (let i = 0; i < 1.2 * TICK_HZ; i++) {
+		for (let i = 0; i < 2 * TICK_HZ; i++) {
 			h2.x = 2000;
 			r.handle(1, { t: 'pos', x: h1.x, y: h1.y, fx: 1, fy: 0 });
 			r.tick(dt);
@@ -1599,7 +1601,7 @@ console.log('over/again/leave: ok');
 			if (warned === null && r.blasts.some((x) => x.from === 'boss:wave')) warned = r.time;
 		}
 		const hit = hp1.find(([, v]) => v < h1.maxHp);
-		assert.ok(warned !== null && hit && hit[0] - warned >= 0.6, 'lord wave telegraph');
+		assert.ok(warned !== null && hit && hit[0] - warned >= C.WARN_MIN - 0.05, `lord wave telegraph ≥ ${C.WARN_MIN} s`);
 		const dn = r.runLog.p.get(1).taken['boss:wave'];
 		assert.ok(dn > 0, 'log: damage from the boss attack');
 	}

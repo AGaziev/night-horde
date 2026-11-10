@@ -33,6 +33,7 @@ const ART = 0.5;
 const PROJ_ART = { bolt: 0.8, knife: 0.8, sickle: 1, icedisc: 1, spear: 1.6, hostile: 0.75 };
 const DECOR = ['prop_gravestone', 'prop_stump', 'prop_mushrooms'];
 const DECOR_CELL = 200;
+const ITEM_ARROWS = 3;
 const HERO_FOOT = 14 * 0.95;
 
 function hash2(x, y) {
@@ -85,6 +86,7 @@ export class Renderer {
 		this.sprites = sprites;
 		this.heroMotion = new Map();
 		this.arrowBuf = [];
+		this.itemArrows = [];
 		this.overlay = new Overlay();
 		this.dprCtl = new DprController(() => this.resize());
 		this.resize();
@@ -2988,9 +2990,27 @@ export class Renderer {
 			const meta = game.meta(row[P.pid]);
 			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: meta.color, name: meta.name });
 		}
-		// Off-screen event spot (altar, chest, star shard, golden shade) gets a gold arrow.
+		// v19: chests and star shards lying off-screen get an arrow each (the nearest ITEM_ARROWS), as long as they lie.
+		const items = this.itemArrows;
+		items.length = 0;
+		const it = b.it;
+		for (let i = 0; i + 4 <= it.length; i += 4) {
+			const kind = ITEM_TYPES[it[i + 1] | 0];
+			if (kind !== 'chest' && kind !== 'star') continue;
+			const d = Math.hypot(it[i + 2] - this.camX, it[i + 3] - this.camY);
+			items.push({ x: it[i + 2], y: it[i + 3], d, kind });
+		}
+		items.sort((p, q) => p.d - q.d);
+		for (const o of items.slice(0, ITEM_ARROWS)) {
+			const s = this.toScreen(o.x, o.y, this.tmp);
+			if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
+			const dx = s.x - cx, dy = s.y - cy;
+			const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
+			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: o.kind === 'chest' ? 'Сундук' : 'Осколок', icon: '★' });
+		}
+		// Off-screen event spot (altar, cursed chest, golden shade) gets a gold arrow; the star shard has its item arrow.
 		const ev = game.event();
-		if (ev && !(ev.def.id === 'fog' || ev.def.id === 'streak' || (ev.def.id === 'cursed' && ev.phase === 1))) {
+		if (ev && !(ev.def.id === 'fog' || ev.def.id === 'streak' || (ev.def.id === 'cursed' && ev.phase === 1) || (ev.def.id === 'star' && ev.phase === 1))) {
 			const s = this.toScreen(ev.x, ev.y, this.tmp);
 			if (!(s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h)) {
 				const dx = s.x - cx, dy = s.y - cy;
