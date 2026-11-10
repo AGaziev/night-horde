@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v16';
+export const GAME_VERSION = 'v17';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -505,7 +505,7 @@ export const PRESSURE = { hpLin: 0.12, hpQuad: 0.02, dmgPerMin: 0.06, endFrom: 5
 const lateMin = (seconds) => Math.max(0, seconds - PRESSURE_FROM) / 60;
 // Groups (2+) out-level solo through team XP and stacked duos, so after PRESSURE_FROM they get extra hp and damage
 // per minute (index = players - 1, 4+ use the last value). Solo gets a small hp relief that offsets the v8 evolution nerfs.
-export const GROUP_LATE = { hpPerMin: [0.035, 0.16, 0.21, 0.32], dmgPerMin: [0, 0.06, 0.07, 0.1] };
+export const GROUP_LATE = { hpPerMin: [0.035, 0.11, 0.21, 0.32], dmgPerMin: [0, 0, 0.07, 0.1] };
 const groupLate = (key, players) => GROUP_LATE[key][Math.min(Math.max(1, players), GROUP_LATE[key].length) - 1];
 // Early grace for hp too: enemies born before EARLY_HP.until night seconds are tougher step by step (v15).
 export const EARLY_HP = { from: 0.75, until: 480 };

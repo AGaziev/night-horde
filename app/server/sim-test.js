@@ -227,11 +227,11 @@ assert.equal(stats.over.stats.length, 3);
 		assert.ok(p.hpByMin.every(([end, min, max]) => isInt(end) && isInt(min) && min <= end && end <= max), 'hp rows [end, min, max]');
 		assert.equal(p.dpsByMin.length, log.minutes.length, 'weapon dps per minute');
 		assert.ok(p.dpsByMin.some((row) => Object.values(row).some((v) => v > 0)), 'some weapon dps');
-		assert.ok(p.deaths.length === p.downs.length && p.deaths.every((d) => isInt(d.crowd) && typeof d.last10 === 'object' && d.weapons.length >= 1), 'down details');
+		assert.ok(p.deaths.length === p.downs.length && p.deaths.every((d) => isInt(d.crowd) && isInt(d.shooters) && typeof d.last10 === 'object' && d.weapons.length >= 1), 'down details');
 		assert.ok(p.deaths.some((d) => Object.keys(d.last10).length > 0), 'who hit in the last 10 s');
 		assert.ok(isInt(p.declinedNewWeapon) && isInt(p.declinedNewWeaponLonely));
 	}
-	assert.ok(log.summary.some((l) => /падение \d+:\d\d: за 10 с били .*врагов в 300 px/.test(l)), 'down line in the summary');
+	assert.ok(log.summary.some((l) => /падение \d+:\d\d: за 10 с били .*врагов в 300 px: \d+, стрелков в 600 px: \d+/.test(l)), 'down line in the summary');
 	assert.ok(log.summary.some((l) => /урон в секунду по минутам/.test(l)) && log.summary.some((l) => /здоровье по минутам/.test(l)), 'dps and hp lines');
 	assert.ok(log.team.some((p) => p.ups.length >= 1), 'revive logged');
 	assert.ok(log.summary.length >= 4 && /Топ-3 оружия/.test(log.summary[1]), 'summary');
@@ -1714,6 +1714,26 @@ console.log('over/again/leave: ok');
 	console.log('peaks (G5): schedule, ring, tide, eclipse, dawn, run log: ok');
 }
 
+// --- run log: shooters within 600 px at a down (#W364B5: fell to spit with 3 enemies close) ---
+{
+	const r = new Room('SHOOT', () => {});
+	r.addPlayer(1, 'S', 'knight');
+	r.start();
+	r.enemies.length = 0;
+	const h = r.heroes.get(1);
+	h.ward = 0;
+	const put = (type, x, y) => { const e = r.spawnEnemy(type, [h], 1); e.x = h.x + x; e.y = h.y + y; };
+	put('ghoul', 100, 0);
+	put('spitter', 400, 0);
+	put('spitter', 0, -550);
+	put('spitter', 700, 0);
+	r.hurtPlayer(h, 1e9, 'spitter:shot');
+	const d = r.runLog.p.get(1).deaths[0];
+	assert.equal(d.crowd, 1, 'crowd in 300 px');
+	assert.equal(d.shooters, 2, 'shooters in 600 px');
+	console.log('run log shooters: ok');
+}
+
 // --- run log: choices, store on disk, /api/runs over HTTP ---
 {
 	const sent = [];
@@ -1742,7 +1762,8 @@ console.log('over/again/leave: ok');
 	// Soft start: solo and groups share the same curve before 3:00 (v15: early grace on top); groups get harder after it.
 	const grace = (t, E) => (t >= E.until ? 1 : E.from + (1 - E.from) * t / E.until);
 	for (const n of [1, 2, 4]) assert.ok(Math.abs(enemyHpScale(170, n) - grace(170, C.EARLY_HP) * (1 + 0.12 * 2) * (1 + 0.55 * (n - 1) + 0.05 * (n - 1) ** 2)) < 1e-9, 'pre-3:00 hp curve');
-	assert.ok(enemyHpScale(600, 2) / enemyHpScale(180, 2) > 1.6 * (enemyHpScale(600, 1) / enemyHpScale(180, 1)), 'groups ramp after 3:00');
+	assert.ok(enemyHpScale(600, 2) / enemyHpScale(180, 2) > 1.4 * (enemyHpScale(600, 1) / enemyHpScale(180, 1)), 'groups ramp after 3:00');
+	assert.equal(enemyDmgScale(780, 2), enemyDmgScale(780, 1), 'v17: pairs hit like solo');
 	assert.ok(Math.abs(enemyHpScale(600, 1) - (1 + 0.12 * 10 + 0.02 * 49) * (1 + 0.08 * 0.4) * (1 + 0.035 * 7)) < 1e-9, 'solo: +3.5%/min after 3:00 (v15)');
 	assert.equal(enemyDmgScale(600, 1), 1 + 0.06 * 7);
 	assert.ok(enemyDmgScale(0, 1) === C.EARLY_DMG.from && enemyDmgScale(C.EARLY_DMG.until / 2, 1) < 1, 'early hits are softer');

@@ -12,6 +12,8 @@ const MAX_JSON = 28 * 1024;
 const KEEP_RUNS = 30;
 const LAST_HITS = 10; // seconds of hits kept to explain a down
 const CROWD_R = 300; // enemies within this radius are counted at a down
+const SHOOT_R = 600; // ranged enemies within this radius are counted at a down
+const SHOOTERS = new Set(ENEMY_TYPES.flatMap((t, i) => (ENEMIES[t]?.shotDmg ? [i] : [])));
 const BOSS_NEAR = 400; // a boss is «near» while an alive player is this close
 
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -132,10 +134,15 @@ export class RunLog {
 			p.downs.push([r1(room.time), from]);
 			const last = {};
 			for (const [, k, v] of p.hits) last[k] = (last[k] ?? 0) + v;
-			let crowd = 0;
-			for (const e of room.enemies) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 < CROWD_R * CROWD_R) crowd++;
+			let crowd = 0, shooters = 0;
+			for (const e of room.enemies) {
+				if (e.dead) continue;
+				const d2 = (e.x - h.x) ** 2 + (e.y - h.y) ** 2;
+				if (d2 < CROWD_R * CROWD_R) crowd++;
+				if (d2 < SHOOT_R * SHOOT_R && SHOOTERS.has(e.type)) shooters++;
+			}
 			p.deaths.push({
-				t: r1(room.time), from, crowd, peak: room.peak?.name ?? null, lvl: h.level, maxHp: h.maxHp,
+				t: r1(room.time), from, crowd, shooters, peak: room.peak?.name ?? null, lvl: h.level, maxHp: h.maxHp,
 				last10: Object.fromEntries(Object.entries(last).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v)])),
 				weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 			});
@@ -303,7 +310,7 @@ function playerLines(p) {
 	const pre = `  ${p.name}:`;
 	for (const d of p.deaths ?? []) {
 		const hits = Object.entries(d.last10).slice(0, 3).map(([k, v]) => `${enemyName(k)} ${v}`).join(', ');
-		out.push(`${pre} падение ${mmss(d.t)}${d.peak ? ` (пик «${d.peak}»)` : ''}: за 10 с били ${hits || '—'}; врагов в 300 px: ${d.crowd}; оружие ${d.weapons.join(' ')}`);
+		out.push(`${pre} падение ${mmss(d.t)}${d.peak ? ` (пик «${d.peak}»)` : ''}: за 10 с били ${hits || '—'}; врагов в 300 px: ${d.crowd}, стрелков в 600 px: ${d.shooters ?? 0}; оружие ${d.weapons.join(' ')}`);
 	}
 	const rows = p.dpsByMin ?? [];
 	if (rows.length) {
