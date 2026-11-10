@@ -1,0 +1,21 @@
+# secrets and deploy artefacts
+.env
+.env.*
+token.json
+deploy.json
+deploy-resp.json
+deploy-headers.txt
+app.tar.gz
+*.tar.gz
+me.json
+
+# dependencies and backups (history lives in git now)
+node_modules/
+app-v*/
+
+# bulky generated data
+pm/sims/
+sprites/_generated/
+sprites/shots/
+*.log
+.DS_Store
