@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
+import { PROTO, clientProto } from './snapshot-codec.js';
 import { TICK_HZ } from '../public/shared/content.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -80,17 +81,26 @@ function scheduleRemoval(s, ms) {
 		if (s.conn) return;
 		sessions.delete(s.sid);
 		byPid.delete(s.pid);
+		clientProto.delete(s.pid);
 		hub.removePlayer(s.pid);
 	}, ms);
 }
 
-function attach(s, conn) {
+// Clients announce their protocol as ?v=; a tab opened before an update has none and keeps getting plain snapshots.
+function protoOf(url) {
+	const v = Number(url.searchParams.get('v'));
+	return Number.isInteger(v) && v > 0 ? v : 10;
+}
+
+function attach(s, conn, proto) {
 	const old = s.conn;
 	s.conn = conn;
 	clearTimeout(s.timer);
 	s.timer = null;
 	if (old) old.close();
+	clientProto.set(s.pid, proto);
 	hub.welcome(s.pid);
+	if (proto < PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
 }
 
 function detach(s, conn) {
@@ -200,7 +210,7 @@ function handleEvents(req, res, url) {
 		clearInterval(hb);
 		detach(s, conn);
 	});
-	attach(s, conn);
+	attach(s, conn, protoOf(url));
 }
 
 function handleSend(req, res, url) {
@@ -305,7 +315,7 @@ server.on('upgrade', (req, socket, head) => {
 			detach(s, conn);
 		});
 		ws.on('error', () => {});
-		attach(s, conn);
+		attach(s, conn, protoOf(url));
 	});
 });
 

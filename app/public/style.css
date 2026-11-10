@@ -281,6 +281,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 @keyframes duo-flash { 0% { transform: scale(1.5); box-shadow: 0 0 22px #ffd54f; } 100% { transform: scale(1); } }
 .hud-syn { font-size: 0.72rem; color: #ffe082; text-shadow: 0 1px 3px #000; margin-top: 2px; }
 .card-hint { font-size: 0.72rem; color: #ffe082; line-height: 1.25; }
+.card-hint-react { color: #81d4fa; }
 .card-warn { font-size: 0.68rem; color: #ffab91; line-height: 1.25; }
 .card-duo { border-color: #ffd54f; background: linear-gradient(160deg, rgba(255, 213, 79, 0.18), rgba(64, 196, 255, 0.12)), var(--panel, #161a24); box-shadow: 0 0 22px rgba(255, 213, 79, 0.35); }
 .card-duo .card-name { color: #ffe082; }

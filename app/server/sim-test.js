@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { Hub, Room } from './game.js';
 import { RUN_ID_RE, runStore, logText } from './runlog.js';
+import { SnapshotDecoder } from '../public/js/snapshot-codec.js';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -31,7 +32,7 @@ function checkSnapshot(s) {
 		assert.equal(typeof p[11], 'number');
 		for (const [id, lvl, extra, mask] of p[12]) {
 			assert.ok((WEAPON_IDS.includes(id) || (DUO_IDS.includes(id) && lvl <= 3) || (EVO_IDS.includes(id) && lvl === 1)) && isInt(lvl), `weapon ${id}`);
-			assert.ok(extra === undefined || (['orbit', 'windmill', 'orrery'].includes(id) && isInt(extra)));
+			assert.ok(extra === undefined || (['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) && isInt(extra)));
 			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)));
 		}
 	}
@@ -58,9 +59,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline'];
+		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -73,9 +74,16 @@ function checkSnapshot(s) {
 	assert.ok(s.boss === null || (Array.isArray(s.boss) && s.boss.length === 3 && ENEMIES[ENEMY_TYPES[s.boss[2]]]?.boss), 'boss bar');
 }
 
+// Snapshots go through the client decoder, as in the browser (wire format: snapshot-codec.js).
 function makeHub(onMsg) {
+	const decoders = new Map();
 	const hub = new Hub((pid, msg, json) => {
 		if (json) msg = JSON.parse(json);
+		if (msg.t === 's') {
+			if (!decoders.has(pid)) decoders.set(pid, new SnapshotDecoder());
+			msg = decoders.get(pid).decode(msg);
+			assert.ok(msg, 'snapshot chain is unbroken');
+		}
 		onMsg(pid, msg, json);
 		if (msg.t === 'lvl') hub.handle(pid, { t: 'pick', i: 0 });
 	});
@@ -905,7 +913,7 @@ console.log('over/again/leave: ok');
 	const take = (kind) => { const out = fxAll.filter((f) => f[0] === kind); return out; };
 	const duo = (r, id, lvl = 1) => { const h = r.heroes.get(1); h.weapons = new Map([[id, { lvl, t: 0 }]]); r.updateSynergy(); return h; };
 
-	assert.equal(DUO_IDS.length, 12, '12 duos (Прожектор бури waits for the Lantern)');
+	assert.equal(DUO_IDS.length, 16, '13 duos of the plan + 3 for Spear and Trail (wave 2)');
 	for (const [key, id] of Object.entries(DUO_BY_PAIR)) assert.equal(duoKey(...DUOS[id].parts), key);
 
 	// Rules: card in slot 1 at 3 + 3, start level by sum, fusing frees a slot, parts are not offered again.
@@ -1269,6 +1277,10 @@ console.log('over/again/leave: ok');
 		blizzard: () => take('frost').length > 0,
 		pitfall: () => take('boom').some((b) => b[4] === 5),
 		bastion: (r) => r.heroes.get(1).ward === 4,
+		firepath: () => take('zk').length > 0,
+		beacon: (r) => r.enemies.some((e) => e.beaconT > r.time),
+		banner: () => take('banner').length > 0,
+		quagmire: () => take('slowz').length > 0,
 	};
 	for (const id of EVO_IDS) {
 		const r = mkRoom();
@@ -1279,7 +1291,9 @@ console.log('over/again/leave: ok');
 		for (let i = 0; i < 8; i++) es.push(put(r, 'brute', Math.cos(i) * (60 + i * 25), Math.sin(i) * (60 + i * 25)));
 		es.push(put(r, 'brute', 300, 0), put(r, 'brute', 0, 210), put(r, 'brute', -30, -45));
 		fxAll.length = 0;
-		run(r, 4);
+		let step = 0;
+		// The fire path is laid only while moving.
+		run(r, 4, id === 'firepath' ? () => r.handle(1, { t: 'pos', x: 5 + Math.sin(++step / 15) * 60, y: 0, fx: 1, fy: 0 }) : undefined);
 		const hurt = es.filter((e) => e.hp < 1e5).length;
 		assert.ok(id === 'bastion' || hurt > 0, `${id} hurts enemies`);
 		assert.ok(evoHits[id](r), `${id} effect`);

@@ -272,6 +272,8 @@ export class UI {
 				const name = known.has(h.id) ? h.name : '???';
 				card.appendChild(el('div', 'card-hint', `🔗 с «${h.withName}» → ${name} (нужно ${h.need} + ${h.need})`));
 			}
+			if (c.reactHint) card.appendChild(el('div', 'card-hint card-hint-react', `💥 реакция «${c.reactHint.name}» с «${c.reactHint.withName}»${c.reactHint.ally ? ' союзника' : ''}`));
+			if (c.synHint) card.appendChild(el('div', 'card-hint', `✦ с «${c.synHint.withName}»: ${c.synHint.desc}`));
 			card.addEventListener('click', () => this.onPick && this.onPick(i));
 			box.appendChild(card);
 		});

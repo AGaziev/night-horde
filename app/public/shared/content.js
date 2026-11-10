@@ -236,7 +236,75 @@ export const PASSIVES = {
 	echo: { name: 'Эхо', icon: '≋', desc: '+1 снаряд, лужа, удар или клинок (+2 с 4 ур.)', stat: 'amount', values: [1, 1, 1, 2, 2] },
 	hourglass: { name: 'Песочные часы', icon: '⧗', desc: '+12% длительности луж, холода и заморозки', stat: 'durMul', perLevel: 0.12 },
 	mail: { name: 'Кольчуга', icon: '⛨', desc: '−1 к каждому полученному удару', stat: 'armor', perLevel: 1 },
+	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
+	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
+	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы', stat: 'luck', perLevel: 0.10 },
+	// coop: offered only when the room has 2+ players.
+	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
+// Direct weapon + artifact synergies (5.3): shown as hints on cards, applied on the server.
+export const SYNERGIES = [
+	{ weapon: 'knives', passive: 'crit', desc: 'крит-нож пробивает ещё одного врага' },
+	{ weapon: 'orbit', passive: 'mail', desc: 'удар хоровода снимает 1 урона со следующего удара по вам (до 3)' },
+	{ weapon: 'aura', passive: 'frostcore', desc: 'ореол холодит врагов на 15%' },
+	{ weapon: 'lightning', passive: 'ember', desc: 'первый удар молнии всегда поджигает' },
+	{ weapon: 'bomb', passive: 'echo', desc: 'с +2 лишними петардами взрывы ложатся крестом' },
+	{ weapon: 'traps', passive: 'hourglass', desc: 'корни дольше на 12% за уровень' },
+	{ weapon: 'sickle', passive: 'swift', desc: 'серп летит быстрее вместе с героем' },
+	{ weapon: 'spear', passive: 'bond', desc: 'копьё рядом с союзником +30% урона' },
+];
+// Reactions (5.3): enemy state + hit tag, from any player. Index = kind in the ['react', kind, x, y, r] event.
+export const REACTIONS = {
+	cond: { name: 'Проводник', color: '#4fc3f7', desc: 'сырость + молния: разряд по всей луже' },
+	flash: { name: 'Вспышка', color: '#ff9800', desc: 'горение + молния: взрыв' },
+	shatter: { name: 'Раскол', color: '#e1f5fe', desc: 'заморозка + физический удар: ×2 и осколки' },
+	steam: { name: 'Пар', color: '#eceff1', desc: 'горение + холод: облако, враги в нём бьют вдвое слабее' },
+	blast: { name: 'Подрыв', color: '#ff7043', desc: 'корни + огонь по площади: ×1,25' },
+	icing: { name: 'Наледь', color: '#b3e5fc', desc: 'сырость + холод: заморозка' },
+	light: { name: 'Свет', color: '#ffd54f', desc: 'метка: весь урон больше' },
+	chill: { name: 'Озноб', color: '#90caf9', desc: 'холод + Ледяное сердце: больше урона' },
+};
+export const REACTION_IDS = Object.keys(REACTIONS);
+// Which weapons leave a state, and which state + hit tag makes which reaction (for card hints; the server rules live in Room.react).
+export const STATE_SOURCES = {
+	wet: ['flask', 'molotov', 'censer', 'quagmire'],
+	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath'],
+	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
+	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
+	root: ['traps', 'pitfall', 'tripwire'],
+};
+export const REACTION_RULES = [
+	{ id: 'cond', state: 'wet', tags: ['shock'] },
+	{ id: 'flash', state: 'burn', tags: ['shock'] },
+	{ id: 'shatter', state: 'frozen', tags: ['phys'] },
+	{ id: 'steam', state: 'burn', tags: ['cold'] },
+	{ id: 'steam', state: 'chill', tags: ['fire'] },
+	{ id: 'blast', state: 'root', tags: ['fire', 'aoe'] },
+	{ id: 'icing', state: 'wet', tags: ['cold'] },
+];
+// First reaction a new weapon `id` makes together with one of `owned` (either side may leave the state): {reaction, with}.
+export function reactionHint(id, owned) {
+	const tagsOf = (w) => (WEAPONS[w] ?? DUOS[w] ?? EVOS[w])?.tags ?? [];
+	for (const R of REACTION_RULES) {
+		const src = STATE_SOURCES[R.state];
+		for (const o of owned) {
+			if (o === id) continue;
+			if (src.includes(o) && R.tags.every((t) => tagsOf(id).includes(t))) return { reaction: R.id, with: o };
+			if (src.includes(id) && R.tags.every((t) => tagsOf(o).includes(t))) return { reaction: R.id, with: o };
+		}
+	}
+	return null;
+}
+export const REACT = {
+	condFrac: 0.5, condEvery: 0.5,
+	flashR: 50, flashBase: 10, flashFrac: 0.3,
+	shatterMul: 2, shatterR: 40, shatterFrac: 0.3,
+	steamR: 60, steamLife: 2, steamContact: 0.5,
+	blastMul: 1.25,
+	icingFreeze: 0.8,
+};
+// Beacon beams: deterministic so the client draws them where the server hits.
+export const beaconAngle = (gameTime, pid, rps) => gameTime * rps * Math.PI * 2 + pid * 1.3;
 // Value of a passive at a level: `values[level - 1]` for non-linear passives, otherwise perLevel * level.
 export const passiveValue = (id, level) => {
 	const p = PASSIVES[id];
@@ -356,7 +424,7 @@ export const orbitAngle = (gameTime, rps, index, count) => gameTime * rps * Math
 
 // Duos (5.8): two weapons of one player, both at level ≥ DUO_MIN_LEVEL, fuse into a new weapon with its own
 // attack. The duo takes the first weapon's slot, the second slot frees up. Levels I–III; at most MAX_DUOS per player.
-// Pairs are matched in one place on the server (Room.updateCombos). Lantern + Storm («Прожектор бури») waits for wave 2.
+// Pairs are matched in one place on the server (Room.updateCombos).
 export const MAX_DUOS = 2;
 export const DUO_MIN_LEVEL = 3;
 export const DUO_MAX_LEVEL = 3;
@@ -473,6 +541,42 @@ export const DUOS = {
 			{ dmg: 64, cd: 1.1, count: 2, range: 340, speed: 560, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 1.0 },
 		],
 	},
+	stormlight: {
+		name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
+		desc: 'Луч метит врагов, в луче бьют молнии; цепь только по помеченным',
+		levels: [
+			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 28, chain: 2 },
+			{ dmg: 5, tick: 0.4, range: 290, angle: 80, mark: 0.30, strikeCd: 0.7, strikeDmg: 38, chain: 3 },
+			{ dmg: 7, tick: 0.4, range: 320, angle: 90, mark: 0.35, strikeCd: 0.6, strikeDmg: 52, chain: 4 },
+		],
+	},
+	volley: {
+		name: 'Залп', icon: '⇶', parts: ['knives', 'spear'], tags: ['phys', 'proj'],
+		desc: 'Копьё в сильнейшего на лету роняет веер ножей в стороны',
+		levels: [
+			{ dmg: 44, cd: 1.9, count: 1, pierce: 8, width: 18, speed: 720, kb: 50, knifeDmg: 8, every: 65 },
+			{ dmg: 58, cd: 1.7, count: 1, pierce: 10, width: 20, speed: 740, kb: 60, knifeDmg: 10, every: 60 },
+			{ dmg: 76, cd: 1.5, count: 2, pierce: 99, width: 22, speed: 780, kb: 70, knifeDmg: 13, every: 60 },
+		],
+	},
+	phalanx: {
+		name: 'Фаланга', icon: '⫼', parts: ['spear', 'ward'], tags: ['phys', 'proj'],
+		desc: 'Стена из копий бьёт вперёд; сломанный щит взрывается кольцом копий',
+		levels: [
+			{ charges: 2, cd: 9, dmg: 30, atkCd: 2.2, wall: 3, pierce: 6, width: 18, speed: 700, kb: 60, ring: 8 },
+			{ charges: 2, cd: 8, dmg: 40, atkCd: 2.0, wall: 3, pierce: 8, width: 20, speed: 720, kb: 70, ring: 10 },
+			{ charges: 3, cd: 7, dmg: 52, atkCd: 1.8, wall: 4, pierce: 99, width: 22, speed: 760, kb: 80, ring: 12 },
+		],
+	},
+	firewheel: {
+		name: 'Огненное колесо', icon: '☸', parts: ['orbit', 'trail'], tags: ['fire', 'aoe'],
+		desc: 'Огненные колёса кружат, поджигают врагов и оставляют горящий круг',
+		levels: [
+			{ dmg: 10, count: 3, radius: 95, rps: 0.55, hitCd: 0.4, burn: 4, every: 0.25, patchR: 26, patchLife: 1.6, patchDmg: 3, tick: 0.3 },
+			{ dmg: 14, count: 4, radius: 100, rps: 0.55, hitCd: 0.4, burn: 6, every: 0.2, patchR: 28, patchLife: 1.8, patchDmg: 4, tick: 0.3 },
+			{ dmg: 19, count: 5, radius: 105, rps: 0.55, hitCd: 0.35, burn: 8, every: 0.18, patchR: 30, patchLife: 2.0, patchDmg: 5, tick: 0.3 },
+		],
+	},
 };
 export const DUO_IDS = Object.keys(DUOS);
 export const duoKey = (a, b) => (a < b ? `${a}+${b}` : `${b}+${a}`);
@@ -523,6 +627,26 @@ export const EVOS = {
 	bastion: {
 		name: 'Бастион', icon: '🛡', from: 'ward', requires: 'vigor', tags: ['aoe'], color: '#ffd54f',
 		desc: '4 заряда щита, вспышка на каждом; союзник рядом получает заряд', levels: [{ charges: 4, cd: 5, burstDmg: 40, burstR: 140, kb: 80, share: 120 }],
+	},
+	firepath: {
+		name: 'Огненная тропа', icon: '☄', from: 'trail', requires: 'ember', tags: ['fire', 'aoe'], color: '#ff7043',
+		desc: 'Огонь горит 5 с и жжёт сильнее; сгоревший враг поджигает соседей',
+		levels: [{ dmg: 10, every: 0.15, radius: 36, dur: 5, tick: 0.25, burn: 8, spread: 60, max: 40 }],
+	},
+	beacon: {
+		name: 'Маяк', icon: '✵', from: 'lantern', requires: 'luck', tags: ['aoe'], color: '#ffe082',
+		desc: 'Два вращающихся луча метят всех вокруг (+40%); помеченные дают ×1,5 опыта',
+		levels: [{ dmg: 16, tick: 0.1, range: 330, half: 14, rps: 0.5, beams: 2, mark: 0.4, markDur: 2.2, xpMul: 1.5 }],
+	},
+	banner: {
+		name: 'Знамя', icon: '⚑', from: 'spear', requires: 'bond', tags: ['phys', 'proj'], color: '#ef5350',
+		desc: 'Копьё втыкается знаменем: рядом +20% урона и +10% скорости всем',
+		levels: [{ dmg: 130, cd: 1.7, pierce: 99, width: 24, speed: 820, kb: 80, life: 6, radius: 200, dmgBuff: 0.2, speedBuff: 0.1 }],
+	},
+	quagmire: {
+		name: 'Трясина', icon: '♒', from: 'flask', requires: 'frostcore', tags: ['aoe'], color: '#80cbc4',
+		desc: '3 широкие ледяные лужи: холод 50%, сырость, урон',
+		levels: [{ dmg: 8, cd: 2.8, count: 3, radius: 80, duration: 5, tick: 0.35, slow: 0.5 }],
 	},
 };
 export const EVO_IDS = Object.keys(EVOS);

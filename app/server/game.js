@@ -10,11 +10,15 @@ import {
 	MAGNET_ITEM_EVERY, BREAK_TILE, BREAK_R, BREAK_DROPS, breakableAt, HOSTILE_R,
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, DUO_MIN_LEVEL, DUO_DEFER_OFFERS, duoStartLevel, weaponDef, weaponMaxLevel,
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
-	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale,
+	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
+	beaconAngle,
 } from '../public/shared/content.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
+// Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
+const SNAP_STRIDE = { e: 6, g: 4, z: 4, tr: 5, it: 4 };
 const CELL = 64;
 const MAX_ENEMY_R = Math.max(...Object.values(ENEMIES).map((e) => e.r));
 const VIEW_DIST2 = 1000 * 1000;
@@ -64,7 +68,22 @@ const BREAK_DROP_TOTAL = BREAK_DROPS.reduce((s, [, w]) => s + w, 0);
 const SRC = Object.fromEntries([...WEAPON_IDS, ...DUO_IDS, ...EVO_IDS].map((id) => [id, { weapon: id, tags: weaponDef(id).tags ?? [] }]));
 const SRC_NONE = { weapon: 'other', tags: [] };
 const SRC_BLAST = { weapon: 'blast', tags: ['fire', 'aoe'] };
-const SRC_BURN = { weapon: 'burn', tags: ['fire'] };
+const SRC_BURN = { weapon: 'burn', tags: ['fire'], react: true }; // damage over time never triggers reactions
+// Reaction side damage: its own entry in damage stats, never chains into another reaction.
+const SRC_R = Object.fromEntries(REACTION_IDS.map((id) => [id, { weapon: 'r_' + id, tags: [], react: true }]));
+const REACT_INDEX = Object.fromEntries(REACTION_IDS.map((id, i) => [id, i]));
+const MAX_REACT_FX = 10;
+const MAX_STEAMS = 16;
+const BOND_R = 250;
+const BOND_ALLY = 0.02;
+const SPEAR_BOND_R = 60;
+const SPEAR_BOND_MUL = 1.3;
+const AURA_CHILL = 0.15;
+const LIGHTNING_EMBER_BURN = 3;
+const BOMB_BURN = { frac: 0.08, dur: 3 };
+const MINE_BURN = { frac: 0.06, dur: 3 };
+const MOLOTOV_BURN = 0.6; // burn dps = pool tick damage × this
+const CROSS_STEP = 50;
 const SRC_CRACKER = { weapon: 'cracker', tags: ['aoe'], raw: true }; // raw: fixed damage, no multipliers
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
 const shuffle = (a) => {
@@ -168,6 +187,7 @@ function makeHero(member, x, y) {
 		kills: 0, dmg: 0, dmgBy: {},
 		offer: null, queue: 0, boostQueue: 0, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
+		guard: 0, bondMul: 1, bannerT: 0,
 	};
 }
 
@@ -245,6 +265,7 @@ export class Room {
 			return;
 		}
 		if (this.state === 'play') {
+			this.needKey?.add(pid);
 			this.send(pid, this.startMsg());
 			const h = this.heroes.get(pid);
 			if (h?.offer) this.sendOffer(h);
@@ -293,6 +314,9 @@ export class Room {
 			case 'skip':
 				this.onSkip(pid);
 				break;
+			case 'kf':
+				this.needKey?.add(pid);
+				break;
 		}
 	}
 
@@ -328,6 +352,10 @@ export class Room {
 		this.nextMagnetT = MAGNET_ITEM_EVERY;
 		this.critFx = 0;
 		this.orbs = [];
+		this.steams = [];
+		this.banners = [];
+		this.reactN = Object.fromEntries(REACTION_IDS.map((id) => [id, 0]));
+		this.reactFx = 0;
 		this.timers = [];
 		this.synergy = 0;
 		this.spawnAcc = 0;
@@ -352,6 +380,8 @@ export class Room {
 			this.heroes.set(m.pid, makeHero(m, Math.cos(a) * r, Math.sin(a) * r));
 		});
 		this.runLog = new RunLog(this);
+		this.snapCodec = new SnapshotEncoder(SNAP_STRIDE);
+		this.needKey = new Set();
 		this.broadcast(this.startMsg());
 	}
 
@@ -434,6 +464,7 @@ export class Room {
 		for (const id of PASSIVE_IDS) {
 			const lvl = h.passives.get(id) ?? 0;
 			const P = PASSIVES[id];
+			if (P.coop && this.heroes.size < 2) continue;
 			if (lvl ? lvl < MAX_LEVEL : h.passives.size < MAX_PASSIVES) {
 				(lvl ? ups : newP).push({ id, kind: 'passive', name: P.name, icon: P.icon, desc: P.desc, level: lvl + 1 });
 			}
@@ -472,7 +503,10 @@ export class Room {
 		const heal = { id: 'heal', kind: 'heal', name: 'Лечение', icon: '✚', desc: `+${HEAL_AMOUNT} здоровья`, level: 0 };
 		// Nothing (or not enough) left to upgrade: embers — small permanent bonuses for this run.
 		if (out.length < 3) out.push(...this.emberCards(h, 3 - out.length));
-		for (const c of out) this.duoHint(h, c);
+		for (const c of out) {
+			this.duoHint(h, c);
+			this.waveHints(h, c);
+		}
 		const slot3 = Math.min(2, out.length);
 		if (h.st === 0 && h.hp < h.maxHp * HEAL_OFFER_HP) {
 			out[slot3] = { ...heal, desc: `+${HEAL_AMOUNT} здоровья (здоровья меньше ${Math.round(HEAL_OFFER_HP * 100)}%)` };
@@ -503,6 +537,20 @@ export class Room {
 				return;
 			}
 		}
+	}
+
+	// «💥 реакция «Проводник» с «Зелье» (союзник)» on new weapons; «✦ …» for weapon + artifact synergies.
+	waveHints(h, c) {
+		if (c.kind === 'weapon' && c.level === 1 && WEAPONS[c.id]) {
+			const mine = [...h.weapons.keys()];
+			const team = [];
+			for (const o of this.heroes.values()) if (o !== h) team.push(...o.weapons.keys());
+			const hint = reactionHint(c.id, mine) ?? reactionHint(c.id, team);
+			if (hint) c.reactHint = { name: REACTIONS[hint.reaction].name, withName: weaponDef(hint.with).name, ally: !mine.includes(hint.with) };
+		}
+		const syn = SYNERGIES.find((x) => (c.kind === 'weapon' && x.weapon === c.id && h.passives.has(x.passive))
+			|| (c.kind === 'passive' && x.passive === c.id && h.weapons.has(x.weapon)));
+		if (syn) c.synHint = { withName: c.kind === 'weapon' ? PASSIVES[syn.passive].name : WEAPONS[syn.weapon].name, desc: syn.desc };
 	}
 
 	duoCount(h) {
@@ -647,6 +695,7 @@ export class Room {
 		if (this.state !== 'play') return;
 		this.time += dt;
 		this.tickNo++;
+		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
 
@@ -1201,7 +1250,7 @@ export class Room {
 		return tb ? [tb, td] : [best, bd];
 	}
 
-	// The single damage entry point: mark → crit → (reactions, wave 2) → armor → hp → burn.
+	// The single damage entry point: mark → crit → reactions → armor → hp → burn.
 	hurtEnemy(e, dmg, h, src = SRC_NONE) {
 		if (e.dead || dmg <= 0) return 0;
 		const now = this.time;
@@ -1211,12 +1260,15 @@ export class Room {
 		if (h && !src.raw) {
 			if (h.rageT > now) dmg *= ITEMS.rage.mul;
 			if (this.synergy > 0) dmg *= 1 + this.synergy;
+			if (h.bondMul > 1) dmg *= h.bondMul;
+			if (h.bannerT > now) dmg *= 1 + EVOS.banner.levels[0].dmgBuff;
 			if (h.mods.chillVuln > 0 && e.slowT > now) dmg *= 1 + h.mods.chillVuln;
 			if (h.mods.critChance > 0 && Math.random() < h.mods.critChance) {
 				crit = true;
 				dmg *= h.mods.critMul;
 			}
 		}
+		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src);
 		if (e.elite === 'armored' && src.tags.includes('proj')) dmg *= 0.5;
 		const dealt = Math.min(dmg, e.hp);
 		if (h) {
@@ -1233,8 +1285,72 @@ export class Room {
 			this.fx.push(['hit', Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(dmg))]);
 		}
 		if (e.hp <= 0) this.killEnemy(e, h, src);
-		else if (h && h.mods.burnChance > 0 && src !== SRC_BURN && Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
+		else if (h && h.mods.burnChance > 0 && !src.react && Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
 		return dmg;
+	}
+
+	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
+	react(e, dmg, h, src) {
+		const now = this.time, t = src.tags;
+		const fire = t.includes('fire'), cold = t.includes('cold'), shock = t.includes('shock');
+		if (fire && e.rootT > now && t.includes('aoe')) {
+			dmg *= REACT.blastMul;
+			this.reacted('blast', e.x, e.y, 0);
+		}
+		if (t.includes('phys') && e.frozenT > now) {
+			dmg *= REACT.shatterMul;
+			e.frozenT = now;
+			e.thawT = now + FREEZE_IMMUNE;
+			this.reacted('shatter', e.x, e.y, REACT.shatterR);
+			this.splash(e.x, e.y, REACT.shatterR, dmg * REACT.shatterFrac, h, SRC_R.shatter, e);
+		}
+		if (shock && e.burnT > now) {
+			e.burnT = 0;
+			this.reacted('flash', e.x, e.y, REACT.flashR);
+			this.splash(e.x, e.y, REACT.flashR, REACT.flashBase * (h?.mods.dmgMul ?? 1) + dmg * REACT.flashFrac, h, SRC_R.flash, null);
+		}
+		if (shock && e.wetT > now && e.wetZ && e.wetZ.life > 0 && !(e.wetZ.condT > now)) {
+			const z = e.wetZ;
+			z.condT = now + REACT.condEvery;
+			this.reacted('cond', z.x, z.y, z.r);
+			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, SRC_R.cond, e);
+		}
+		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1))) this.reacted('icing', e.x, e.y, 0);
+		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
+			e.burnT = 0;
+			e.slowT = 0;
+			e.steamT = now + REACT.steamLife;
+			this.reacted('steam', e.x, e.y, REACT.steamR);
+			if (this.steams.length >= MAX_STEAMS) this.steams.shift();
+			this.steams.push({ x: e.x, y: e.y, r: REACT.steamR, t: now + REACT.steamLife });
+		}
+		return dmg;
+	}
+
+	reacted(kind, x, y, r) {
+		this.reactN[kind]++;
+		if (this.reactFx >= MAX_REACT_FX) return;
+		this.reactFx++;
+		this.fx.push(['react', REACT_INDEX[kind], Math.round(x), Math.round(y), Math.round(r)]);
+	}
+
+	// Damage everyone in a circle (except `skip`) from a reaction or a side effect.
+	splash(x, y, r, dmg, h, src, skip) {
+		for (const o of this.grid.query(x, y, r + MAX_ENEMY_R, [])) {
+			if (o === skip || o.dead || dist2(o.x, o.y, x, y) >= (r + o.r * 0.5) ** 2) continue;
+			this.hurtEnemy(o, dmg, h, src);
+		}
+	}
+
+	// Steam clouds halve contact damage of enemies standing in them.
+	inSteam(e) {
+		for (const c of this.steams) if (c.t > this.time && dist2(e.x, e.y, c.x, c.y) < c.r * c.r) return true;
+		return false;
+	}
+
+	root(e, dur) {
+		if (e.boss || dur <= 0) return;
+		e.rootT = Math.max(e.rootT, this.time + dur);
 	}
 
 	burn(e, h, dps, dur) {
@@ -1265,7 +1381,8 @@ export class Room {
 			this.fx.push(['die', Math.round(e.x), Math.round(e.y), e.type]);
 		}
 		const luck = h ? h.mods.luck : 0;
-		this.dropGem(e.x, e.y, e.xp, Math.random() < GOLD_GEM_CHANCE * (1 + luck));
+		this.dropGem(e.x, e.y, e.beaconT > this.time ? e.xp * EVOS.beacon.levels[0].xpMul : e.xp, Math.random() < GOLD_GEM_CHANCE * (1 + luck));
+		if (e.burnT > this.time && e.burnOwner?.weapons.has('firepath')) this.spreadFire(e);
 		if (h && src.weapon === 'fireworks') this.gems[this.gems.length - 1].pull = h;
 		if (e.ai === 'exploder' && !e.exploded) {
 			e.exploded = true;
@@ -1323,6 +1440,7 @@ export class Room {
 			const rr = b.r + e.r * 0.5;
 			if (e.dead || dist2(e.x, e.y, b.x, b.y) >= rr * rr) continue;
 			this.hurtEnemy(e, b.edmg, b.owner, b.src);
+			if (b.burn && !e.dead) this.burn(e, b.owner, b.edmg * b.burn.frac, b.burn.dur);
 			if (b.kb && !e.dead && !e.boss) this.knock(e, b.x, b.y, b.kb);
 		}
 		if (b.then) b.then(b);
@@ -1512,6 +1630,7 @@ export class Room {
 	updatePlayers(dt, alive) {
 		const near = this.q1;
 		const now = this.time;
+		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
 			h.iframes = Math.max(0, h.iframes - dt);
@@ -1530,7 +1649,7 @@ export class Room {
 					continue;
 				}
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now) continue;
-				this.hurtPlayer(h, e.dmg, e.elite ? 'elite' : enemyKey(e));
+				this.hurtPlayer(h, e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg, e.elite ? 'elite' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -1539,12 +1658,35 @@ export class Room {
 		}
 	}
 
+	// Bond (+dmg per ally nearby, +2% to allies near a bond holder) and Banner (+dmg inside its radius).
+	updateBuffs(alive) {
+		const now = this.time;
+		if (this.steams.length && this.steams[0].t <= now) this.steams = this.steams.filter((c) => c.t > now);
+		if (this.banners.length) this.banners = this.banners.filter((b) => b.t > now);
+		for (const h of alive) {
+			h.bondMul = 1;
+			for (const b of this.banners) if (dist2(h.x, h.y, b.x, b.y) < b.r * b.r) h.bannerT = now + 0.2;
+		}
+		if (alive.length < 2) return;
+		for (const h of alive) {
+			let n = 0, holders = 0;
+			for (const o of alive) {
+				if (o === h || dist2(o.x, o.y, h.x, h.y) > BOND_R * BOND_R) continue;
+				n++;
+				if (o.mods.bond > 0) holders++;
+			}
+			h.bondMul = 1 + h.mods.bond * Math.min(3, n) + BOND_ALLY * holders;
+		}
+	}
+
 	hurtPlayer(h, dmg, from = 'other') {
 		if (h.ward > 0) {
 			this.wardAbsorb(h);
 			return;
 		}
-		const lost = Math.min(h.hp, Math.max(1, dmg * h.trait.dmgTaken - h.mods.armor));
+		const guard = h.guard;
+		h.guard = 0;
+		const lost = Math.min(h.hp, Math.max(1, dmg * h.trait.dmgTaken - h.mods.armor - guard));
 		h.hp -= lost;
 		this.runLog?.hurt(this, h, lost, from);
 		h.iframes = PLAYER_IFRAMES;
@@ -1627,6 +1769,20 @@ export class Room {
 			case 'bastion':
 				this.wardTick(h, w, L, dt);
 				return;
+			case 'phalanx':
+				this.wardTick(h, w, L, dt);
+				w.a = (w.a ?? 0.5) - dt;
+				if (w.a <= 0) w.a = this.phalanxWall(h, L) ? L.atkCd * cdMul : 0.2;
+				return;
+			case 'firewheel':
+				this.firewheelTick(h, w, L, dt);
+				return;
+			case 'stormlight':
+				this.stormlightTick(h, w, L, dt);
+				return;
+			case 'beacon':
+				this.beaconTick(h, w, L, dt);
+				return;
 			case 'aurora':
 			case 'blizzard':
 				w.p = (w.p ?? L.pulse) - dt;
@@ -1686,7 +1842,8 @@ export class Room {
 					const t = targets[i % targets.length];
 					const spread = i < targets.length ? 0 : (i - targets.length + 1) * 0.5;
 					const a = Math.atan2(t.y - h.y, t.x - h.x) + spread;
-					this.addProjectile(h, 'sickle', a, L.speed, dmg, Infinity, (range / L.speed) * 2 + 1.5, null, range / L.speed);
+					const speed = L.speed * h.mods.speedMul; // Серп + Лёгкость
+					this.addProjectile(h, 'sickle', a, speed, dmg, Infinity, (range / speed) * 2 + 1.5, null, range / speed);
 				}
 				w.t = L.cd * cdMul;
 				return;
@@ -1709,9 +1866,12 @@ export class Room {
 					}
 				}
 				const near = this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2);
+				const chill = h.passives.has('frostcore'); // Ореол + Ледяное сердце
 				for (const e of near) {
 					const rr = r + e.r * 0.5;
-					if (!e.dead && dist2(e.x, e.y, h.x, h.y) < rr * rr) this.hurtEnemy(e, dmg, h, src);
+					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
+					this.hurtEnemy(e, dmg, h, src);
+					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2);
 				}
 				this.breakAround(h.x, h.y, r, h);
 				w.t = L.tick;
@@ -1743,20 +1903,21 @@ export class Room {
 			case 'molotov':
 			case 'icebomb': {
 				const lobKind = id === 'bomb' ? 0 : id === 'molotov' ? 1 : 2;
+				const cross = id === 'bomb' && amount >= 2 ? amount : 0; // Петарда + Эхо
 				const thrown = this.throwBombs(h, L.count + amount, L.fuse, lobKind, (x, y) => ({
-					x, y, r: L.radius * areaMul, pdmg: 0, edmg: dmg, owner: h, src,
+					x, y, r: L.radius * areaMul, pdmg: 0, edmg: dmg, owner: h, src, burn: id === 'bomb' ? BOMB_BURN : null,
 					kind: lobKind === 0 ? 0 : lobKind === 1 ? 6 : 4,
 					then: lobKind === 1 ? (b) => this.firePool(h, b, L) : lobKind === 2 ? (b) => this.iceBurst(h, b, L) : null,
-				}));
+				}), cross);
 				w.t = thrown ? L.cd * cdMul : 0.2;
 				return;
 			}
 			case 'traps':
-				this.layTrap(h, { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul, splash: L.splash * areaMul, max: L.max, src });
+				this.layTrap(h, { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, splash: L.splash * areaMul, max: L.max, src }); // + Песочные часы
 				w.t = L.cd * cdMul;
 				return;
 			case 'minefield':
-				this.layTrap(h, { kind: 1, r: L.trigger * areaMul, dmg, blastR: L.radius * areaMul, kb: L.kb, recharge: L.recharge, max: L.max, src });
+				this.layTrap(h, { kind: 1, r: L.trigger * areaMul, dmg, blastR: L.radius * areaMul, kb: L.kb, recharge: L.recharge, max: L.max, src, burn: MINE_BURN });
 				w.t = L.cd * cdMul;
 				return;
 			case 'thunderslash': {
@@ -1844,7 +2005,7 @@ export class Room {
 			case 'censer': {
 				const z = {
 					id: this.nextId++, owner: h, x: h.x, y: h.y, r: L.radius * areaMul, life: L.life * durMul, dmg, tick: L.tick, t: 0,
-					slow: h.trait.puddleSlow, heal: L.heal,
+					slow: h.trait.puddleSlow, heal: L.heal, wet: true, src,
 				};
 				this.puddles.push(z);
 				this.fx.push(['zk', z.id, 2]);
@@ -1869,6 +2030,7 @@ export class Room {
 					this.fx.push(['zap', Math.round(t.x), Math.round(t.y - 320), Math.round(t.x), Math.round(t.y)]);
 					const hit = [t];
 					this.hurtEnemy(t, dmg, h, src);
+					if (!t.dead && h.mods.burnDps > 0) this.burn(t, h, h.mods.burnDps, LIGHTNING_EMBER_BURN); // Гроза + Уголёк
 					// Tempest: a critical strike jumps further along the chain.
 					const chain = L.chain + h.trait.chainBonus + (id === 'tempest' && this.lastCrit ? L.critChain : 0);
 					for (let c = 0; c < chain; c++) {
@@ -1887,17 +2049,26 @@ export class Room {
 				w.t = this.lanternTick(h, L, src) ? L.tick : 0.2;
 				return;
 			case 'trail':
+			case 'firepath':
 				w.t = this.trailTick(h, L, src) ? L.every : 0.05;
 				return;
-			case 'spear': {
+			case 'spear':
+			case 'volley':
+			case 'banner': {
 				const t = this.toughest(h, SPEAR_RANGE);
 				if (!t) {
 					w.t = 0.2;
 					return;
 				}
 				const a = Math.atan2(t.y - h.y, t.x - h.x);
-				for (let i = 0; i < 1 + amount; i++) {
-					this.addProjectile(h, 'spear', a + (i - amount / 2) * 0.12, L.speed, dmg, L.pierce, SPEAR_RANGE / L.speed + 0.25, null, 0, { src, kb: L.kb, r: L.width / 2 });
+				const n = (L.count ?? 1) + amount;
+				const bond = h.mods.bond > 0;
+				for (let i = 0; i < n; i++) {
+					this.addProjectile(h, 'spear', a + (i - (n - 1) / 2) * 0.12, L.speed, dmg, L.pierce, SPEAR_RANGE / L.speed + 0.25, null, 0, {
+						src, kb: L.kb, r: L.width / 2, bond,
+						shed: id === 'volley' ? { every: L.every, acc: 0, dmg: L.knifeDmg * dmgMul, speed: 560, life: 0.45 } : null,
+						onEnd: id === 'banner' && i === 0 ? (p) => this.plantBanner(h, p.x, p.y, L) : null,
+					});
 				}
 				w.t = L.cd * cdMul;
 				return;
@@ -1930,7 +2101,8 @@ export class Room {
 				this.layTrap(h, { kind: 4, r: L.radius * areaMul, dmg, blastR: L.blastR * areaMul, root: L.root * h.mods.ctrlMul, max: L.max, src });
 				w.t = L.cd * cdMul;
 				return;
-			case 'flask': {
+			case 'flask':
+			case 'quagmire': {
 				const count = L.count + amount;
 				const targets = this.nearestEnemies(h.x, h.y, count, 300);
 				for (let i = 0; i < count; i++) {
@@ -1944,7 +2116,7 @@ export class Room {
 						x = h.x + Math.cos(a) * d;
 						y = h.y + Math.sin(a) * d;
 					}
-					const z = { id: this.nextId++, owner: h, x, y, r: L.radius * areaMul, life: L.duration * durMul, dmg, tick: L.tick, t: 0, slow: h.trait.puddleSlow };
+					const z = { id: this.nextId++, owner: h, x, y, r: L.radius * areaMul, life: L.duration * durMul, dmg, tick: L.tick, t: 0, slow: Math.max(h.trait.puddleSlow, L.slow ?? 0), wet: true, src };
 					this.puddles.push(z);
 					if (z.slow > 0) this.fx.push(['slowz', z.id]);
 				}
@@ -2007,24 +2179,7 @@ export class Room {
 
 	// Lantern: a cone of light on the densest group marks enemies (+damage from everyone).
 	lanternTick(h, L, src) {
-		const range = L.range * h.mods.areaMul;
-		const pt = this.densestPoints(h, 1, range)[0];
-		if (!pt) return false;
-		const dir = Math.atan2(pt.y - h.y, pt.x - h.x);
-		const half = (L.angle * Math.PI) / 360;
-		for (const e of this.grid.query(h.x, h.y, range + MAX_ENEMY_R, this.q2)) {
-			if (e.dead) continue;
-			const dx = e.x - h.x, dy = e.y - h.y;
-			if (dx * dx + dy * dy > (range + e.r) ** 2) continue;
-			let da = Math.abs(Math.atan2(dy, dx) - dir);
-			if (da > Math.PI) da = Math.PI * 2 - da;
-			if (da > half) continue;
-			if (e.markT <= this.time || L.mark > e.markMul) e.markMul = L.mark;
-			e.markT = this.time + L.tick + 0.3;
-			this.hurtEnemy(e, L.dmg * h.mods.dmgMul, h, src);
-		}
-		this.fx.push(['cone', h.pid, Math.round(dir * 100), Math.round(range), Math.round(L.angle / 2)]);
-		return true;
+		return this.lightCone(h, L.range * h.mods.areaMul, L.angle, L.mark, L.tick + 0.3, L.dmg * h.mods.dmgMul, src) !== null;
 	}
 
 	trailTick(h, L, src) {
@@ -2037,7 +2192,7 @@ export class Room {
 		this.fx.push(['zk', z.id, 1]);
 		let mine = 0;
 		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
-		if (mine > TRAIL_MAX) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+		if (mine > (L.max ?? TRAIL_MAX)) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
 		return true;
 	}
 
@@ -2063,13 +2218,17 @@ export class Room {
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
-		const id = h.weapons.has('bastion') ? 'bastion' : 'ward';
+		const id = h.weapons.has('bastion') ? 'bastion' : h.weapons.has('phalanx') ? 'phalanx' : 'ward';
 		const w = h.weapons.get(id);
 		const L = weaponDef(id).levels[(w?.lvl ?? 1) - 1];
 		h.ward--;
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
 		if (w && h.ward < h.wardMax) w.t = Math.min(w.t, L.cd * h.mods.cdMul);
+		if (id === 'phalanx') {
+			this.spearRing(h, L);
+			return;
+		}
 		if (id === 'bastion' || h.ward <= 0) {
 			this.explode({ x: h.x, y: h.y, r: L.burstR * h.mods.areaMul, pdmg: 0, edmg: L.burstDmg * h.mods.dmgMul, owner: h, kind: 7, src: SRC[id], kb: L.kb });
 		}
@@ -2080,6 +2239,172 @@ export class Room {
 				this.fx.push(['ward', o.pid, o.ward]);
 				break;
 			}
+		}
+	}
+
+	// Фаланга: a wall of parallel spears at the toughest enemy.
+	phalanxWall(h, L) {
+		const t = this.toughest(h, SPEAR_RANGE);
+		if (!t) return false;
+		const a = Math.atan2(t.y - h.y, t.x - h.x);
+		const n = L.wall + h.mods.amount, nx = -Math.sin(a), ny = Math.cos(a);
+		for (let i = 0; i < n; i++) {
+			const off = (i - (n - 1) / 2) * 22;
+			this.addProjectile(h, 'spear', a, L.speed, L.dmg * h.mods.dmgMul, L.pierce, SPEAR_RANGE / L.speed + 0.25, null, 0, {
+				x: h.x + nx * off, y: h.y + ny * off, src: SRC.phalanx, kb: L.kb, r: L.width / 2, bond: h.mods.bond > 0,
+			});
+		}
+		return true;
+	}
+
+	// A broken Phalanx charge bristles into a ring of spears.
+	spearRing(h, L) {
+		for (let i = 0; i < L.ring; i++) {
+			const a = (i / L.ring) * Math.PI * 2;
+			this.addProjectile(h, 'spear', a, L.speed, L.dmg * h.mods.dmgMul, L.pierce, 0.45, null, 0, { src: SRC.phalanx, kb: L.kb, r: L.width / 2 });
+		}
+	}
+
+	// Огненное колесо: burning wheels on an orbit; each hit ignites, the ring leaves fire patches.
+	firewheelTick(h, w, L, dt) {
+		const { dmgMul, areaMul, amount, durMul } = h.mods;
+		const count = L.count + amount, R = L.radius * areaMul, wr = ORBIT_BLADE_R * 1.3 * areaMul;
+		const key = h.pid * 10 + 9;
+		const xs = [], ys = [];
+		for (let i = 0; i < count; i++) {
+			const a = orbitAngle(this.time, L.rps, i, count);
+			xs.push(h.x + Math.cos(a) * R);
+			ys.push(h.y + Math.sin(a) * R);
+		}
+		for (const e of this.grid.query(h.x, h.y, R + wr + MAX_ENEMY_R, this.q2)) {
+			if (e.dead || (e.oh && (e.oh[key] ?? 0) > this.time)) continue;
+			const rr = (wr + e.r) ** 2;
+			for (let i = 0; i < count; i++) {
+				if (dist2(e.x, e.y, xs[i], ys[i]) >= rr) continue;
+				(e.oh ??= {})[key] = this.time + L.hitCd;
+				this.hurtEnemy(e, L.dmg * dmgMul, h, SRC.firewheel);
+				if (!e.dead) this.burn(e, h, L.burn, 3);
+				break;
+			}
+		}
+		w.t -= dt;
+		if (w.t > 0) return;
+		w.t = L.every;
+		w.k = ((w.k ?? 0) + 1) % count;
+		const z = {
+			id: this.nextId++, owner: h, x: xs[w.k], y: ys[w.k], r: L.patchR * areaMul, life: L.patchLife * durMul, dmg: L.patchDmg * dmgMul,
+			tick: L.tick, t: 0, src: SRC.firewheel, trail: true,
+		};
+		this.puddles.push(z);
+		this.fx.push(['zk', z.id, 1]);
+		let mine = 0;
+		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
+		if (mine > TRAIL_MAX) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+	}
+
+	// Enemies inside a cone; marks them. Returns {dir, list} or null when no target.
+	lightCone(h, range, angleDeg, mark, markDur, dmg, src) {
+		const pt = this.densestPoints(h, 1, range)[0];
+		if (!pt) return null;
+		const dir = Math.atan2(pt.y - h.y, pt.x - h.x);
+		const half = (angleDeg * Math.PI) / 360;
+		const list = [];
+		for (const e of this.grid.query(h.x, h.y, range + MAX_ENEMY_R, this.q2)) {
+			if (e.dead) continue;
+			const dx = e.x - h.x, dy = e.y - h.y;
+			if (dx * dx + dy * dy > (range + e.r) ** 2) continue;
+			let da = Math.abs(Math.atan2(dy, dx) - dir);
+			if (da > Math.PI) da = Math.PI * 2 - da;
+			if (da > half) continue;
+			if (e.markT <= this.time || mark > e.markMul) e.markMul = mark;
+			e.markT = this.time + markDur;
+			list.push(e);
+			this.hurtEnemy(e, dmg, h, src);
+		}
+		this.fx.push(['cone', h.pid, Math.round(dir * 100), Math.round(range), Math.round(angleDeg / 2)]);
+		return { dir, list };
+	}
+
+	// Прожектор бури: the cone marks; lightning strikes a random enemy in it and chains only through marked ones.
+	stormlightTick(h, w, L, dt) {
+		const { dmgMul, areaMul, amount, cdMul } = h.mods;
+		w.t -= dt;
+		if (w.t <= 0) {
+			const c = this.lightCone(h, L.range * areaMul, L.angle, L.mark, L.tick + 0.3, L.dmg * dmgMul, SRC.stormlight);
+			w.t = c ? L.tick : 0.2;
+			if (c) w.cone = c.list;
+		}
+		w.s = (w.s ?? L.strikeCd) - dt;
+		if (w.s > 0) return;
+		const cand = (w.cone ?? []).filter((e) => !e.dead);
+		if (!cand.length) {
+			w.s = 0.1;
+			return;
+		}
+		w.s = L.strikeCd * cdMul;
+		const chain = L.chain + h.trait.chainBonus;
+		for (let k = 0; k < 1 + amount && cand.length; k++) {
+			const i = Math.floor(Math.random() * cand.length);
+			let t = cand[i];
+			cand.splice(i, 1);
+			const dmg = L.strikeDmg * dmgMul;
+			this.fx.push(['zap', Math.round(t.x), Math.round(t.y - 320), Math.round(t.x), Math.round(t.y)]);
+			const hit = [t];
+			this.hurtEnemy(t, dmg, h, SRC.stormlight);
+			for (let c = 0; c < chain; c++) {
+				let next = null, bd = CHAIN_RANGE * CHAIN_RANGE;
+				for (const e of this.grid.query(t.x, t.y, CHAIN_RANGE, this.q3)) {
+					if (e.dead || hit.includes(e) || !(e.markT > this.time)) continue;
+					const d = dist2(t.x, t.y, e.x, e.y);
+					if (d < bd) {
+						bd = d;
+						next = e;
+					}
+				}
+				if (!next) break;
+				this.fx.push(['zap', Math.round(t.x), Math.round(t.y), Math.round(next.x), Math.round(next.y)]);
+				hit.push(next);
+				this.hurtEnemy(next, dmg, h, SRC.stormlight);
+				t = next;
+			}
+		}
+	}
+
+	// Маяк: beams sweep around the hero; everyone under a beam is marked (×2 XP on death).
+	beaconTick(h, w, L, dt) {
+		w.t -= dt;
+		if (w.t > 0) return;
+		w.t = L.tick;
+		const range = L.range * h.mods.areaMul, half = (L.half * Math.PI) / 180;
+		const key = h.pid * 10 + 6;
+		const dirs = [];
+		for (let b = 0; b < L.beams; b++) dirs.push(beaconAngle(this.time, h.pid, L.rps) + (b * Math.PI * 2) / L.beams);
+		for (const e of this.grid.query(h.x, h.y, range + MAX_ENEMY_R, this.q2)) {
+			if (e.dead) continue;
+			const dx = e.x - h.x, dy = e.y - h.y;
+			if (dx * dx + dy * dy > (range + e.r) ** 2) continue;
+			const ang = Math.atan2(dy, dx);
+			let inBeam = false;
+			for (const d of dirs) {
+				let da = Math.abs(ang - d) % (Math.PI * 2);
+				if (da > Math.PI) da = Math.PI * 2 - da;
+				if (da <= half) inBeam = true;
+			}
+			if (!inBeam) continue;
+			if (e.markT <= this.time || L.mark > e.markMul) e.markMul = L.mark;
+			e.markT = this.time + L.markDur;
+			e.beaconT = e.markT;
+			if ((e.oh?.[key] ?? 0) > this.time) continue;
+			(e.oh ??= {})[key] = this.time + 0.5;
+			this.hurtEnemy(e, L.dmg * h.mods.dmgMul, h, SRC.beacon);
+		}
+	}
+
+	// Огненная тропа: a burning enemy that dies sets its neighbours on fire.
+	spreadFire(e) {
+		const h = e.burnOwner, L = EVOS.firepath.levels[0];
+		for (const o of this.grid.query(e.x, e.y, L.spread + MAX_ENEMY_R, [])) {
+			if (o !== e && !o.dead && dist2(o.x, o.y, e.x, e.y) < L.spread * L.spread) this.burn(o, h, Math.max(L.burn, e.burnDps), 3);
 		}
 	}
 
@@ -2238,9 +2563,14 @@ export class Room {
 	}
 
 	// Lob bombs into the densest groups; `blast(x, y)` builds the explosion. Returns false if there was no target.
-	throwBombs(h, count, fuse, lobKind, blast) {
-		const pts = this.densestPoints(h, count, BOMB_RANGE);
+	// `cross` extra bombs land in a cross around the first point instead of other groups.
+	throwBombs(h, count, fuse, lobKind, blast, cross = 0) {
+		const pts = this.densestPoints(h, count - cross, BOMB_RANGE);
 		if (!pts.length) return false;
+		for (let k = 0; k < cross; k++) {
+			const step = CROSS_STEP * (1 + (k >> 2)), a = (k % 4) * Math.PI / 2;
+			pts.push({ x: pts[0].x + Math.cos(a) * step, y: pts[0].y + Math.sin(a) * step });
+		}
 		for (const p of pts) {
 			this.fx.push(['lob', this.nextId++, Math.round(h.x), Math.round(h.y), Math.round(p.x), Math.round(p.y), round3(fuse), round3(this.time), lobKind]);
 			this.blasts.push({ ...blast(p.x, p.y), t: this.time + fuse });
@@ -2251,7 +2581,7 @@ export class Room {
 	firePool(h, b, L) {
 		const z = {
 			id: this.nextId++, owner: h, x: b.x, y: b.y, r: b.r * 0.9, life: L.pool * h.mods.durMul, dmg: L.poolDmg * h.mods.dmgMul,
-			tick: L.tick, t: 0, slow: h.trait.puddleSlow, src: SRC.molotov,
+			tick: L.tick, t: 0, slow: h.trait.puddleSlow, src: SRC.molotov, wet: true, burn: L.poolDmg * MOLOTOV_BURN, burnDur: 1.5,
 		};
 		this.puddles.push(z);
 		this.fx.push(['zk', z.id, 1]);
@@ -2306,7 +2636,7 @@ export class Room {
 		const kind = o.kind ?? 0;
 		this.traps.push({
 			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src,
-			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM,
+			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM,
 		});
 		if (o.max) {
 			let mine = 0;
@@ -2505,6 +2835,7 @@ export class Room {
 				if (dist2(e.x, e.y, bx[i], by[i]) < rr) {
 					(e.oh ??= {})[h.pid] = this.time + L.hitCd;
 					this.hurtEnemy(e, L.dmg * dmgMul, h, SRC.orbit);
+					if (h.mods.armor > 0) h.guard = Math.min(3, h.guard + 1); // Хоровод + Кольчуга
 					break;
 				}
 			}
@@ -2518,7 +2849,7 @@ export class Room {
 			id: this.nextId++, kind: KIND_INDEX[kind], src: opts.src ?? SRC[kind === 'knife' ? 'knives' : kind], owner: h,
 			x: opts.x ?? h.x, y: opts.y ?? h.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, speed, dmg, pierce, life, target,
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
-			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0,
+			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
 		};
 		this.projectiles.push(p);
 		// Projectiles often live shorter than a snapshot interval, so clients simulate them from events.
@@ -2548,6 +2879,35 @@ export class Room {
 		this.puddles.push({ id: this.nextId++, owner: p.owner, x: p.x, y: p.y, r: tr.r, life: tr.life, dmg: 0, tick: 1, t: 1, slow: tr.slow, hidden: true });
 	}
 
+	// Залп: the spear drops a pair of knives to both sides every `every` px of flight.
+	shedKnives(p, dt) {
+		const s = p.shed;
+		s.acc += p.speed * dt;
+		if (s.acc < s.every) return;
+		s.acc -= s.every;
+		const a = Math.atan2(p.vy, p.vx);
+		for (const side of [1, -1]) {
+			this.addProjectile(p.owner, 'knife', a + side * (Math.PI / 2 - 0.35), s.speed, s.dmg, 1, s.life, null, 0, { x: p.x, y: p.y, src: p.src });
+		}
+	}
+
+	// Копьё + Узы: a spear that flies past an ally gets +30% damage.
+	spearBond(p) {
+		for (const o of this.heroes.values()) {
+			if (o === p.owner || o.st !== 0 || dist2(o.x, o.y, p.x, p.y) > SPEAR_BOND_R * SPEAR_BOND_R) continue;
+			p.bonded = true;
+			p.dmg *= SPEAR_BOND_MUL;
+			return;
+		}
+	}
+
+	plantBanner(h, x, y, L) {
+		const b = { owner: h, x, y, r: L.radius * h.mods.areaMul, t: this.time + L.life * h.mods.durMul };
+		this.banners = this.banners.filter((o) => o.owner !== h);
+		this.banners.push(b);
+		this.fx.push(['banner', h.pid, Math.round(x), Math.round(y), round3(L.life * h.mods.durMul), Math.round(b.r)]);
+	}
+
 	endProjectile(p) {
 		this.fx.push(['pend', p.id, Math.round(p.x), Math.round(p.y), round3(this.time)]);
 	}
@@ -2558,11 +2918,14 @@ export class Room {
 		for (const p of this.projectiles) {
 			p.life -= dt;
 			if (p.life <= 0 || p.pierce <= 0) {
+				if (p.onEnd) p.onEnd(p);
 				if (p.spike && !p.anyHit) this.layTrap(p.owner, { kind: 3, x: p.x, y: p.y, r: 14, dmg: p.spike.dmg, root: p.spike.root, life: p.spike.life, src: p.src });
 				this.endProjectile(p);
 				continue;
 			}
 			if (p.trail) this.iceTrail(p, dt);
+			if (p.shed) this.shedKnives(p, dt);
+			if (p.bond && !p.bonded) this.spearBond(p);
 			if (p.outT > 0) {
 				p.outT -= dt;
 				if (p.outT <= 0) p.hit.length = 0; // a new pass on the way back
@@ -2604,6 +2967,10 @@ export class Room {
 				p.hit.push(e.id);
 				p.anyHit = true;
 				this.hurtEnemy(e, p.dmg, p.owner, p.src);
+				if (this.lastCrit && p.src === SRC.knives && !p.critPierced) { // Ножи + Острота
+					p.critPierced = true;
+					p.pierce++;
+				}
 				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
 				if (p.kb && !e.dead && !e.boss) this.knock(e, e.x - p.vx, e.y - p.vy, p.kb);
 				if (p.split) this.splitSpark(p, e);
@@ -2648,19 +3015,19 @@ export class Room {
 				// Wolf pit: a blast that roots everyone around.
 				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src });
 				for (const e of this.grid.query(t.x, t.y, t.blastR + MAX_ENEMY_R, near)) {
-					if (!e.dead && !e.boss && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) e.rootT = Math.max(e.rootT, this.time + t.root);
+					if (!e.dead && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) this.root(e, t.root);
 				}
 				continue;
 			}
 			if (t.kind === 1) {
 				// Mine: blast and recharge instead of vanishing.
-				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src, kb: t.kb });
+				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src, kb: t.kb, burn: t.burn });
 				t.armT = this.time + t.recharge;
 				this.traps[j++] = t;
 				continue;
 			}
 			this.fx.push(['snap', Math.round(t.x), Math.round(t.y)]);
-			if (!victim.boss && t.root > 0) victim.rootT = Math.max(victim.rootT, this.time + t.root);
+			this.root(victim, t.root);
 			this.hurtEnemy(victim, t.dmg, t.owner, src);
 			if (stays) {
 				t.armT = this.time + t.rearm;
@@ -2691,9 +3058,12 @@ export class Room {
 					for (const e of near) {
 						const rr = z.r + e.r * 0.5;
 						if (e.dead || dist2(e.x, e.y, z.x, z.y) >= rr * rr) continue;
-						if (!z.heal && !z.src) e.wetT = this.time + WET_HOLD; // wet from duo clouds and pools comes with wave 2
+						if (z.wet) {
+							e.wetT = this.time + WET_HOLD;
+							e.wetZ = z;
+						}
 						this.hurtEnemy(e, z.dmg, z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
-						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, 2);
+						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
 					}
 					this.breakAround(z.x, z.y, z.r, z.owner);
 				}
@@ -2858,7 +3228,7 @@ export class Room {
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
 			[...h.weapons].map(([id, w]) => (id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
-				: (id === 'orbit' || id === 'windmill') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
+				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
 			h.ward,
 		]);
 		const e = [];
@@ -2897,8 +3267,25 @@ export class Room {
 		this.hitFx = 0;
 		this.dieFx = 0;
 		this.critFx = 0;
-		this.broadcast(msg);
+		this.sendSnapshot(msg);
 		return msg;
+	}
+
+	// Everyone gets the same delta; keys go to all every KEY_EVERY snapshots and to clients that asked;
+	// clients of an older protocol get the plain snapshot.
+	sendSnapshot(msg) {
+		this.snapCodec ??= new SnapshotEncoder(SNAP_STRIDE);
+		this.needKey ??= new Set();
+		const out = this.snapCodec.encode(msg);
+		let delta = null, key = null, plain = null;
+		for (const pid of this.members.keys()) {
+			let json;
+			if (isLegacy(pid)) json = plain ??= JSON.stringify(msg);
+			else if (out.isKey || this.needKey.has(pid)) json = key ??= JSON.stringify(out.key());
+			else json = delta ??= JSON.stringify(out.delta);
+			this.needKey.delete(pid);
+			this.send(pid, msg, json);
+		}
 	}
 }
 
@@ -2918,7 +3305,7 @@ export class Hub {
 	welcome(pid) {
 		const p = this.players.get(pid);
 		if (!p) return;
-		this.send(pid, { t: 'welcome', pid, name: p.name, room: p.room?.code ?? null });
+		this.send(pid, { t: 'welcome', v: PROTO, pid, name: p.name, room: p.room?.code ?? null });
 		if (p.room) p.room.resync(pid);
 	}
 

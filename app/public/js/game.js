@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS } from '/shared/content.js';
+import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT } from '/shared/content.js';
 
 // Render clock. Snapshots arrive unevenly (tunnel bursts, server tick stalls), so the delay adapts:
 // render time = now - p90(arrival - tm) over the last CLOCK_WINDOW snapshots - p90(snapshot gap) - margin.
@@ -22,6 +22,9 @@ export const E_STRIDE = 6;
 const SICKLE_CATCH = 24;
 const ICEDISC = PROJECTILE_KINDS.indexOf('icedisc');
 const ICE_TRAIL_LIFE = 2.5;
+const REACT_LIFE = 0.5;
+const REACT_LABEL_LIFE = 0.9;
+const REACT_LABEL_EVERY = 0.5; // per reaction kind, so labels do not pile up
 // Puddle looks announced by 'zk': 1 burning pool, 2 censer cloud.
 export const ZK_FIRE = 1, ZK_CLOUD = 2;
 // Trap records in snapshot `tr`: [id, x, y, kind, ownerPid]; kind 0 trap, 1 mine, 2 mine recharging, 3 spike.
@@ -80,6 +83,11 @@ export class Game {
 		this.syn = 0; // «Слаженность», %
 		this.cones = []; // Lantern light {pid, a, range, half, t}
 		this.crescents = []; // Crescent full-circle swings {pid, r, t}
+		this.reacts = []; // reaction effects {kind, x, y, r, t, seed}
+		this.labels = []; // reaction captions {kind, x, y, t}
+		this.labelAt = {}; // kind -> last caption time
+		this.steams = []; // steam clouds {x, y, r, t, life}
+		this.banners = []; // planted banners {pid, x, y, r, t, life}
 		this.evoFlash = null; // own evolution: {color, t}
 		this.onEvent = () => {};
 	}
@@ -111,6 +119,11 @@ export class Game {
 		this.syn = 0;
 		this.cones.length = 0;
 		this.crescents.length = 0;
+		this.reacts.length = 0;
+		this.labels.length = 0;
+		this.labelAt = {};
+		this.steams.length = 0;
+		this.banners.length = 0;
 		this.evoFlash = null;
 		this.view.a = this.view.b = null;
 		this.view.tm = 0;
@@ -167,7 +180,11 @@ export class Game {
 	}
 
 	passiveLevel(id) { return this.passives[id] || 0; }
-	speedMul() { return 1 + PASSIVES.swift.perLevel * this.passiveLevel('swift'); }
+	speedMul() { return 1 + PASSIVES.swift.perLevel * this.passiveLevel('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
+	inBanner() {
+		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
+		return false;
+	}
 	areaMul() { return 1 + PASSIVES.area.perLevel * this.passiveLevel('area'); }
 
 	pick(i) {
@@ -194,6 +211,11 @@ export class Game {
 	}
 
 	onSnapshot(msg) {
+		if (msg.gap) {
+			// Delta without its base (net.js asked for a key): only projectile events are usable.
+			for (const ev of msg.fx) if (Array.isArray(ev)) this.shotEvent(ev);
+			return;
+		}
 		const now = performance.now() / 1000;
 		const tm = +msg.tm || 0;
 		const last = this.snaps[this.snaps.length - 1];
@@ -632,6 +654,23 @@ export class Game {
 			case 'crescent':
 				this.crescents.push({ pid: ev[1], r: +ev[2] || 170, t: 0 });
 				break;
+			case 'react': {
+				const kind = REACTION_IDS[ev[1] | 0];
+				if (!kind) break;
+				const x = +ev[2], y = +ev[3], r = +ev[4] || 0;
+				this.reacts.push({ kind, x, y, r, t: 0, seed: Math.random() * 100 });
+				if (kind === 'steam') this.steams.push({ x, y, r: r || REACT.steamR, t: 0, life: REACT.steamLife });
+				const now = this.view.tm;
+				if (!(this.labelAt[kind] > now - REACT_LABEL_EVERY)) {
+					this.labelAt[kind] = now;
+					this.labels.push({ kind, x, y: y - 18, t: 0 });
+				}
+				break;
+			}
+			case 'banner':
+				this.banners = this.banners.filter((b) => b.pid !== ev[1]);
+				this.banners.push({ pid: ev[1], x: +ev[2], y: +ev[3], life: +ev[4] || 6, r: +ev[5] || 200, t: 0 });
+				break;
 			case 'bell': {
 				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
 				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.5, r0: 20, r1: +ev[2] || 130, color: '#ffe082', pid: ev[1] });
@@ -719,6 +758,10 @@ export class Game {
 		compact(this.fans, (f) => (f.t += dt) < 0.45);
 		compact(this.cones, (c) => (c.t += dt) < 0.45);
 		compact(this.crescents, (c) => (c.t += dt) < 0.3);
+		compact(this.reacts, (c) => (c.t += dt) < REACT_LIFE);
+		compact(this.labels, (c) => (c.t += dt) < REACT_LABEL_LIFE);
+		compact(this.steams, (c) => (c.t += dt) < c.life);
+		compact(this.banners, (b) => (b.t += dt) < b.life);
 		if (this.evoFlash && (this.evoFlash.t += dt) > 0.12) this.evoFlash = null;
 		if (this.zk.size > 256 && this.view.b) {
 			const live = new Set();

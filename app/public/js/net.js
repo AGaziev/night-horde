@@ -1,7 +1,11 @@
 // Transport layer: WebSocket first, SSE + POST fallback, reconnect with the same sid.
+import { PROTO, SnapshotDecoder } from './snapshot-codec.js';
 
 const SID_KEY = 'nh.sid';
 const WS_OPEN_TIMEOUT = 3000;
+const KEY_REQUEST_MS = 300;
+const RELOAD_KEY = 'nh.protoReload';
+const RELOAD_GUARD_MS = 60_000;
 
 function readSid() {
 	try { return sessionStorage.getItem(SID_KEY); } catch { return null; }
@@ -29,6 +33,8 @@ export class Net {
 		this.failedAttempts = 0;
 		this.reconnectTimer = 0;
 		this.attempt = 0;
+		this.snapDec = new SnapshotDecoder();
+		this.keyAskedAt = -Infinity;
 		setInterval(() => this.send({ t: 'ping', c: performance.now() }), 2000);
 	}
 
@@ -76,7 +82,7 @@ export class Net {
 		const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
 		let ws;
 		try {
-			ws = new WebSocket(`${proto}//${location.host}/ws?sid=${encodeURIComponent(this.sid)}`);
+			ws = new WebSocket(`${proto}//${location.host}/ws?sid=${encodeURIComponent(this.sid)}&v=${PROTO}`);
 		} catch {
 			this.fallbackToSse(id);
 			return;
@@ -125,7 +131,7 @@ export class Net {
 	}
 
 	connectSse(id) {
-		const es = new EventSource(`/api/events?sid=${encodeURIComponent(this.sid)}`);
+		const es = new EventSource(`/api/events?sid=${encodeURIComponent(this.sid)}&v=${PROTO}`);
 		this.es = es;
 		let gotMessage = false;
 		es.onmessage = (ev) => {
@@ -145,6 +151,7 @@ export class Net {
 	}
 
 	onConnected(transport) {
+		this.snapDec.reset();
 		this.transport = transport;
 		this.connected = true;
 		this.failedAttempts = 0;
@@ -186,12 +193,45 @@ export class Net {
 
 	dispatch(msg) {
 		if (!msg || !msg.t) return;
+		if (msg.t === 's') {
+			this.onSnapshot(msg);
+			return;
+		}
+		if (msg.t === 'welcome' && msg.v !== PROTO && this.reloadForUpdate()) return;
 		if (msg.t === 'pong') {
 			if (typeof msg.c === 'number') this.ping = Math.round(performance.now() - msg.c);
 			this.emit('ping', this.ping);
 			return;
 		}
 		this.emit(msg.t, msg);
+	}
+
+	// Snapshots are deltas against the previous one; after a gap only the events go on until a key arrives.
+	onSnapshot(msg) {
+		let snap = null;
+		try { snap = this.snapDec.decode(msg); } catch { this.snapDec.reset(); }
+		if (snap) {
+			this.emit('s', snap);
+			return;
+		}
+		const now = performance.now();
+		if (now - this.keyAskedAt > KEY_REQUEST_MS) {
+			this.keyAskedAt = now;
+			this.send({ t: 'kf' });
+		}
+		let fx = [];
+		try { fx = this.snapDec.events(msg); } catch { /* unreadable: skip */ }
+		this.emit('s', { t: 's', gap: true, tm: msg.tm, fx });
+	}
+
+	// The server speaks another protocol: this page is outdated. Reload once a minute at most.
+	reloadForUpdate() {
+		let last = 0;
+		try { last = +sessionStorage.getItem(RELOAD_KEY) || 0; } catch { /* storage unavailable */ }
+		if (Date.now() - last < RELOAD_GUARD_MS) return false;
+		try { sessionStorage.setItem(RELOAD_KEY, String(Date.now())); } catch { /* storage unavailable */ }
+		location.reload();
+		return true;
 	}
 
 	send(msg) {

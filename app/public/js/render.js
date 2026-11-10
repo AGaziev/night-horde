@@ -1,7 +1,7 @@
 // Canvas 2D renderer: everything is procedural.
 import {
 	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
-	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS,
+	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle,
 } from '/shared/content.js';
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
@@ -136,6 +136,8 @@ export class Renderer {
 			this.drawProps(ctx, game, now);
 			this.drawIceTrail(ctx, game);
 			this.drawPuddles(ctx, view.b, now, game);
+			this.drawSteams(ctx, game, now);
+			this.drawBanners(ctx, game, now);
 			this.drawWarns(ctx, game, now);
 			this.drawTraps(ctx, view.b, now);
 			this.drawItems(ctx, view.b, now);
@@ -152,6 +154,7 @@ export class Renderer {
 			this.drawLobs(ctx, game, now);
 			this.drawHostile(ctx, game, now);
 			this.drawEffects(ctx, game);
+			this.drawReactions(ctx, game);
 		}
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -653,7 +656,7 @@ export class Renderer {
 			if (!n) continue;
 			const r = ENEMIES[ENEMY_TYPES[ty]].r;
 			const st = this.est[ty];
-			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
+			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark | ST.wet)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
 		}
 	}
 
@@ -706,6 +709,19 @@ export class Renderer {
 			ctx.lineTo(x, my + 5);
 			ctx.lineTo(x - 4, my);
 			ctx.closePath();
+			ctx.fill();
+		}
+		if (st & ST.wet) {
+			// Wet: two blue drops dripping down the sides.
+			ctx.fillStyle = 'rgba(79,195,247,0.85)';
+			ctx.beginPath();
+			for (let i = 0; i < 2; i++) {
+				const ph = (now * 1.2 + i * 0.5 + y * 0.013) % 1;
+				const dx = x + (i ? r * 0.7 : -r * 0.7), dy = y - r * 0.2 + ph * r * 0.9;
+				ctx.moveTo(dx, dy - 4);
+				ctx.quadraticCurveTo(dx + 2.6, dy + 0.5, dx, dy + 2.5);
+				ctx.quadraticCurveTo(dx - 2.6, dy + 0.5, dx, dy - 4);
+			}
 			ctx.fill();
 		}
 		if (st & ST.burn) {
@@ -1197,6 +1213,19 @@ export class Renderer {
 					const area = row[P.pid] === game.me ? game.areaMul() : 1;
 					if (wl[0] === 'millstones') this.drawMillstones(ctx, pos.x, pos.y, EVOS.millstones.levels[0], area, tm);
 					else this.drawMoonblades(ctx, pos.x, pos.y, EVOS.moonblade.levels[0], area, tm, performance.now() / 1000);
+					ctx.fillStyle = '#e3f2fd';
+					ctx.strokeStyle = 'rgba(144,202,249,0.9)';
+					ctx.lineWidth = 2;
+					continue;
+				}
+				if (wl[0] === 'firewheel' || wl[0] === 'beacon') {
+					const pos = game.playerPos(row[P.pid], this.tmp);
+					if (!pos) continue;
+					const area = row[P.pid] === game.me ? game.areaMul() : 1;
+					if (wl[0] === 'firewheel') {
+						const L = duoLevel('firewheel', wl[1]);
+						this.drawFirewheels(ctx, pos.x, pos.y, L, L.count + Math.max(0, wl[2] | 0), area, tm);
+					} else this.drawBeacon(ctx, pos.x, pos.y, EVOS.beacon.levels[0], area, tm, row[P.pid]);
 					ctx.fillStyle = '#e3f2fd';
 					ctx.strokeStyle = 'rgba(144,202,249,0.9)';
 					ctx.lineWidth = 2;
@@ -2031,9 +2060,10 @@ export class Renderer {
 			const p = game.playerPos(c.pid, this.tmp);
 			if (!p) continue;
 			const k = c.t / 0.45;
+			const storm = this.hasWeapon(game, c.pid, 'stormlight');
 			const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, c.range);
-			g.addColorStop(0, `rgba(255,236,179,${0.35 * (1 - k)})`);
-			g.addColorStop(1, 'rgba(255,213,79,0)');
+			g.addColorStop(0, storm ? `rgba(179,229,252,${0.4 * (1 - k)})` : `rgba(255,236,179,${0.35 * (1 - k)})`);
+			g.addColorStop(1, storm ? 'rgba(128,216,255,0)' : 'rgba(255,213,79,0)');
 			ctx.fillStyle = g;
 			ctx.beginPath();
 			ctx.moveTo(p.x, p.y);
@@ -2041,6 +2071,221 @@ export class Renderer {
 			ctx.closePath();
 			ctx.fill();
 		}
+	}
+
+	hasWeapon(game, pid, id) {
+		const row = game.view.b?.p.find((r) => r[P.pid] === pid);
+		return !!row && Array.isArray(row[P.w]) && row[P.w].some((wl) => Array.isArray(wl) && wl[0] === id);
+	}
+
+	// Огненное колесо: burning wheels with spokes on the orbit, plus a faint fire ring.
+	drawFirewheels(ctx, px, py, L, count, area, tm) {
+		const R = L.radius * area;
+		ctx.strokeStyle = 'rgba(255,112,67,0.18)';
+		ctx.lineWidth = 10;
+		ctx.beginPath();
+		ctx.arc(px, py, R, 0, TAU);
+		ctx.stroke();
+		for (let i = 0; i < count; i++) {
+			const a = orbitAngle(tm, L.rps, i, count);
+			const x = px + Math.cos(a) * R, y = py + Math.sin(a) * R;
+			const g = ctx.createRadialGradient(x, y, 2, x, y, 18);
+			g.addColorStop(0, 'rgba(255,241,118,0.95)');
+			g.addColorStop(0.5, 'rgba(255,145,0,0.75)');
+			g.addColorStop(1, 'rgba(255,61,0,0)');
+			ctx.fillStyle = g;
+			ctx.beginPath();
+			ctx.arc(x, y, 18, 0, TAU);
+			ctx.fill();
+			ctx.strokeStyle = '#ffccbc';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.arc(x, y, 9, 0, TAU);
+			for (let k = 0; k < 3; k++) {
+				const sa = tm * 9 + (k * TAU) / 3;
+				ctx.moveTo(x, y);
+				ctx.lineTo(x + Math.cos(sa) * 9, y + Math.sin(sa) * 9);
+			}
+			ctx.stroke();
+		}
+	}
+
+	// Маяк: light beams rotating around the hero (same angle formula as the server).
+	drawBeacon(ctx, px, py, L, area, tm, pid) {
+		const range = L.range * area, half = (L.half * Math.PI) / 180;
+		for (let b = 0; b < L.beams; b++) {
+			const a = beaconAngle(tm, pid, L.rps) + (b * TAU) / L.beams;
+			const g = ctx.createRadialGradient(px, py, 8, px, py, range);
+			g.addColorStop(0, 'rgba(255,248,225,0.55)');
+			g.addColorStop(1, 'rgba(255,213,79,0)');
+			ctx.fillStyle = g;
+			ctx.beginPath();
+			ctx.moveTo(px, py);
+			ctx.arc(px, py, range, a - half, a + half);
+			ctx.closePath();
+			ctx.fill();
+		}
+		ctx.fillStyle = '#fff8e1';
+		ctx.beginPath();
+		ctx.arc(px, py - 26, 4, 0, TAU);
+		ctx.fill();
+	}
+
+	// Steam clouds from the «Пар» reaction.
+	drawSteams(ctx, game, now) {
+		if (!game.steams.length) return;
+		for (const c of game.steams) {
+			const k = c.t / c.life;
+			ctx.fillStyle = `rgba(236,239,241,${0.22 * (1 - k)})`;
+			ctx.beginPath();
+			for (let i = 0; i < 4; i++) {
+				const a = i * 1.6 + now * 0.5, rr = c.r * (0.45 + 0.1 * Math.sin(now * 2 + i));
+				const cx = c.x + Math.cos(a) * c.r * 0.35, cy = c.y + Math.sin(a) * c.r * 0.25 - k * 10;
+				ctx.moveTo(cx + rr, cy);
+				ctx.arc(cx, cy, rr, 0, TAU);
+			}
+			ctx.fill();
+		}
+	}
+
+	// Знамя: a pole with a red flag and the buff radius.
+	drawBanners(ctx, game, now) {
+		for (const b of game.banners) {
+			const k = b.t / b.life;
+			ctx.globalAlpha = k > 0.85 ? (1 - k) / 0.15 : 1;
+			ctx.strokeStyle = 'rgba(239,83,80,0.35)';
+			ctx.lineWidth = 2;
+			ctx.setLineDash([10, 8]);
+			ctx.lineDashOffset = -now * 20;
+			ctx.beginPath();
+			ctx.arc(b.x, b.y, b.r, 0, TAU);
+			ctx.stroke();
+			ctx.setLineDash([]);
+			ctx.fillStyle = 'rgba(239,83,80,0.06)';
+			ctx.fill();
+			ctx.strokeStyle = '#5d4037';
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			ctx.moveTo(b.x, b.y + 6);
+			ctx.lineTo(b.x, b.y - 46);
+			ctx.stroke();
+			const wave = Math.sin(now * 6) * 3;
+			ctx.fillStyle = '#e53935';
+			ctx.beginPath();
+			ctx.moveTo(b.x, b.y - 46);
+			ctx.quadraticCurveTo(b.x + 14, b.y - 44 + wave, b.x + 28, b.y - 40);
+			ctx.lineTo(b.x + 26, b.y - 28 + wave);
+			ctx.quadraticCurveTo(b.x + 12, b.y - 30 - wave, b.x, b.y - 28);
+			ctx.closePath();
+			ctx.fill();
+			ctx.fillStyle = '#ffd54f';
+			ctx.beginPath();
+			ctx.arc(b.x + 13, b.y - 36, 3, 0, TAU);
+			ctx.fill();
+		}
+		ctx.globalAlpha = 1;
+	}
+
+	// Reactions: each has its own shape and colour, plus a short caption over the spot.
+	drawReactions(ctx, game) {
+		for (const e of game.reacts) {
+			const k = e.t / 0.5, a = 1 - k;
+			const color = REACTIONS[e.kind]?.color ?? '#fff';
+			ctx.globalAlpha = a;
+			switch (e.kind) {
+				case 'cond': {
+					// Blue broken arcs across the puddle.
+					ctx.strokeStyle = color;
+					ctx.lineWidth = 2;
+					ctx.beginPath();
+					for (let i = 0; i < 5; i++) {
+						const a0 = e.seed + i * 1.3, r = e.r * 0.9;
+						let x = e.x + Math.cos(a0) * r * 0.2, y = e.y + Math.sin(a0) * r * 0.15;
+						ctx.moveTo(x, y);
+						for (let j = 1; j <= 4; j++) {
+							x = e.x + Math.cos(a0 + j * 0.25) * r * (0.2 + j * 0.2) + Math.sin(e.seed * j + i) * 6;
+							y = e.y + Math.sin(a0 + j * 0.25) * r * 0.8 * (0.2 + j * 0.2) + Math.cos(e.seed * j + i) * 6;
+							ctx.lineTo(x, y);
+						}
+					}
+					ctx.stroke();
+					ctx.strokeStyle = 'rgba(179,229,252,0.6)';
+					ctx.beginPath();
+					ctx.ellipse(e.x, e.y, e.r, e.r * 0.8, 0, 0, TAU);
+					ctx.stroke();
+					break;
+				}
+				case 'flash': {
+					const r = e.r * (0.4 + 0.8 * k);
+					ctx.fillStyle = 'rgba(255,152,0,0.35)';
+					ctx.beginPath();
+					ctx.arc(e.x, e.y, r, 0, TAU);
+					ctx.fill();
+					ctx.strokeStyle = color;
+					ctx.lineWidth = 4 * a + 1;
+					ctx.stroke();
+					break;
+				}
+				case 'shatter': {
+					// Six triangular shards flying out.
+					ctx.fillStyle = color;
+					ctx.beginPath();
+					for (let i = 0; i < 6; i++) {
+						const ang = e.seed + (i * TAU) / 6, d = 6 + e.r * k;
+						const x = e.x + Math.cos(ang) * d, y = e.y + Math.sin(ang) * d;
+						ctx.moveTo(x + Math.cos(ang) * 7, y + Math.sin(ang) * 7);
+						ctx.lineTo(x - Math.sin(ang) * 3, y + Math.cos(ang) * 3);
+						ctx.lineTo(x + Math.sin(ang) * 3, y - Math.cos(ang) * 3);
+						ctx.closePath();
+					}
+					ctx.fill();
+					break;
+				}
+				case 'steam':
+					ctx.strokeStyle = color;
+					ctx.lineWidth = 2;
+					ctx.beginPath();
+					ctx.arc(e.x, e.y, e.r * (0.3 + 0.7 * k), 0, TAU);
+					ctx.stroke();
+					break;
+				case 'icing':
+					ctx.strokeStyle = color;
+					ctx.lineWidth = 3;
+					ctx.beginPath();
+					for (let i = 0; i < 3; i++) {
+						const ang = (i * Math.PI) / 3 + e.seed;
+						ctx.moveTo(e.x + Math.cos(ang) * 14, e.y + Math.sin(ang) * 14);
+						ctx.lineTo(e.x - Math.cos(ang) * 14, e.y - Math.sin(ang) * 14);
+					}
+					ctx.stroke();
+					break;
+				case 'blast':
+					ctx.fillStyle = 'rgba(255,112,67,0.5)';
+					ctx.beginPath();
+					ctx.arc(e.x, e.y, 10 + 16 * k, 0, TAU);
+					ctx.fill();
+					break;
+			}
+		}
+		ctx.globalAlpha = 1;
+		if (!game.labels.length) return;
+		ctx.font = '800 13px system-ui, sans-serif';
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+		for (const l of game.labels) {
+			const R = REACTIONS[l.kind];
+			if (!R) continue;
+			const k = l.t / 0.9;
+			const y = l.y - k * 18;
+			ctx.globalAlpha = k < 0.7 ? 1 : 1 - (k - 0.7) / 0.3;
+			const text = R.name + '!';
+			ctx.strokeText(text, l.x, y);
+			ctx.fillStyle = R.color;
+			ctx.fillText(text, l.x, y);
+		}
+		ctx.globalAlpha = 1;
 	}
 
 	// Crescent: a full white-blue ring swing.

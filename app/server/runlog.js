@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {
-	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale,
+	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS,
 } from '../public/shared/content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
@@ -13,7 +13,7 @@ const KEEP_RUNS = 30;
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', other: 'Прочее' };
-export const srcName = (id) => SRC_NAMES[id] ?? weaponDef(id)?.name ?? id;
+export const srcName = (id) => SRC_NAMES[id] ?? (id.startsWith('r_') && REACTIONS[id.slice(2)] ? `Реакция «${REACTIONS[id.slice(2)].name}»` : null) ?? weaponDef(id)?.name ?? id;
 const enemyName = (key) => {
 	const [type, how] = key.split(':');
 	const base = type === 'elite' ? 'Элита' : ENEMIES[type]?.name ?? type;
@@ -136,6 +136,7 @@ export class RunLog {
 			win, time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, offered]',
 			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), team: players,
+			reactions: { ...(room.reactN ?? {}) },
 		};
 		log.summary = summarize(log);
 		// Keep the copyable log small: offered-card lists go first, then pick history.
@@ -155,6 +156,8 @@ export function summarize(log) {
 	for (const p of log.team) for (const d of p.dmgBy) { all[d.id] = (all[d.id] ?? 0) + d.dmg; tot += d.dmg; }
 	const top = Object.entries(all).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id, v]) => `${srcName(id)} ${Math.round((v / (tot || 1)) * 100)}%`);
 	if (top.length) out.push(`Топ-3 оружия по доле урона: ${top.join(', ')}`);
+	const rx = Object.entries(log.reactions ?? {}).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+	if (rx.length) out.push('Реакции: ' + rx.map(([k, n]) => `${REACTIONS[k]?.name ?? k} ×${n}`).join(', '));
 	const hard = [], easy = [];
 	for (const m of log.minutes) {
 		const per = m.alive > 0 ? m.taken / Math.max(1, m.alive) / Math.max(1, m.maxHp) : 1;

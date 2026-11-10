@@ -516,6 +516,12 @@ export class Sound {
 				if (!(v = this.at('shard', game, +ev[1], +ev[2], 0.08, 0, 0.12))) return;
 				this.tone(v.out, v.t, 'sine', rnd(2800, 3600), 0, 0.1, 0.6);
 				break;
+			case 'react':
+				// Reaction: a short bright two-note chime (higher for shock reactions).
+				if (!(v = this.at('react', game, +ev[2], +ev[3], 0.1, 0, 0.18))) return;
+				this.tone(v.out, v.t, 'triangle', ev[1] <= 1 ? 1568 : 1046, 0, 0.12, 0.35);
+				this.tone(v.out, v.t + 0.05, 'sine', ev[1] <= 1 ? 2349 : 1568, 0, 0.14, 0.25);
+				break;
 			case 'snap':
 				if (!(v = this.at('snap', game, +ev[1], +ev[2], 0.14, 0, 0.1))) return;
 				this.tone(v.out, v.t, 'square', 1300, 700, 0.02, 0.3);
