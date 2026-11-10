@@ -1,7 +1,7 @@
 // Headless simulation test: node server/sim-test.js
 import assert from 'node:assert/strict';
 import { Hub, Room } from './game.js';
-import { RUN_ID_RE, runStore, logText } from './runlog.js';
+import { RUN_ID_RE, runStore, logText, summarize } from './runlog.js';
 import { SnapshotDecoder } from '../public/js/snapshot-codec.js';
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -236,6 +236,12 @@ assert.equal(stats.over.stats.length, 3);
 	assert.ok(log.team.some((p) => p.ups.length >= 1), 'revive logged');
 	assert.ok(log.summary.length >= 4 && /Топ-3 оружия/.test(log.summary[1]), 'summary');
 	assert.ok(log.summary.some((l) => /легко/i.test(l)) && log.summary.some((l) => /яжел|яжёл/.test(l)), 'easy/hard lines');
+	// #338U4Q: six calm minutes 8–13, then Dawn hurts again at 14–15 — the calm run is still reported.
+	const calm = structuredClone(log);
+	calm.minutes = Array.from({ length: 15 }, (_, i) => ({ m: i + 1, alive: 1, maxHp: 100, downs: 0, taken: i + 1 >= 8 && i + 1 <= 13 ? 0 : i + 1 >= 14 ? 60 : 20 }));
+	assert.ok(summarize(calm).includes('Легко на минутах 8–13: урон по группе меньше 10% здоровья в минуту и без падений.'), 'calm run mid-game');
+	calm.minutes.forEach((m) => { if (m.m === 10 || m.m === 13) m.taken = 30; });
+	assert.ok(summarize(calm).includes('Затяжного «легко» не было.'), 'two short calm runs are not a calm stretch');
 	const text = logText(log);
 	assert.ok(text.length < 30 * 1024, `log text ${text.length} B`);
 	assert.deepEqual(JSON.parse(text.slice(text.indexOf('{'))), log);

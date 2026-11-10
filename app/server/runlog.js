@@ -273,11 +273,9 @@ export function summarize(log) {
 			return `${p.name} (${mmss(p.at)})${extra.length ? ' — ' + extra.join(', ') : ''}`;
 		}).join('; '));
 	}
-	let easyFrom = null;
-	for (let i = log.minutes.length - 1; i >= 0 && easy.includes(log.minutes[i].m); i--) easyFrom = log.minutes[i].m;
-	const tail = easyFrom !== null ? log.minutes.length - easyFrom + 1 : 0;
-	out.push(easyFrom !== null && tail >= 3 && easyFrom > 1
-		? `Легко с ${easyFrom}-й минуты: дальше урон по группе меньше 10% здоровья в минуту и без падений.`
+	const calm = longestRun(log.minutes.filter((m) => m.m > 1 && easy.includes(m.m)).map((m) => m.m));
+	out.push(calm && calm[1] - calm[0] + 1 >= 3
+		? `Легко на минутах ${calm[0]}–${calm[1]}: урон по группе меньше 10% здоровья в минуту и без падений.`
 		: 'Затяжного «легко» не было.');
 	out.push(hard.length ? `Тяжело на минутах: ${hard.join(', ')} (падения или ≥50% здоровья урона за минуту).` : 'Тяжёлых минут не было: никто не терял половину здоровья за минуту.');
 	for (const p of log.team) {
@@ -287,6 +285,16 @@ export function summarize(log) {
 		out.push(...playerLines(p));
 	}
 	return out;
+}
+
+// Longest run of consecutive minute numbers as [from, to], or null.
+function longestRun(ms) {
+	let best = null, from = null;
+	for (let i = 0; i < ms.length; i++) {
+		if (i === 0 || ms[i] !== ms[i - 1] + 1) from = ms[i];
+		if (!best || ms[i] - from > best[1] - best[0]) best = [from, ms[i]];
+	}
+	return best;
 }
 
 // Why the player fell and what the build did: downs with the last 10 s, dps per weapon by minute, hp curve, declined weapons.

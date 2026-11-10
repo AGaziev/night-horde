@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v15';
+export const GAME_VERSION = 'v16';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -578,8 +578,8 @@ export const DUOS = {
 		name: 'Громовой разрез', icon: '⚡', parts: ['whip', 'lightning'], tags: ['phys', 'shock'],
 		desc: 'Удар в обе стороны; задетых через миг бьёт молния с цепью, каждый 3-й удар — веер молний',
 		levels: [
-			{ dmg: 26, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 35, fan: 5 },
-			{ dmg: 32, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 44, fan: 5 },
+			{ dmg: 21, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 28, fan: 5 },
+			{ dmg: 30, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 42, fan: 5 },
 			{ dmg: 37, cd: 0.8, range: 180, width: 70, rodFrac: 0.45, chain: 4, fanDmg: 51, fan: 5 },
 		],
 	},
@@ -587,9 +587,9 @@ export const DUOS = {
 		name: 'Шаровая молния', icon: '◉', parts: ['bolt', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Шар летит к самой плотной группе врагов, разрядами бьёт всех рядом и взрывается',
 		levels: [
-			{ dmg: 5, zap: 14, cd: 2.6, count: 1, radius: 75, tick: 0.4, speed: 200, life: 4, boom: 35, boomR: 100 },
-			{ dmg: 7, zap: 21, cd: 2.4, count: 1, radius: 82, tick: 0.4, speed: 210, life: 4, boom: 52, boomR: 105 },
-			{ dmg: 8, zap: 22, cd: 2.2, count: 2, radius: 90, tick: 0.4, speed: 220, life: 4, boom: 60, boomR: 110 },
+			{ dmg: 2, zap: 20, cd: 2.6, count: 1, radius: 75, tick: 0.4, speed: 200, life: 4, boom: 14, boomR: 100 },
+			{ dmg: 4, zap: 30, cd: 2.4, count: 1, radius: 82, tick: 0.4, speed: 210, life: 4, boom: 29, boomR: 105 },
+			{ dmg: 4, zap: 25, cd: 2.2, count: 2, radius: 90, tick: 0.4, speed: 220, life: 4, boom: 30, boomR: 110 },
 		],
 	},
 	orrery: {
@@ -614,9 +614,9 @@ export const DUOS = {
 		name: 'Растяжка', icon: '⋈', parts: ['knives', 'traps'], tags: ['phys', 'trap'],
 		desc: 'Капканы связаны режущей нитью; промахнувшиеся ножи становятся шипами',
 		levels: [
-			{ dmg: 11, cd: 0.55, count: 3, speed: 640, pierce: 2, spread: 0.12, max: 4, link: 220, wireDmg: 8, wireTick: 0.3, rearm: 2.5, trapDmg: 26, trapCd: 1.6, root: 1.2, radius: 28, spikeDmg: 6, spikeLife: 4, spikeRoot: 0.5 },
-			{ dmg: 13, cd: 0.5, count: 4, speed: 660, pierce: 2, spread: 0.1, max: 5, link: 220, wireDmg: 11, wireTick: 0.3, rearm: 2.5, trapDmg: 32, trapCd: 1.4, root: 1.4, radius: 30, spikeDmg: 8, spikeLife: 4, spikeRoot: 0.5 },
-			{ dmg: 17, cd: 0.45, count: 5, speed: 700, pierce: 3, spread: 0.1, max: 6, link: 220, wireDmg: 17, wireTick: 0.3, rearm: 2.5, trapDmg: 42, trapCd: 1.2, root: 1.6, radius: 32, spikeDmg: 12, spikeLife: 4, spikeRoot: 0.5 },
+			{ dmg: 11, cd: 0.55, count: 3, speed: 640, pierce: 2, spread: 0.12, max: 4, link: 220, wireDmg: 2.5, wireTick: 0.3, rearm: 2.5, trapDmg: 26, trapCd: 1.6, root: 1.2, radius: 28, spikeDmg: 2, spikeLife: 4, spikeRoot: 0.5 },
+			{ dmg: 14, cd: 0.5, count: 4, speed: 660, pierce: 2, spread: 0.1, max: 5, link: 220, wireDmg: 3, wireTick: 0.3, rearm: 2.5, trapDmg: 35, trapCd: 1.4, root: 1.4, radius: 30, spikeDmg: 2, spikeLife: 4, spikeRoot: 0.5 },
+			{ dmg: 17, cd: 0.45, count: 5, speed: 700, pierce: 3, spread: 0.1, max: 6, link: 220, wireDmg: 6, wireTick: 0.3, rearm: 2.5, trapDmg: 42, trapCd: 1.2, root: 1.6, radius: 32, spikeDmg: 4, spikeLife: 4, spikeRoot: 0.5 },
 		],
 	},
 	fanback: {
@@ -641,8 +641,8 @@ export const DUOS = {
 		name: 'Минное поле', icon: '◈', parts: ['bomb', 'traps'], tags: ['fire', 'aoe', 'trap'],
 		desc: 'Капканы становятся минами, которые перезаряжаются',
 		levels: [
-			{ dmg: 90, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
-			{ dmg: 108, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
+			{ dmg: 68, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
+			{ dmg: 92, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
 			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 60, recharge: 6, trigger: 30 },
 		],
 	},
@@ -706,7 +706,7 @@ export const DUOS = {
 		levels: [
 			{ charges: 2, cd: 9, dmg: 30, atkCd: 2.2, wall: 3, pierce: 6, width: 18, speed: 700, kb: 60, ring: 8 },
 			{ charges: 2, cd: 8, dmg: 40, atkCd: 2.0, wall: 3, pierce: 8, width: 20, speed: 720, kb: 70, ring: 10 },
-			{ charges: 3, cd: 7, dmg: 41, atkCd: 1.8, wall: 4, pierce: 99, width: 22, speed: 760, kb: 80, ring: 12 },
+			{ charges: 3, cd: 7, dmg: 37, atkCd: 1.8, wall: 4, pierce: 99, width: 22, speed: 760, kb: 80, ring: 12 },
 		],
 	},
 	firewheel: {
