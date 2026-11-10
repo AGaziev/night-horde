@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {
-	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS,
+	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES,
 } from '../public/shared/content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
@@ -22,6 +22,8 @@ const enemyName = (key) => {
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 export const newRunId = () => Array.from(crypto.randomBytes(6), (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 export const enemyKey = (e) => ENEMY_TYPES[e.type] ?? 'enemy';
+// Card rarity counters per player: offered on screen and taken, index = rarity.
+const newRar = () => ({ seen: [0, 0, 0, 0], took: [0, 0, 0, 0] });
 
 export class RunLog {
 	constructor(room) {
@@ -36,7 +38,7 @@ export class RunLog {
 		for (const h of room.heroes.values()) {
 			this.p.set(h.pid, {
 				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
-				minHp: h.maxHp, minHpT: 0,
+				minHp: h.maxHp, minHpT: 0, rar: newRar(),
 			});
 		}
 	}
@@ -64,9 +66,11 @@ export class RunLog {
 	choice(room, h, act, card, offer) {
 		const p = this.p.get(h.pid);
 		if (!p) return;
-		const of = (offer ?? []).map((c) => (c.level > 1 ? `${c.id}${c.level}` : c.id)).join(',');
+		const of = (offer ?? []).map((c) => (c.level > 1 ? `${c.id}${c.level}` : c.id) + (c.rar > 0 ? `*${c.rar}` : '')).join(',');
+		for (const c of offer ?? []) if (c.rar !== undefined) p.rar.seen[c.rar]++;
+		if (card?.rar !== undefined) p.rar.took[card.rar]++;
 		const e = [r1(room.time), h.level, act];
-		if (card) e.push(card.id, card.kind, card.level);
+		if (card) e.push(card.id, card.kind, card.level, card.rar ?? null);
 		if (of) e.push(of);
 		p.picks.push(e);
 	}
@@ -131,7 +135,7 @@ export class RunLog {
 	build(room, win) {
 		if (room.time - (this.nextSample - 60) >= 5) this.sample(room);
 		const players = [...room.heroes.values()].map((h) => {
-			const p = this.p.get(h.pid) ?? { picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0 };
+			const p = this.p.get(h.pid) ?? { picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar() };
 			const total = Object.values(h.dmgBy).reduce((s, v) => s + v, 0) || 1;
 			const dmgBy = Object.entries(h.dmgBy).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1])
 				.map(([id, v]) => ({ id, name: srcName(id), dmg: Math.round(v), pct: r1((v / total) * 100) }));
@@ -140,7 +144,7 @@ export class RunLog {
 				pid: h.pid, name: h.name, hero: h.hero, heroName: HEROES[h.hero]?.name ?? h.hero, level: h.level,
 				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
-				duos: p.duos, evos: p.evos,
+				duos: p.duos, evos: p.evos, rarity: p.rar,
 				build: {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 					passives: [...h.passives].map(([id, l]) => `${id}${l}`),
@@ -152,10 +156,12 @@ export class RunLog {
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
 			win, time: r1(room.time), kills: room.kills,
-			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, offered]',
+			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common',
 			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), peaks: this.peaks, team: players,
 			reactions: { ...(room.reactN ?? {}) },
 		};
+		log.rarity = { seen: [0, 0, 0, 0], took: [0, 0, 0, 0] };
+		for (const p of players) for (const k of ['seen', 'took']) p.rarity[k].forEach((n, i) => { log.rarity[k][i] += n; });
 		log.summary = summarize(log);
 		// Keep the copyable log small: offered-card lists go first, then pick history.
 		if (JSON.stringify(log).length > MAX_JSON) for (const p of log.team) for (const e of p.picks) if (typeof e[e.length - 1] === 'string' && e.length > 3 && e[e.length - 1].includes(',')) e.pop();
@@ -189,6 +195,10 @@ export function summarize(log) {
 			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : 'не убит';
 			return `${b.name} (${mmss(b.at)}) — ${res}${dn ? `, падений ${dn}` : ''}`;
 		}).join('; '));
+	}
+	if (log.rarity) {
+		const line = (arr) => RARITIES.map((R, i) => `${R.name.toLowerCase()} ${arr[i]}`).join(', ');
+		out.push(`Редкость карточек: выпало ${line(log.rarity.seen)}; взято ${line(log.rarity.took)}.`);
 	}
 	if (log.peaks?.length) {
 		out.push('Пики: ' + log.peaks.map((p) => {

@@ -224,23 +224,26 @@ export const WEAPONS = {
 };
 
 // Passive multipliers are applied per level (value * level).
+// Passive multipliers are applied per level (value * level). `tpl` shows the value one card adds ({v}, see passiveDesc);
+// `noRarity` passives (integer steps) keep their level table and get no card rarity.
 export const PASSIVES = {
-	might: { name: 'Сила', icon: '💪', desc: '+10% урона', stat: 'dmgMul', perLevel: 0.10 },
-	haste: { name: 'Спешка', icon: '⏱', desc: '−8% перезарядки', stat: 'cdMul', perLevel: -0.08 },
-	vigor: { name: 'Крепость', icon: '❤', desc: '+20 к макс. здоровью', stat: 'maxHp', perLevel: 20 },
-	swift: { name: 'Лёгкость', icon: '👟', desc: '+8% скорости', stat: 'speedMul', perLevel: 0.08 },
-	magnet: { name: 'Магнит', icon: '🧲', desc: '+30% радиуса сбора', stat: 'magnetMul', perLevel: 0.30 },
-	area: { name: 'Размах', icon: '⬤', desc: '+10% площади оружия', stat: 'areaMul', perLevel: 0.10 },
-	regen: { name: 'Восстановление', icon: '✚', desc: '+0.5 здоровья в секунду', stat: 'regen', perLevel: 0.5 },
-	crit: { name: 'Острота', icon: '✧', desc: '+6% шанс крита (×2 урона)', stat: 'critChance', perLevel: 0.06 },
-	echo: { name: 'Эхо', icon: '≋', desc: '+1 снаряд, лужа, удар или клинок (+2 с 4 ур.)', stat: 'amount', values: [1, 1, 1, 2, 2] },
-	hourglass: { name: 'Песочные часы', icon: '⧗', desc: '+12% длительности луж, холода и заморозки', stat: 'durMul', perLevel: 0.12 },
-	mail: { name: 'Кольчуга', icon: '⛨', desc: '−1 к каждому полученному удару', stat: 'armor', perLevel: 1 },
-	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
-	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
-	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы', stat: 'luck', perLevel: 0.10 },
+	might: { name: 'Сила', icon: '💪', desc: '+10% урона', tpl: '+{v}% урона', stat: 'dmgMul', perLevel: 0.10 },
+	haste: { name: 'Спешка', icon: '⏱', desc: '−8% перезарядки', tpl: '−{v}% перезарядки', stat: 'cdMul', perLevel: -0.08 },
+	vigor: { name: 'Крепость', icon: '❤', desc: '+20 к макс. здоровью', tpl: '+{v} к макс. здоровью', stat: 'maxHp', perLevel: 20 },
+	swift: { name: 'Лёгкость', icon: '👟', desc: '+8% скорости', tpl: '+{v}% скорости', stat: 'speedMul', perLevel: 0.08 },
+	magnet: { name: 'Магнит', icon: '🧲', desc: '+30% радиуса сбора', tpl: '+{v}% радиуса сбора', stat: 'magnetMul', perLevel: 0.30 },
+	area: { name: 'Размах', icon: '⬤', desc: '+10% площади оружия', tpl: '+{v}% площади оружия', stat: 'areaMul', perLevel: 0.10 },
+	regen: { name: 'Восстановление', icon: '✚', desc: '+0.5 здоровья в секунду', tpl: '+{v} здоровья в секунду', stat: 'regen', perLevel: 0.5 },
+	crit: { name: 'Острота', icon: '✧', desc: '+6% шанс крита (×2 урона)', tpl: '+{v}% шанс крита (×2 урона)', stat: 'critChance', perLevel: 0.06 },
+	echo: { name: 'Эхо', icon: '≋', desc: '+1 снаряд, лужа, удар или клинок (+2 с 4 ур.)', stat: 'amount', values: [1, 1, 1, 2, 2], noRarity: true },
+	hourglass: { name: 'Песочные часы', icon: '⧗', desc: '+12% длительности луж, холода и заморозки', tpl: '+{v}% длительности луж, холода и заморозки', stat: 'durMul', perLevel: 0.12 },
+	mail: { name: 'Кольчуга', icon: '⛨', desc: '−1 к каждому полученному удару', tpl: '−{v} к каждому полученному удару', stat: 'armor', perLevel: 1 },
+	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень', tpl: 'Удары поджигают: +{v}% шанса', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
+	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', tpl: '+{v}% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
+	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы', tpl: '+{v}% удачи: сундуки, редкие карточки, золотые кристаллы', stat: 'luck', perLevel: 0.10 },
+	clover: { name: 'Клевер', icon: '🍀', desc: '+15% к шансу редких карточек; эпических — вдвое больше, легендарных — втрое', tpl: '+{v}% к шансу редких карточек; эпических — вдвое больше, легендарных — втрое', stat: 'fortune', perLevel: 0.15 },
 	// coop: offered only when the room has 2+ players.
-	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
+	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', tpl: '+{v}% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
 // Direct weapon + artifact synergies (5.3): shown as hints on cards, applied on the server.
 export const SYNERGIES = [
@@ -315,8 +318,47 @@ export const passiveValue = (id, level) => {
 export const baseMods = () => ({
 	dmgMul: 1, cdMul: 1, speedMul: 1, magnetMul: 1, areaMul: 1, regen: 0,
 	critChance: 0, critMul: 2, amount: 0, durMul: 1, luck: 0, xpMul: 1, armor: 0,
-	burnChance: 0, burnDps: 0, ctrlMul: 1, chillVuln: 0, bond: 0,
+	burnChance: 0, burnDps: 0, ctrlMul: 1, chillVuln: 0, bond: 0, fortune: 0,
 });
+
+// Card rarity: every weapon or artifact card in a level-up offer rolls one (index = card.rar).
+// Artifacts: the card adds perLevel × PASSIVE_BASE × mul. Weapons: +levels (capped by the max level) and +rerolls.
+// Duos, evolutions, embers, healing and «Кузня удачи» have no rarity.
+export const RARITIES = [
+	{ id: 'common', name: 'Обычная', w: 70, mul: 1, levels: 1, rerolls: 0, color: '#9e9e9e' },
+	{ id: 'rare', name: 'Редкая', w: 22, mul: 1.5, levels: 1, rerolls: 1, color: '#42a5f5' },
+	{ id: 'epic', name: 'Эпическая', w: 7, mul: 2.2, levels: 2, rerolls: 0, color: '#ab47bc' },
+	{ id: 'legend', name: 'Легендарная', w: 1, mul: 3.5, levels: 2, rerolls: 1, color: '#ffc107' },
+];
+// A common artifact card gives 75% of the old per-level step: the table average is ×1.22, players pick rarer cards.
+export const PASSIVE_BASE = 0.75;
+// Chest floors: an elite chest has at least a rare card, a boss chest at least an epic one.
+export const CHEST_FLOOR = { elite: 1, boss: 2 };
+// Fortune (Клевер + Подкова): weight of rarity i is w × (1 + fortune × i).
+export const rarityWeights = (fortune = 0) => RARITIES.map((r, i) => r.w * (1 + Math.max(0, fortune) * i));
+export function rollRarity(fortune = 0, floor = 0, rnd = Math.random) {
+	const w = rarityWeights(fortune).map((x, i) => (i < floor ? 0 : x));
+	let r = rnd() * w.reduce((a, b) => a + b, 0);
+	for (let i = 0; i < w.length; i++) if ((r -= w[i]) < 0) return i;
+	return w.length - 1;
+}
+const PASSIVE_INT = new Set(['maxHp']);
+const PASSIVE_DEC = new Set(['regen', 'armor']);
+// Value one artifact card adds, rounded to what the card shows.
+export function passiveStep(id, rar = 0) {
+	const P = PASSIVES[id];
+	const v = P.perLevel * PASSIVE_BASE * (RARITIES[rar]?.mul ?? 1);
+	if (PASSIVE_INT.has(P.stat)) return Math.round(v);
+	if (PASSIVE_DEC.has(P.stat)) return Math.round(v * 10) / 10;
+	return Math.round(v * 100) / 100;
+}
+export function passiveDesc(id, v) {
+	const P = PASSIVES[id];
+	if (!P.tpl) return P.desc;
+	const a = Math.abs(v);
+	const txt = PASSIVE_INT.has(P.stat) ? String(Math.round(a)) : PASSIVE_DEC.has(P.stat) ? String(a).replace('.', ',') : String(Math.round(a * 100));
+	return P.tpl.replace('{v}', txt);
+}
 
 export const BASE_MAGNET = 60;
 export const GEM_PULL_SPEED = 420;

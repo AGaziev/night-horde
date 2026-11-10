@@ -404,6 +404,33 @@ input[type="text"]:focus { border-color: var(--accent); }
 .card-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.3; }
 .card-rare { border-color: #ffca28; box-shadow: 0 0 18px rgba(255, 202, 40, 0.35); }
 .card-rare .card-kind, .card-rare .card-name { color: #ffd54f; }
+/* Card rarity: gray / blue / purple / gold frame and label; legendary also shines. */
+.card.rar { border-color: var(--rar); }
+.card.rar:hover { border-color: var(--rar); filter: brightness(1.12); }
+.rar-common { --rar: #9e9e9e; }
+.rar-rare { --rar: #42a5f5; box-shadow: 0 0 14px rgba(66, 165, 245, 0.35), 0 10px 30px rgba(0, 0, 0, 0.5); }
+.rar-epic { --rar: #ab47bc; box-shadow: 0 0 18px rgba(171, 71, 188, 0.5), 0 10px 30px rgba(0, 0, 0, 0.5); background: linear-gradient(170deg, rgba(171, 71, 188, 0.16), rgba(18, 20, 34, 0.94) 60%); }
+.rar-legend {
+	--rar: #ffc107;
+	overflow: hidden;
+	background: linear-gradient(170deg, rgba(255, 193, 7, 0.22), rgba(18, 20, 34, 0.94) 65%);
+	box-shadow: 0 0 26px rgba(255, 193, 7, 0.6), 0 10px 30px rgba(0, 0, 0, 0.5);
+	animation: legend-pulse 1.6s ease-in-out infinite;
+}
+.rar-legend::after {
+	content: '';
+	position: absolute; inset: -40% auto -40% -60%;
+	width: 45%;
+	background: linear-gradient(100deg, transparent, rgba(255, 248, 225, 0.55), transparent);
+	transform: skewX(-18deg);
+	animation: legend-shine 2.2s ease-in-out infinite;
+	pointer-events: none;
+}
+.rar-legend .card-name { color: #ffe082; }
+@keyframes legend-shine { 0% { left: -60%; } 55%, 100% { left: 130%; } }
+@keyframes legend-pulse { 50% { box-shadow: 0 0 38px rgba(255, 193, 7, 0.85), 0 10px 30px rgba(0, 0, 0, 0.5); } }
+.card-rarity { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; color: var(--rar); }
+@media (prefers-reduced-motion: reduce) { .rar-legend, .rar-legend::after { animation: none; } }
 .levelup-actions { display: flex; justify-content: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .levelup-actions .btn { padding: 6px 12px; font-size: 0.82rem; }
 .levelup-actions .btn:disabled { opacity: 0.45; cursor: default; }

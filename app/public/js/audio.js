@@ -23,7 +23,7 @@ const LIMITS = {
 	gem: [0.045, 1], puddle: [0.12, 2], hurt: [0.14, 1], default: [0.05, 2],
 };
 // Sounds that must play even when the voice pool is full.
-const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn']);
+const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend']);
 
 const PENTA = [0, 3, 5, 7, 10]; // minor pentatonic steps
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -683,6 +683,17 @@ export class Sound {
 			this.bell(v.out, v.t + 0.07, 86, 0.6, 0.5);
 			this.send(v, 0.4);
 		}
+	}
+
+	// A legendary card in the offer: rising bell arpeggio with a shimmer on top.
+	legendary() {
+		if (!this.ready()) return;
+		const v = this.voice('legend', 0.22, 0, 0, 1.6);
+		if (!v) return;
+		[76, 79, 83, 88, 91].forEach((m, i) => this.bell(v.out, v.t + i * 0.07, m, 0.9 - i * 0.08, 0.5));
+		this.hiss(v.out, v.t + 0.2, 'highpass', 6000, 9000, 1, 1.1, 0.12, 0.3);
+		this.tone(v.out, v.t + 0.35, 'triangle', 1568, 1568, 1.0, 0.18, 0.02);
+		this.send(v, 0.7);
 	}
 
 	ui() {

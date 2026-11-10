@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -218,9 +218,10 @@ export class UI {
 
 	// Level-up panel
 
+	// Returns true when a new set of cards was drawn (for the legendary sound).
 	showOffer(offer) {
 		const choices = Array.isArray(offer.choices) ? offer.choices : [];
-		const key = choices.map((c) => `${c.kind}:${c.id}:${c.level}`).join('|') + JSON.stringify(offer.slots);
+		const key = choices.map((c) => `${c.kind}:${c.id}:${c.level}:${c.rar ?? ''}`).join('|') + JSON.stringify(offer.slots);
 		const sl = Array.isArray(offer.slots) ? offer.slots : null;
 		const pending = offer.pending | 0;
 		$('levelup-pending').textContent = pending > 0 ? `(+${pending} в очереди)` : '';
@@ -230,7 +231,7 @@ export class UI {
 		$('levelup-skipxp').textContent = offer.skipXp ? `(+${offer.skipXp} опыта)` : '';
 		const [wUsed, wMax, pUsed, pMax] = Array.isArray(offer.slots) ? offer.slots : [0, MAX_WEAPONS, 0, MAX_PASSIVES];
 		$('levelup-slots').textContent = `Оружие ${wUsed}/${wMax} · Артефакты ${pUsed}/${pMax}`;
-		if (key === this.offerKey && !this.levelup.hidden) return;
+		if (key === this.offerKey && !this.levelup.hidden) return false;
 		this.offerKey = key;
 		const box = $('levelup-cards');
 		box.textContent = '';
@@ -244,22 +245,27 @@ export class UI {
 				box.appendChild(this.evoCard(c, i));
 				return;
 			}
-			const card = el('button', c.kind === 'rare' ? 'card card-rare' : c.kind === 'ember' ? 'card card-ember' : DUOS[c.id] ? 'card card-duo-up' : 'card');
+			const R = RARITIES[c.rar];
+			const card = el('button', (c.kind === 'rare' ? 'card card-rare' : c.kind === 'ember' ? 'card card-ember' : DUOS[c.id] ? 'card card-duo-up' : 'card') + (R ? ` rar rar-${R.id}` : ''));
 			card.type = 'button';
 			card.appendChild(el('span', 'card-key', String(i + 1)));
 			card.appendChild(el('span', 'card-kind', c.kind === 'weapon' ? (DUOS[c.id] ? 'связка' : 'оружие') : c.kind === 'passive' ? 'артефакт' : c.kind === 'rare' ? 'редкое' : c.kind === 'ember' ? 'угли' : ''));
 			const def = c.kind === 'weapon' ? weaponDef(c.id) : c.kind === 'passive' ? PASSIVES[c.id] : null;
 			card.appendChild(el('div', 'card-icon', c.icon || def?.icon || '?'));
 			card.appendChild(el('div', 'card-name', c.name || def?.name || c.id));
+			if (R) card.appendChild(el('div', 'card-rarity', R.name));
 			if (c.kind === 'weapon' || c.kind === 'passive') {
 				// A new pick costs a slot: show which one it takes.
 				const slot = sl ? (c.kind === 'weapon' ? ` · слот ${sl[0] + 1}/${sl[1]}` : ` · слот ${sl[2] + 1}/${sl[3]}`) : '';
-				card.appendChild(c.level <= 1
-					? el('div', 'card-level card-new', 'Новое!' + slot)
-					: el('div', 'card-level', `Ур. ${lvlText(c.id, c.level)}`));
+				const from = c.from ?? c.level - 1;
+				const jump = c.level - from > 1 ? ` (+${c.level - from})` : '';
+				card.appendChild(from <= 0
+					? el('div', 'card-level card-new', 'Новое!' + (c.level > 1 ? ` Ур. ${c.level}` : '') + slot)
+					: el('div', 'card-level', `Ур. ${jump ? `${from}→` : ''}${lvlText(c.id, c.level)}${jump}`));
 			}
 			card.appendChild(el('div', 'card-desc', c.desc || def?.desc || ''));
 			if (c.kind === 'ember') card.appendChild(el('div', 'card-level', `×${c.level}`));
+			if (c.rerolls > 0) card.appendChild(el('div', 'card-hint', `🎲 +${c.rerolls} «Перебросить»`));
 			// Weapons at 4–5 show what they evolve into.
 			const evoId = c.kind === 'weapon' && c.level >= 4 ? EVO_BY_WEAPON[c.id] : null;
 			if (evoId) card.appendChild(el('div', 'card-hint', `⚡ эволюция с «${PASSIVES[EVOS[evoId].requires].name}» на 5 ур.`));
@@ -279,6 +285,7 @@ export class UI {
 		});
 		box.style.gridTemplateColumns = `repeat(${Math.max(1, choices.length)}, 1fr)`;
 		this.levelup.hidden = false;
+		return true;
 	}
 
 	// Duo card: both part icons merge into the duo icon; the price is spelled out.

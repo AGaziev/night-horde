@@ -126,7 +126,7 @@ net.on('s', (msg) => {
 net.on('lvl', (msg) => {
 	if (!game.running) return;
 	game.offer = msg;
-	ui.showOffer(msg);
+	if (ui.showOffer(msg) && msg.choices?.some((c) => c.rar === 3)) sound.legendary();
 });
 
 net.on('over', (msg) => {

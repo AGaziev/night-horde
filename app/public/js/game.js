@@ -55,6 +55,7 @@ export class Game {
 		this.resetClock();
 		this.local = { x: 0, y: 0, fx: 1, fy: 0 };
 		this.passives = {};
+		this.pvals = {};
 		this.offer = null;
 		this.posTimer = 0;
 		this.lastSent = { x: NaN, y: NaN };
@@ -97,6 +98,7 @@ export class Game {
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
+		this.pvals = {};
 		this.offer = null;
 		this.shots.clear();
 		this.numbers.length = 0;
@@ -183,18 +185,23 @@ export class Game {
 	}
 
 	passiveLevel(id) { return this.passives[id] || 0; }
-	speedMul() { return 1 + PASSIVES.swift.perLevel * this.passiveLevel('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
+	// Accumulated artifact value: card rarity makes it differ from perLevel × level (server recalcMods does the same).
+	passiveVal(id) { return this.pvals[id] ?? PASSIVES[id].perLevel * this.passiveLevel(id); }
+	speedMul() { return 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
 	inBanner() {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
 	}
-	areaMul() { return 1 + PASSIVES.area.perLevel * this.passiveLevel('area'); }
+	areaMul() { return 1 + this.passiveVal('area'); }
 
 	pick(i) {
 		const offer = this.offer;
 		if (!offer || !offer.choices[i]) return false;
 		const c = offer.choices[i];
-		if (c.kind === 'passive' && PASSIVES[c.id]) this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
+		if (c.kind === 'passive' && PASSIVES[c.id]) {
+			if (typeof c.val === 'number') this.pvals[c.id] = this.passiveVal(c.id) + c.val;
+			this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
+		}
 		this.net.send({ t: 'pick', i });
 		this.offer = null;
 		return true;

@@ -14,6 +14,7 @@ import {
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, SYNERGY_PER, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS, teamXpMul,
 	GAME_VERSION, enemyHpScale, enemyDmgScale, BOSS_TIMES, BOSS_POOL, FINAL_BOSS, bossHpScale,
 	PEAKS, PEAK_WARN, PEAK_BOSS_GAP, RUN_SECONDS, INVASION, spawnRateScale, peakSchedule,
+	RARITIES, CHEST_FLOOR, rollRarity, rarityWeights, passiveStep, passiveDesc, PASSIVE_BASE,
 } from '../public/shared/content.js';
 
 const isInt = (v) => Number.isInteger(v);
@@ -1652,6 +1653,131 @@ console.log('over/again/leave: ok');
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
 	console.log('run log store + /api/runs: ok');
+}
+
+// Card rarity: table distribution, final numbers, weapon levels, chest floors, fortune, rerolls, run log.
+{
+	const N = 40000;
+	const cnt = [0, 0, 0, 0];
+	for (let k = 0; k < N; k++) cnt[rollRarity(0)]++;
+	const tot = RARITIES.reduce((s, R) => s + R.w, 0);
+	RARITIES.forEach((R, i) => {
+		const want = R.w / tot, got = cnt[i] / N;
+		assert.ok(Math.abs(got - want) < Math.max(0.01, want * 0.25), `rarity ${R.id}: ${got.toFixed(3)} vs ${want}`);
+	});
+	assert.deepEqual(RARITIES.map((R) => R.mul), [1, 1.5, 2.2, 3.5]);
+	assert.deepEqual(RARITIES.map((R) => R.levels), [1, 1, 2, 2]);
+	for (let k = 0; k < 2000; k++) assert.ok(rollRarity(0, 2) >= 2, 'floor');
+	const lucky = rarityWeights(1);
+	assert.ok(lucky[3] / lucky[0] > rarityWeights(0)[3] / rarityWeights(0)[0] * 3.5, 'fortune shifts to legendary');
+	// Expected artifact step stays at or below the old one.
+	const mean = RARITIES.reduce((s, R) => s + R.w * R.mul, 0) / tot;
+	assert.ok(mean * PASSIVE_BASE <= 1, `mean artifact step ×${(mean * PASSIVE_BASE).toFixed(2)}`);
+	for (const id of ['might', 'haste', 'vigor', 'regen', 'mail', 'clover']) {
+		RARITIES.forEach((R, i) => {
+			const want = PASSIVES[id].perLevel * PASSIVE_BASE * R.mul;
+			assert.ok(Math.abs(passiveStep(id, i) - want) <= (id === 'vigor' ? 0.5 : 0.05) + 1e-9, `${id} step ${i}`);
+		});
+		assert.ok(Math.abs(passiveStep(id, 3)) > Math.abs(passiveStep(id, 0)) * 3);
+	}
+	assert.equal(passiveDesc('might', 0.17), '+17% урона');
+	assert.equal(passiveDesc('haste', -0.09), '−9% перезарядки');
+	assert.equal(passiveDesc('regen', 0.4), '+0,4 здоровья в секунду');
+	assert.equal(passiveDesc('vigor', 23), '+23 к макс. здоровью');
+	assert.ok(PASSIVES.clover && PASSIVES.clover.stat === 'fortune' && PASSIVES.luck.name === 'Подкова');
+
+	const sent = [];
+	const r = new Room('RAR', (pid, msg) => sent.push([pid, msg]));
+	r.addPlayer(1, 'R', 'knight');
+	r.start();
+	r.spawn = () => {};
+	const h = r.heroes.get(1);
+	const plain = (c) => (c.kind === 'weapon' && WEAPONS[c.id]) || (c.kind === 'passive' && !PASSIVES[c.id].noRarity);
+	// Offers: every plain card has a rarity, duos/evos/heal/forge do not; numbers in desc match the card.
+	const seen = [0, 0, 0, 0];
+	let n = 0;
+	for (let k = 0; k < 3000; k++) {
+		h.passives = new Map();
+		h.pval = {};
+		for (const c of r.makeChoices(h)) {
+			if (!plain(c)) { assert.equal(c.rar, undefined, `${c.kind} has no rarity`); continue; }
+			assert.ok(c.rar >= 0 && c.rar <= 3);
+			seen[c.rar]++;
+			n++;
+			if (c.kind === 'passive') assert.equal(c.desc, passiveDesc(c.id, passiveStep(c.id, c.rar)));
+		}
+	}
+	RARITIES.forEach((R, i) => assert.ok(Math.abs(seen[i] / n - R.w / tot) < Math.max(0.015, (R.w / tot) * 0.35), `offer rarity ${R.id}: ${(seen[i] / n).toFixed(3)}`));
+	// Artifact pick applies the rarity value.
+	h.passives = new Map();
+	h.pval = {};
+	h.offer = [{ id: 'might', kind: 'passive', name: 'Сила', level: 1 }];
+	r.setRarity(h, h.offer[0], 3);
+	r.handle(1, { t: 'pick', i: 0 });
+	assert.ok(Math.abs(h.mods.dmgMul - 1 - passiveStep('might', 3)) < 1e-9, `legendary might ${h.mods.dmgMul}`);
+	h.offer = [{ id: 'might', kind: 'passive', name: 'Сила', level: 2 }];
+	r.setRarity(h, h.offer[0], 0);
+	r.handle(1, { t: 'pick', i: 0 });
+	assert.ok(Math.abs(h.mods.dmgMul - 1 - passiveStep('might', 3) - passiveStep('might', 0)) < 1e-9 && h.passives.get('might') === 2);
+	// Weapon: epic +2 levels (capped), rare/legendary +1 reroll.
+	h.weapons = new Map([['whip', { lvl: 1, t: 0 }]]);
+	h.offer = [{ id: 'whip', kind: 'weapon', name: 'Клинок', level: 2 }];
+	r.setRarity(h, h.offer[0], 2);
+	assert.equal(h.offer[0].level, 3);
+	assert.ok(h.offer[0].desc.includes('14→22'), h.offer[0].desc);
+	r.handle(1, { t: 'pick', i: 0 });
+	assert.equal(h.weapons.get('whip').lvl, 3);
+	h.weapons.get('whip').lvl = 4;
+	const rr = h.rerolls;
+	h.offer = [{ id: 'whip', kind: 'weapon', name: 'Клинок', level: 5 }];
+	r.setRarity(h, h.offer[0], 3);
+	assert.equal(h.offer[0].level, 5, 'capped at max');
+	r.handle(1, { t: 'pick', i: 0 });
+	assert.equal(h.weapons.get('whip').lvl, 5);
+	assert.equal(h.rerolls, rr + 1, 'legendary weapon: +1 reroll');
+	h.offer = [{ id: 'bolt', kind: 'weapon', name: 'Искра', level: 1 }];
+	r.setRarity(h, h.offer[0], 2);
+	r.handle(1, { t: 'pick', i: 0 });
+	assert.equal(h.weapons.get('bolt').lvl, 2, 'epic new weapon starts at 2');
+	// Chest floors (elite ≥ rare, boss ≥ epic) survive a reroll.
+	const best = (o) => Math.max(-1, ...o.filter(plain).map((c) => c.rar));
+	for (let k = 0; k < 300; k++) {
+		h.offer = null;
+		h.passives = new Map();
+		h.pval = {};
+		h.weapons = new Map([['whip', { lvl: 1, t: 0 }]]);
+		h.hp = h.maxHp;
+		r.grantOffer(h, true, CHEST_FLOOR.elite);
+		assert.ok(best(h.offer) >= 1, 'elite chest: at least rare');
+		h.rerolls = 1;
+		r.handle(1, { t: 'reroll' });
+		assert.ok(best(h.offer) >= 1, 'reroll keeps the floor');
+		h.offer = null;
+		r.grantOffer(h, false, CHEST_FLOOR.boss);
+		assert.ok(best(h.offer) >= 2, 'boss chest: at least epic');
+	}
+	// Fortune (Клевер) raises the share of rare cards.
+	const share = (fortune) => {
+		let hi = 0, all = 0;
+		h.mods.fortune = fortune;
+		for (let k = 0; k < 2000; k++) for (const c of r.makeChoices(h).filter(plain)) { all++; if (c.rar >= 2) hi++; }
+		return hi / all;
+	};
+	assert.ok(share(1) > share(0) * 2, 'clover: more epic+ cards');
+	h.mods.fortune = 0;
+	// Run log counts rarity seen and taken.
+	h.offer = null;
+	h.passives = new Map();
+	r.grantOffer(h, false, CHEST_FLOOR.boss);
+	const c0 = h.offer.find((c) => c.rar >= 2);
+	r.handle(1, { t: 'pick', i: h.offer.indexOf(c0) });
+	const log = r.runLog.build(r, false);
+	assert.equal(log.team[0].rarity.took.reduce((a, b) => a + b, 0) >= 1, true);
+	assert.ok(log.rarity.took[c0.rar] >= 1 && log.rarity.seen.reduce((a, b) => a + b, 0) >= log.rarity.took.reduce((a, b) => a + b, 0));
+	const last = log.team[0].picks[log.team[0].picks.length - 1];
+	assert.equal(last[6], c0.rar, 'pick entry keeps rarity');
+	assert.ok(log.summary.some((l) => l.startsWith('Редкость карточек:')));
+	console.log(`card rarity: ok (offers ${seen.map((x) => (x / n * 100).toFixed(1)).join('/')}%)`);
 }
 
 console.log('OK');

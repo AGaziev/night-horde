@@ -11,7 +11,7 @@ import {
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, DUO_MIN_LEVEL, DUO_DEFER_OFFERS, duoStartLevel, weaponDef, weaponMaxLevel,
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
-	beaconAngle, PEAK_WARN, peakSchedule,
+	beaconAngle, PEAK_WARN, peakSchedule, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
 } from '../public/shared/content.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
@@ -156,9 +156,9 @@ const STAT_LABELS = {
 };
 const PCT_STATS = new Set(['slow']);
 
-function upgradeDesc(weaponId, toLevel) {
+function upgradeDesc(weaponId, toLevel, fromLevel = toLevel - 1) {
 	const W = weaponDef(weaponId);
-	const a = W.levels[toLevel - 2], b = W.levels[toLevel - 1];
+	const a = W.levels[fromLevel - 1], b = W.levels[toLevel - 1];
 	const parts = [];
 	for (const k of Object.keys(b)) {
 		if (k === 'both') {
@@ -185,7 +185,7 @@ function makeHero(member, x, y) {
 		passives: new Map(),
 		mods: baseMods(),
 		kills: 0, dmg: 0, dmgBy: {},
-		offer: null, queue: 0, boostQueue: 0, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
+		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0,
 	};
@@ -427,9 +427,10 @@ export class Room {
 
 	// --- level-up offers ---
 
-	// `boost` — extra chance for a rare card (small chest).
-	grantOffer(h, boost = false) {
+	// `boost` — extra chance for «Кузня удачи» (small chest); `floor` — lowest rarity of the best card (chests).
+	grantOffer(h, boost = false, floor = 0) {
 		if (boost) h.boostQueue++;
+		if (floor > 0) h.floors.push(floor);
 		if (h.offer) {
 			h.queue++;
 			this.sendOffer(h);
@@ -448,9 +449,14 @@ export class Room {
 
 	// Weighted offer (G4): slot 1 — upgrade of something owned, slot 2 — 50/50 upgrade or new, slot 3 — anything.
 	// A new weapon is offered in at most every other offer; low hp turns slot 3 into healing.
-	makeChoices(h) {
-		const boost = h.boostQueue > 0;
-		if (boost) h.boostQueue--;
+	// A reroll keeps the chest boost and rarity floor of the offer it replaces.
+	makeChoices(h, reroll = false) {
+		if (!reroll) {
+			h.offerBoost = h.boostQueue > 0;
+			if (h.offerBoost) h.boostQueue--;
+			h.offerFloor = h.floors.shift() ?? 0;
+		}
+		const boost = h.offerBoost;
 		h.offerNo++;
 		this.updateCombos(h);
 		const ups = [], newW = [], newP = [];
@@ -519,7 +525,36 @@ export class Room {
 			const rare = (boost ? CHEST_RARE_CHANCE : RARE_CHANCE) * (1 + h.mods.luck);
 			if (Math.random() < rare && [...h.weapons].some(([id, w]) => w.lvl < weaponMaxLevel(id))) out[slot3] = { ...FORGE_CARD };
 		}
+		this.rollRarities(h, out, h.offerFloor);
 		return out;
+	}
+
+	// Every plain weapon or artifact card rolls a rarity; a chest floor lifts one of them if none reached it.
+	rollRarities(h, out, floor = 0) {
+		const fortune = h.mods.fortune + h.mods.luck;
+		const cards = out.filter((c) => (c.kind === 'weapon' && WEAPONS[c.id]) || (c.kind === 'passive' && !PASSIVES[c.id].noRarity));
+		for (const c of cards) this.setRarity(h, c, rollRarity(fortune));
+		if (floor > 0 && cards.length && !cards.some((c) => c.rar >= floor)) {
+			this.setRarity(h, cards[Math.floor(Math.random() * cards.length)], rollRarity(fortune, floor));
+		}
+	}
+
+	// Final numbers of a card at rarity `rar`: weapons +levels (and rerolls), artifacts a scaled step.
+	setRarity(h, c, rar) {
+		const R = RARITIES[rar];
+		c.rar = rar;
+		if (c.kind === 'weapon') {
+			const from = h.weapons.get(c.id)?.lvl ?? 0;
+			c.from = from;
+			c.add = Math.max(1, Math.min(weaponMaxLevel(c.id) - from, R.levels));
+			c.level = from + c.add;
+			c.desc = from ? upgradeDesc(c.id, c.level, from) : WEAPONS[c.id].desc;
+			if (R.rerolls) c.rerolls = R.rerolls;
+			else delete c.rerolls;
+		} else {
+			c.val = passiveStep(c.id, rar);
+			c.desc = passiveDesc(c.id, c.val);
+		}
 	}
 
 	duoCard(h, c) {
@@ -609,10 +644,14 @@ export class Room {
 			if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + (h.maxHp - before) + (EMBERS[c.id].heal ?? 0));
 		} else if (c.kind === 'weapon') {
 			const w = h.weapons.get(c.id);
-			if (w) w.lvl = Math.min(weaponMaxLevel(c.id), w.lvl + 1);
-			else h.weapons.set(c.id, { lvl: 1, t: 0.2 });
+			const add = c.add ?? 1;
+			if (w) w.lvl = Math.min(weaponMaxLevel(c.id), w.lvl + add);
+			else h.weapons.set(c.id, { lvl: Math.min(weaponMaxLevel(c.id), add), t: 0.2 });
+			if (c.rerolls) h.rerolls += c.rerolls;
 		} else if (c.kind === 'passive') {
-			h.passives.set(c.id, Math.min(MAX_LEVEL, (h.passives.get(c.id) ?? 0) + 1));
+			const lvl = h.passives.get(c.id) ?? 0;
+			if (c.val !== undefined) h.pval[c.id] = (h.pval[c.id] ?? passiveValue(c.id, lvl)) + c.val;
+			h.passives.set(c.id, Math.min(MAX_LEVEL, lvl + 1));
 			const before = h.maxHp;
 			this.recalcMods(h);
 			if (h.maxHp > before && h.st === 0) h.hp += h.maxHp - before;
@@ -665,7 +704,7 @@ export class Room {
 		if (!h?.offer || h.rerolls <= 0) return;
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
-		h.offer = this.makeChoices(h);
+		h.offer = this.makeChoices(h, true);
 		this.sendOffer(h);
 	}
 
@@ -684,7 +723,7 @@ export class Room {
 		const m = { ...baseMods(), maxHp: 0 };
 		for (const [id, lvl] of h.passives) {
 			const P = PASSIVES[id];
-			m[P.stat] += passiveValue(id, lvl);
+			m[P.stat] += !P.values && h.pval?.[id] !== undefined ? h.pval[id] : passiveValue(id, lvl);
 			for (const [k, arr] of Object.entries(P.extra ?? {})) m[k] = Math.max(m[k], arr[Math.min(arr.length, lvl) - 1]);
 		}
 		for (const [id, n] of Object.entries(h.embers ?? {})) m[EMBERS[id].stat] += EMBERS[id].value * n;
@@ -1479,7 +1518,7 @@ export class Room {
 			if (!this.bosses.some((o) => o.group === e.group)) {
 				this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
 				this.runLog?.bossKilled(this, e);
-				for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p);
+				for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p, false, CHEST_FLOOR.boss);
 			}
 		}
 	}
@@ -1652,7 +1691,7 @@ export class Room {
 				break;
 			case 'chest':
 				this.fx.push(['open', h.pid, Math.round(it.x), Math.round(it.y)]);
-				this.grantOffer(h, true);
+				this.grantOffer(h, true, CHEST_FLOOR.elite);
 				break;
 		}
 	}
