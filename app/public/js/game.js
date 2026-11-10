@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT } from '/shared/content.js';
+import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS } from '/shared/content.js';
 
 // Render clock. Snapshots arrive unevenly (tunnel bursts, server tick stalls), so the delay adapts:
 // render time = now - p90(arrival - tm) over the last CLOCK_WINDOW snapshots - p90(snapshot gap) - margin.
@@ -69,6 +69,7 @@ export class Game {
 		this.rings = [];
 		this.shake = 0;
 		this.hurtFlash = 0;
+		this.dawn = null; // {t, n}: the final burn at 15:00, drives the victory overlay
 		this.hostile = new Map(); // enemy projectile id -> {x, y, vx, vy, st, end}
 		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
 		this.warns = [];
@@ -105,6 +106,8 @@ export class Game {
 		this.rings.length = 0;
 		this.shake = 0;
 		this.hurtFlash = 0;
+		this.dawn = null;
+		this.dawnSeen = false;
 		this.hostile.clear();
 		this.lobs.clear();
 		this.warns.length = 0;
@@ -246,10 +249,14 @@ export class Game {
 			it: Array.isArray(msg.it) ? msg.it : EMPTY,
 			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
 			boss: Array.isArray(msg.boss) ? msg.boss : null,
+			pk: Array.isArray(msg.pk) && PEAKS[msg.pk[0]] ? msg.pk : null,
 			applied: false,
 		};
 		for (const row of snap.p) if (Array.isArray(row)) snap.pMap.set(row[P.pid], row);
-		for (const ev of snap.fx) if (Array.isArray(ev)) this.shotEvent(ev);
+		for (const ev of snap.fx) if (Array.isArray(ev)) {
+			this.shotEvent(ev);
+			if (ev[0] === 'dawn') this.dawnSeen = true;
+		}
 		snap.eIdx = indexFlat(snap.e, E_STRIDE);
 		this.syn = msg.syn | 0;
 		snap.bIdx = indexFlat(snap.b, 5);
@@ -277,6 +284,12 @@ export class Game {
 	}
 
 	latest() { return this.snaps[this.snaps.length - 1] || null; }
+
+	// Active peak at the render clock: {def, left} or null.
+	peak() {
+		const s = this.view.b || this.latest();
+		return s && s.pk ? { def: PEAKS[s.pk[0]], left: +s.pk[1] || 0, dur: +s.pk[2] || PEAKS[s.pk[0]].dur || 1 } : null;
+	}
 
 	myRow() {
 		const s = this.latest();
@@ -719,6 +732,30 @@ export class Game {
 			case 'blink':
 				this.burst(+ev[1], +ev[2], '#b388ff', 12, 6);
 				break;
+			case 'peakw':
+				if (PEAKS[ev[1]]) this.onEvent('peakw', PEAKS[ev[1]]);
+				break;
+			case 'peak':
+				if (!PEAKS[ev[1]]) break;
+				this.shake = Math.max(this.shake, 8);
+				this.onEvent('peak', PEAKS[ev[1]]);
+				break;
+			case 'pring':
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 1.6, r0: +ev[3] || 420, r1: 90, color: '#b388ff' });
+				break;
+			case 'dawn': {
+				// Every enemy the client still shows goes up in golden fire.
+				this.dawn = { t: 0, n: ev[1] | 0 };
+				this.shake = 18;
+				for (let i = this.snaps.length - 1; i >= 0; i--) {
+					const e = this.snaps[i].e;
+					if (!e.length) continue;
+					for (let j = 0; j + E_STRIDE <= e.length; j += E_STRIDE) this.burst(+e[j + 2], +e[j + 3], j % 3 ? '#ffca28' : '#fff8e1', 3, 6);
+					break;
+				}
+				this.onEvent('dawn');
+				break;
+			}
 			case 'inv': {
 				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
 				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 1.2, r0: +ev[2] || 430, r1: 120, color: '#ff5252', pid: ev[1] });
@@ -739,6 +776,7 @@ export class Game {
 	updateEffects(dt) {
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
+		if (this.dawn) this.dawn.t += dt;
 		compact(this.numbers, (n) => (n.t += dt) < 0.8);
 		compact(this.particles, (p) => {
 			p.t += dt;

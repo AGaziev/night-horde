@@ -23,7 +23,7 @@ const LIMITS = {
 	gem: [0.045, 1], puddle: [0.12, 2], hurt: [0.14, 1], default: [0.05, 2],
 };
 // Sounds that must play even when the voice pool is full.
-const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie']);
+const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn']);
 
 const PENTA = [0, 3, 5, 7, 10]; // minor pentatonic steps
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -625,6 +625,37 @@ export class Sound {
 				this.hiss(o, t, 'bandpass', 300, 2500, 1, 1.8, 0.4, 1.5);
 				this.send(v, 0.5);
 				this.music?.accent(0.8);
+				break;
+			}
+			case 'peakw': {
+				// Warning toll: three low bells over a rising drone, so the group has time to regroup.
+				if (!(v = this.voice('peakw', 0.32, 0, 0, 3.6))) return;
+				const o = v.out, t = v.t;
+				for (let i = 0; i < 3; i++) this.bell(o, t + i * 0.9, 45, 1.6, 0.5);
+				this.tone(o, t, 'sawtooth', mtof(33), mtof(40), 3.4, 0.08, 2.5);
+				this.hiss(o, t, 'lowpass', 200, 900, 0.7, 3.2, 0.2, 2.5);
+				this.send(v, 0.7);
+				break;
+			}
+			case 'peak': {
+				if (!(v = this.voice('peak', 0.38, 0, 0, 2.6))) return;
+				const o = v.out, t = v.t;
+				this.thump(o, t, 70, 28, 1.2, 1);
+				for (const m of [38, 41, 44]) this.tone(o, t, 'sawtooth', mtof(m + 12), mtof(m), 2.2, 0.1, 0.05);
+				this.hiss(o, t, 'bandpass', 2500, 300, 1.2, 1.6, 0.35, 0.02);
+				this.send(v, 0.6);
+				this.music?.accent(1);
+				break;
+			}
+			case 'dawn': {
+				// Sunrise: a whoosh of fire and a bright major chord.
+				if (!(v = this.voice('dawn', 0.4, 0, 0, 4))) return;
+				const o = v.out, t = v.t;
+				this.hiss(o, t, 'highpass', 400, 6000, 0.6, 1.4, 0.5, 0.05);
+				this.thump(o, t, 90, 35, 1, 0.8);
+				[60, 64, 67, 72, 76, 79].forEach((m, i) => this.bell(o, t + 0.2 + i * 0.08, m, 2.8, 0.35));
+				this.send(v, 0.9);
+				this.music?.accent(1);
 				break;
 			}
 			case 'elite':

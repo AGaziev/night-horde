@@ -13,6 +13,7 @@ import {
 	breakableAt, xpForNext, PLAYER_RADIUS, ITEMS, MAX_LEVEL, MAX_WEAPONS, MAX_PASSIVES,
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, SYNERGY_PER, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS, teamXpMul,
 	GAME_VERSION, enemyHpScale, enemyDmgScale, BOSS_TIMES, BOSS_POOL, FINAL_BOSS, bossHpScale,
+	PEAKS, PEAK_WARN, PEAK_BOSS_GAP, RUN_SECONDS, INVASION, spawnRateScale, peakSchedule,
 } from '../public/shared/content.js';
 
 const isInt = (v) => Number.isInteger(v);
@@ -59,9 +60,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner'];
+		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -71,6 +72,7 @@ function checkSnapshot(s) {
 		if (f[0] === 'shot') assert.ok(f[2] >= 0 && f[2] < PROJECTILE_KINDS.length && f[7] > 0 && f[9] <= s.tm + 0.01); // tm has 2 decimals, event times 3
 		if (f[0] === 'pend') assert.ok(f[4] <= s.tm + 0.01);
 	}
+	assert.ok(s.pk === undefined || (Array.isArray(s.pk) && s.pk.length === 3 && PEAKS[s.pk[0]] && s.pk[1] >= 0 && s.pk[2] >= s.pk[1]), 'peak');
 	assert.ok(s.boss === null || (Array.isArray(s.boss) && s.boss.length === 3 && ENEMIES[ENEMY_TYPES[s.boss[2]]]?.boss), 'boss bar');
 }
 
@@ -1484,6 +1486,114 @@ console.log('over/again/leave: ok');
 		assert.ok(dn > 0, 'log: damage from the boss attack');
 	}
 	console.log('bosses x5: schedule, telegraphs, mechanics: ok');
+}
+
+// --- peaks (G5): schedule, warnings, ring, tide, dawn speed and burn, run log ---
+{
+	const dt = 1 / TICK_HZ;
+	// Schedule by run length: in order, inside the run, warning and start never near a boss, dawn ends the run.
+	for (const len of [RUN_SECONDS, 600]) {
+		const S = peakSchedule(len, BOSS_TIMES);
+		for (let i = 0; i < S.length; i++) {
+			const p = S[i];
+			assert.ok(p.at - PEAK_WARN > (S[i - 1] ? S[i - 1].at + S[i - 1].dur : 0), `peak ${p.id} order (${len})`);
+			assert.ok(p.at + p.dur <= len && p.dur >= 8, `peak ${p.id} inside the run (${len})`);
+			for (const b of BOSS_TIMES) for (const t of [p.at - PEAK_WARN, p.at]) assert.ok(Math.abs(t - b) >= PEAK_BOSS_GAP, `peak ${p.id} vs boss at ${b} (${len})`);
+		}
+		assert.ok(S.at(-1).burn && S.at(-1).at + S.at(-1).dur === len, `dawn closes the run (${len})`);
+	}
+	assert.deepEqual(peakSchedule().map((p) => p.at), [150, 450, 750, 882], '15:00: dawn moved past the final boss');
+	assert.deepEqual(peakSchedule(600, []).map((p) => p.at), [100, 300, 500, 570], '10:00 by fractions');
+
+	const fx = [];
+	const r = new Room('PK', (pid, m) => { if (m.t === 's' && pid === 1) fx.push(...m.fx.map((f) => [m.tm, f])); });
+	r.addPlayer(1, 'Аня', 'knight');
+	r.addPlayer(2, 'Боря', 'witch');
+	r.start();
+	const [a, b] = [r.heroes.get(1), r.heroes.get(2)];
+	const hold = () => { for (const h of r.heroes.values()) { h.hp = h.maxHp; h.iframes = 99; } };
+	const ring = r.peaks.find((p) => p.ring);
+	// Two players far apart get one ring each; together they would share one.
+	a.x = 0; a.y = 0; b.x = 3000; b.y = 0;
+	r.time = ring.at - PEAK_WARN - 0.5;
+	r.enemies = [];
+	r.nextInvasionT = 1e9;
+	r.nextEliteT = 1e9;
+	while (r.time < ring.at + 0.2) { hold(); a.x = 0; a.y = 0; b.x = 3000; b.y = 0; r.tick(dt); }
+	const warnAt = fx.find(([, f]) => f[0] === 'peakw' && r.peaks[f[1]] === ring)?.[0];
+	const startAt = fx.find(([, f]) => f[0] === 'peak' && r.peaks[f[1]] === ring)?.[0];
+	assert.ok(warnAt !== undefined && startAt !== undefined && startAt - warnAt >= PEAK_WARN - 0.2, 'warned ahead');
+	const rings = fx.filter(([, f]) => f[0] === 'pring').map(([, f]) => f);
+	assert.equal(rings.length, 2, 'one ring per cluster');
+	const per = Math.round(ring.ring.count * spawnRateScale(1));
+	const near = (cx) => r.enemies.filter((e) => e.type === ENEMY_TYPES.indexOf(ring.ring.type) && Math.abs(Math.hypot(e.x - cx, e.y) - ring.ring.r) < 50).length;
+	assert.ok(near(0) >= per * 0.9 && near(3000) >= per * 0.9, `ring of ~${per} shades around each`);
+	assert.equal(r.runLog.peaks[0].id, 'ring');
+	assert.ok(r.runLog.peaks[0].spawned >= per * 2 * 0.9);
+
+	// Tide: spawn rate ×spawnMul and no invasion inside it.
+	const tide = r.peaks.find((p) => p.id === 'tide');
+	const spawnedIn = (t0, secs) => {
+		r.time = t0;
+		r.enemies = [];
+		r.spawnAcc = 0;
+		r.nextInvasionT = 1e9;
+		r.bossIdx = BOSS_TIMES.length;
+		let n = 0;
+		for (let i = 0; i < secs * TICK_HZ; i++) {
+			const before = r.enemies.length;
+			r.updatePeaks([a, b]);
+			r.spawn(dt, [a, b]);
+			n += r.enemies.length - before;
+			r.enemies = [];
+		}
+		return n;
+	};
+	const base = spawnedIn(tide.at - 15, 5);
+	r.peakIdx = r.peaks.indexOf(tide); r.peakWarned = r.peakIdx; r.peak = null;
+	const peakN = spawnedIn(tide.at + 0.01, 5);
+	assert.ok(peakN > base * (tide.spawnMul - 0.6), `tide spawns ×${tide.spawnMul}: ${base} -> ${peakN}`);
+	r.time = tide.at + 1;
+	r.nextInvasionT = r.time;
+	const invBefore = fx.filter(([, f]) => f[0] === 'inv').length;
+	hold();
+	r.tick(dt);
+	r.snapshot();
+	assert.equal(fx.filter(([, f]) => f[0] === 'inv').length, invBefore, 'no invasion inside a peak');
+
+	// Eclipse is announced in the snapshot as pk.
+	const ecl = r.peaks.find((p) => p.sight);
+	r.peakIdx = r.peaks.indexOf(ecl); r.peakWarned = r.peakIdx; r.peak = null;
+	r.time = ecl.at;
+	hold();
+	r.tick(dt);
+	const snap = r.snapshot();
+	assert.deepEqual([snap.pk[0], Math.round(snap.pk[1]), snap.pk[2]], [r.peaks.indexOf(ecl), ecl.dur, ecl.dur]);
+
+	// Dawn: enemies run faster, then everything burns at the end and the run is won.
+	const dawn = r.peaks.find((p) => p.burn);
+	r.peakIdx = r.peaks.indexOf(dawn); r.peakWarned = r.peakIdx; r.peak = null;
+	r.time = dawn.at;
+	r.bossIdx = BOSS_TIMES.length;
+	r.enemies = [];
+	r.updatePeaks([a, b]);
+	const e1 = r.spawnEnemy('ghoul', [a, b], 1);
+	e1.x = a.x + 400; e1.y = a.y;
+	e1.speed = 60;
+	r.moveEnemies(dt, [a]);
+	assert.ok(Math.abs((a.x + 400 - e1.x) - 60 * (dawn.speedMul) * dt) < 0.01, 'dawn speed');
+	r.time = r.runLength - dt / 2;
+	for (let i = 0; i < 5; i++) r.spawnEnemy('skel', [a, b], 1);
+	hold();
+	r.tick(dt);
+	assert.equal(r.state, 'over');
+	assert.equal(r.lastLog.win, true);
+	assert.ok(r.enemies.every((e) => e.dead), 'all burned');
+	assert.ok(fx.some(([, f]) => f[0] === 'dawn' && f[1] >= 5), 'dawn fx before over');
+	const pk = r.lastLog.peaks.find((p) => p.id === 'dawn');
+	assert.ok(pk && pk.burned >= 5 && pk.end !== null, 'dawn in the log');
+	assert.ok(r.lastLog.summary.some((l) => l.startsWith('Пики: ') && l.includes('Рассвет')), 'summary line');
+	console.log('peaks (G5): schedule, ring, tide, eclipse, dawn, run log: ok');
 }
 
 // --- run log: choices, store on disk, /api/runs over HTTP ---

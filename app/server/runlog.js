@@ -32,6 +32,7 @@ export class RunLog {
 		this.acc = { taken: 0, downs: 0, kills: 0, dealt: 0 };
 		this.p = new Map();
 		this.bosses = [];
+		this.peaks = [];
 		for (const h of room.heroes.values()) {
 			this.p.set(h.pid, {
 				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
@@ -86,6 +87,8 @@ export class RunLog {
 		if (h.hp <= 0) {
 			this.acc.downs++;
 			p.downs.push([r1(room.time), from]);
+			const pk = this.peaks[this.peaks.length - 1];
+			if (pk && pk.end === null) pk.downs++;
 			const kind = from.split(':')[0];
 			for (const b of this.bosses) {
 				if (b.killedAt !== null) continue;
@@ -104,6 +107,21 @@ export class RunLog {
 		if (!b || b.killedAt !== null) return;
 		b.killedAt = r1(room.time);
 		b.sec = r1(room.time - b.at);
+	}
+
+	// Peaks: start, end and counters (spawned ring, burned at dawn); downs land on the active peak.
+	peakStart(room, def) {
+		this.peaks.push({ id: def.id, name: def.name, at: r1(room.time), end: null, downs: 0 });
+	}
+
+	peakEnd(room, def) {
+		const p = this.peaks.find((x) => x.id === def.id && x.end === null);
+		if (p) p.end = r1(room.time);
+	}
+
+	peakNote(room, key, n) {
+		const p = this.peaks[this.peaks.length - 1];
+		if (p) p[key] = (p[key] ?? 0) + n;
 	}
 
 	up(room, h) {
@@ -135,7 +153,7 @@ export class RunLog {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
 			win, time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, offered]',
-			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), team: players,
+			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), peaks: this.peaks, team: players,
 			reactions: { ...(room.reactN ?? {}) },
 		};
 		log.summary = summarize(log);
@@ -170,6 +188,12 @@ export function summarize(log) {
 			const dn = Object.values(b.downs).reduce((s, v) => s + v, 0);
 			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : 'не убит';
 			return `${b.name} (${mmss(b.at)}) — ${res}${dn ? `, падений ${dn}` : ''}`;
+		}).join('; '));
+	}
+	if (log.peaks?.length) {
+		out.push('Пики: ' + log.peaks.map((p) => {
+			const extra = [p.spawned ? `теней ${p.spawned}` : '', p.burned ? `сгорело ${p.burned}` : '', p.downs ? `падений ${p.downs}` : ''].filter(Boolean);
+			return `${p.name} (${mmss(p.at)})${extra.length ? ' — ' + extra.join(', ') : ''}`;
 		}).join('; '));
 	}
 	let easyFrom = null;

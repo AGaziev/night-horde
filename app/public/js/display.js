@@ -11,7 +11,12 @@ export class Overlay {
 	constructor() {
 		const body = document.body;
 		el('div', 'fx-layer fx-vignette', body);
+		this.eclipseEl = el('div', 'fx-layer fx-eclipse', body);
+		this.dawnEl = el('div', 'fx-layer fx-dawn', body);
 		this.hurtEl = el('div', 'fx-layer fx-hurt', body);
+		this.eclipseV = -1;
+		this.dawnV = -1;
+		this.sight = null;
 		this.arrowRoot = el('div', 'fx-layer fx-arrows', body);
 		this.hurtV = -1;
 		this.pool = [];
@@ -22,6 +27,25 @@ export class Overlay {
 		if (q === this.hurtV) return;
 		this.hurtV = q;
 		this.hurtEl.style.opacity = q;
+	}
+
+	// Peak layers: the eclipse narrows the view around the screen centre, dawn warms the bottom and flashes at the burn.
+	peak(game) {
+		const pk = game ? game.peak() : null;
+		let ecl = 0, dawn = 0;
+		if (pk && pk.def.sight) {
+			ecl = Math.max(0, Math.min(1, (pk.dur - pk.left) / 1.5, pk.left / 1.5));
+			if (this.sight !== pk.def.sight) {
+				this.sight = pk.def.sight;
+				this.eclipseEl.style.setProperty('--sight', String(pk.def.sight));
+			}
+		}
+		if (pk && pk.def.burn) dawn = 0.3 * (1 - pk.left / pk.dur);
+		const d = game && game.dawn;
+		if (d) dawn = d.t < 0.25 ? 1 : Math.max(0.6, 1 - (d.t - 0.25) * 0.5);
+		const qe = Math.round(ecl * 50) / 50, qd = Math.round(dawn * 50) / 50;
+		if (qe !== this.eclipseV) this.eclipseEl.style.opacity = this.eclipseV = qe;
+		if (qd !== this.dawnV) this.dawnEl.style.opacity = this.dawnV = qd;
 	}
 
 	// list: [{x, y, ang, pulse, color, name}] in CSS pixels, or null.

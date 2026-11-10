@@ -381,6 +381,9 @@ export class UI {
 	updateHud(game) {
 		const snap = game.latest();
 		this.set('hud-time', 'text', fmtTime(game.view.tm));
+		const pk = game.peak();
+		this.set('hud-peak', 'hidden', !pk);
+		if (pk) this.set('hud-peak', 'text', `${pk.def.name} · ${Math.ceil(pk.left)} с`);
 		if (!snap) return;
 		this.set('hud-kills', 'text', String(snap.k));
 		const row = snap.pMap.get(game.me);

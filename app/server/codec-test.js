@@ -45,7 +45,7 @@ function plain() {
 	const g = [];
 	for (const gm of world.gems) g.push(gm.id, gm.x, gm.y, gm.t);
 	const t = world.tm;
-	return {
+	const msg = {
 		t: 's', tm: t, k: world.nextId, syn: 10, boss: rnd() < 0.5 ? null : [100, 200, 3],
 		p: world.players.map((p) => [p.pid, p.x, p.y, 50, 100, 3, 1.5, 20, 0, 0, 0.71, -0.71, p.w, 0]),
 		e, b: [], g, z: [], tr: rnd() < 0.5 ? [] : [world.nextId, 1, 2, 0, 1], it: [],
@@ -54,8 +54,12 @@ function plain() {
 			['shot', 9, 2, 1.5, -2.25, 312.5, -0.333, 1.2, -1, Math.round((t - 0.033) * 1000) / 1000],
 			['pend', 9, 3, 4, Math.round((t - 0.067) * 1000) / 1000], ['boss', 'Владыка ночи'],
 			['newfx', 1, 'str', [1, 2], null, true, 1e300, -0.5], ['zap', 0, -320, 0, 0], 'oddity',
+			['peakw', 2], ['peak', 0], ['pring', -120, 340, 431], ['dawn', 57],
 		],
 	};
+	// Optional top-level field (active peak) comes and goes between snapshots.
+	if (rnd() < 0.4) msg.pk = [ri(0, 3), Math.round(rnd() * 300) / 10, 30];
+	return msg;
 }
 
 // Rows are compared as sets: the delta chain keeps arrival order, the server may reorder its lists.

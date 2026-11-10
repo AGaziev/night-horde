@@ -166,6 +166,7 @@ export class Renderer {
 			ctx.globalAlpha = 1;
 		}
 		this.overlay.hurt(inGame ? game.hurtFlash : 0);
+		this.overlay.peak(inGame ? game : null);
 		this.overlay.arrows(inGame ? this.arrowList(game, now) : null);
 		this.dprCtl.frame();
 	}

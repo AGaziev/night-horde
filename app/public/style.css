@@ -48,6 +48,15 @@ body {
 /* Screen-space effects over the canvas, under HUD and screens. */
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
 .fx-vignette { background: radial-gradient(circle farthest-corner at 50% 50%, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.7) 100%); }
+.fx-eclipse {
+	--sight: 0.7;
+	background: radial-gradient(circle at 50% 50%, rgba(4, 2, 12, 0) calc(var(--sight) * 28vmax), rgba(4, 2, 12, 0.96) calc(var(--sight) * 48vmax));
+	opacity: 0; will-change: opacity;
+}
+.fx-dawn {
+	background: radial-gradient(ellipse 130% 95% at 50% 115%, rgba(255, 236, 170, 0.95), rgba(255, 170, 70, 0.55) 45%, rgba(255, 120, 40, 0) 78%);
+	mix-blend-mode: screen; opacity: 0; will-change: opacity;
+}
 .fx-hurt { background: radial-gradient(circle farthest-corner at 50% 50%, rgba(200, 0, 0, 0) 40%, rgba(200, 0, 0, 0.55) 100%); opacity: 0; will-change: opacity; }
 .fx-arrows { z-index: 2; overflow: hidden; }
 .fx-arrow { position: absolute; left: 0; top: 0; }
@@ -308,6 +317,10 @@ input[type="text"]:focus { border-color: var(--accent); }
 
 .hud-center { text-align: center; }
 .hud-time { font-family: var(--mono); font-size: 1.6rem; font-weight: 800; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8); }
+.hud-peak {
+	margin-top: 2px; padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 800; white-space: nowrap;
+	background: rgba(120, 60, 200, 0.55); border: 1px solid rgba(179, 136, 255, 0.7); text-shadow: 0 1px 3px #000;
+}
 .hud-kills { font-size: 0.85rem; color: #ddd; text-shadow: 0 1px 3px #000; }
 
 .hud-right { display: flex; justify-content: flex-end; min-width: 0; }

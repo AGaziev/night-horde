@@ -1,4 +1,4 @@
-import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS } from '/shared/content.js';
+import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
@@ -105,7 +105,12 @@ net.on('lobby', (msg) => {
 	if (mine && HEROES[mine.hero]) state.hero = mine.hero;
 });
 
+// A win at dawn holds the field for the burn and the sunrise before the results screen.
+const DAWN_HOLD_MS = 3200;
+let overTimer = 0;
+
 net.on('start', (msg) => {
+	clearTimeout(overTimer);
 	game.begin(msg);
 	goGame();
 });
@@ -125,14 +130,20 @@ net.on('lvl', (msg) => {
 });
 
 net.on('over', (msg) => {
-	game.stop();
 	input.setEnabled(false);
+	clearTimeout(overTimer);
+	if (msg.win && game.dawnSeen && game.running) overTimer = setTimeout(() => showOver(msg), DAWN_HOLD_MS);
+	else showOver(msg);
+});
+
+function showOver(msg) {
+	game.stop();
 	if (msg.host !== undefined) state.host = msg.host;
 	const stats = (Array.isArray(msg.stats) ? msg.stats : []).map((s) => ({ ...s, color: game.meta(s.pid).color }));
 	ui.renderOver({ ...msg, stats }, state.me, state.host === state.me);
 	ui.show('over');
 	sound.setMode('over', msg.win);
-});
+}
 
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
 
@@ -184,6 +195,16 @@ game.onEvent = (kind, arg, arg2) => {
 		}
 		case 'inv':
 			ui.banner('Орда смыкается кольцом!');
+			break;
+		case 'peakw':
+			ui.banner(`${arg.name} через ${PEAK_WARN} с`);
+			ui.toast(arg.hint, 'info');
+			break;
+		case 'peak':
+			ui.banner(`${arg.name}!`);
+			break;
+		case 'dawn':
+			ui.banner('Рассвет! Ночь отступила');
 			break;
 		case 'elite':
 			ui.toast(`Элита: ${ELITE_AFFIXES[arg]?.name || '?'} — в награду сундук или золото`, 'info');

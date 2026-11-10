@@ -11,7 +11,7 @@ import {
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, DUO_MIN_LEVEL, DUO_DEFER_OFFERS, duoStartLevel, weaponDef, weaponMaxLevel,
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
-	beaconAngle,
+	beaconAngle, PEAK_WARN, peakSchedule,
 } from '../public/shared/content.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
@@ -195,6 +195,7 @@ export class Room {
 	constructor(code, send) {
 		this.code = code;
 		this.send = send;
+		this.runLength = RUN_SECONDS; // a run mode may set it before start(); peaks follow it
 		this.state = 'lobby';
 		this.members = new Map(); // pid -> {pid, name, hero, ready, color}
 		this.host = null;
@@ -348,6 +349,10 @@ export class Room {
 		this.brokenList = [];
 		this.nextEliteT = ELITE_START;
 		this.nextInvasionT = INVASION.from;
+		this.peaks = peakSchedule(this.runLength, BOSS_TIMES);
+		this.peakIdx = 0;
+		this.peakWarned = 0;
+		this.peak = null;
 		this.nextGemSweep = GEM_SWEEP_EVERY;
 		this.nextMagnetT = MAGNET_ITEM_EVERY;
 		this.critFx = 0;
@@ -699,6 +704,7 @@ export class Room {
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
 
+		this.updatePeaks(alive);
 		if (alive.length) {
 			this.spawn(dt, alive);
 			this.moveEnemies(dt, alive);
@@ -724,7 +730,7 @@ export class Room {
 			}
 			if (this.time >= this.nextInvasionT) {
 				this.nextInvasionT = this.time + INVASION.every;
-				this.invasion(alive);
+				if (!this.nearPeak()) this.invasion(alive);
 			}
 			if (this.time >= this.nextGemSweep) {
 				this.nextGemSweep = this.time + GEM_SWEEP_EVERY;
@@ -734,7 +740,8 @@ export class Room {
 
 		this.runLog?.tick(this);
 		if (this.checkAllDown()) return;
-		if (this.time >= RUN_SECONDS) {
+		if (this.time >= this.runLength) {
+			if (this.peaks.some((p) => p.burn)) this.burnAll();
 			this.finish(true);
 			return;
 		}
@@ -744,7 +751,7 @@ export class Room {
 	randomRingPos(alive) {
 		const p = alive[Math.floor(Math.random() * alive.length)];
 		const a = Math.random() * Math.PI * 2;
-		const d = SPAWN_DISTANCE.min + Math.random() * (SPAWN_DISTANCE.max - SPAWN_DISTANCE.min);
+		const d = (SPAWN_DISTANCE.min + Math.random() * (SPAWN_DISTANCE.max - SPAWN_DISTANCE.min)) * (this.peak?.spawnDist ?? 1);
 		return [p.x + Math.cos(a) * d, p.y + Math.sin(a) * d];
 	}
 
@@ -754,7 +761,7 @@ export class Room {
 		const hp = E.hp * hpMul;
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
-			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.time, this.heroes.size), dmgMul: enemyDmgScale(this.time, this.heroes.size), r: E.r, xp: E.xp,
+			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.time, this.heroes.size), dmgMul: enemyDmgScale(this.time, this.heroes.size), r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
 			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
@@ -774,12 +781,13 @@ export class Room {
 			this.spawnBoss(type, alive);
 		}
 		const wave = this.currentWave();
-		this.spawnAcc += wave.rate * spawnRateScale(n) * dt;
+		this.spawnAcc += wave.rate * spawnRateScale(n) * (this.peak?.spawnMul ?? 1) * dt;
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.time, n);
+		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
 		while (this.spawnAcc >= 1) {
 			this.spawnAcc -= 1;
-			if (this.enemies.length >= MAX_ENEMIES) {
+			if (this.enemies.length >= cap) {
 				this.spawnAcc = 0;
 				break;
 			}
@@ -807,6 +815,71 @@ export class Room {
 		let r = Math.random() * types.reduce((s, [, w]) => s + w, 0);
 		for (const [t, w] of types) if ((r -= w) <= 0) return t;
 		return types[0][0];
+	}
+
+	// --- peaks (this.peaks = peakSchedule(runLength)): warning fx, start fx with side effects, end; the active one is this.peak.
+	updatePeaks(alive) {
+		if (this.peak && this.time >= this.peak.at + this.peak.dur) {
+			this.runLog?.peakEnd(this, this.peak);
+			this.peak = null;
+		}
+		// Peaks already over (time jumped past them) are skipped, not started late.
+		while (this.peaks[this.peakIdx] && this.time >= this.peaks[this.peakIdx].at + this.peaks[this.peakIdx].dur) this.peakIdx++;
+		this.peakWarned = Math.max(this.peakWarned, this.peakIdx);
+		const next = this.peaks[this.peakIdx];
+		if (!next) return;
+		if (this.peakWarned === this.peakIdx && this.time >= next.at - PEAK_WARN) {
+			this.peakWarned++;
+			this.fx.push(['peakw', this.peakIdx]);
+		}
+		if (this.time < next.at) return;
+		this.peakIdx++;
+		this.peak = next;
+		this.fx.push(['peak', this.peakIdx - 1]);
+		this.runLog?.peakStart(this, next);
+		if (next.ring && alive.length) this.peakRing(next.ring, alive);
+	}
+
+	// Invasions skip a peak's warning and active time so the two never stack.
+	nearPeak() {
+		return this.peaks.some((p) => this.time >= p.at - PEAK_WARN - 1 && this.time < p.at + p.dur);
+	}
+
+	// One ring per cluster of alive players: `count` enemies (scaled like spawn) on a circle around the cluster.
+	peakRing(R, alive) {
+		const wave = this.currentWave();
+		const hpMul = enemyHpScale(this.time, this.heroes.size);
+		const left = new Set(alive);
+		let spawned = 0;
+		for (const h of alive) {
+			if (!left.has(h)) continue;
+			const group = [...left].filter((o) => dist2(o.x, o.y, h.x, h.y) < R.cluster * R.cluster);
+			for (const o of group) left.delete(o);
+			const cx = group.reduce((s, o) => s + o.x, 0) / group.length, cy = group.reduce((s, o) => s + o.y, 0) / group.length;
+			const r = R.r + Math.max(...group.map((o) => Math.hypot(o.x - cx, o.y - cy)));
+			const count = Math.round(R.count * spawnRateScale(group.length));
+			this.fx.push(['pring', Math.round(cx), Math.round(cy), Math.round(r)]);
+			for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 120; i++) {
+				const e = this.spawnEnemy(R.type ?? this.waveType(wave), alive, hpMul);
+				const a = (i / count) * Math.PI * 2;
+				e.x = cx + Math.cos(a) * r;
+				e.y = cy + Math.sin(a) * r;
+				spawned++;
+			}
+		}
+		this.runLog?.peakNote(this, 'spawned', spawned);
+	}
+
+	// Dawn: at the end of the run every enemy and enemy shot burns away (no kills or xp).
+	burnAll() {
+		let n = 0;
+		for (const e of this.enemies) if (!e.dead) {
+			e.dead = true;
+			n++;
+		}
+		this.hostile.length = 0;
+		this.fx.push(['dawn', n]);
+		this.runLog?.peakNote(this, 'burned', n);
 	}
 
 	// A ring of the current wave's enemies around every alive player, closing in (may exceed the cap a little).
@@ -837,6 +910,7 @@ export class Room {
 		const near = this.q1;
 		const taunters = alive.filter((p) => p.trait.taunt > 0);
 		const now = this.time;
+		const speedMul = this.peak?.speedMul ?? 1;
 		for (const e of this.enemies) {
 			if (e.dead) continue;
 			if (e.burnT > now) this.burnTick(e, dt);
@@ -863,7 +937,7 @@ export class Room {
 			dx /= d;
 			dy /= d;
 			// Stop at contact distance so enemies don't stack on the player.
-			let speed = e.slowT > now ? e.speed * (1 - e.slow) : e.speed;
+			let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
 			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
 			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
 			if (e.ai === 'ranged') {
@@ -3263,6 +3337,8 @@ export class Room {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
 			fx: this.fx, boss: bossBar,
 		};
+		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
+		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
 		this.fx = [];
 		this.hitFx = 0;
 		this.dieFx = 0;

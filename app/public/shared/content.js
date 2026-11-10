@@ -413,6 +413,30 @@ export const INVASION = { from: 210, every: 60, radius: 430, base: 10, perMin: 2
 export const invasionCount = (seconds, players = 1) =>
 	Math.round(Math.min(INVASION.max, INVASION.base + INVASION.perMin * (seconds / 60 - 3))
 		* (INVASION.groupMul[players - 1] ?? (players >= 4 && seconds >= INVASION.bigFrom ? INVASION.bigMul : 1)));
+// Peaks on top of WAVES, timed by run length (frac of it, or the `last` seconds of it) so shorter modes reuse them.
+// Announced PEAK_WARN s ahead; peakSchedule moves a peak past a boss rather than the boss (bosses stay absolute).
+// ring: a closing circle around every cluster of players; spawnMul/speedMul: regular spawn and enemy speed;
+// xpMul: xp of enemies born during the peak (pressure, not a free level); spawnDist: spawn ring radius multiplier;
+// sight: client view radius multiplier; burn: at the end every enemy burns and the run is won.
+export const PEAK_WARN = 4;
+export const PEAK_BOSS_GAP = 8;
+export const PEAKS = [
+	{ id: 'ring', name: 'Кольцо', hint: 'Тени смыкаются вокруг вас — держитесь вместе', frac: 1 / 6, dur: 8, ring: { type: 'bat', count: 60, r: 420, cluster: 320 }, speedMul: 1.25, xpMul: 0.3 },
+	{ id: 'tide', name: 'Прилив', hint: 'Орда втрое гуще 20 секунд', frac: 1 / 2, dur: 20, spawnMul: 3, capAdd: 80, xpMul: 0.2 },
+	{ id: 'eclipse', name: 'Затмение', hint: 'Тьма сужает обзор на 30 секунд, враги выходят из неё совсем близко', frac: 5 / 6, dur: 30, sight: 0.7, spawnMul: 1.3, spawnDist: 0.65, capAdd: 40, xpMul: 0.5 },
+	{ id: 'dawn', name: 'Рассвет', hint: 'Последний натиск: продержитесь до рассвета', last: 30, spawnMul: 2, speedMul: 1.2, capAdd: 60, xpMul: 0.5, burn: true },
+];
+// Absolute schedule for a run: [{...peak, i, at, dur}]. In 15:00 the final boss (14:30) pushes «Рассвет» to 14:42.
+export function peakSchedule(runLength = RUN_SECONDS, bossTimes = BOSS_TIMES) {
+	return PEAKS.map((p, i) => {
+		let at = p.last ? runLength - p.last : Math.round(runLength * p.frac);
+		for (const b of bossTimes) {
+			if (Math.abs(at - b) < PEAK_BOSS_GAP || Math.abs(at - PEAK_WARN - b) < PEAK_BOSS_GAP) at = b + PEAK_BOSS_GAP + PEAK_WARN;
+		}
+		return { ...p, i, at, dur: p.last ? runLength - at : p.dur };
+	});
+}
+
 // Per-player spawn stays close to solo (1.0, 0.85, 0.78 for 1, 2, 4 players) so groups do not get it easier.
 export const spawnRateScale = (players) => 0.3 + 0.7 * players;
 export const SPAWN_DISTANCE = { min: 520, max: 680 };
