@@ -54,7 +54,11 @@ const fxOf = (r, name) => r.fx.filter((f) => f[0] === name);
 	assert.equal(specialCap(SPECIALS.sniper, 0.39, 1), 0);
 	assert.ok(specialCap(SPECIALS.sniper, 0.4, 1) >= 1 && specialCap(SPECIALS.sniper, 0.8, 4) > specialCap(SPECIALS.sniper, 0.4, 1));
 	assert.equal(SHIELD_DIRS << SHIELD_SHIFT, 8192);
-	assert.ok(modeDmgMul('lunch', 2) < 1 && modeDmgMul('lunch', 1) === 1 && modeDmgMul('lunch', 3) === 1 && modeDmgMul('night', 2) < 1 && modeDmgMul('night', 1) === 1 && modeDmgMul('night', 3) === 1, 'pairs only');
+	// v18: pairs get softer enemy hits; v23: three players too; solo and 4+ stay at ×1.
+	for (const m of ['lunch', 'night']) {
+		assert.ok(modeDmgMul(m, 2) < 1 && modeDmgMul(m, 3) < 1, `${m}: pairs and three players`);
+		assert.ok(modeDmgMul(m, 1) === 1 && modeDmgMul(m, 4) === 1 && modeDmgMul(m, 8) === 1, `${m}: solo and 4+ untouched`);
+	}
 	console.log('content: OK');
 }
 

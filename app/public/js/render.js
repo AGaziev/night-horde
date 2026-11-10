@@ -34,6 +34,9 @@ const PROJ_ART = { bolt: 0.8, knife: 0.8, sickle: 1, icedisc: 1, spear: 1.6, hos
 const DECOR = ['prop_gravestone', 'prop_stump', 'prop_mushrooms'];
 const DECOR_CELL = 200;
 const ITEM_ARROWS = 3;
+const ALLY_ARROWS = 4; // standing-ally arrows after merging close directions
+const ALLY_MERGE = 0.4; // rad: allies closer in direction share an arrow
+const MM_RANGE = 1600; // world units from the hero to the minimap rim
 const HERO_FOOT = 14 * 0.95;
 
 function hash2(x, y) {
@@ -87,6 +90,11 @@ export class Renderer {
 		this.heroMotion = new Map();
 		this.arrowBuf = [];
 		this.itemArrows = [];
+		this.allyArrows = [];
+		this.arrowBox = { at: -1, w: 0, h: 0, l: 0, r: 0, t: 0, b: 0, mmX: Infinity, mmY: Infinity };
+		this.mmShown = null;
+		this.mmAt = 0;
+		this.mmSize = 0;
 		this.overlay = new Overlay();
 		this.dprCtl = new DprController(() => this.resize());
 		this.resize();
@@ -178,6 +186,7 @@ export class Renderer {
 		this.overlay.hurt(inGame ? game.hurtFlash : 0);
 		this.overlay.peak(inGame ? game : null);
 		this.overlay.arrows(inGame ? this.arrowList(game, now) : null);
+		this.updateMinimap(game, now, inGame);
 		this.dprCtl.frame();
 	}
 
@@ -3037,50 +3046,45 @@ export class Renderer {
 		ctx.setLineDash([]);
 	}
 
-	// Edge-of-screen arrows pointing to downed allies outside the view.
+	// Edge-of-screen arrows: every ally outside the view (downed ones red and pulsing, standing ones in their colour,
+	// close directions merged into one "name +N" arrow), the finale Lord, chests, star shards and the event spot.
 	arrowList(game, now) {
 		const out = this.arrowBuf;
 		out.length = 0;
 		const b = game.view.b;
-		const m = 28;
-		const cx = this.w / 2, cy = this.h / 2;
+		this.updateArrowBox(now);
+		const pulse = 1 + Math.sin(now * 6) * 0.15;
+		const allies = this.allyArrows;
+		allies.length = 0;
 		for (const row of b.p) {
-			if (row[P.st] !== 1 || row[P.pid] === game.me) continue;
-			const pos = game.playerPos(row[P.pid], this.tmp);
+			const pid = row[P.pid];
+			if (pid === game.me) continue;
+			const pos = game.playerPos(pid, this.tmp);
 			if (!pos) continue;
 			const s = this.toScreen(pos.x, pos.y, this.tmp);
-			if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
-			const dx = s.x - cx, dy = s.y - cy;
-			const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-			const meta = game.meta(row[P.pid]);
-			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: meta.color, name: meta.name });
+			if (this.onScreen(s)) continue;
+			const meta = game.meta(pid);
+			const d = Math.hypot(s.x - this.w / 2, s.y - this.h / 2);
+			if (row[P.st] === 1) {
+				out.push(this.edgeArrow(s, { pulse: pulse * 1.1, color: '#ff5252', name: shortName(meta.name), icon: '✝', kind: 'down' }));
+			} else {
+				allies.push({ sx: s.x, sy: s.y, d, ang: Math.atan2(s.y - this.h / 2, s.x - this.w / 2), color: meta.color, name: meta.name, n: 1 });
+			}
 		}
-		// v21 finale: the Lord outside the view gets a red arrow (on a phone the arena is wider than the screen);
-		// during the prelude far allies get arrows too, not only the downed ones.
+		for (const c of mergeByAngle(allies).sort((p, q) => p.d - q.d).slice(0, ALLY_ARROWS)) {
+			this.tmp.x = c.sx;
+			this.tmp.y = c.sy;
+			out.push(this.edgeArrow(this.tmp, { pulse: 0.8, color: c.color, name: shortName(c.name) + (c.n > 1 ? ` +${c.n - 1}` : ''), icon: '●', kind: 'ally' }));
+		}
+		// v21 finale: the Lord outside the view gets a red arrow (on a phone the arena is wider than the screen).
 		const fin = game.finale();
 		if (fin && fin.phase >= 2) {
-			const lord = ENEMY_TYPES.indexOf('boss');
 			const e = b.e;
 			for (let i = 0; i + E_STRIDE <= e.length; i += E_STRIDE) {
-				if (e[i + 1] !== lord) continue;
+				if (e[i + 1] !== BOSS_T) continue;
 				const s = this.toScreen(+e[i + 2], +e[i + 3], this.tmp);
-				if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) break;
-				const dx = s.x - cx, dy = s.y - cy;
-				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ff5252', name: 'Владыка', icon: '☠' });
+				if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse, color: '#ff5252', name: 'Владыка', icon: '☠' }));
 				break;
-			}
-		} else if (fin) {
-			for (const row of b.p) {
-				if (row[P.st] === 1 || row[P.pid] === game.me) continue;
-				const pos = game.playerPos(row[P.pid], this.tmp);
-				if (!pos) continue;
-				const s = this.toScreen(pos.x, pos.y, this.tmp);
-				if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
-				const dx = s.x - cx, dy = s.y - cy;
-				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-				const meta = game.meta(row[P.pid]);
-				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1, color: meta.color, name: meta.name, icon: '●' });
 			}
 		}
 		// v19: chests and star shards lying off-screen get an arrow each (the nearest ITEM_ARROWS), as long as they lie.
@@ -3096,24 +3100,204 @@ export class Renderer {
 		items.sort((p, q) => p.d - q.d);
 		for (const o of items.slice(0, ITEM_ARROWS)) {
 			const s = this.toScreen(o.x, o.y, this.tmp);
-			if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
-			const dx = s.x - cx, dy = s.y - cy;
-			const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: o.kind === 'chest' ? 'Сундук' : 'Осколок', icon: '★' });
+			if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse, color: '#ffd54f', name: o.kind === 'chest' ? 'Сундук' : 'Осколок', icon: '★' }));
 		}
 		// Off-screen event spot (altar, cursed chest, golden shade) gets a gold arrow; the star shard has its item arrow.
 		const ev = game.event();
 		if (ev && !(ev.def.id === 'fog' || ev.def.id === 'streak' || (ev.def.id === 'cursed' && ev.phase === 1) || (ev.def.id === 'star' && ev.phase === 1))) {
 			const s = this.toScreen(ev.x, ev.y, this.tmp);
-			if (!(s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h)) {
-				const dx = s.x - cx, dy = s.y - cy;
-				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: ev.def.arrow ?? ev.def.name, icon: '★' });
-			}
+			if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse, color: '#ffd54f', name: ev.def.arrow ?? ev.def.name, icon: '★' }));
 		}
+		// Downed allies last: drawn on top of everything else.
+		out.sort((p, q) => (p.kind === 'down') - (q.kind === 'down'));
 		return out;
 	}
+
+	onScreen(s) {
+		return s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h;
+	}
+
+	// Arrows stay below the top HUD block and out of the minimap corner; both are measured twice a second.
+	updateArrowBox(now) {
+		const B = this.arrowBox;
+		if (now - B.at < 0.5 && B.w === this.w && B.h === this.h) return;
+		B.at = now;
+		B.w = this.w;
+		B.h = this.h;
+		this.hudTopEl ??= document.querySelector('.hud-top');
+		const hudBottom = this.hudTopEl ? this.hudTopEl.getBoundingClientRect().bottom : 0;
+		const m = 28;
+		B.l = m;
+		B.r = this.w - m;
+		B.b = this.h - m;
+		B.t = Math.max(m, Math.min(this.h * 0.32, hudBottom + 18));
+		const r = this.overlay.mm.getBoundingClientRect();
+		B.mmX = r.width ? r.left - 16 : Infinity;
+		B.mmY = r.width ? r.top - 16 : Infinity;
+	}
+
+	// Projects screen point `s` from the screen centre onto the arrow box.
+	edgeArrow(s, a) {
+		const B = this.arrowBox;
+		const cx = this.w / 2, cy = this.h / 2;
+		const dx = s.x - cx, dy = s.y - cy;
+		const kx = dx > 0 ? (B.r - cx) / dx : dx < 0 ? (B.l - cx) / dx : Infinity;
+		const ky = dy > 0 ? (B.b - cy) / dy : dy < 0 ? (B.t - cy) / dy : Infinity;
+		const k = Math.min(kx, ky);
+		let x = cx + dx * k, y = cy + dy * k;
+		if (x > B.mmX && y > B.mmY) {
+			if (kx <= ky) y = B.mmY;
+			else x = B.mmX;
+		}
+		a.x = x;
+		a.y = y;
+		a.ang = Math.atan2(dy, dx);
+		return a;
+	}
+
+	// Corner radar centred on the own hero: allies, the Lord, chests and the event spot; redrawn ~8 times a second.
+	updateMinimap(game, now, inGame) {
+		const cv = this.overlay.mm;
+		const show = !!inGame;
+		if (show !== this.mmShown) {
+			this.mmShown = show;
+			cv.style.display = show ? '' : 'none';
+			this.mmAt = 0;
+			if (show) this.mmSize = 0;
+		}
+		if (!show || now - this.mmAt < 0.125) return;
+		this.mmAt = now;
+		const css = cv.clientWidth;
+		if (!css) return;
+		const px = Math.round(css * Math.min(2, window.devicePixelRatio || 1));
+		if (this.mmSize !== px) {
+			this.mmSize = px;
+			cv.width = cv.height = px;
+		}
+		const ctx = cv.getContext('2d');
+		const k = px / css, c = css / 2, R = c - 5, sc = R / MM_RANGE;
+		ctx.setTransform(k, 0, 0, k, 0, 0);
+		ctx.clearRect(0, 0, css, css);
+		ctx.save();
+		ctx.beginPath();
+		ctx.arc(c, c, c - 1, 0, TAU);
+		ctx.fillStyle = 'rgba(8, 10, 16, 0.62)';
+		ctx.fill();
+		ctx.clip();
+		const mx = this.camX, my = this.camY;
+		// View frame.
+		const hw = (this.w / 2 / this.zoom) * sc, hh = (this.h / 2 / this.zoom) * sc;
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+		ctx.lineWidth = 1;
+		ctx.strokeRect(c - hw, c - hh, hw * 2, hh * 2);
+		const fin = game.finale();
+		if (fin) {
+			ctx.strokeStyle = 'rgba(255, 138, 128, 0.7)';
+			ctx.lineWidth = 1.5;
+			ctx.beginPath();
+			ctx.arc(c + (fin.cx - mx) * sc, c + (fin.cy - my) * sc, Math.max(2, fin.r * sc), 0, TAU);
+			ctx.stroke();
+		}
+		ctx.restore();
+		const at = (x, y, out) => {
+			let dx = (x - mx) * sc, dy = (y - my) * sc;
+			const d = Math.hypot(dx, dy);
+			if (d > R) {
+				dx *= R / d;
+				dy *= R / d;
+			}
+			out.x = c + dx;
+			out.y = c + dy;
+			return out;
+		};
+		const p = this.tmp;
+		const b = game.view.b;
+		const it = b.it;
+		ctx.fillStyle = '#ffd54f';
+		for (let i = 0; i + 4 <= it.length; i += 4) {
+			const kind = ITEM_TYPES[it[i + 1] | 0];
+			if (kind !== 'chest' && kind !== 'star') continue;
+			at(it[i + 2], it[i + 3], p);
+			ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+		}
+		const ev = game.event();
+		if (ev && ev.def.id !== 'fog' && ev.def.id !== 'streak') {
+			at(ev.x, ev.y, p);
+			ctx.beginPath();
+			ctx.moveTo(p.x, p.y - 4);
+			ctx.lineTo(p.x + 4, p.y);
+			ctx.lineTo(p.x, p.y + 4);
+			ctx.lineTo(p.x - 4, p.y);
+			ctx.closePath();
+			ctx.fill();
+		}
+		const e = b.e;
+		for (let i = 0; i + E_STRIDE <= e.length; i += E_STRIDE) {
+			if (e[i + 1] !== BOSS_T) continue;
+			at(+e[i + 2], +e[i + 3], p);
+			ctx.beginPath();
+			ctx.arc(p.x, p.y, 5, 0, TAU);
+			ctx.fillStyle = '#ff1744';
+			ctx.fill();
+			ctx.strokeStyle = '#fff';
+			ctx.lineWidth = 1.2;
+			ctx.stroke();
+		}
+		const blink = Math.sin(now * 8) > 0;
+		for (const row of b.p) {
+			const pid = row[P.pid];
+			if (pid === game.me || !game.playerPos(pid, p)) continue;
+			at(p.x, p.y, p);
+			ctx.beginPath();
+			ctx.arc(p.x, p.y, 3.5, 0, TAU);
+			ctx.fillStyle = game.meta(pid).color;
+			ctx.fill();
+			ctx.lineWidth = row[P.st] === 1 ? 2 : 1;
+			ctx.strokeStyle = row[P.st] === 1 ? (blink ? '#ff5252' : '#fff') : '#000';
+			ctx.stroke();
+		}
+		ctx.beginPath();
+		ctx.arc(c, c, 3, 0, TAU);
+		ctx.fillStyle = '#fff';
+		ctx.fill();
+		ctx.beginPath();
+		ctx.arc(c, c, c - 1, 0, TAU);
+		ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+		ctx.lineWidth = 1;
+		ctx.stroke();
+	}
 }
+
+// Names on arrows are kept short so a label fits next to the screen edge on a phone.
+function shortName(name) {
+	const ch = Array.from(String(name || ''));
+	return ch.length > 8 ? ch.slice(0, 7).join('') + '…' : ch.join('');
+}
+
+// Allies whose arrows point in nearly the same direction share one arrow (the nearest one, with a count).
+function mergeByAngle(list) {
+	if (list.length < 2) return list;
+	list.sort((p, q) => p.ang - q.ang);
+	const out = [];
+	for (const a of list) {
+		const last = out[out.length - 1];
+		if (last && a.ang - last.ang1 < ALLY_MERGE) {
+			last.ang1 = a.ang;
+			last.n += a.n;
+			if (a.d < last.d) Object.assign(last, { sx: a.sx, sy: a.sy, d: a.d, color: a.color, name: a.name });
+		} else out.push({ ...a, ang1: a.ang });
+	}
+	if (out.length > 1) {
+		const first = out[0], last = out[out.length - 1];
+		if (first.ang + TAU - last.ang1 < ALLY_MERGE) {
+			first.n += last.n;
+			if (last.d < first.d) Object.assign(first, { sx: last.sx, sy: last.sy, d: last.d, color: last.color, name: last.name });
+			out.pop();
+		}
+	}
+	return out;
+}
+
 
 function drawProp(ctx, b, now) {
 	const { x, y } = b;

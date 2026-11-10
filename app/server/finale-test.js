@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import { Room } from './game.js';
 import {
 	TICK_HZ, ENEMIES, WARN_MIN, FINALE, finaleFight, finaleRingR, finaleHpMul, clampToRing, bossTimes, peakSchedule, bossHpScale,
-	modeHpMul, PLAYER_RADIUS, REVIVE_HP_FRACTION, GAME_VERSION, MODES, mergeAchStats,
+	modeHpMul, finaleAddScale, finaleAddCap, spawnRateScale, PLAYER_RADIUS, REVIVE_HP_FRACTION, GAME_VERSION, MODES, mergeAchStats,
 } from '../public/shared/content.js';
 import { PROTO } from './snapshot-codec.js';
 
@@ -56,8 +56,8 @@ function toFight(r) {
 }
 const close = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps * Math.max(1, Math.abs(b));
 
-assert.equal(GAME_VERSION, 'v22');
-assert.equal(PROTO, 19);
+assert.equal(GAME_VERSION, 'v23');
+assert.equal(PROTO, 20);
 
 // --- 1. schedule ---
 {
@@ -231,7 +231,7 @@ assert.equal(PROTO, 19);
 		assert.equal(r.enemies.filter((e) => e.add).length, 0, 'the first pack comes after adds.first');
 		run(r, 0.4);
 		const adds = r.enemies.filter((e) => e.add && !e.dead);
-		assert.equal(adds.length, Math.min(want, FINALE.adds.cap), `pack size for ${n}: ${adds.length}`);
+		assert.equal(adds.length, Math.min(want, finaleAddCap(n)), `pack size for ${n}: ${adds.length}`);
 		assert.ok(adds.every((e) => close(e.xp, e.def.xp * FINALE.adds.xpMul)), 'xp ×0.5');
 		const f = r.fin;
 		assert.ok(adds.every((e) => Math.hypot(e.x - f.cx, e.y - f.cy) < f.r1 + FINALE.ring.addsOut + 40), 'packs step out of the wall');
@@ -240,11 +240,15 @@ assert.equal(PROTO, 19);
 		lord.bcd = 1e9;
 		let max = 0;
 		run(r, 40, () => { max = Math.max(max, r.enemies.filter((e) => e.add && !e.dead).length); });
-		assert.ok(max <= FINALE.adds.cap, `cap ${max}`);
+		assert.ok(max <= finaleAddCap(n), `cap ${max}`);
 		assert.ok(r.time - t0 > 30 && r.runLog.fin.adds.pulses >= 6);
-		if (n === 8) assert.equal(max, FINALE.adds.cap, 'eight players reach the cap');
+		if (n === 8) assert.equal(max, finaleAddCap(8), 'eight players reach the cap');
 	}
-	assert.ok(sizes.every((v, i, a) => i === 0 || v > a[i - 1]), `packs grow with the group: ${sizes}`);
+	// v23: solo and pair unchanged; from three players a pack is sized for one player and the cap is lower (#9FKPYY).
+	assert.ok(sizes[1] > sizes[0], `the pair's pack is bigger than solo: ${sizes}`);
+	assert.deepEqual([finaleAddScale(1), finaleAddScale(2)], [spawnRateScale(1), spawnRateScale(2)]);
+	assert.ok(sizes[2] === sizes[0] && sizes[3] === sizes[0], `3+ players: a solo-sized pack: ${sizes}`);
+	assert.ok(finaleAddCap(3) < FINALE.adds.cap && finaleAddCap(2) === FINALE.adds.cap);
 	console.log(`6 packs: OK (${sizes.join(' / ')} per pack)`);
 }
 
@@ -263,8 +267,8 @@ assert.equal(PROTO, 19);
 	r.hurtEnemy(lord, lord.maxHp * 0.51, a);
 	a.iframes = 9;
 	run(r, dt, null, true); // raw: the helper would refill the risen hero's hp
-	const rage = fxOf(r, 'fin').filter((f) => f[2] === 3);
-	assert.ok(rage.length === 1 && rage[0][3] === 1, 'rage fx with one hero lifted');
+	const rage = fxOf(r, 'fin').filter((f) => f[2] === 3), ray = fxOf(r, 'ray');
+	assert.ok(rage.length === 1 && ray.length === 1 && ray[0][2] === 1, 'rage and the ray with one hero lifted');
 	assert.ok(b.st === 0 && close(b.hp, b.maxHp * REVIVE_HP_FRACTION, 0.2), 'the downed one rises with half hp');
 	assert.equal(c.st, 1, 'the dropped one stays down');
 	assert.equal(a.revives, revives, 'nobody is credited with the revive');
@@ -274,6 +278,7 @@ assert.equal(PROTO, 19);
 	run(r, 1);
 	assert.equal(b.st, 1, 'the ray comes once');
 	assert.equal(fxOf(r, 'fin').filter((f) => f[2] === 3).length, 1);
+	assert.equal(fxOf(r, 'ray').length, 1);
 	// The charge is warned ≥ WARN_MIN ahead.
 	a.x = lord.x + 300; a.y = lord.y;
 	lord.dcd = 0;
@@ -295,8 +300,43 @@ assert.equal(PROTO, 19);
 	run(s, FINALE.lordSpawnWarn + 0.2);
 	s.hurtEnemy(l3, l3.maxHp * 0.51, hero(s, 1));
 	run(s, dt * 2);
-	assert.deepEqual(fxOf(s, 'fin').filter((f) => f[2] === 3).map((f) => f[3]), [0]);
-	console.log('7 rage: OK');
+	assert.equal(fxOf(s, 'fin').filter((f) => f[2] === 3).length, 1);
+	run(s, 40);
+	assert.equal(fxOf(s, 'ray').length, 0, 'solo: no ray');
+	// v23: no rage by the middle of the fight — the ray comes there (once).
+	const m = room(3);
+	const l4 = toFight(m);
+	const mid = m.fin.fightAt + m.finPlan.fight * FINALE.rayAt;
+	run(m, mid - m.time - 1);
+	m.downHero(hero(m, 2), 'boss');
+	run(m, 0.8, null, true);
+	assert.equal(fxOf(m, 'ray').length, 0, 'not before the middle');
+	run(m, 0.5, null, true);
+	assert.ok(!m.fin.rage && fxOf(m, 'ray').length === 1 && hero(m, 2).st === 0, 'the ray at the middle without rage');
+	assert.ok(close(m.runLog.fin.rayAt, m.finPlan.fight * FINALE.rayAt, 0.05) && m.runLog.fin.revived === 1);
+	m.downHero(hero(m, 2), 'boss');
+	m.hurtEnemy(l4, l4.maxHp * 0.6, hero(m, 1));
+	run(m, 1, null, true);
+	assert.ok(m.fin.rage && fxOf(m, 'ray').length === 1 && hero(m, 2).st === 1, 'rage after it brings no second ray');
+	// 3+: nobody down at the middle — the ray waits and comes with the first down.
+	const w = room(3);
+	toFight(w);
+	run(w, w.fin.fightAt + w.finPlan.fight * FINALE.rayAt - w.time + 2);
+	assert.equal(fxOf(w, 'ray').length, 0, 'a healthy group keeps the ray');
+	w.downHero(hero(w, 3), 'boss');
+	run(w, 0.2, null, true);
+	assert.ok(fxOf(w, 'ray').length === 1 && hero(w, 3).st === 0, 'the ray comes with the first down');
+	// A pair keeps the v21 rule: nothing at the middle, the ray at rage.
+	const d = room(2);
+	const l5 = toFight(d);
+	run(d, d.fin.fightAt + d.finPlan.fight * FINALE.rayAt - d.time + 1);
+	d.downHero(hero(d, 2), 'boss');
+	run(d, 0.5, null, true);
+	assert.equal(fxOf(d, 'ray').length, 0, 'pair: no ray at the middle');
+	d.hurtEnemy(l5, l5.maxHp * 0.6, hero(d, 1));
+	run(d, 0.2, null, true);
+	assert.ok(fxOf(d, 'ray').length === 1 && hero(d, 2).st === 0, 'pair: the ray at rage');
+	console.log('7 rage and the ray: OK');
 }
 
 // --- 8. the Lord is slain: dawn at once, grade 2 ---

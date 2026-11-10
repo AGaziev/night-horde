@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v22';
+export const GAME_VERSION = 'v23';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -72,9 +72,10 @@ export const HEROES = {
 // hpMul (index = players - 1, the last one for bigger groups) keeps the share of wins close to the night.
 // dmgMul (v18, same indexing): pairs fell to hits (Трубач shots first), not to enemy hp, so only their enemy damage is softer.
 export const MODES = {
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 1] },
+	// v23: three players fell mid-run (9–10 min, mostly to spit and Трубач shots; 17% wins at night, 7% at lunch) — ×0.9 / ×0.8.
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 0.9, 1] },
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.8, 1] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.8, 0.8, 1] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -110,11 +111,16 @@ export const FINALE = {
 	ring: { r: 440, perPlayer: 25, shrink: 260, pad: 80, addsOut: 30 },
 	lordSpawnWarn: 1.5,                 // warn circle at the ring centre: the Lord stands still, harmless and immune
 	lordSpawnR: 120,
-	adds: { first: 3, every: 6, rate: 0.4, cap: 160, xpMul: 0.5, callOver: 40 },   // callOver: the Lord's swarm may exceed the cap by this much
+	// callOver: the Lord's swarm may exceed the cap by this much. v23 (#9FKPYY, three players fell to the packs): from
+	// `groupFrom` players a pack is sized for one player (`groupScale` × the solo pack) and the field cap is `groupCap`.
+	adds: { first: 3, every: 6, rate: 0.4, cap: 160, xpMul: 0.5, callOver: 40, groupFrom: 3, groupScale: 1, groupCap: 80 },
 	// × the regular final-boss hp, index = players − 1 (the last one for bigger groups)
 	hpMul: { night: [2.5, 1.4, 1.4, 1.4], lunch: [2.5, 1, 1, 1] },
 	dmgMul: [1, 1.3, 1.1, 1],      // the Lord's hits and the adds' damage in the finale (lever)
-	rageRevive: true,                   // groups: every downed hero who is online rises once when rage starts
+	rageRevive: true,                   // groups: every downed hero who is online rises once, at rage
+	// v23, 3+ players (#9FKPYY never reached rage): the ray comes at rage or at this share of the fight, whichever is
+	// first — and waits until somebody is down, so a healthy group does not waste it. Pairs keep the v21 rule.
+	rayAt: 0.5,
 	lastCd: 0.8,                        // the Lord's cooldown during «Светает»
 	killHold: 0.6,                      // client freeze frame on the last hit
 };
@@ -127,6 +133,9 @@ export const finaleFight = (runLength = RUN_SECONDS) => {
 export const finaleRingR = (players) => FINALE.ring.r + FINALE.ring.perPlayer * (Math.max(1, players) - 1);
 export const finaleHpMul = (mode, players) => byPlayers(FINALE.hpMul[mode] ?? FINALE.hpMul.night, players);
 export const finaleDmgMul = (players) => byPlayers(FINALE.dmgMul, players);
+// v23: the packs' size factor and field cap by players (solo and pair keep the group spawn scale).
+export const finaleAddScale = (players) => (players >= FINALE.adds.groupFrom ? FINALE.adds.groupScale : spawnRateScale(players));
+export const finaleAddCap = (players) => (players >= FINALE.adds.groupFrom ? FINALE.adds.groupCap : FINALE.adds.cap);
 // Projects a point into the ring; shared by the server (heroes, the Lord) and the client's own-hero prediction.
 export function clampToRing(x, y, cx, cy, r) {
 	const dx = x - cx, dy = y - cy;
@@ -325,7 +334,7 @@ export const WEAPONS = {
 		],
 	},
 	ward: {
-		name: 'Оберег', icon: '⛉', desc: 'Щит поглощает удары и взрывается, когда ломается', tags: ['aoe'],
+		name: 'Оберег', icon: '⛉', desc: 'Оружие: бьёт и блокирует удары — щит гасит удар врага и взрывается, когда ломается', tags: ['aoe'],
 		levels: [
 			{ charges: 1, cd: 12, burstDmg: 15, burstR: 90, kb: 60 },
 			{ charges: 1, cd: 10, burstDmg: 20, burstR: 100, kb: 70 },
@@ -351,7 +360,7 @@ export const PASSIVES = {
 	crit: { name: 'Острота', icon: '✧', desc: '+6% шанс крита (×2 урона)', tpl: '+{v}% шанс крита (×2 урона)', stat: 'critChance', perLevel: 0.06 },
 	echo: { name: 'Эхо', icon: '≋', desc: '+1 снаряд, лужа, удар или клинок (+2 с 4 ур.)', stat: 'amount', values: [1, 1, 1, 2, 2], noRarity: true },
 	hourglass: { name: 'Песочные часы', icon: '⧗', desc: '+12% длительности луж, холода и заморозки', tpl: '+{v}% длительности луж, холода и заморозки', stat: 'durMul', perLevel: 0.12 },
-	mail: { name: 'Кольчуга', icon: '⛨', desc: '−1 к каждому полученному удару', tpl: '−{v} к каждому полученному удару', stat: 'armor', perLevel: 1 },
+	mail: { name: 'Кольчуга', icon: '⛨', desc: 'Броня: −1 к каждому полученному удару', tpl: 'Броня: −{v} к каждому полученному удару', stat: 'armor', perLevel: 1 },
 	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень; без огненного оружия любой удар слабо поджигает', tpl: 'Удары поджигают: +{v}% шанса; без огненного оружия любой удар слабо поджигает', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
 	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', tpl: '+{v}% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
 	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', tpl: '+{v}% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', stat: 'luck', perLevel: 0.10, bonus: { critChance: 0.04 } },

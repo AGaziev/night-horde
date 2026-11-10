@@ -12,7 +12,7 @@ import {
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
-	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, clampToRing,
+	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, finaleAddScale, finaleAddCap, clampToRing,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, overclockId, BANS_START,
 } from '../public/shared/content.js';
@@ -40,6 +40,7 @@ const CHAIN_RANGE = 170;
 const BOLT_RANGE = 700;
 const HEAL_AMOUNT = 40;
 const REVIVE_IFRAMES = 1.5;
+const STREAK_WINDOW = 10; // v23: seconds of the kill streak on the results card
 const SLOW_HOLD = 0.1; // seconds a puddle slow lingers after the last check
 const MAX_CRIT_FX = 12;
 const WET_HOLD = 0.5;
@@ -210,6 +211,8 @@ function makeHero(member, x, y) {
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
 		bans: BANS_START, banned: new Set(), spinQueue: 0, offerSpin: false,
+		// v23 results card: the strongest single hit [dmg, source, time], kill times of the last STREAK_WINDOW s, best streak [kills, time].
+		bestHit: [0, null, 0], kq: [], kqi: 0, bestStreak: [0, 0],
 		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null, downT: 0, offline: false,
 	};
 }
@@ -1259,9 +1262,19 @@ export class Room {
 		if (!f.rage && this.time >= lord.immuneT && lord.hp <= lord.maxHp * lord.def.rage) {
 			f.rage = true;
 			f.rageT = this.time;
-			if (FINALE.rageRevive && this.heroes.size >= 2) f.revived = this.dawnRevive();
-			this.fx.push(['fin', 3, f.revived]);
-			this.runLog?.finRage(this, f.revived);
+			this.fx.push(['fin', 3]);
+			this.runLog?.finRage(this);
+		}
+		// The ray of dawn (groups, once): pairs get it at rage as in v21; from FINALE.adds.groupFrom players it comes at rage
+		// or at the middle of the fight, whichever is first, as soon as somebody online lies down (v23, #9FKPYY).
+		const big = this.heroes.size >= FINALE.adds.groupFrom;
+		const due = f.rage || (big && this.time >= f.fightAt + this.finPlan.fight * FINALE.rayAt);
+		if (!f.ray && FINALE.rageRevive && this.heroes.size >= 2 && this.time >= lord.immuneT && due
+			&& (!big || [...this.heroes.values()].some((h) => h.st === 1 && !h.offline))) {
+			f.ray = true;
+			f.revived = this.dawnRevive();
+			this.fx.push(['ray', f.revived]);
+			this.runLog?.finRay(this, f.revived);
 		}
 		if (!f.last && this.peak?.id === 'dawn') {
 			f.last = true;
@@ -1282,7 +1295,7 @@ export class Room {
 		for (const h of pool) if (dist2(h.x, h.y, mx, my) < dist2(c.x, c.y, mx, my)) c = h;
 		const r1 = finaleRingR(this.heroes.size);
 		const far = Math.max(0, ...all.map((h) => Math.hypot(h.x - c.x, h.y - c.y)));
-		this.fin = { cx: Math.round(c.x), cy: Math.round(c.y), r: Math.max(r1, far) + FINALE.ring.pad, r1, lord: null, fightAt: 0, nextAdd: Infinity, rage: false, rageT: 0, last: false, revived: 0, killed: null };
+		this.fin = { cx: Math.round(c.x), cy: Math.round(c.y), r: Math.max(r1, far) + FINALE.ring.pad, r1, lord: null, fightAt: 0, nextAdd: Infinity, rage: false, rageT: 0, ray: false, last: false, revived: 0, killed: null };
 		this.fx.push(['fin', 1]);
 		this.runLog?.finStart(this);
 	}
@@ -1349,14 +1362,14 @@ export class Room {
 	finaleAddCount(alive) {
 		const A = FINALE.adds;
 		const spawnN = Math.max(alive.length, this.heroes.size - 1);
-		return Math.round(A.rate * this.currentWave().rate * spawnRateScale(spawnN) * A.every);
+		return Math.round(A.rate * this.currentWave().rate * finaleAddScale(spawnN) * A.every);
 	}
 
 	finaleAdds(alive) {
 		const f = this.fin, A = FINALE.adds;
 		let cur = 0;
 		for (const e of this.enemies) if (!e.dead && !e.boss) cur++;
-		const count = Math.max(0, Math.min(this.finaleAddCount(alive), A.cap - cur));
+		const count = Math.max(0, Math.min(this.finaleAddCount(alive), finaleAddCap(this.heroes.size) - cur));
 		const wave = this.currentWave();
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const a0 = Math.random() * Math.PI * 2, r = f.r1 + FINALE.ring.addsOut;
@@ -1723,7 +1736,7 @@ export class Room {
 		const count = Math.round(call.count * (1 + 0.25 * (this.heroes.size - 1)));
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		// v21: in the arena the swarm stays near the packs' cap (weak devices, a crowded ring).
-		const cap = this.fin ? FINALE.adds.cap + FINALE.adds.callOver : MAX_ENEMIES + 60;
+		const cap = this.fin ? finaleAddCap(this.heroes.size) + FINALE.adds.callOver : MAX_ENEMIES + 60;
 		for (let i = 0; i < count && this.enemies.length < cap; i++) {
 			const m = this.spawnEnemy(call.type, alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
@@ -1980,6 +1993,7 @@ export class Room {
 		if (h) {
 			h.dmg += dealt;
 			h.dmgBy[src.weapon] = (h.dmgBy[src.weapon] ?? 0) + dealt;
+			if (dmg > h.bestHit[0]) h.bestHit = [dmg, src.weapon, this.time];
 		}
 		e.hp -= dmg;
 		if (e.boss) this.runLog?.bossHit(this, e, dealt, h);
@@ -2090,6 +2104,7 @@ export class Room {
 		if (h) {
 			h.kills++;
 			if (KNIFE_SRC.has(src.weapon)) h.knifeKills++;
+			this.countStreak(h);
 		}
 		if (this.dieFx < MAX_DIE_FX) {
 			this.dieFx++;
@@ -2137,6 +2152,19 @@ export class Room {
 				// Every hero, downed too: team xp keeps a downed ally level with the rest, chests do the same (v18.1).
 				for (const p of this.heroes.values()) this.grantOffer(p, false, CHEST_FLOOR.boss, true);
 			}
+		}
+	}
+
+	// v23: the best kill streak — most kills within STREAK_WINDOW seconds (a queue of kill times with a moving head).
+	countStreak(h) {
+		const q = h.kq, t = this.time;
+		q.push(t);
+		while (q[h.kqi] < t - STREAK_WINDOW) h.kqi++;
+		const n = q.length - h.kqi;
+		if (n > h.bestStreak[0]) h.bestStreak = [n, t];
+		if (h.kqi > 256) {
+			q.splice(0, h.kqi);
+			h.kqi = 0;
 		}
 	}
 
@@ -4098,8 +4126,14 @@ export class Room {
 				console.error('run end hook', e);
 			}
 		}
+		let card = null;
+		try {
+			card = this.runLog?.card(this, log) ?? null;
+		} catch (e) {
+			console.error('results card', e);
+		}
 		this.overMsg = {
-			t: 'over', win, grade, fin: this.finaleResult(), time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
+			t: 'over', win, grade, fin: this.finaleResult(), card, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
 			stats,
 			runId: log?.id ?? null, log,
 		};

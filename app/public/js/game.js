@@ -879,6 +879,10 @@ export class Game {
 				if ((ev[1] | 0) !== 4) this.shake = Math.max(this.shake, (ev[1] | 0) === 3 ? 14 : 8);
 				this.onEvent('fin', ev[1] | 0, ev[2] | 0);
 				break;
+			case 'ray':
+				this.evoFlash = { color: '#fff8e1', t: 0 };
+				this.onEvent('ray', ev[1] | 0);
+				break;
 			case 'absorb': {
 				// Dark threads from the horde to the middle of the ring (a sample of the enemies the client still shows).
 				const pts = [];

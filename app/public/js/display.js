@@ -18,6 +18,8 @@ export class Overlay {
 		this.dawnV = -1;
 		this.sight = null;
 		this.arrowRoot = el('div', 'fx-layer fx-arrows', body);
+		this.mm = el('canvas', 'fx-minimap', body);
+		this.mm.style.display = 'none';
 		this.hurtV = -1;
 		this.pool = [];
 	}
@@ -48,7 +50,7 @@ export class Overlay {
 		if (qd !== this.dawnV) this.dawnEl.style.opacity = this.dawnV = qd;
 	}
 
-	// list: [{x, y, ang, pulse, color, name}] in CSS pixels, or null.
+	// list: [{x, y, ang, pulse, color, name, icon?, kind?}] in CSS pixels, or null; kind: 'down' | 'ally'.
 	arrows(list) {
 		const n = list ? list.length : 0;
 		while (this.pool.length < n) {
@@ -70,15 +72,19 @@ export class Overlay {
 				p.root.style.display = '';
 				p.shown = true;
 			}
-			const key = a.color + '|' + a.name + '|' + (a.icon ?? '');
+			const key = a.color + '|' + a.name + '|' + (a.icon ?? '') + '|' + (a.kind ?? '');
 			if (p.key !== key) {
 				p.key = key;
+				p.root.className = a.kind ? `fx-arrow fx-arrow-${a.kind}` : 'fx-arrow';
 				p.poly.setAttribute('fill', a.color);
 				p.label.textContent = (a.icon ?? '✝') + ' ' + a.name;
 			}
 			p.root.style.transform = `translate(${a.x.toFixed(1)}px,${a.y.toFixed(1)}px)`;
 			p.svg.style.transform = `translate(-50%,-50%) rotate(${a.ang.toFixed(3)}rad) scale(${a.pulse.toFixed(3)})`;
-			p.label.style.transform = `translate(calc(-50% + ${(-Math.cos(a.ang) * 26).toFixed(1)}px), calc(-50% + ${(-Math.sin(a.ang) * 22).toFixed(1)}px))`;
+			// The label sits on the inner side of the arrow and grows away from the nearest side edge, so it is never cut off.
+			const cos = Math.cos(a.ang);
+			const ax = cos > 0.35 ? '-100%' : cos < -0.35 ? '0%' : '-50%';
+			p.label.style.transform = `translate(calc(${ax} + ${(-cos * 20).toFixed(1)}px), calc(-50% + ${(-Math.sin(a.ang) * 22).toFixed(1)}px))`;
 		}
 	}
 }

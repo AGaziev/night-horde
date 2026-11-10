@@ -5,6 +5,7 @@ import { Game, P } from './game.js';
 import { Renderer } from './render.js';
 import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
 import { Sound } from './audio.js';
+import { cardText, cardImage } from './results.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -325,10 +326,10 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 			break;
 		case 'fin':
 			if (arg === 1) ui.banner('Тьма смыкается!');
-			else if (arg === 3) {
-				ui.banner('Владыка в ярости!');
-				if (arg2 > 0) ui.toast('Луч рассвета поднял павших', 'info');
-			}
+			else if (arg === 3) ui.banner('Владыка в ярости!');
+			break;
+		case 'ray':
+			ui.toast(arg > 0 ? 'Луч рассвета поднял павших' : 'Луч рассвета: павших нет', 'info');
 			break;
 		case 'absorb':
 			if (arg > 0) ui.toast('Владыка поглотил орду', 'info');
@@ -440,6 +441,38 @@ $('lobby-leave').addEventListener('click', () => {
 $('lobby-copy').addEventListener('click', () => copyLink());
 
 $('over-again').addEventListener('click', () => net.send({ t: 'again' }));
+// v23: share the results — text to the clipboard, or a PNG (the system share sheet on a phone, a download elsewhere).
+$('over-share-text').addEventListener('click', async () => {
+	if (!ui.card) return;
+	if (await copyText(cardText(ui.card))) ui.toast('Итоги скопированы — вставьте в чат', 'info');
+	else ui.toast('Не удалось скопировать');
+});
+$('over-share-png').addEventListener('click', () => {
+	if (!ui.card) return;
+	const canvas = cardImage(ui.card, ui.cardColors ?? new Map());
+	canvas.toBlob(async (blob) => {
+		if (!blob) return void ui.toast('Не удалось нарисовать картинку');
+		const name = `horde-${ui.card.id ?? 'run'}.png`;
+		const file = typeof File === 'function' ? new File([blob], name, { type: 'image/png' }) : null;
+		if (file && navigator.canShare?.({ files: [file] }) && matchMedia('(pointer: coarse)').matches) {
+			try {
+				await navigator.share({ files: [file], title: 'Ночная орда' });
+				return;
+			} catch (err) {
+				if (err?.name === 'AbortError') return;
+			}
+		}
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = name;
+		document.body.appendChild(a);
+		a.click();
+		a.remove();
+		setTimeout(() => URL.revokeObjectURL(url), 1000);
+		ui.toast(`Картинка ${name} сохранена`, 'info');
+	}, 'image/png');
+});
 $('over-menu').addEventListener('click', () => {
 	net.send({ t: 'leave' });
 	goMenu();

@@ -25,6 +25,7 @@ const lvlText = (id, lvl) => (EVOS[id] ? '★' : DUOS[id] ? ROMAN[lvl - 1] || St
 import { drawHeroPreview } from './render.js';
 import { sprites } from './sprites.js';
 import { P, canBan } from './game.js';
+import { renderResults } from './results.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -603,6 +604,12 @@ export class UI {
 			if (fin) tr.appendChild(el('td', 'num', `${Math.round((share.get(s.pid) ?? 0) * 100)}%`));
 			body.appendChild(tr);
 		}
+		// v23: the results card (group, awards, finale, a tab per player) replaces the plain table when the server sent one.
+		this.card = msg.card && typeof msg.card === 'object' ? msg.card : null;
+		this.cardColors = new Map(stats.map((s) => [s.pid, s.color || '#90a4ae']));
+		const shown = renderResults(this.card, me, this.cardColors);
+		$('over-table').hidden = shown;
+		$('over-share').hidden = !shown;
 		$('over-again').hidden = !isHost;
 		const log = msg.log && typeof msg.log === 'object' ? msg.log : null;
 		this.runLog = log;
@@ -662,7 +669,7 @@ export class UI {
 				// v20: an overclocked weapon (4th field of a plain weapon) gets a violet frame, a mark and the variant in the title.
 				fillIcons(box, w.map(([id, lvl, , oc]) => {
 					const O = WEAPONS[id] && oc ? OVERCLOCKS[id]?.[oc - 1] : null;
-					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), (weaponDef(id)?.name || id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : ''), EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
+					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), weaponTitle(id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : ''), EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
 				}), `${w.length}/${MAX_WEAPONS}`, 'Слоты оружия');
 				drawDuoLinks(box, w);
 			}
@@ -671,7 +678,7 @@ export class UI {
 		if (this.cache.passives !== pKey) {
 			this.cache.passives = pKey;
 			const ps = Object.entries(game.passives);
-			fillIcons($('hud-passives'), ps.map(([id, lvl]) => [PASSIVES[id]?.icon || '?', lvl, PASSIVES[id]?.name || id]), `${ps.length}/${MAX_PASSIVES}`, 'Слоты артефактов');
+			fillIcons($('hud-passives'), ps.map(([id, lvl]) => [PASSIVES[id]?.icon || '?', lvl, PASSIVES[id] ? `${PASSIVES[id].name} — артефакт. ${PASSIVES[id].desc}` : id]), `${ps.length}/${MAX_PASSIVES}`, 'Слоты артефактов');
 		}
 
 		// v20: embers taken so far with their total effect.
@@ -766,6 +773,14 @@ function emberText(id, n) {
 	const v = E.value * n;
 	const total = E.stat === 'maxHp' ? `+${Math.round(v)}` : `${v < 0 ? '−' : '+'}${Math.round(Math.abs(v) * 100)}%`;
 	return [`${E.icon}×${n} ${total}`, `${E.name} ×${n}: ${E.desc.replace(/^[+−-]?[\d.,]+%?/, total)}`];
+}
+
+// HUD hint of a weapon slot: says it is a weapon, so a shield-like icon (Ward) is not taken for armour.
+function weaponTitle(id) {
+	const W = weaponDef(id);
+	if (!W) return id;
+	const d = W.desc.replace(/^Оружие:\s*/, '');
+	return `${W.name} — оружие. ${d[0].toUpperCase()}${d.slice(1)}`;
 }
 
 function fillIcons(box, items, slots, slotsTitle) {

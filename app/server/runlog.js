@@ -174,7 +174,7 @@ export class RunLog {
 	finStart(room) {
 		this.fin = {
 			pre: r1(room.time), at: null, fight: room.finPlan?.fight ?? 0, ring: [room.fin.cx, room.fin.cy, room.fin.r1], players: room.heroes.size,
-			lord: null, lordHp: 0, absorbed: 0, rageAt: null, revived: 0, close: {}, wall: {},
+			lord: null, lordHp: 0, absorbed: 0, rageAt: null, rayAt: null, revived: 0, close: {}, wall: {},
 			taken: { wave: 0, shot: 0, dash: 0, contact: 0, adds: 0 }, downs: {}, downsBy: { wave: 0, shot: 0, dash: 0, contact: 0, adds: 0, offline: 0 },
 			adds: { pulses: 0, spawned: 0, killed: 0 }, load: { enemiesMax: 0, tickMs: 0, tickAvg: 0, ticks: 0 },
 		};
@@ -190,9 +190,14 @@ export class RunLog {
 		F.players = room.heroes.size;
 	}
 
-	finRage(room, revived) {
+	finRage(room) {
+		if (this.fin?.lord) this.fin.rageAt = r1(room.time - room.fin.fightAt);
+	}
+
+	// v23: the ray of dawn — second of the fight and heroes lifted.
+	finRay(room, revived) {
 		if (!this.fin?.lord) return;
-		this.fin.rageAt = r1(room.time - room.fin.fightAt);
+		this.fin.rayAt = r1(room.time - room.fin.fightAt);
 		this.fin.revived = revived;
 	}
 
@@ -319,6 +324,51 @@ export class RunLog {
 
 	up(room, h) {
 		this.p.get(h.pid)?.ups.push(r1(room.time));
+	}
+
+	// v23 results card (`over.card`): what the results screen and the shared card show, names resolved, small.
+	card(room, log) {
+		if (!log) return null;
+		const heroes = new Map([...room.heroes.values()].map((h) => [h.pid, h]));
+		const lordBy = log.finale?.by ?? {};
+		const players = log.team.map((t) => {
+			const h = heroes.get(t.pid), p = this.p.get(t.pid);
+			const embers = Object.values(t.build?.embers ?? {}).reduce((s, n) => s + n, 0);
+			const takenTop = Object.entries(t.taken).slice(0, 3).map(([k, v]) => [enemyName(k), v]);
+			const hit = h?.bestHit ?? [0, null, 0];
+			return {
+				pid: t.pid, name: t.name, hero: t.hero, heroName: t.heroName, level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
+				weapons: t.dmgBy.slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
+				taken: t.takenTotal, takenTop, revives: t.ach?.revives ?? 0,
+				// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
+				downs: t.downs.filter((d) => d[1] !== 'offline').length, downsAt: t.downs.filter((d) => d[1] !== 'offline').map((d) => Math.round(d[0])),
+				lifted: t.ups.length, liftedAt: t.ups.map((x) => Math.round(x)), drops: t.drops?.length ?? 0,
+				state: h?.offline ? 'offline' : h?.st === 0 ? 'alive' : 'down', minHp: t.minHp,
+				bestHit: hit[0] > 0 ? [Math.round(hit[0]), srcName(hit[1] ?? 'other'), r1(hit[2])] : null,
+				streak: h && h.bestStreak[0] > 0 ? [h.bestStreak[0], r1(h.bestStreak[1])] : null,
+				fused: [...t.evos.map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'evo']), ...t.duos.map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'duo'])].sort((a, b) => a[0] - b[0]),
+				ovr: (t.ovr?.took ?? []).map(([at, s]) => { const [id, v] = s.split('~'); return [at, `${WEAPONS[id]?.name ?? id} — «${OVERCLOCKS[id]?.[v - 1]?.name ?? v}»`]; }),
+				embers,
+				// Per minute: damage per second (all weapons) and the lowest hp of the minute.
+				dpm: (p?.dps ?? []).map((row) => Object.entries(row).reduce((s, [k, v]) => s + (k.startsWith('r_') ? 0 : v), 0)),
+				hpm: (p?.hpMin ?? []).map((x) => x[1]),
+				lord: Math.round(lordBy[t.name] ?? 0),
+			};
+		});
+		const top = players.flatMap((p) => p.weapons.slice(0, 1).map((w) => ({ name: p.name, weapon: w[0], dmg: w[1], pct: w[2] }))).sort((a, b) => b.dmg - a.dmg)[0] ?? null;
+		const F = log.finale;
+		return {
+			id: log.id, v: log.v, mode: log.mode, len: log.runLength, time: log.time, win: log.win, grade: log.grade, kills: log.kills,
+			players, top, awards: awards(players, log),
+			group: { downs: players.reduce((s, p) => s + p.downs, 0), lifted: players.reduce((s, p) => s + p.lifted, 0), revives: players.reduce((s, p) => s + p.revives, 0) },
+			fin: F && F.at !== null ? { at: F.at, lordHp: F.lordHp, sec: F.sec, hpLeft: F.hpLeft, grade: F.grade, lastHit: F.lastHit, rageAt: F.rageAt, rayAt: F.rayAt ?? null, revived: F.revived } : null,
+			bosses: (log.bosses ?? []).map((b) => [b.name, b.at, b.sec, !!b.absorbed]),
+			// [name, at, outcome, ok]: ok is null for single-outcome events (fog), else res 1 is the good one.
+			events: (log.events ?? []).map((e) => {
+				const D = EVENTS[EVENT_INDEX[e.id]];
+				return [D?.name ?? e.id, e.at, D?.done?.[e.res] ?? '', (D?.done?.length ?? 0) < 2 ? null : e.res === 1];
+			}),
+		};
 	}
 
 	build(room, win) {
@@ -465,7 +515,7 @@ export function summarize(log) {
 			: F.grade === 1 ? `дожили, у Владыки осталось ${Math.round(F.hpLeft * 100)}%`
 			: `группа пала на ${Math.round(F.sec)}-й секунде боя, Владыке оставалось ${Math.round(F.hpLeft * 100)}%`;
 		const parts = [
-			F.rageAt !== null ? `ярость на ${Math.round(F.rageAt)}-й` : 'до ярости не дошло', `падений ${dn}`, F.revived ? `лучом поднято ${F.revived}` : '',
+			F.rageAt !== null ? `ярость на ${Math.round(F.rageAt)}-й` : 'до ярости не дошло', `падений ${dn}`, F.rayAt !== null && F.rayAt !== undefined ? `луч рассвета на ${Math.round(F.rayAt)}-й, поднято ${F.revived}` : '',
 			by ? `по Владыке: ${by}` : '', close ? `вплотную: ${close}` : '', wall ? `у стены: ${wall}` : '',
 			`урон по игрокам: волна ${F.taken.wave}, снаряды ${F.taken.shot}, рывок ${F.taken.dash}, касание ${F.taken.contact}, орда ${F.taken.adds}`,
 			`поглощено ${F.absorbed}, пачек ${F.adds.pulses} (${F.adds.spawned} врагов)`,
@@ -489,6 +539,56 @@ export function summarize(log) {
 	}
 	return out;
 }
+
+// v23: playful titles for the results card, in priority order. Group titles go to the single best one (a tie gives
+// nobody); in a group a player holds at most two, the next title goes to the best of the rest, so the titles spread.
+// Solo gets the personal ones it earned.
+// Each: {id, icon, title, pid, name, text}.
+export function awards(players, log) {
+	const group = players.length > 1;
+	const cand = [];
+	const per = new Map();
+	const free = (p) => !group || (per.get(p.pid) ?? 0) < 2;
+	const best = (key, min = 1) => {
+		const pool = players.filter(free);
+		const v = pool.map((p) => key(p));
+		const m = Math.max(...v);
+		if (!(m >= min) || v.filter((x) => x === m).length > 1) return null;
+		return pool[v.indexOf(m)];
+	};
+	const add = (id, icon, title, p, text) => {
+		if (!p || !free(p)) return;
+		per.set(p.pid, (per.get(p.pid) ?? 0) + 1);
+		cand.push({ id, icon, title, pid: p.pid, name: p.name, text: text(p) });
+	};
+	if (log.finale?.lastHit) add('lord', '👑', 'Убийца Владыки', players.find((p) => p.name === log.finale.lastHit), () => 'последний удар по Владыке');
+	add('rescuer', '✚', 'Спасатель', best((p) => p.revives), (p) => `поднял союзников ${p.revives} ${plural(p.revives, 'раз', 'раза', 'раз')}`);
+	if (group) {
+		add('kills', '☠', 'Больше всех убийств', best((p) => p.kills), (p) => `${fmtNum(p.kills)} ${plural(p.kills, 'враг', 'врага', 'врагов')}`);
+		add('dmg', '⚔', 'Главный калибр', best((p) => p.dmg), (p) => `${fmtNum(p.dmg)} урона`);
+		add('tank', '🛡', 'Танк', best((p) => p.taken, 100), (p) => `принял ${fmtNum(p.taken)} урона`);
+	}
+	// No scratch: never fell, never dropped under 30% health, and took the least (a group) or under three full healths (solo).
+	const clean = players.filter((p) => p.downs === 0 && p.drops === 0 && p.minHp >= p.maxHp * 0.3 && free(p));
+	if (clean.length) {
+		const c = clean.reduce((a, b) => (b.taken < a.taken ? b : a));
+		const tank = cand.find((a) => a.id === 'tank');
+		if ((group ? clean.filter((p) => p.taken === c.taken).length === 1 : c.taken < c.maxHp * 3) && tank?.pid !== c.pid) {
+			add('clean', '✨', 'Ни царапины', c, (p) => (p.taken ? `ни разу не упал, принял всего ${fmtNum(p.taken)}` : 'ни одного удара'));
+		}
+	}
+	add('hit', '💥', 'Тяжёлая рука', best((p) => p.bestHit?.[0] ?? 0), (p) => `${fmtNum(p.bestHit[0])} за удар (${p.bestHit[1]})`);
+	add('streak', '🔥', 'Неудержимый', best((p) => p.streak?.[0] ?? 0, 20), (p) => `${p.streak[0]} ${plural(p.streak[0], 'убийство', 'убийства', 'убийств')} за 10 с`);
+	add('embers', '♦', 'Коллекционер углей', best((p) => p.embers, 3), (p) => `${p.embers} ${plural(p.embers, 'уголь', 'угля', 'углей')}`);
+	if (group) add('phoenix', '🐦', 'Феникс', best((p) => p.downs, 2), (p) => `падал и вставал ${p.downs} ${plural(p.downs, 'раз', 'раза', 'раз')}`);
+	return cand;
+}
+
+export const plural = (n, one, few, many) => {
+	const a = Math.abs(n) % 100, b = a % 10;
+	return a > 10 && a < 20 ? many : b === 1 ? one : b >= 2 && b <= 4 ? few : many;
+};
+const fmtNum = (n) => String(Math.round(n ?? 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
 
 // Longest run of consecutive minute numbers as [from, to], or null.
 function longestRun(ms) {
