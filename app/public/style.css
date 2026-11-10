@@ -322,6 +322,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 	margin-top: 2px; padding: 1px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 800; white-space: nowrap;
 	background: rgba(120, 60, 200, 0.55); border: 1px solid rgba(179, 136, 255, 0.7); text-shadow: 0 1px 3px #000;
 }
+.hud-event { background: rgba(150, 100, 0, 0.6); border-color: rgba(255, 213, 79, 0.8); }
 .hud-kills { font-size: 0.85rem; color: #ddd; text-shadow: 0 1px 3px #000; }
 
 .hud-right { display: flex; justify-content: flex-end; min-width: 0; }

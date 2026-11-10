@@ -1,7 +1,7 @@
 // Canvas 2D renderer: everything is procedural.
 import {
 	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
-	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle,
+	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT,
 } from '/shared/content.js';
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
@@ -14,11 +14,16 @@ const BOSS_T = ENEMY_TYPES.indexOf('boss');
 const BOSS_SET = new Set(ENEMY_TYPES.map((t, i) => (ENEMIES[t].boss ? i : -1)).filter((i) => i >= 0));
 const SPITTER_T = ENEMY_TYPES.indexOf('spitter');
 const BLOATER_T = ENEMY_TYPES.indexOf('bloater');
+const SNIPER_T = ENEMY_TYPES.indexOf('sniper');
+const SHIELD_T = ENEMY_TYPES.indexOf('shield');
+const GOLD_T = ENEMY_TYPES.indexOf('goldshade');
+const SHIELD_ARC = (ENEMIES.shield.arc * Math.PI) / 180;
+const shieldAngle = (st) => (((st >> SHIELD_SHIFT) & (SHIELD_DIRS - 1)) / SHIELD_DIRS) * Math.PI * 2;
 const SICKLE_K = PROJECTILE_KINDS.indexOf('sickle');
 const ICEDISC_K = PROJECTILE_KINDS.indexOf('icedisc');
 const SPEAR_K = PROJECTILE_KINDS.indexOf('spear');
 const duoLevel = (id, lvl) => DUOS[id].levels[Math.max(0, Math.min(2, (lvl | 0) - 1))];
-const BAR_TYPES = new Set(['ghoul', 'wisp', 'skel', 'brute', 'spitter'].map((t) => ENEMY_TYPES.indexOf(t)));
+const BAR_TYPES = new Set(['ghoul', 'wisp', 'skel', 'brute', 'spitter', 'sniper', 'shield', 'goldshade'].map((t) => ENEMY_TYPES.indexOf(t)));
 const GROUND = ['#13171b', '#141a1d', '#12161a', '#151a1b'];
 const TYPE_COUNT = ENEMY_TYPES.length;
 const CAP = MAX_ENEMIES + 64;
@@ -138,6 +143,7 @@ export class Renderer {
 			this.drawPuddles(ctx, view.b, now, game);
 			this.drawSteams(ctx, game, now);
 			this.drawBanners(ctx, game, now);
+			this.drawEventGround(ctx, game, now);
 			this.drawWarns(ctx, game, now);
 			this.drawTraps(ctx, view.b, now);
 			this.drawItems(ctx, view.b, now);
@@ -153,6 +159,7 @@ export class Renderer {
 			this.drawCrescents(ctx, game);
 			this.drawLobs(ctx, game, now);
 			this.drawHostile(ctx, game, now);
+			this.drawEventSky(ctx, game, now);
 			this.drawEffects(ctx, game);
 			this.drawReactions(ctx, game);
 		}
@@ -572,7 +579,13 @@ export class Renderer {
 				} else scale *= wind ? 1.25 + Math.sin(now * 35) * 0.08 : 1;
 			}
 			const still = (f & (ST.frozen | ST.root)) !== 0;
-			blit(ctx, s, still ? 0 : walkFrame(s, now, ids[k]), x, y + foot, scale, dx[k] < -0.3);
+			if (ty === SHIELD_T) {
+				this.drawShieldUnit(ctx, s, x, y, foot, scale, f, still ? 0 : walkFrame(s, now, ids[k]), now);
+				continue;
+			}
+			if (ty === SNIPER_T || ty === GOLD_T) this.drawSpecialGlow(ctx, ty, x, y, r, f, now, ids[k]);
+			const frame = still ? 0 : ty === SNIPER_T && (f & ST.windup) ? attackFrame(s, now) : walkFrame(s, now, ids[k]);
+			blit(ctx, s, frame, x, y + foot, scale, dx[k] < -0.3);
 			if (ty === BLOATER_T && (f & ST.windup) && Math.sin(now * 30) > 0) {
 				ctx.fillStyle = 'rgba(255,82,82,0.45)';
 				ctx.beginPath();
@@ -581,6 +594,39 @@ export class Renderer {
 			}
 		}
 		return true;
+	}
+
+	// Shieldbearer: the figure faces its shield; a steel arc marks the guarded front (×0,2 damage), the rest is open.
+	drawShieldUnit(ctx, s, x, y, foot, scale, st, frame, now) {
+		const a = shieldAngle(st), r = ENEMIES.shield.r;
+		blit(ctx, s, frame, x, y + foot, scale, Math.cos(a) < 0);
+		ctx.save();
+		ctx.lineCap = 'round';
+		ctx.strokeStyle = 'rgba(20,30,40,0.85)';
+		ctx.lineWidth = 7;
+		ctx.beginPath();
+		ctx.arc(x, y, r * 1.45, a - SHIELD_ARC, a + SHIELD_ARC);
+		ctx.stroke();
+		ctx.strokeStyle = `rgba(176,212,236,${0.8 + Math.sin(now * 5) * 0.15})`;
+		ctx.lineWidth = 4;
+		ctx.stroke();
+		ctx.restore();
+	}
+
+	// Sniper: teal aura, brighter while aiming; golden shade: a gold glow so it reads as a reward.
+	drawSpecialGlow(ctx, ty, x, y, r, st, now, id) {
+		if (ty === GOLD_T) {
+			ctx.fillStyle = `rgba(255,213,79,${0.28 + Math.sin(now * 8 + id) * 0.1})`;
+			ctx.beginPath();
+			ctx.arc(x, y, r * 2.1, 0, TAU);
+			ctx.fill();
+			return;
+		}
+		const wind = (st & ST.windup) !== 0;
+		ctx.fillStyle = wind ? `rgba(100,255,218,${0.3 + Math.sin(now * 30) * 0.1})` : 'rgba(100,255,218,0.12)';
+		ctx.beginPath();
+		ctx.arc(x, y, r * (wind ? 2.2 : 1.7), 0, TAU);
+		ctx.fill();
 	}
 
 	// Elites: the regular figure scaled up, golden halo and the affix name.
@@ -1745,12 +1791,13 @@ export class Renderer {
 	// Enemy blobs: green drop with a ground shadow and a short trail so they are easy to dodge.
 	drawHostile(ctx, game, now) {
 		if (!game.hostile.size) return;
+		this.drawOrbShots(ctx, game, now);
 		const sh = this.sprites.ready ? this.sprites.get('hostile') : null;
 		if (sh) {
 			ctx.fillStyle = 'rgba(0,0,0,0.35)';
 			ctx.beginPath();
 			for (const s of game.hostile.values()) {
-				if (!s.show || !this.visible(s.x, s.y)) continue;
+				if (!s.show || s.r || !this.visible(s.x, s.y)) continue;
 				ctx.moveTo(s.x + 7, s.y + 12);
 				ctx.ellipse(s.x, s.y + 12, 7, 3, 0, 0, TAU);
 			}
@@ -1760,20 +1807,20 @@ export class Renderer {
 			ctx.fillStyle = 'rgba(178,255,89,0.3)';
 			ctx.beginPath();
 			for (const s of game.hostile.values()) {
-				if (!s.show || !this.visible(s.x, s.y)) continue;
+				if (!s.show || s.r || !this.visible(s.x, s.y)) continue;
 				ctx.moveTo(s.x + gr, s.y);
 				ctx.arc(s.x, s.y, gr, 0, TAU);
 			}
 			ctx.fill();
 			for (const s of game.hostile.values()) {
-				if (!s.show || !this.visible(s.x, s.y)) continue;
+				if (!s.show || s.r || !this.visible(s.x, s.y)) continue;
 				this.rotBlit(ctx, sh, walkFrame(sh, now, (s.st * 997) | 0), s.x, s.y, Math.atan2(s.vy, s.vx), PROJ_ART.hostile);
 			}
 			this.endRot(ctx);
 			return;
 		}
 		for (const s of game.hostile.values()) {
-			if (!s.show || !this.visible(s.x, s.y)) continue;
+			if (!s.show || s.r || !this.visible(s.x, s.y)) continue;
 			const v = Math.hypot(s.vx, s.vy) || 1;
 			const cx = s.vx / v, cy = s.vy / v;
 			ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -1804,6 +1851,155 @@ export class Renderer {
 			ctx.arc(s.x - 2, s.y - 2.5, 2, 0, TAU);
 			ctx.fill();
 		}
+	}
+
+	// Sniper orbs: big slow teal balls with a dark core and a trail, readable at a glance and easy to sidestep.
+	drawOrbShots(ctx, game, now) {
+		for (const s of game.hostile.values()) {
+			if (!s.r || !s.show || !this.visible(s.x, s.y)) continue;
+			const v = Math.hypot(s.vx, s.vy) || 1, cx = s.vx / v, cy = s.vy / v, r = s.r;
+			ctx.fillStyle = 'rgba(0,0,0,0.35)';
+			ctx.beginPath();
+			ctx.ellipse(s.x, s.y + r + 6, r, r * 0.35, 0, 0, TAU);
+			ctx.fill();
+			ctx.strokeStyle = 'rgba(100,255,218,0.3)';
+			ctx.lineWidth = r * 1.4;
+			ctx.lineCap = 'round';
+			ctx.beginPath();
+			ctx.moveTo(s.x - cx * r * 3, s.y - cy * r * 3);
+			ctx.lineTo(s.x, s.y);
+			ctx.stroke();
+			ctx.lineCap = 'butt';
+			ctx.fillStyle = `rgba(100,255,218,${0.25 + Math.sin(now * 14) * 0.08})`;
+			ctx.beginPath();
+			ctx.arc(s.x, s.y, r * 1.7, 0, TAU);
+			ctx.fill();
+			ctx.fillStyle = '#1de9b6';
+			ctx.strokeStyle = '#004d40';
+			ctx.lineWidth = 2.5;
+			ctx.beginPath();
+			ctx.arc(s.x, s.y, r, 0, TAU);
+			ctx.fill();
+			ctx.stroke();
+			ctx.fillStyle = '#e0f2f1';
+			ctx.beginPath();
+			ctx.arc(s.x - r * 0.3, s.y - r * 0.35, r * 0.3, 0, TAU);
+			ctx.fill();
+		}
+	}
+
+	// Wave 4 events on the ground: red fog, the altar, the cursed chest and its hold ring, the star countdown.
+	drawEventGround(ctx, game, now) {
+		const ev = game.event();
+		if (!ev) return;
+		const { x, y, r } = ev;
+		ctx.save();
+		switch (ev.def.id) {
+			case 'fog': {
+				const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r);
+				g.addColorStop(0, 'rgba(198,40,40,0.26)');
+				g.addColorStop(0.8, 'rgba(183,28,28,0.2)');
+				g.addColorStop(1, 'rgba(183,28,28,0)');
+				ctx.fillStyle = g;
+				ctx.beginPath();
+				ctx.arc(x, y, r, 0, TAU);
+				ctx.fill();
+				ctx.strokeStyle = 'rgba(255,82,82,0.55)';
+				ctx.lineWidth = 3;
+				ctx.setLineDash([18, 12]);
+				ctx.lineDashOffset = now * 20;
+				ctx.beginPath();
+				ctx.arc(x, y, r, 0, TAU);
+				ctx.stroke();
+				break;
+			}
+			case 'altar': {
+				const p = 1 + Math.sin(now * 3) * 0.08;
+				ctx.fillStyle = 'rgba(123,31,162,0.25)';
+				ctx.beginPath();
+				ctx.arc(x, y, r * 1.8 * p, 0, TAU);
+				ctx.fill();
+				ctx.fillStyle = '#424242';
+				ctx.strokeStyle = '#ce93d8';
+				ctx.lineWidth = 2;
+				ctx.beginPath();
+				ctx.ellipse(x, y + 4, r, r * 0.55, 0, 0, TAU);
+				ctx.fill();
+				ctx.stroke();
+				ctx.fillStyle = '#616161';
+				ctx.fillRect(x - 10, y - 22, 20, 24);
+				ctx.strokeRect(x - 10, y - 22, 20, 24);
+				ctx.fillStyle = `rgba(234,128,252,${0.7 + Math.sin(now * 6) * 0.3})`;
+				ctx.beginPath();
+				ctx.arc(x, y - 28, 6, 0, TAU);
+				ctx.fill();
+				this.eventLabel(ctx, x, y - 44, 'Алтарь', '#e1bee7');
+				break;
+			}
+			case 'cursed':
+				if (ev.phase === 0) {
+					ctx.fillStyle = `rgba(74,20,140,${0.35 + Math.sin(now * 4) * 0.1})`;
+					ctx.beginPath();
+					ctx.arc(x, y, 34, 0, TAU);
+					ctx.fill();
+					drawItem(ctx, 'chest', x, y, now);
+					ctx.strokeStyle = '#b388ff';
+					ctx.lineWidth = 2;
+					ctx.beginPath();
+					ctx.arc(x, y, 22, 0, TAU);
+					ctx.stroke();
+					this.eventLabel(ctx, x, y - 30, 'Проклятый сундук', '#d1c4e9');
+				} else {
+					ctx.strokeStyle = 'rgba(179,136,255,0.6)';
+					ctx.lineWidth = 3;
+					ctx.setLineDash([10, 10]);
+					ctx.lineDashOffset = -now * 30;
+					ctx.beginPath();
+					ctx.arc(x, y, r, 0, TAU);
+					ctx.stroke();
+				}
+				break;
+			case 'star':
+				if (ev.phase === 0) this.eventLabel(ctx, x, y, String(Math.ceil(ev.left)), '#fff59d', 28);
+				break;
+		}
+		ctx.restore();
+	}
+
+	// The falling star: a bright head with a tail coming down onto the marked circle.
+	drawEventSky(ctx, game, now) {
+		const ev = game.event();
+		if (!ev || ev.def.id !== 'star' || ev.phase !== 0) return;
+		const k = Math.max(0, Math.min(1, ev.left / ev.def.warn));
+		const sx = ev.x + k * 260, sy = ev.y - k * 520;
+		ctx.save();
+		ctx.strokeStyle = 'rgba(255,241,118,0.45)';
+		ctx.lineWidth = 10;
+		ctx.lineCap = 'round';
+		ctx.beginPath();
+		ctx.moveTo(sx + 70, sy - 140);
+		ctx.lineTo(sx, sy);
+		ctx.stroke();
+		ctx.fillStyle = '#fffde7';
+		ctx.beginPath();
+		for (let i = 0; i < 10; i++) {
+			const a = (i / 10) * TAU + now * 2, rr = i % 2 ? 7 : 16;
+			ctx.lineTo(sx + Math.cos(a) * rr, sy + Math.sin(a) * rr);
+		}
+		ctx.closePath();
+		ctx.fill();
+		ctx.restore();
+	}
+
+	eventLabel(ctx, x, y, text, color, size = 12) {
+		ctx.font = `800 ${size}px system-ui, sans-serif`;
+		ctx.textAlign = 'center';
+		ctx.textBaseline = 'middle';
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+		ctx.strokeText(text, x, y);
+		ctx.fillStyle = color;
+		ctx.fillText(text, x, y);
 	}
 
 	// Громовой разрез: a two-sided crescent with an electric rim; every 3rd swing a ring of lightning.
@@ -2754,6 +2950,16 @@ export class Renderer {
 			const meta = game.meta(row[P.pid]);
 			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: meta.color, name: meta.name });
 		}
+		// Off-screen event spot (altar, chest, star shard, golden shade) gets a gold arrow.
+		const ev = game.event();
+		if (ev && !(ev.def.id === 'fog' || ev.def.id === 'streak' || (ev.def.id === 'cursed' && ev.phase === 1))) {
+			const s = this.toScreen(ev.x, ev.y, this.tmp);
+			if (!(s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h)) {
+				const dx = s.x - cx, dy = s.y - cy;
+				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
+				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: ev.def.name, icon: '★' });
+			}
+		}
 		return out;
 	}
 }
@@ -2822,7 +3028,7 @@ function drawItem(ctx, type, x, y, now) {
 	ctx.ellipse(x, y + 12, 10, 4, 0, 0, TAU);
 	ctx.fill();
 	// Soft glow so pickups stand out of the grass.
-	const glow = { dew: '128,222,234', magnet: '255,112,67', rage: '239,83,80', cracker: '255,235,59', slowtime: '179,229,252', feather: '255,255,255', chest: '255,213,79' }[type] || '255,255,255';
+	const glow = { dew: '128,222,234', magnet: '255,112,67', rage: '239,83,80', cracker: '255,235,59', slowtime: '179,229,252', feather: '255,255,255', chest: '255,213,79', star: '255,245,157' }[type] || '255,255,255';
 	ctx.fillStyle = `rgba(${glow},${0.18 + Math.sin(now * 4) * 0.06})`;
 	ctx.beginPath();
 	ctx.arc(x, y, 17, 0, TAU);
@@ -2923,6 +3129,18 @@ function drawItem(ctx, type, x, y, now) {
 			ctx.fillStyle = '#ffca28';
 			ctx.fillRect(x - 13, y - 3, 26, 3);
 			ctx.fillRect(x - 2.5, y - 4, 5, 7);
+			break;
+		}
+		case 'star': {
+			ctx.fillStyle = '#fff59d';
+			ctx.beginPath();
+			for (let i = 0; i < 10; i++) {
+				const a = (i / 10) * TAU - Math.PI / 2 + now * 0.8, rr = i % 2 ? 5 : 12;
+				ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+			}
+			ctx.closePath();
+			ctx.fill();
+			ctx.stroke();
 			break;
 		}
 	}

@@ -23,7 +23,7 @@ const LIMITS = {
 	gem: [0.045, 1], puddle: [0.12, 2], hurt: [0.14, 1], default: [0.05, 2],
 };
 // Sounds that must play even when the voice pool is full.
-const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend']);
+const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend', 'evt', 'evte', 'altar']);
 
 const PENTA = [0, 3, 5, 7, 10]; // minor pentatonic steps
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
@@ -635,6 +635,22 @@ export class Sound {
 				this.tone(o, t, 'sawtooth', mtof(33), mtof(40), 3.4, 0.08, 2.5);
 				this.hiss(o, t, 'lowpass', 200, 900, 0.7, 3.2, 0.2, 2.5);
 				this.send(v, 0.7);
+				break;
+			}
+			case 'evt': {
+				// Event call: two rising bells, lighter than a peak warning.
+				if (!(v = this.voice('evt', 0.26, 0, 0, 2))) return;
+				this.bell(v.out, v.t, 69, 1.2, 0.45);
+				this.bell(v.out, v.t + 0.22, 76, 1.4, 0.45);
+				this.send(v, 0.6);
+				break;
+			}
+			case 'evte':
+			case 'altar': {
+				if (!(v = this.voice(ev[0], 0.2, 0, 0, 1.4))) return;
+				const ok = ev[0] === 'altar' || ev[2] === 1;
+				(ok ? [74, 78, 81, 86] : [69, 65]).forEach((m, i) => this.bell(v.out, v.t + i * 0.07, m, 0.7, 0.35));
+				this.send(v, 0.4);
 				break;
 			}
 			case 'peak': {

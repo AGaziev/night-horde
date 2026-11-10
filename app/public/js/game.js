@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS } from '/shared/content.js';
+import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS } from '/shared/content.js';
 
 // Render clock. Snapshots arrive unevenly (tunnel bursts, server tick stalls), so the delay adapts:
 // render time = now - p90(arrival - tm) over the last CLOCK_WINDOW snapshots - p90(snapshot gap) - margin.
@@ -281,8 +281,12 @@ export class Game {
 			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
 			boss: Array.isArray(msg.boss) ? msg.boss : null,
 			pk: Array.isArray(msg.pk) && PEAKS[msg.pk[0]] ? msg.pk : null,
+			ev: Array.isArray(msg.ev) && EVENTS[msg.ev[0]] ? msg.ev : null,
 			applied: false,
 		};
+		// Wave 4: a phase step of the event (the cursed chest opened) gets its own banner.
+		const pe = this.snaps.length ? this.snaps[this.snaps.length - 1].ev : null;
+		if (snap.ev && pe && pe[0] === snap.ev[0] && pe[2] !== snap.ev[2]) this.onEvent('evphase', EVENTS[snap.ev[0]], snap.ev[2]);
 		for (const row of snap.p) if (Array.isArray(row)) snap.pMap.set(row[P.pid], row);
 		for (const ev of snap.fx) if (Array.isArray(ev)) {
 			this.shotEvent(ev);
@@ -320,6 +324,13 @@ export class Game {
 	peak() {
 		const s = this.view.b || this.latest();
 		return s && s.pk ? { def: PEAKS[s.pk[0]], left: +s.pk[1] || 0, dur: +s.pk[2] || PEAKS[s.pk[0]].dur || 1 } : null;
+	}
+
+	// Active Wave 4 event at the render clock: {def, left, phase, x, y, r, a, b} or null (snapshot `ev`).
+	event() {
+		const s = this.view.b || this.latest();
+		const v = s && s.ev;
+		return v ? { def: EVENTS[v[0]], left: +v[1] || 0, phase: v[2] | 0, x: +v[3], y: +v[4], r: +v[5] || 0, a: +v[6] || 0, b: +v[7] || 0 } : null;
 	}
 
 	myRow() {
@@ -458,6 +469,12 @@ export class Game {
 			case 'eshot': {
 				const st = +ev[7] || 0;
 				this.hostile.set(ev[1], { x0: +ev[2], y0: +ev[3], vx: +ev[4], vy: +ev[5], st, end: st + (+ev[6] || 1), x: +ev[2], y: +ev[3], show: false });
+				break;
+			}
+			case 'eorb': {
+				// Sniper orb: a slow big shot, drawn apart from the spitters' drops.
+				const st = +ev[7] || 0;
+				this.hostile.set(ev[1], { x0: +ev[2], y0: +ev[3], vx: +ev[4], vy: +ev[5], st, end: st + (+ev[6] || 1), x: +ev[2], y: +ev[3], show: false, r: +ev[8] || 12 });
 				break;
 			}
 			case 'epend': {
@@ -769,6 +786,18 @@ export class Game {
 				break;
 			case 'peakw':
 				if (PEAKS[ev[1]]) this.onEvent('peakw', PEAKS[ev[1]]);
+				break;
+			case 'evt':
+				if (EVENTS[ev[1]]) {
+					this.shake = Math.max(this.shake, 4);
+					this.onEvent('evt', EVENTS[ev[1]], ev[2] | 0);
+				}
+				break;
+			case 'evte':
+				if (EVENTS[ev[1]]) this.onEvent('evte', EVENTS[ev[1]], ev[2] | 0);
+				break;
+			case 'altar':
+				this.onEvent('altar', ev[1], ev[2] | 0);
 				break;
 			case 'peak':
 				if (!PEAKS[ev[1]]) break;

@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v17';
+export const GAME_VERSION = 'v18';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -69,15 +69,21 @@ export const HEROES = {
 // Run modes: «Обед» squeezes the night into 10 minutes. Night time (`nightTime`) drives waves, pressure,
 // bosses and elites, so every minute of «Обед» plays like 1.5 minutes of the night; xp follows (xpMul),
 // hpMul (index = players - 1, the last one for bigger groups) keeps the share of wins close to the night.
+// dmgMul (v18, same indexing): pairs fell to hits (Трубач shots first), not to enemy hp, so only their enemy damage is softer.
 export const MODES = {
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1 },
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13] },
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 1] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.7, 1] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
 export const modeOf = (id) => MODES[id] ?? MODES[DEFAULT_MODE];
 export const modeHpMul = (id, players = 1) => {
 	const m = modeOf(id).hpMul ?? 1;
+	return Array.isArray(m) ? m[Math.min(Math.max(1, players), m.length) - 1] : m;
+};
+// v18: enemy damage of a mode by players (same indexing as hpMul); «Обед» softens it for pairs only.
+export const modeDmgMul = (id, players = 1) => {
+	const m = modeOf(id).dmgMul ?? 1;
 	return Array.isArray(m) ? m[Math.min(Math.max(1, players), m.length) - 1] : m;
 };
 export const modeLabel = (id) => `${modeOf(id).name} · ${Math.round(modeOf(id).seconds / 60)} мин`;
@@ -473,11 +479,25 @@ export const ENEMIES = {
 		name: 'Пузырь', hp: 14, speed: 95, dmg: 0, r: 13, xp: 2, color: '#ef9a9a',
 		ai: 'exploder', fuse: 0.5, blastR: 60, blastDmg: 12, blastEnemyDmg: 30,
 	},
+	// v18 specials (SPECIALS): mid-run enemies a strong build cannot wipe before they come close.
+	// Holds 350–450 px, backs off when approached; after a lane telegraph fires `fan` slow big orbs, aimed `lead` s ahead.
+	sniper: {
+		name: 'Трубач', hp: 60, speed: 100, dmg: 8, r: 17, xp: 14, color: '#80cbc4', special: true,
+		ai: 'sniper', keep: [350, 450], shotCd: 3.2, windup: 0.9, shotSpeed: 170, shotDmg: 13, shotLife: 3.8, shotR: 13, fan: 5, spread: 0.2, lead: 0.8,
+	},
+	// Shield facing its target: hits from the front half-angle `arc` (degrees) deal ×front; sides and back take full damage.
+	// Up close it bashes: a lane telegraph for dashWarn s, then a short dash (like Рогач).
+	shield: {
+		name: 'Щитоносец', hp: 150, speed: 44, dmg: 16, r: 21, xp: 16, color: '#90a4ae', special: true,
+		ai: 'shield', front: 0.2, arc: 65, turn: 0.85, trigger: 230, dashWarn: 0.8, dashSpeed: 420, dashTime: 0.6, rest: 1.2, dashCd: 3,
+	},
+	// Event «Золотая тень»: runs from the nearest player, a kill drops a chest, escapes after `life` s.
+	goldshade: { name: 'Золотая тень', hp: 45, speed: 140, dmg: 0, r: 13, xp: 20, color: '#ffd54f', special: true, ai: 'flee', life: 20, escape: 1000 },
 };
 
 // Numeric ids used in snapshots (index into this array).
 // New types are appended at the end so old indexes stay valid.
-export const ENEMY_TYPES = ['bat', 'ghoul', 'wisp', 'skel', 'brute', 'boss', 'spitter', 'bloater', 'brood', 'ram', 'gunner', 'twin', 'twinhalf'];
+export const ENEMY_TYPES = ['bat', 'ghoul', 'wisp', 'skel', 'brute', 'boss', 'spitter', 'bloater', 'brood', 'ram', 'gunner', 'twin', 'twinhalf', 'sniper', 'shield', 'goldshade'];
 export const PROJECTILE_KINDS = ['bolt', 'knife', 'sickle', 'icedisc', 'spear'];
 export const HOSTILE_R = 7;
 export const WEAPON_IDS = Object.keys(WEAPONS);
@@ -553,6 +573,59 @@ export function peakSchedule(runLength = RUN_SECONDS, bossTimes = BOSS_TIMES) {
 		return { ...p, i, at, dur: p.last ? runLength - at : p.dur };
 	});
 }
+
+// v18 specials on top of WAVES, timed by run length like PEAKS: from `from` of the run one more of the type every `every`
+// night seconds while fewer than max[players - 1] are alive (the last value for bigger groups); from `late` the cap is lateMax.
+export const SPECIALS = {
+	sniper: { from: 0.4, every: 20, max: [3, 3, 5], late: 0.7, lateMax: [4, 4, 6] },
+	shield: { from: 0.45, every: 20, max: [2, 3, 4], late: 0.7, lateMax: [3, 4, 6] },
+};
+export const specialCap = (S, frac, players) => {
+	if (frac < S.from) return 0;
+	const m = frac >= S.late ? S.lateMax : S.max;
+	return m[Math.min(Math.max(1, players), m.length) - 1];
+};
+// Shield facing angle travels in enemy state bits above ST (16 directions).
+export const SHIELD_DIRS = 16;
+export const SHIELD_SHIFT = 9;
+
+// Wave 4 random events: one at a time, the first at `from` of the run, then every gap[0]–gap[1] real seconds,
+// never next to a peak or a boss spawn. One event for the whole group (any number of players).
+// Snapshot `ev`: [index, seconds left, phase, x, y, r, a, b] — see DESIGN.md «События».
+export const EVENT_RULES = { from: 0.12, gap: [90, 120], peakGap: 8, bossGap: 12, retry: 10 };
+export const EVENTS = [
+	{
+		id: 'star', name: 'Падающая звезда', hint: 'Звезда упадёт в красный круг — выйдите из него. На месте удара останется осколок звезды',
+		warn: 3.5, r: 150, pdmg: 30, bigFrac: 0.25, done: ['Осколок звезды ждёт на месте удара', 'Осколок звезды забран: опыт и здоровье всем'],
+	},
+	{
+		id: 'gold', name: 'Золотая тень', hint: 'Догоните и убейте золотую тень, пока не сбежала: за неё сундук',
+		dist: 380, done: ['Золотая тень сбежала', 'Золотая тень поймана — сундук!'],
+	},
+	{
+		id: 'fog', name: 'Красный туман', hint: 'В тумане враги злее и быстрее, зато опыта с них вдвое больше',
+		dur: 30, r: 300, dmgMul: 1.3, speedMul: 1.15, xpMul: 2, done: ['Красный туман рассеялся'],
+	},
+	{
+		id: 'altar', name: 'Алтарь', hint: 'Встаньте на алтарь, чтобы принять сделку. Не хотите — пройдите мимо, штрафа нет',
+		life: 30, r: 34, dist: 220, done: ['Алтарь угас', 'Сделка заключена'],
+	},
+	{
+		id: 'cursed', name: 'Проклятый сундук', hint: 'Откройте сундук — нахлынет волна. Продержитесь 20 с, и каждому выпадет эпическая награда',
+		life: 35, r: 28, dist: 230, hold: 20, ring: 380, base: 16, perMin: 1.6, done: ['Проклятый сундук остался закрыт', 'Волна пережита — эпическая награда!', 'Волна не пережита'],
+	},
+	{
+		id: 'streak', name: 'Серия убийств', hint: 'Убейте {n} врагов за {t} с — короткий бонус урона и магнит для всех',
+		dur: 20, pace: 1.0, min: 30, bonus: { mul: 1.3, dur: 12 }, done: ['Серия сорвалась', 'Серия! +30% урона на 12 с и кристаллы к вам'],
+	},
+];
+export const EVENT_INDEX = Object.fromEntries(EVENTS.map((e, i) => [e.id, i]));
+// Altar deals: the cost is paid on the spot or lasts `dur`, the boon lasts `dur`.
+export const ALTAR_DEALS = [
+	{ id: 'blood', name: 'Кровь за силу', desc: '−30% здоровья сейчас → +40% урона на 45 с', hpCost: 0.3, dmgMul: 1.4, dur: 45 },
+	{ id: 'greed', name: 'Жадность', desc: '+35% получаемого урона на 45 с → ×1,6 опыта на 45 с', takenMul: 1.35, xpMul: 1.6, dur: 45 },
+];
+export const STAR_SHARD = { lvlFrac: 0.3, heal: 20 };
 
 // Per-player spawn stays close to solo (1.0, 0.85, 0.78 for 1, 2, 4 players) so groups do not get it easier.
 export const spawnRateScale = (players) => 0.3 + 0.7 * players;
@@ -846,6 +919,7 @@ export const ITEMS = {
 	slowtime: { name: 'Песок времени', desc: 'Враги на экране замедлены на 6 с', slow: 0.7, dur: 6, radius: 650 },
 	feather: { name: 'Перо', desc: '+1 «Перебросить»' },
 	chest: { name: 'Малый сундук', desc: 'Улучшение на выбор' },
+	star: { name: 'Осколок звезды', desc: 'Всем: треть уровня опыта и +20 здоровья' },
 };
 export const ITEM_TYPES = Object.keys(ITEMS);
 // v15: kills sometimes drop «Чаша росы», far more often for a hero below lowHp of max (live runs died of slow bleeding).

@@ -12,8 +12,9 @@ import {
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
-	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul,
+	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 } from '../public/shared/content.js';
+import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
@@ -89,6 +90,9 @@ const MINE_BURN = { frac: 0.06, dur: 3 };
 const MOLOTOV_BURN = 0.6; // burn dps = pool tick damage × this
 const CROSS_STEP = 50;
 const SRC_CRACKER = { weapon: 'cracker', tags: ['aoe'], raw: true }; // raw: fixed damage, no multipliers
+const SRC_STAR = { weapon: 'star', tags: ['aoe'], raw: true };
+const SPECIAL_IDS = Object.keys(SPECIALS);
+const SHIELD_COS = Math.cos((ENEMIES.shield.arc * Math.PI) / 180);
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
 const shuffle = (a) => {
 	for (let i = a.length - 1; i > 0; i--) {
@@ -201,6 +205,7 @@ function makeHero(member, x, y) {
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
+		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null,
 	};
 }
 
@@ -392,6 +397,7 @@ export class Room {
 		this.xpMul = MODES[this.mode].seconds === this.runLength ? MODES[this.mode].xpMul : this.tscale;
 		this.bossAt = bossTimes(this.runLength);
 		this.modeHp = MODES[this.mode].seconds === this.runLength ? modeHpMul(this.mode, this.members.size) : 1;
+		this.modeDmg = MODES[this.mode].seconds === this.runLength ? modeDmgMul(this.mode, this.members.size) : 1;
 		this.paused = false;
 		this.frozen = false;
 		this.kills = 0;
@@ -435,6 +441,9 @@ export class Room {
 		this.q2 = [];
 		this.q3 = [];
 		this.overMsg = null;
+		this.SRC_STAR = SRC_STAR;
+		this.specialT = Object.fromEntries(SPECIAL_IDS.map((id) => [id, 0]));
+		this.events = new Events(this);
 	}
 
 	start() {
@@ -847,6 +856,7 @@ export class Room {
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
 
 		this.updatePeaks(alive);
+		this.events.tick(alive);
 		if (alive.length) {
 			this.spawn(dt, alive);
 			this.moveEnemies(dt, alive);
@@ -904,14 +914,15 @@ export class Room {
 		const hp = E.hp * hpMul * this.modeHp;
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
-			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size), dmgMul: enemyDmgScale(this.nt, this.heroes.size), r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
+			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg, dmgMul: enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg, r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
 			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
 			burnT: 0, burnDps: 0, burnOwner: null, burnAcc: 0,
 			elite: null, windT: 0, fuseT: 0, shotT: E.shotCd ? E.shotCd * (0.5 + Math.random() * 0.5) : 0,
-			fuseBy: null, exploded: false, auxT: 0,
+			fuseBy: null, exploded: false, auxT: 0, fa: 0, born: this.time,
 		};
+		if (E.ai === 'shield' && alive.length) e.fa = Math.atan2(alive[0].y - y, alive[0].x - x);
 		this.enemies.push(e);
 		return e;
 	}
@@ -924,6 +935,7 @@ export class Room {
 			this.bossIdx++;
 			this.spawnBoss(type, alive, slot);
 		}
+		this.spawnSpecials(alive);
 		const wave = this.currentWave();
 		const pk = this.peak;
 		const peakMul = pk?.spawnMul ? 1 + (pk.spawnMul - 1) * Math.min(1, pk.ramp ? (this.time - pk.at) / pk.ramp : 1) : 1;
@@ -938,6 +950,22 @@ export class Room {
 				break;
 			}
 			this.spawnEnemy(this.waveType(wave), alive, hpMul);
+		}
+	}
+
+	// v18: snipers and shieldbearers from the middle of the run, a few at a time (SPECIALS).
+	spawnSpecials(alive) {
+		const frac = this.time / this.runLength;
+		for (const id of SPECIAL_IDS) {
+			const S = SPECIALS[id];
+			const cap = specialCap(S, frac, this.heroes.size);
+			if (!cap || this.time < this.specialT[id]) continue;
+			this.specialT[id] = this.time + S.every / this.tscale;
+			let n = 0;
+			for (const e of this.enemies) if (!e.dead && e.def === ENEMIES[id]) n++;
+			if (n >= cap) continue;
+			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
+			this.runLog?.special(this, e, 'spawned');
 		}
 	}
 
@@ -1057,6 +1085,7 @@ export class Room {
 		const taunters = alive.filter((p) => p.trait.taunt > 0);
 		const now = this.time;
 		const speedMul = this.peak?.speedMul ?? 1;
+		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
 			if (e.burnT > now) this.burnTick(e, dt);
@@ -1069,7 +1098,7 @@ export class Room {
 					best = p;
 				}
 			}
-			if (bd > FAR_DIST2) {
+			if (bd > FAR_DIST2 && e.ai !== 'flee') {
 				[e.x, e.y] = this.randomRingPos(alive);
 				e.windT = 0;
 				e.bs = 0;
@@ -1084,9 +1113,35 @@ export class Room {
 			dy /= d;
 			// Stop at contact distance so enemies don't stack on the player.
 			let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+			if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
 			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
 			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
-			if (e.ai === 'ranged') {
+			if (e.ai === 'sniper') {
+				if (this.sniperTick(e, best, d, dt)) continue;
+				const [kmin, kmax] = e.def.keep;
+				if (d < kmin) {
+					dx = -dx;
+					dy = -dy;
+					maxStep = Infinity;
+				} else if (d <= kmax) {
+					const s = Math.sin(e.phase + now * 0.4) >= 0 ? 1 : -1;
+					[dx, dy] = [-dy * s, dx * s];
+					speed *= 0.4;
+				}
+			} else if (e.ai === 'shield') {
+				if (this.dashTick(e, best, d, dt, true)) {
+					if (e.bs === 'aim' || e.bs === 'dash') e.fa = Math.atan2(e.bvy, e.bvx);
+					continue;
+				}
+				this.turnShield(e, dx, dy, dt);
+			} else if (e.ai === 'flee') {
+				const s = Math.sin(now * 3 + e.phase) * 0.7;
+				[dx, dy] = [-dx + dy * s, -dy - dx * s];
+				const l = Math.hypot(dx, dy) || 1;
+				dx /= l;
+				dy /= l;
+				maxStep = Infinity;
+			} else if (e.ai === 'ranged') {
 				if (this.rangedTick(e, best, d, dt)) continue;
 				const [kmin, kmax] = e.def.keep;
 				if (d < kmin) {
@@ -1268,7 +1323,7 @@ export class Room {
 		e.bvy = (t.y - e.y) / l;
 		e.bs = 'aim';
 		e.bt = e.windT = E.dashWarn;
-		e.dcd = 0.5;
+		e.dcd = E.dashCd ?? 0.5;
 		const len = E.dashSpeed * E.dashTime;
 		this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + e.bvx * len), Math.round(e.y + e.bvy * len), Math.round(e.r * 2), round3(E.dashWarn)]);
 		return true;
@@ -1375,10 +1430,67 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		const s = {
 			id: this.nextId++, x: e.x, y: e.y, vx: (dx / d) * E.shotSpeed, vy: (dy / d) * E.shotSpeed,
-			life: E.shotLife, dmg: E.shotDmg * e.dmgMul, from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
+			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
+	}
+
+	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
+	sniperTick(e, target, d, dt) {
+		const E = e.def;
+		if (e.windT > 0) {
+			e.windT -= dt;
+			if (e.windT <= 0) {
+				e.windT = 0;
+				const a0 = Math.atan2(e.bvy, e.bvx);
+				const dmg = E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
+				for (let i = 0; i < E.fan; i++) {
+					const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
+					const s = {
+						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
+						life: E.shotLife, dmg, from: 'sniper:shot',
+					};
+					this.hostile.push(s);
+					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
+				}
+				this.runLog?.special(this, e, 'shots');
+			}
+			return true;
+		}
+		e.shotT -= dt;
+		if (e.shotT <= 0 && d < E.keep[1] + 150) {
+			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
+			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
+			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
+			const tx = target.x + (target.mvx ?? 0) * lead, ty = target.y + (target.mvy ?? 0) * lead;
+			const l = Math.hypot(tx - e.x, ty - e.y) || 1;
+			e.bvx = (tx - e.x) / l;
+			e.bvy = (ty - e.y) / l;
+			e.windT = E.windup;
+			e.shotT = E.shotCd;
+			const len = E.shotSpeed * E.shotLife;
+			this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + e.bvx * len), Math.round(e.y + e.bvy * len), E.shotR * 2 + 8, round3(E.windup)]);
+			return true;
+		}
+		return false;
+	}
+
+	// The shield turns toward its target at `turn` rad/s; circling players get behind it.
+	turnShield(e, dx, dy, dt) {
+		const want = Math.atan2(dy, dx);
+		let da = want - e.fa;
+		while (da > Math.PI) da -= Math.PI * 2;
+		while (da < -Math.PI) da += Math.PI * 2;
+		const step = e.def.turn * dt;
+		e.fa += Math.abs(da) <= step ? da : Math.sign(da) * step;
+	}
+
+	// Damage multiplier of the shield for a hit by `h` (from the hero's side); burn and raw hits ignore it.
+	shieldMul(e, h) {
+		const ax = h.x - e.x, ay = h.y - e.y;
+		const l = Math.hypot(ax, ay) || 1;
+		return (ax * Math.cos(e.fa) + ay * Math.sin(e.fa)) / l >= SHIELD_COS ? e.def.front : 1;
 	}
 
 	updateHostile(dt) {
@@ -1389,7 +1501,7 @@ export class Room {
 			s.y += s.vy * dt;
 			let done = s.life <= 0;
 			if (!done) {
-				const min = HOSTILE_R + PLAYER_RADIUS;
+				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
 					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
@@ -1429,7 +1541,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.boss || e.elite || e.ai === 'exploder') continue;
+			if (e.dead || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -1473,12 +1585,15 @@ export class Room {
 	// The single damage entry point: mark → crit → reactions → armor → hp → burn.
 	hurtEnemy(e, dmg, h, src = SRC_NONE) {
 		if (e.dead || dmg <= 0) return 0;
+		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		const now = this.time;
 		let crit = false;
 		if (!src.raw && e.markT > now) dmg *= 1 + e.markMul;
 		if (e.vulnT > now) dmg *= e.def.vuln ?? 1;
 		if (h && !src.raw) {
 			if (h.rageT > now) dmg *= ITEMS.rage.mul;
+			if (h.streakT > now) dmg *= STREAK_MUL;
+			if (h.altarDmgT > now) dmg *= ALTAR_DEALS[0].dmgMul;
 			if (this.synergy > 0) dmg *= 1 + this.synergy;
 			if (h.bondMul > 1) dmg *= h.bondMul;
 			if (h.bannerT > now) dmg *= 1 + EVOS.banner.levels[0].dmgBuff;
@@ -1490,6 +1605,13 @@ export class Room {
 		}
 		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src);
 		if (e.elite === 'armored' && src.tags.includes('proj')) dmg *= 0.5;
+		if (e.ai === 'shield' && h && !src.raw && src !== SRC_BURN) {
+			const m = this.shieldMul(e, h);
+			if (m < 1) {
+				this.runLog?.special(this, e, 'blocked', dmg * (1 - m));
+				dmg *= m;
+			}
+		}
 		const dealt = Math.min(dmg, e.hp);
 		if (h) {
 			h.dmg += dealt;
@@ -1610,8 +1732,11 @@ export class Room {
 		}
 		const luck = h ? h.mods.luck : 0;
 		const gold = Math.random() < GOLD_GEM_CHANCE * (1 + luck);
-		const xp = e.beaconT > this.time ? e.xp * EVOS.beacon.levels[0].xpMul : e.xp;
+		let xp = e.beaconT > this.time ? e.xp * EVOS.beacon.levels[0].xpMul : e.xp;
+		if (this.events.inFog(e)) xp *= FOG_DEF.xpMul;
 		this.dropGem(e.x, e.y, gold ? xp * GOLD_GEM_MUL : xp, gold);
+		this.events.onKill(e, h);
+		if (e.def.special && e.ai !== 'flee') this.runLog?.special(this, e, 'killed');
 		if (e.burnT > this.time && e.burnOwner?.weapons.has('firepath')) this.spreadFire(e);
 		if (h && src.weapon === 'fireworks') this.gems[this.gems.length - 1].pull = h;
 		if (e.ai === 'exploder' && !e.exploded) {
@@ -1791,7 +1916,7 @@ export class Room {
 				const R = ITEMS.cracker.radius;
 				for (const e of this.enemies) {
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= R * R) continue;
-					this.hurtEnemy(e, e.boss || e.elite ? e.maxHp * ITEMS.cracker.bigFrac : e.hp + 1, h, SRC_CRACKER);
+					this.hurtEnemy(e, e.boss || e.elite || e.def.special ? e.maxHp * ITEMS.cracker.bigFrac : e.hp + 1, h, SRC_CRACKER);
 				}
 				break;
 			}
@@ -1811,6 +1936,9 @@ export class Room {
 			case 'chest':
 				this.fx.push(['open', h.pid, Math.round(it.x), Math.round(it.y)]);
 				this.grantOffer(h, true, CHEST_FLOOR.elite);
+				break;
+			case 'star':
+				this.events.starShard();
 				break;
 		}
 	}
@@ -1862,6 +1990,7 @@ export class Room {
 	updatePlayers(dt, alive) {
 		const near = this.q1;
 		const now = this.time;
+		const fog = this.events.active?.id === 'fog';
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
@@ -1881,7 +2010,8 @@ export class Room {
 					continue;
 				}
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now) continue;
-				this.hurtPlayer(h, e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg, e.elite ? 'elite' : enemyKey(e));
+				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
+				this.hurtPlayer(h, cd, e.elite ? 'elite' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -1918,6 +2048,7 @@ export class Room {
 		}
 		const guard = h.guard;
 		h.guard = 0;
+		if (h.altarCurseT > this.time) dmg *= ALTAR_DEALS[1].takenMul;
 		const lost = Math.min(h.hp, Math.max(1, dmg * h.trait.dmgTaken - h.mods.armor - guard));
 		h.hp -= lost;
 		this.runLog?.hurt(this, h, lost, from);
@@ -1928,6 +2059,7 @@ export class Room {
 			h.st = 1;
 			h.rev = 0;
 			this.fx.push(['down', h.pid]);
+			this.events.onDown(h);
 		}
 	}
 
@@ -3406,8 +3538,9 @@ export class Room {
 
 	collectGem(h, xp) {
 		xp *= this.xpMul;
-		this.addXp(h, xp * h.mods.xpMul);
-		for (const o of this.heroes.values()) if (o !== h) this.addXp(o, xp * o.mods.xpMul);
+		const greed = (o) => (o.altarXpT > this.time ? ALTAR_DEALS[1].xpMul : 1);
+		this.addXp(h, xp * h.mods.xpMul * greed(h));
+		for (const o of this.heroes.values()) if (o !== h) this.addXp(o, xp * o.mods.xpMul * greed(o));
 	}
 
 	addXp(h, xp) {
@@ -3496,6 +3629,10 @@ export class Room {
 		if (en.rootT > t) st |= ST.root;
 		if (en.elite) st |= ST.elite;
 		if (en.windT > 0 || en.fuseT > 0) st |= ST.windup;
+		if (en.ai === 'shield') {
+			const k = Math.round((en.fa / (Math.PI * 2)) * SHIELD_DIRS);
+			st |= ST.shield | ((((k % SHIELD_DIRS) + SHIELD_DIRS) % SHIELD_DIRS) << SHIELD_SHIFT);
+		}
 		return st;
 	}
 
@@ -3547,6 +3684,8 @@ export class Room {
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
+		const ev = this.events?.snap();
+		if (ev) msg.ev = ev;
 		this.fx = [];
 		this.hitFx = 0;
 		this.dieFx = 0;

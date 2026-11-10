@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {
 	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES, modeOf,
+	SPECIALS, EVENTS, EVENT_INDEX, ALTAR_DEALS,
 } from '../public/shared/content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
@@ -17,10 +18,12 @@ const SHOOTERS = new Set(ENEMY_TYPES.flatMap((t, i) => (ENEMIES[t]?.shotDmg ? [i
 const BOSS_NEAR = 400; // a boss is «near» while an alive player is this close
 
 const r1 = (v) => Math.round(v * 10) / 10;
-const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', other: 'Прочее' };
+const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', star: 'Падающая звезда', other: 'Прочее' };
+const SPECIAL_IDS = Object.keys(SPECIALS);
 export const srcName = (id) => SRC_NAMES[id] ?? (id.startsWith('r_') && REACTIONS[id.slice(2)] ? `Реакция «${REACTIONS[id.slice(2)].name}»` : null) ?? weaponDef(id)?.name ?? id;
 const enemyName = (key) => {
 	const [type, how] = key.split(':');
+	if (type === 'event') return EVENTS[EVENT_INDEX[how]]?.name ?? how;
 	const base = type === 'elite' ? 'Элита' : ENEMIES[type]?.name ?? type;
 	return how === 'shot' ? `${base} (выстрел)` : how === 'blast' ? `${base} (взрыв)` : base;
 };
@@ -40,6 +43,9 @@ export class RunLog {
 		this.p = new Map();
 		this.bosses = [];
 		this.peaks = [];
+		this.events = [];
+		// v18 specials: spawned / killed / shots fired, damage blocked by the shield; damage to players comes from `taken`.
+		this.specials = Object.fromEntries(SPECIAL_IDS.map((id) => [id, { spawned: 0, killed: 0, shots: 0, blocked: 0, first: null }]));
 		for (const h of room.heroes.values()) {
 			this.p.set(h.pid, {
 				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
@@ -191,6 +197,24 @@ export class RunLog {
 		if (p) p[key] = (p[key] ?? 0) + n;
 	}
 
+	// Health lost outside hurt() (the altar's price) still counts for the minute's minimum.
+	hpDrop(h) {
+		const p = this.p.get(h.pid);
+		if (p && h.hp < p.minuteMin) p.minuteMin = h.hp;
+	}
+
+	special(room, e, key, n = 1) {
+		const S = this.specials[enemyKey(e)];
+		if (!S) return;
+		S[key] += n;
+		if (key === 'spawned' && S.first === null) S.first = r1(room.time);
+	}
+
+	// One finished Wave 4 event: {id, name, at, end, res, ...details}; res indexes EVENTS[i].done.
+	event(room, ev) {
+		this.events.push(ev);
+	}
+
 	up(room, h) {
 		this.p.get(h.pid)?.ups.push(r1(room.time));
 	}
@@ -228,6 +252,12 @@ export class RunLog {
 				by: Object.fromEntries(Object.entries(b.by).map(([k, v]) => [k, Math.round(v)])),
 			})),
 			reactions: { ...(room.reactN ?? {}) },
+			events: this.events,
+			specials: Object.fromEntries(Object.entries(this.specials).map(([id, S]) => {
+				const hit = {};
+				for (const p of players) for (const [k, v] of Object.entries(p.taken)) if (k.split(':')[0] === id) hit[k] = (hit[k] ?? 0) + v;
+				return [id, { ...S, blocked: Math.round(S.blocked), dmgToPlayers: Object.values(hit).reduce((a, b) => a + b, 0), hit }];
+			})),
 		};
 		log.rarity = { seen: [0, 0, 0, 0], took: [0, 0, 0, 0] };
 		for (const p of players) for (const k of ['seen', 'took']) p.rarity[k].forEach((n, i) => { log.rarity[k][i] += n; });
@@ -278,6 +308,26 @@ export function summarize(log) {
 		out.push('Пики: ' + log.peaks.map((p) => {
 			const extra = [p.spawned ? `теней ${p.spawned}` : '', p.burned ? `сгорело ${p.burned}` : '', p.downs ? `падений ${p.downs}` : ''].filter(Boolean);
 			return `${p.name} (${mmss(p.at)})${extra.length ? ' — ' + extra.join(', ') : ''}`;
+		}).join('; '));
+	}
+	const sp = Object.entries(log.specials ?? {}).filter(([, S]) => S.spawned > 0);
+	if (sp.length) {
+		out.push('Новые враги: ' + sp.map(([id, S]) => {
+			const extra = [S.shots ? `выстрелов ${S.shots}` : '', S.blocked ? `щит поглотил ${S.blocked}` : ''].filter(Boolean);
+			return `${ENEMIES[id].name} (с ${mmss(S.first)}) — появилось ${S.spawned}, убито ${S.killed}, урон по игрокам ${S.dmgToPlayers}${extra.length ? ', ' + extra.join(', ') : ''}`;
+		}).join('; '));
+	}
+	if (log.events?.length) {
+		out.push('События: ' + log.events.map((e) => {
+			const D = EVENTS[EVENT_INDEX[e.id]];
+			const det = [
+				e.id === 'star' && e.hit !== undefined ? `задело врагов ${e.hit}, игроков ${e.hurt}` : '',
+				e.id === 'fog' ? `убито в тумане ${e.kills}` : '',
+				e.id === 'altar' ? `«${ALTAR_DEALS.find((d) => d.id === e.deal)?.name}»${e.took?.length ? `, приняли: ${e.took.join(', ')}` : ''}` : '',
+				e.id === 'cursed' && e.opened !== undefined ? `открыл ${e.by} на ${mmss(e.opened)}, волна ${e.wave}` : '',
+				e.id === 'streak' ? `${e.kills}/${e.goal}` : '',
+			].filter(Boolean);
+			return `${D?.name ?? e.id} (${mmss(e.at)}) — ${D?.done[e.res] ?? e.res}${det.length ? ' (' + det.join('; ') + ')' : ''}`;
 		}).join('; '));
 	}
 	const calm = longestRun(log.minutes.filter((m) => m.m > 1 && easy.includes(m.m)).map((m) => m.m));

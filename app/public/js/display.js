@@ -70,11 +70,11 @@ export class Overlay {
 				p.root.style.display = '';
 				p.shown = true;
 			}
-			const key = a.color + '|' + a.name;
+			const key = a.color + '|' + a.name + '|' + (a.icon ?? '');
 			if (p.key !== key) {
 				p.key = key;
 				p.poly.setAttribute('fill', a.color);
-				p.label.textContent = '✝ ' + a.name;
+				p.label.textContent = (a.icon ?? '✝') + ' ' + a.name;
 			}
 			p.root.style.transform = `translate(${a.x.toFixed(1)}px,${a.y.toFixed(1)}px)`;
 			p.svg.style.transform = `translate(-50%,-50%) rotate(${a.ang.toFixed(3)}rad) scale(${a.pulse.toFixed(3)})`;

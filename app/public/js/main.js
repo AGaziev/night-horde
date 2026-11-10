@@ -1,4 +1,4 @@
-import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress } from '/shared/content.js';
+import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
@@ -268,6 +268,25 @@ game.onEvent = (kind, arg, arg2) => {
 			break;
 		case 'dawn':
 			ui.banner('Рассвет! Ночь отступила');
+			break;
+		case 'evt': {
+			// Wave 4 event: banner with the name, the hint as a toast (the streak goal and the altar deal filled in).
+			ui.banner(arg.name);
+			let hint = arg.hint.replace('{n}', String(arg2)).replace('{t}', String(arg.dur ?? ''));
+			const ev = game.event();
+			if (arg.id === 'altar' && ev && ALTAR_DEALS[ev.a]) hint += `. Сделка «${ALTAR_DEALS[ev.a].name}»: ${ALTAR_DEALS[ev.a].desc}`;
+			ui.toast(hint, 'info');
+			break;
+		}
+		case 'evphase':
+			if (arg.id === 'cursed') ui.banner(`Волна! Продержитесь ${arg.hold} с`);
+			break;
+		case 'evte':
+			if (arg.done?.[arg2]) ui.toast(arg.done[arg2], 'info');
+			break;
+		case 'altar':
+			if (arg === state.me) ui.banner(`Сделка: ${ALTAR_DEALS[arg2]?.name || 'алтарь'}`);
+			else ui.toast(`${game.meta(arg).name} принял сделку алтаря`, 'info');
 			break;
 		case 'elite':
 			ui.toast(`Элита: ${ELITE_AFFIXES[arg]?.name || '?'} — в награду сундук или золото`, 'info');

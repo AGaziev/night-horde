@@ -10,7 +10,7 @@ import path from 'node:path';
 import {
 	TICK_HZ, MAX_ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, WEAPON_IDS, ENEMIES, REVIVE_SECONDS, HEROES, NO_TRAIT, heroTrait,
 	ITEM_TYPES, ST, ELITE_AFFIXES, ELITE_HP_MUL, MAX_GEMS, SKIP_XP, REROLLS_START, PASSIVES, WEAPONS, BREAK_TILE,
-	breakableAt, xpForNext, PLAYER_RADIUS, ITEMS, MAX_LEVEL, MAX_WEAPONS, MAX_PASSIVES,
+	breakableAt, xpForNext, PLAYER_RADIUS, ITEMS, MAX_LEVEL, MAX_WEAPONS, MAX_PASSIVES, SHIELD_DIRS, SHIELD_SHIFT,
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, SYNERGY_PER, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS, teamXpMul,
 	GAME_VERSION, enemyHpScale, enemyDmgScale, BOSS_TIMES, BOSS_POOL, FINAL_BOSS, bossHpScale,
 	PEAKS, PEAK_WARN, PEAK_BOSS_GAP, RUN_SECONDS, INVASION, spawnRateScale, peakSchedule,
@@ -55,7 +55,8 @@ function checkSnapshot(s) {
 	for (let i = 0; i < s.e.length; i += 6) {
 		assert.ok(s.e[i + 1] >= 0 && s.e[i + 1] < ENEMY_TYPES.length);
 		assert.ok(s.e[i + 4] >= 1 && s.e[i + 4] <= 100);
-		assert.ok(s.e[i + 5] >= 0 && s.e[i + 5] < 512, 'state mask');
+		assert.ok(s.e[i + 5] >= 0 && s.e[i + 5] < (SHIELD_DIRS << SHIELD_SHIFT), 'state mask');
+		if (s.e[i + 5] >= 512) assert.ok(s.e[i + 5] & ST.shield, 'facing bits only with a shield');
 	}
 	for (let i = 0; i < s.it.length; i += 4) assert.ok(s.it[i + 1] >= 0 && s.it[i + 1] < ITEM_TYPES.length);
 	for (let i = 0; i < s.b.length; i += 5) assert.ok(s.b[i + 1] >= 0 && s.b[i + 1] < PROJECTILE_KINDS.length);
@@ -63,9 +64,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -584,12 +585,14 @@ console.log('over/again/leave: ok');
 	{
 		const duo = mkRoom(['knight', 'witch']);
 		duo.time = 209;
+		duo.events.next = Infinity;
 		for (let i = 0; i < 2 * TICK_HZ && !duo.enemies.length; i++) duo.tick(dtt);
 		assert.ok(duo.enemies.length >= 2 * 8, `invasion ring for both players: ${duo.enemies.length}`);
 		const ring = duo.enemies.filter((e) => Math.abs(Math.hypot(e.x, e.y) - 430) < 40);
 		assert.ok(ring.length >= 8, 'enemies stand on the ring');
 		const solo = mkRoom();
 		solo.time = 209;
+		solo.events.next = Infinity; // v18: a Wave 4 event (the golden shade) would add an enemy here
 		for (let i = 0; i < 2 * TICK_HZ; i++) solo.tick(dtt);
 		assert.equal(solo.enemies.length, 0, 'no invasions solo');
 		const e0 = solo.spawnEnemy('skel', [solo.heroes.get(1)], 1);
@@ -837,6 +840,7 @@ console.log('over/again/leave: ok');
 		assert.equal(r.gems[0].pull, h, 'magnet pulls every gem');
 		const e1 = put(r, 'skel', 200, 0, 30), boss = put(r, 'boss', 300, 0, 1000);
 		boss.boss = true;
+		h.hp = h.maxHp; // a low-hp kill may drop «Чаша росы» (DEW_DROP) and leave an item behind
 		pick('cracker');
 		assert.ok(e1.dead && Math.abs(boss.hp - 900) < 1e-6, 'cracker: kills small, −10% to big');
 		const e2 = put(r, 'skel', 200, 0);

@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -30,6 +30,17 @@ function el(tag, cls, text) {
 export function fmtTime(sec) {
 	const s = Math.max(0, Math.floor(sec));
 	return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+// HUD pill of the active Wave 4 event; the phase changes what the group should do now.
+function eventLabel(ev) {
+	switch (ev.def.id) {
+		case 'star': return ev.phase ? 'Осколок звезды' : 'Звезда падает';
+		case 'altar': return `Алтарь: ${ALTAR_DEALS[ev.a]?.name ?? ''}`;
+		case 'cursed': return ev.phase ? 'Продержитесь' : 'Проклятый сундук';
+		case 'streak': return `Серия ${ev.a}/${ev.b}`;
+		default: return ev.def.name;
+	}
 }
 
 export class UI {
@@ -467,6 +478,9 @@ export class UI {
 		const pk = game.peak();
 		this.set('hud-peak', 'hidden', !pk);
 		if (pk) this.set('hud-peak', 'text', `${pk.def.name} · ${Math.ceil(pk.left)} с`);
+		const ev = game.event();
+		this.set('hud-event', 'hidden', !ev);
+		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
 		if (!snap) return;
 		this.set('hud-kills', 'text', String(snap.k));
 		const row = snap.pMap.get(game.me);

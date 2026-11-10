@@ -464,5 +464,51 @@
     ],
     "bodyRadius": 14,
     "mask": "spearmaiden_mask.png"
+  },
+  "sniper": {
+    "file": "sniper.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 6,
+    "fps": 6,
+    "anchor": [
+      48,
+      92
+    ],
+    "bodyRadius": 18,
+    "attackFrames": [
+      4,
+      5
+    ]
+  },
+  "shield": {
+    "file": "shield.png",
+    "cell": [
+      96,
+      96
+    ],
+    "frames": 4,
+    "fps": 6,
+    "anchor": [
+      48,
+      90
+    ],
+    "bodyRadius": 21
+  },
+  "goldshade": {
+    "file": "goldshade.png",
+    "cell": [
+      64,
+      64
+    ],
+    "frames": 4,
+    "fps": 12,
+    "anchor": [
+      32,
+      46
+    ],
+    "bodyRadius": 13
   }
 }
