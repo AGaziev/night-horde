@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
+import { runStore, logText } from './runlog.js';
 import { TICK_HZ } from '../public/shared/content.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -17,6 +18,9 @@ const WS_PING_MS = 20_000;
 const MAX_BUFFERED = 1 << 20;
 const MSG_RATE_PER_SEC = 120;
 const SID_RE = /^[A-Za-z0-9_-]{8,64}$/;
+const RUNS_DIR = process.env.HORDE_RUNS_DIR || '/tmp/horde-runs';
+
+runStore.persist(RUNS_DIR);
 
 const MIME = {
 	'.html': 'text/html; charset=utf-8',
@@ -230,6 +234,17 @@ function handleSend(req, res, url) {
 	});
 }
 
+// GET /api/runs — recent runs; /api/runs/:id — full log (JSON), /api/runs/:id.txt — summary + JSON.
+function handleRuns(req, res, p) {
+	if (req.method !== 'GET') return sendText(res, 405, 'method not allowed');
+	if (p === '/api/runs' || p === '/api/runs/') return sendJson(res, 200, { runs: runStore.list() });
+	const m = /^\/api\/runs\/([A-Za-z0-9]{6})(\.txt|\.json)?$/.exec(p);
+	const log = m && runStore.get(m[1].toUpperCase());
+	if (!log) return sendText(res, 404, 'not found');
+	if (m[2] === '.txt') return sendText(res, 200, logText(log));
+	sendJson(res, 200, log);
+}
+
 const server = http.createServer((req, res) => {
 	let url;
 	try {
@@ -242,6 +257,7 @@ const server = http.createServer((req, res) => {
 	if (p === '/api/session') return handleSession(req, res, url);
 	if (p === '/api/events') return handleEvents(req, res, url);
 	if (p === '/api/send') return handleSend(req, res, url);
+	if (p === '/api/runs' || p.startsWith('/api/runs/')) return handleRuns(req, res, p);
 	if (p.startsWith('/api/')) return sendText(res, 404, 'not found');
 	serveStatic(req, res, p);
 });

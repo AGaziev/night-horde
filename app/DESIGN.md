@@ -33,6 +33,19 @@ public/shared/content.js
 
 ## Сессия
 
+Лог забега (v8, `server/runlog.js`): `GET /api/runs` → `{ runs: [{id, at, v, win, time, players: [{name, hero, level}]}] }`
+(последние 30 в памяти), `GET /api/runs/<ID>` → JSON лога, `GET /api/runs/<ID>.txt` → сводка + JSON (то же, что копирует
+кнопка «Скопировать лог»). Копия на диске — `HORDE_RUNS_DIR` (по умолчанию `/tmp/horde-runs/<ID>.json`, до 200 файлов,
+при старте последние 30 подгружаются). В логе: версия, исход, по минутам (`enemies, hpMul, dmgMul, alive, lvl[], taken,
+downs, kills, dps, load%`), по игроку — выборы `[время, уровень, pick|skip|reroll, id, kind, level, предложенные]`,
+связки/эволюции с временем, урон по источникам, полученный урон по врагам, падения/подъёмы, мин. здоровье, сборка.
+Персональных данных нет: только имя в игре. `bosses: [{type, name, at, hp, killedAt, sec, downs: {имя: n}, downsByBoss}]`.
+
+Боссы (v8): 3:00, 6:00, 9:00, 12:00 — Матерь роя, Рогач, Костяной органист, Двуликий в случайном порядке без
+повторов (`BOSS_POOL`), 14:30 — Владыка ночи (`FINAL_BOSS`). HP = `def.hp × bossHpScale(t, игроки)`. Типы дописаны в
+конец `ENEMY_TYPES`: `brood, ram, gunner, twin, twinhalf`. Атаки телеграфируются ≥ 0,6 с: `warn` (круг), `bline`
+(полоса), бит `ST.windup` (свечение замаха). Сундук — когда умерла вся группа босса (обе половины Двуликого).
+
 `GET /api/session` → `{ sid, name }`. sid — случайная строка, привязывается к игроку (pid = числовой id внутри сервера).
 Клиент хранит sid в sessionStorage, чтобы переподключение после обрыва вернуло его в ту же комнату.
 `GET /health` → `200 ok`.
@@ -66,7 +79,7 @@ public/shared/content.js
 | `start` | `players: [{pid, name, hero, color, x, y}]`, `broken: [tx, ty, ...]` — игра началась (или повтор при переподключении); `broken` — уже разбитые объекты |
 | `s` | снимок (ниже), 10 Гц всем в комнате |
 | `lvl` | `choices: [{id, kind: 'weapon'|'passive'|'heal'|'rare', name, icon, desc, level}]`, `pending` (сколько ещё выборов в очереди), `rerolls` (осталось «Перебросить»), `skipXp`, `slots: [оружия, MAX_WEAPONS, артефактов, MAX_PASSIVES]` — адресно игроку. `level` — уровень ПОСЛЕ выбора. `heal` — «Лечение +30» (всегда 3-й слот при hp < 35% или единственная карточка, если улучшать нечего); `rare` (`id: 'forge'`) — «+1 уровень двум оружиям» |
-| `over` | `win` (bool), `time`, `stats: [{pid, name, hero, kills, dmg, level}]` |
+| `over` | `win` (bool), `time`, `stats: [{pid, name, hero, kills, dmg, level}]`, `runId`, `log` (лог забега, см. ниже) |
 | `err` | `msg` (по-русски, для показа) |
 | `pong` | `c` |
 
@@ -99,6 +112,7 @@ public/shared/content.js
        // ['down', pid] / ['up', pid] — упал / поднят
        // ['lvl', pid]                — игрок получил уровень
        // ['boss', name]              — появился босс
+       // ['bline', x1, y1, x2, y2, w, life] — полоса-телеграф рывка босса (v8)
        // ['chest', x, y]             — с босса выпал сундук (всем по выбору улучшения)
        // ['shot', id, kind, x, y, vx, vy, life, targetId|-1, tm] — выстрел; клиент сам ведёт снаряд,
        //    искра наводится на врага targetId по той же формуле, что и сервер
@@ -130,7 +144,7 @@ public/shared/content.js
        // ['inv', pid, r]             — нашествие: кольцо врагов радиуса r вокруг игрока
        // Снаряды часто живут меньше интервала снимков, поэтому клиент разбирает эти события (shot, ptgt, pend,
        // eshot, epend, lob, brk, elite) сразу при получении.
-  boss: [hp, maxHp] | null
+  boss: [hp, maxHp, type] | null   // type — индекс ENEMY_TYPES; у раздвоившегося Двуликого — сумма половин
 }
 ```
 

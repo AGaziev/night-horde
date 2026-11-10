@@ -1,5 +1,6 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
+export const GAME_VERSION = 'v8';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -20,7 +21,14 @@ export const MAX_LEVEL = 5; // max level of every weapon and passive
 // Slots are scarce on purpose: a full build is 4 weapons + 4 artifacts, so choices differ between players.
 export const MAX_WEAPONS = 4;
 export const MAX_PASSIVES = 4;
-export const BOSS_TIMES = [300, 600];
+// Bosses (v8): regular ones at BOSS_SCHEDULE in a random order without repeats, the final one is always the Lord.
+export const BOSS_SCHEDULE = [180, 360, 540, 720];
+export const BOSS_POOL = ['brood', 'ram', 'gunner', 'twin'];
+export const FINAL_BOSS = { at: 870, type: 'boss' };
+export const BOSS_TIMES = [...BOSS_SCHEDULE, FINAL_BOSS.at];
+// Boss hp = def.hp × this: follows the regular enemy curve (players included) at a gentler slope.
+export const BOSS_HP = { k: 0.38, pow: 0.9, solo: 0.75 };
+export const bossHpScale = (seconds, players) => BOSS_HP.k * enemyHpScale(seconds, players) ** BOSS_HP.pow * (players > 1 ? 1 : BOSS_HP.solo);
 
 export const xpForNext = (level, players = 1) => Math.round((5 + (level - 1) * 8) * teamXpMul(players));
 
@@ -251,7 +259,35 @@ export const ENEMIES = {
 	wisp: { name: 'Огонёк', hp: 10, speed: 140, dmg: 6, r: 8, xp: 2, color: '#ffb74d' },
 	skel: { name: 'Костяк', hp: 30, speed: 75, dmg: 10, r: 13, xp: 3, color: '#e0e0e0' },
 	brute: { name: 'Громила', hp: 120, speed: 50, dmg: 18, r: 22, xp: 10, color: '#8d6e63' },
-	boss: { name: 'Владыка ночи', hp: 2500, speed: 70, dmg: 30, r: 40, xp: 100, color: '#d32f2f' },
+	// Final boss: shock ring around itself, ring of bolts, swarm call; all three faster below half hp.
+	boss: {
+		name: 'Владыка ночи', hp: 5000, speed: 70, dmg: 30, r: 40, xp: 150, color: '#d32f2f', boss: true, bk: 'lord',
+		cd: 2.6, rage: 0.5, wave: { r: 190, warn: 0.9, dmg: 26 }, ring: { windup: 0.8, shots: 20, speed: 200, dmg: 12, life: 3 },
+		call: { warn: 1.0, type: 'bat', count: 12, ring: 160 },
+	},
+	// Summons rings of bats around the nearest player; takes ×2 damage while calling. Charges below half hp.
+	brood: {
+		name: 'Матерь роя', hp: 3000, speed: 60, dmg: 24, r: 44, xp: 100, color: '#7b1fa2', boss: true, bk: 'brood',
+		callCd: 7, windup: 1.5, vuln: 2, call: { type: 'bat', count: 10, ring: 150 }, rage: 0.5,
+		trigger: 420, dashWarn: 0.8, dashSpeed: 520, dashTime: 0.7, rest: 1.6,
+	},
+	// Telegraphed charges: a red lane for dashWarn seconds, then a straight dash.
+	ram: {
+		name: 'Рогач', hp: 2600, speed: 70, dmg: 24, r: 38, xp: 100, color: '#a1887f', boss: true, bk: 'ram',
+		trigger: 480, dashWarn: 0.8, dashSpeed: 600, dashTime: 0.75, rest: 1.8,
+	},
+	// Keeps distance and fires rings of bone shards; two rings in a row below half hp.
+	gunner: {
+		name: 'Костяной органист', hp: 1500, speed: 65, dmg: 20, r: 36, xp: 100, color: '#b0bec5', boss: true, bk: 'gunner',
+		keep: [180, 280], cd: 3.2, windup: 0.8, shots: 16, shotSpeed: 210, shotDmg: 12, shotLife: 3, rage: 0.5,
+	},
+	// Splits into two quick halves at half hp; the halves blink to the player after a marked spot.
+	twin: {
+		name: 'Двуликий', hp: 2800, speed: 80, dmg: 24, r: 40, xp: 60, color: '#26a69a', boss: true, bk: 'twin', splitAt: 0.5, halfHp: 0.32,
+	},
+	twinhalf: {
+		name: 'Двуликий', hp: 1, speed: 110, dmg: 18, r: 28, xp: 40, color: '#4db6ac', boss: true, bk: 'half', blinkCd: 4.5, blinkWarn: 0.7, blinkDist: 220,
+	},
 	spitter: {
 		name: 'Плевун', hp: 20, speed: 70, dmg: 6, r: 12, xp: 3, color: '#9ccc65',
 		ai: 'ranged', keep: [260, 320], shotCd: 2.6, windup: 0.6, shotSpeed: 230, shotDmg: 8, shotLife: 2,
@@ -264,7 +300,7 @@ export const ENEMIES = {
 
 // Numeric ids used in snapshots (index into this array).
 // New types are appended at the end so old indexes stay valid.
-export const ENEMY_TYPES = ['bat', 'ghoul', 'wisp', 'skel', 'brute', 'boss', 'spitter', 'bloater'];
+export const ENEMY_TYPES = ['bat', 'ghoul', 'wisp', 'skel', 'brute', 'boss', 'spitter', 'bloater', 'brood', 'ram', 'gunner', 'twin', 'twinhalf'];
 export const PROJECTILE_KINDS = ['bolt', 'knife', 'sickle', 'icedisc', 'spear'];
 export const HOSTILE_R = 7;
 export const WEAPON_IDS = Object.keys(WEAPONS);
@@ -290,13 +326,18 @@ export const PRESSURE_FROM = 180;
 // From ENDGAME_FROM the final stretch adds another quadratic factor so full builds still meet resistance.
 export const PRESSURE = { hpLin: 0.12, hpQuad: 0.02, dmgPerMin: 0.06, endFrom: 540, endQuad: 0.08, endGroupMul: [0.4, 0.85], perPlayer: 0.55, perPlayerSq: 0.05 };
 const lateMin = (seconds) => Math.max(0, seconds - PRESSURE_FROM) / 60;
+// Groups (2+) out-level solo through team XP and stacked duos, so after PRESSURE_FROM they get extra hp and damage
+// per minute (index = players - 1, 4+ use the last value). Solo gets a small hp relief that offsets the v8 evolution nerfs.
+export const GROUP_LATE = { hpPerMin: [-0.008, 0.16, 0.21, 0.32], dmgPerMin: [0, 0.06, 0.07, 0.1] };
+const groupLate = (key, players) => GROUP_LATE[key][Math.min(Math.max(1, players), GROUP_LATE[key].length) - 1];
 export const enemyHpScale = (seconds, players) => {
 	const m = Math.floor(seconds / 60), late = Math.floor(lateMin(seconds));
 	const end = Math.max(0, Math.floor((seconds - PRESSURE.endFrom) / 60));
 	const endQuad = PRESSURE.endQuad * (PRESSURE.endGroupMul[players - 1] ?? 1);
-	return (1 + PRESSURE.hpLin * m + PRESSURE.hpQuad * late * late) * (1 + endQuad * end * end) * (1 + PRESSURE.perPlayer * (players - 1) + PRESSURE.perPlayerSq * (players - 1) ** 2);
+	return (1 + PRESSURE.hpLin * m + PRESSURE.hpQuad * late * late) * (1 + endQuad * end * end) * (1 + PRESSURE.perPlayer * (players - 1) + PRESSURE.perPlayerSq * (players - 1) ** 2)
+		* (1 + groupLate('hpPerMin', players) * late);
 };
-export const enemyDmgScale = (seconds) => 1 + PRESSURE.dmgPerMin * Math.floor(lateMin(seconds));
+export const enemyDmgScale = (seconds, players = 1) => 1 + (PRESSURE.dmgPerMin + groupLate('dmgPerMin', players)) * Math.floor(lateMin(seconds));
 // Invasions: from INVASION.from every INVASION.every seconds a ring of enemies closes in around every alive player.
 // Small groups get smaller rings: none solo, duo ×0.75 (fewer weapons on screen per enemy).
 // Big groups (4+) clear the middle too fast with duos and «Слаженность»: from 6:00 their rings are 25% larger.
@@ -337,9 +378,9 @@ export const DUOS = {
 		name: 'Шаровая молния', icon: '◉', parts: ['bolt', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Медленный шар разрядами бьёт всех рядом и взрывается',
 		levels: [
-			{ dmg: 6, cd: 3.0, count: 1, radius: 75, tick: 0.5, speed: 120, life: 4, boom: 40, boomR: 110 },
-			{ dmg: 8, cd: 2.6, count: 1, radius: 85, tick: 0.5, speed: 120, life: 4, boom: 55, boomR: 110 },
-			{ dmg: 11, cd: 2.2, count: 2, radius: 95, tick: 0.5, speed: 120, life: 4, boom: 75, boomR: 110 },
+			{ dmg: 5, cd: 3.0, count: 1, radius: 70, tick: 0.5, speed: 120, life: 3.5, boom: 32, boomR: 100 },
+			{ dmg: 6, cd: 2.7, count: 1, radius: 80, tick: 0.5, speed: 120, life: 3.5, boom: 44, boomR: 100 },
+			{ dmg: 8, cd: 2.4, count: 2, radius: 88, tick: 0.5, speed: 120, life: 3.5, boom: 58, boomR: 100 },
 		],
 	},
 	orrery: {
@@ -382,9 +423,9 @@ export const DUOS = {
 		name: 'Коктейль', icon: '♨', parts: ['bomb', 'flask'], tags: ['fire', 'aoe'],
 		desc: 'Взрыв оставляет горящую лужу',
 		levels: [
-			{ dmg: 30, cd: 2.2, count: 1, radius: 70, fuse: 0.6, pool: 3, poolDmg: 5, tick: 0.3 },
-			{ dmg: 40, cd: 2.0, count: 2, radius: 80, fuse: 0.6, pool: 3.5, poolDmg: 7, tick: 0.3 },
-			{ dmg: 55, cd: 1.8, count: 2, radius: 90, fuse: 0.6, pool: 4, poolDmg: 9, tick: 0.3 },
+			{ dmg: 26, cd: 2.3, count: 1, radius: 70, fuse: 0.6, pool: 2.5, poolDmg: 4, tick: 0.3 },
+			{ dmg: 34, cd: 2.1, count: 2, radius: 78, fuse: 0.6, pool: 3, poolDmg: 5, tick: 0.3 },
+			{ dmg: 45, cd: 1.9, count: 2, radius: 86, fuse: 0.6, pool: 3.5, poolDmg: 6, tick: 0.3 },
 		],
 	},
 	minefield: {
@@ -441,7 +482,7 @@ export const DUO_BY_PAIR = Object.fromEntries(DUO_IDS.map((id) => [duoKey(...DUO
 export const EVOS = {
 	swarm: {
 		name: 'Рой светляков', icon: '❋', from: 'bolt', requires: 'echo', tags: ['proj'], color: '#ce93d8',
-		desc: '6 искр, попав, распадаются на 2 искорки', levels: [{ dmg: 26, cd: 0.5, count: 6, speed: 520, pierce: 1, split: 2 }],
+		desc: '6 искр, попав, распадаются на 2 искорки', levels: [{ dmg: 19, cd: 0.55, count: 6, speed: 520, pierce: 1, split: 2 }],
 	},
 	crescent: {
 		name: 'Полумесяц', icon: '☽', from: 'whip', requires: 'might', tags: ['phys'], color: '#90caf9',
@@ -461,7 +502,7 @@ export const EVOS = {
 	},
 	tempest: {
 		name: 'Буревал', icon: '🌩', from: 'lightning', requires: 'crit', tags: ['shock'], color: '#80deea',
-		desc: '5 молний; первая в ближайшего, крит перескакивает цепью', levels: [{ dmg: 50, cd: 1.0, strikes: 5, chain: 1, critChain: 2 }],
+		desc: '5 молний; первая в ближайшего, крит перескакивает цепью', levels: [{ dmg: 36, cd: 1.1, strikes: 5, chain: 1, critChain: 2 }],
 	},
 	moonblade: {
 		name: 'Лунный серп', icon: '◐', from: 'sickle', requires: 'swift', tags: ['phys'], color: '#e1f5fe',
@@ -469,7 +510,7 @@ export const EVOS = {
 	},
 	fireworks: {
 		name: 'Салют', icon: '🎆', from: 'bomb', requires: 'magnet', tags: ['fire', 'aoe'], color: '#ffb74d',
-		desc: 'Большой взрыв с искрами; опыт с убитых летит к вам', levels: [{ dmg: 70, cd: 1.8, count: 2, radius: 110, fuse: 0.55, sparks: 6, sparkFrac: 0.3 }],
+		desc: 'Большой взрыв с искрами; опыт с убитых летит к вам', levels: [{ dmg: 42, cd: 2.0, count: 2, radius: 100, fuse: 0.55, sparks: 5, sparkFrac: 0.25 }],
 	},
 	blizzard: {
 		name: 'Вьюга', icon: '🌨', from: 'frost', requires: 'hourglass', tags: ['cold', 'aoe'], color: '#b3e5fc',

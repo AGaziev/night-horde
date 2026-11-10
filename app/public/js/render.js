@@ -9,6 +9,7 @@ const TILE = 96;
 const GEM_COLORS = ['#4fc3f7', '#81c784', '#f06292', '#ffd54f'];
 const GEM_SIZE = [5, 6.5, 8.5, 9.5];
 const BOSS_T = ENEMY_TYPES.indexOf('boss');
+const BOSS_SET = new Set(ENEMY_TYPES.map((t, i) => (ENEMIES[t].boss ? i : -1)).filter((i) => i >= 0));
 const SPITTER_T = ENEMY_TYPES.indexOf('spitter');
 const BLOATER_T = ENEMY_TYPES.indexOf('bloater');
 const SICKLE_K = PROJECTILE_KINDS.indexOf('sickle');
@@ -425,7 +426,7 @@ export class Renderer {
 			const type = e[i + 1] | 0;
 			if (type < 0 || type >= TYPE_COUNT) continue;
 			lerpEnemy(view, i, p);
-			if (!this.visible(p.x, p.y) && type !== BOSS_T) continue;
+			if (!this.visible(p.x, p.y) && !BOSS_SET.has(type)) continue;
 			const st = e[i + 5] | 0;
 			if (st & ST.elite) {
 				elites.push({ type, x: p.x, y: p.y, h: e[i + 4], id: e[i], dx: p.dx, st });
@@ -463,7 +464,7 @@ export class Renderer {
 
 		this.drawWindupWarnings(ctx, cnt, now);
 		for (let ty = 0; ty < TYPE_COUNT; ty++) {
-			if (ty === BOSS_T) for (let k = 0; k < cnt[ty]; k++) this.drawBoss(ctx, this.ex[ty][k], this.ey[ty][k], now);
+			if (BOSS_SET.has(ty)) for (let k = 0; k < cnt[ty]; k++) this.drawBoss(ctx, this.ex[ty][k], this.ey[ty][k], now, ty, this.est[ty][k], this.eid[ty][k]);
 			else this.drawType(ctx, ty, cnt[ty], now);
 		}
 		for (const el of elites) this.drawElite(ctx, el, now);
@@ -521,7 +522,7 @@ export class Renderer {
 		ctx.translate(el.x, el.y);
 		ctx.scale(ELITE_R_MUL, ELITE_R_MUL);
 		ctx.translate(-el.x, -el.y);
-		if (el.type === BOSS_T) this.drawBoss(ctx, el.x, el.y, now);
+		if (BOSS_SET.has(el.type)) this.drawBoss(ctx, el.x, el.y, now, el.type, el.st, el.id);
 		else this.drawType(ctx, el.type, 1, now);
 		ctx.restore();
 		[this.ex[el.type], this.ey[el.type], this.eh[el.type], this.eid[el.type], this.edx[el.type], this.est[el.type]] = saved;
@@ -834,7 +835,183 @@ export class Renderer {
 		ctx.fill();
 	}
 
-	drawBoss(ctx, x, y, now) {
+	// Bosses: windup glow (an attack is coming) under a per-kind figure.
+	drawBoss(ctx, x, y, now, ty = BOSS_T, st = 0, id = 0) {
+		const def = ENEMIES[ENEMY_TYPES[ty]] || ENEMIES.boss;
+		const r = def.r;
+		if (st & ST.windup) {
+			const k = 0.5 + 0.5 * Math.sin(now * 18);
+			ctx.fillStyle = `rgba(255,235,59,${0.18 + 0.2 * k})`;
+			ctx.beginPath();
+			ctx.arc(x, y, r * (1.75 + 0.15 * k), 0, TAU);
+			ctx.fill();
+			ctx.strokeStyle = `rgba(255,241,118,${0.6 + 0.4 * k})`;
+			ctx.lineWidth = 3;
+			ctx.stroke();
+		}
+		switch (def.bk) {
+			case 'brood': return this.drawBrood(ctx, x, y, r, def.color, now, id);
+			case 'ram': return this.drawRam(ctx, x, y, r, def.color);
+			case 'gunner': return this.drawGunner(ctx, x, y, r, def.color, now);
+			case 'twin':
+			case 'half': return this.drawTwin(ctx, x, y, r, def.color, now, def.bk === 'half');
+		}
+		return this.drawLord(ctx, x, y, now);
+	}
+
+	drawBrood(ctx, x, y, r, color, now, id) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.strokeStyle = '#4a148c';
+		ctx.lineWidth = 5;
+		ctx.lineCap = 'round';
+		ctx.beginPath();
+		for (let i = 0; i < 8; i++) {
+			const a = (i / 8) * TAU + 0.2;
+			const wig = Math.sin(now * 6 + i * 1.7 + id) * 0.18;
+			ctx.moveTo(Math.cos(a) * r * 0.7, Math.sin(a) * r * 0.7);
+			ctx.quadraticCurveTo(Math.cos(a + wig) * r * 1.35, Math.sin(a + wig) * r * 1.35 - 6, Math.cos(a + wig * 2) * r * 1.6, Math.sin(a + wig * 2) * r * 1.6);
+		}
+		ctx.stroke();
+		ctx.shadowColor = '#e040fb';
+		ctx.shadowBlur = 18;
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.ellipse(0, 0, r * 0.95, r * 0.8, 0, 0, TAU);
+		ctx.fill();
+		ctx.shadowBlur = 0;
+		ctx.fillStyle = '#ce93d8';
+		ctx.beginPath();
+		for (let i = 0; i < 5; i++) {
+			const a = (i / 5) * TAU + now * 0.5;
+			const er = r * (0.14 + 0.03 * Math.sin(now * 5 + i));
+			ctx.moveTo(Math.cos(a) * r * 0.5 + er, Math.sin(a) * r * 0.45);
+			ctx.arc(Math.cos(a) * r * 0.5, Math.sin(a) * r * 0.45, er, 0, TAU);
+		}
+		ctx.fill();
+		ctx.fillStyle = '#ff1744';
+		ctx.beginPath();
+		for (const [ex, ey] of [[-0.2, -0.15], [0.2, -0.15], [-0.1, 0.05], [0.1, 0.05]]) {
+			ctx.moveTo(ex * r + r * 0.08, ey * r);
+			ctx.arc(ex * r, ey * r, r * 0.08, 0, TAU);
+		}
+		ctx.fill();
+		ctx.restore();
+	}
+
+	drawRam(ctx, x, y, r, color) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.fillStyle = 'rgba(141,110,99,0.2)';
+		ctx.beginPath();
+		ctx.arc(0, 0, r * 1.5, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.arc(0, 0, r, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = shade(color, 0.6);
+		ctx.beginPath();
+		ctx.ellipse(0, r * 0.35, r * 0.5, r * 0.35, 0, 0, TAU);
+		ctx.fill();
+		ctx.strokeStyle = '#efebe9';
+		ctx.lineWidth = r * 0.28;
+		ctx.lineCap = 'round';
+		for (const sg of [-1, 1]) {
+			ctx.beginPath();
+			ctx.moveTo(sg * r * 0.55, -r * 0.55);
+			ctx.quadraticCurveTo(sg * r * 1.5, -r * 1.1, sg * r * 1.25, -r * 0.1);
+			ctx.stroke();
+		}
+		ctx.fillStyle = '#ff3d00';
+		ctx.beginPath();
+		ctx.arc(-r * 0.32, -r * 0.15, r * 0.11, 0, TAU);
+		ctx.arc(r * 0.32, -r * 0.15, r * 0.11, 0, TAU);
+		ctx.fill();
+		ctx.strokeStyle = '#ffd54f';
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		ctx.arc(0, r * 0.62, r * 0.16, 0, TAU);
+		ctx.stroke();
+		ctx.restore();
+	}
+
+	drawGunner(ctx, x, y, r, color, now) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.fillStyle = '#78909c';
+		ctx.strokeStyle = '#37474f';
+		ctx.lineWidth = 2;
+		[0.55, 0.85, 1.1, 0.85, 0.55].forEach((hgt, i) => {
+			const px = (i - 2) * r * 0.36 - r * 0.13;
+			ctx.beginPath();
+			ctx.rect(px, -r * 0.5 - r * hgt, r * 0.26, r * hgt);
+			ctx.fill();
+			ctx.stroke();
+		});
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.arc(0, 0, r * 0.9, 0, TAU);
+		ctx.fill();
+		ctx.strokeStyle = '#eceff1';
+		ctx.lineWidth = 3;
+		ctx.stroke();
+		ctx.fillStyle = '#212121';
+		ctx.beginPath();
+		ctx.ellipse(-r * 0.32, -r * 0.1, r * 0.2, r * 0.24, 0, 0, TAU);
+		ctx.ellipse(r * 0.32, -r * 0.1, r * 0.2, r * 0.24, 0, 0, TAU);
+		ctx.fill();
+		const glow = r * 0.07 * (1 + 0.3 * Math.sin(now * 7));
+		ctx.fillStyle = '#80deea';
+		ctx.beginPath();
+		ctx.arc(-r * 0.32, -r * 0.08, glow, 0, TAU);
+		ctx.arc(r * 0.32, -r * 0.08, glow, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = '#212121';
+		for (let i = -2; i <= 2; i++) ctx.fillRect(i * r * 0.14 - r * 0.04, r * 0.35, r * 0.08, r * 0.2);
+		ctx.restore();
+	}
+
+	drawTwin(ctx, x, y, r, color, now, half) {
+		ctx.save();
+		ctx.translate(x, y);
+		ctx.rotate(Math.sin(now * 1.3) * 0.25);
+		ctx.fillStyle = 'rgba(38,166,154,0.18)';
+		ctx.beginPath();
+		ctx.arc(0, 0, r * 1.5, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = color;
+		ctx.beginPath();
+		ctx.arc(0, 0, r, Math.PI / 2, Math.PI * 1.5);
+		ctx.fill();
+		ctx.fillStyle = half ? shade(color, 0.7) : '#263238';
+		ctx.beginPath();
+		ctx.arc(0, 0, r, -Math.PI / 2, Math.PI / 2);
+		ctx.fill();
+		ctx.strokeStyle = '#e0f2f1';
+		ctx.lineWidth = 3;
+		ctx.beginPath();
+		ctx.moveTo(0, -r);
+		for (let i = 1; i <= 6; i++) ctx.lineTo((i % 2 ? 1 : -1) * r * 0.12, -r + (i / 6) * r * 2);
+		ctx.stroke();
+		ctx.fillStyle = '#fff';
+		ctx.beginPath();
+		ctx.arc(-r * 0.42, -r * 0.15, r * 0.13, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = '#ff5252';
+		ctx.beginPath();
+		ctx.arc(r * 0.42, -r * 0.15, r * 0.13, 0, TAU);
+		ctx.fill();
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		ctx.arc(-r * 0.4, r * 0.3, r * 0.22, 0.2, Math.PI - 0.2);
+		ctx.moveTo(r * 0.62, r * 0.45);
+		ctx.arc(r * 0.4, r * 0.45, r * 0.22, 0, -Math.PI, true);
+		ctx.stroke();
+		ctx.restore();
+	}
+
+	drawLord(ctx, x, y, now) {
 		const r = ENEMIES.boss.r;
 		const pulse = 1 + Math.sin(now * 3) * 0.05;
 		ctx.save();
@@ -1197,6 +1374,24 @@ export class Renderer {
 	}
 
 	drawWarns(ctx, game, now) {
+		for (const l of game.blines) {
+			const k = Math.min(1, l.t / l.life);
+			const dx = l.x2 - l.x1, dy = l.y2 - l.y1, len = Math.hypot(dx, dy) || 1;
+			ctx.save();
+			ctx.translate(l.x1, l.y1);
+			ctx.rotate(Math.atan2(dy, dx));
+			ctx.fillStyle = `rgba(239,83,80,${0.12 + 0.2 * k})`;
+			ctx.fillRect(0, -l.w / 2, len, l.w);
+			ctx.fillStyle = 'rgba(255,82,82,0.35)';
+			ctx.fillRect(0, -l.w / 2, len * k, l.w);
+			ctx.strokeStyle = 'rgba(255,82,82,0.9)';
+			ctx.lineWidth = 2;
+			ctx.setLineDash([10, 6]);
+			ctx.lineDashOffset = -now * 60;
+			ctx.strokeRect(0, -l.w / 2, len, l.w);
+			ctx.setLineDash([]);
+			ctx.restore();
+		}
 		for (const w of game.warns) {
 			const k = Math.min(1, w.t / w.life);
 			ctx.fillStyle = `rgba(239,83,80,${0.1 + 0.25 * k})`;

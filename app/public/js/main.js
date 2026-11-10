@@ -253,6 +253,48 @@ $('over-menu').addEventListener('click', () => {
 	goMenu();
 });
 
+// Run log: summary lines on top, then the JSON (the same text as /api/runs/<id>.txt).
+const runLogText = (log) => `${(Array.isArray(log.summary) ? log.summary : []).join('\n')}\n\n${JSON.stringify(log)}`;
+
+$('over-copy').addEventListener('click', async () => {
+	const log = ui.runLog;
+	if (!log) return;
+	if (await copyText(runLogText(log))) ui.toast(`Лог #${log.id} скопирован`, 'info');
+	else ui.toast('Не удалось скопировать — скачайте .json');
+});
+
+$('over-download').addEventListener('click', () => {
+	const log = ui.runLog;
+	if (!log) return;
+	const url = URL.createObjectURL(new Blob([JSON.stringify(log, null, 1)], { type: 'application/json' }));
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `horde-run-${log.id}.json`;
+	document.body.appendChild(a);
+	a.click();
+	a.remove();
+	setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+
+async function copyText(text) {
+	try {
+		await navigator.clipboard.writeText(text);
+		return true;
+	} catch {
+		const ta = document.createElement('textarea');
+		ta.value = text;
+		ta.setAttribute('readonly', '');
+		ta.style.position = 'fixed';
+		ta.style.opacity = '0';
+		document.body.appendChild(ta);
+		ta.select();
+		let ok = false;
+		try { ok = document.execCommand('copy'); } catch { ok = false; }
+		ta.remove();
+		return ok;
+	}
+}
+
 async function copyLink() {
 	const code = state.lobby?.code;
 	if (!code) return;

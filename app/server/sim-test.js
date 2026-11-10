@@ -1,11 +1,17 @@
 // Headless simulation test: node server/sim-test.js
 import assert from 'node:assert/strict';
 import { Hub, Room } from './game.js';
+import { RUN_ID_RE, runStore, logText } from './runlog.js';
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import {
 	TICK_HZ, MAX_ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, WEAPON_IDS, ENEMIES, REVIVE_SECONDS, HEROES, NO_TRAIT, heroTrait,
 	ITEM_TYPES, ST, ELITE_AFFIXES, ELITE_HP_MUL, MAX_GEMS, SKIP_XP, REROLLS_START, PASSIVES, WEAPONS, BREAK_TILE,
 	breakableAt, xpForNext, PLAYER_RADIUS, ITEMS, MAX_LEVEL, MAX_WEAPONS, MAX_PASSIVES,
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, SYNERGY_PER, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS, teamXpMul,
+	GAME_VERSION, enemyHpScale, enemyDmgScale, BOSS_TIMES, BOSS_POOL, FINAL_BOSS, bossHpScale,
 } from '../public/shared/content.js';
 
 const isInt = (v) => Number.isInteger(v);
@@ -52,9 +58,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward'];
+		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -64,7 +70,7 @@ function checkSnapshot(s) {
 		if (f[0] === 'shot') assert.ok(f[2] >= 0 && f[2] < PROJECTILE_KINDS.length && f[7] > 0 && f[9] <= s.tm + 0.01); // tm has 2 decimals, event times 3
 		if (f[0] === 'pend') assert.ok(f[4] <= s.tm + 0.01);
 	}
-	assert.ok(s.boss === null || (Array.isArray(s.boss) && s.boss.length === 2));
+	assert.ok(s.boss === null || (Array.isArray(s.boss) && s.boss.length === 3 && ENEMIES[ENEMY_TYPES[s.boss[2]]]?.boss), 'boss bar');
 }
 
 function makeHub(onMsg) {
@@ -183,6 +189,37 @@ room.tick(dt);
 assert.equal(room.state, 'over');
 assert.equal(stats.over?.win, false);
 assert.equal(stats.over.stats.length, 3);
+{
+	// Run log: id, per-minute rows, per-player picks/damage, Russian summary, size limit, stored in runStore.
+	const log = stats.over.log;
+	assert.ok(RUN_ID_RE.test(log.id) && stats.over.runId === log.id, 'run id');
+	assert.equal(log.v, GAME_VERSION);
+	assert.equal(log.win, false);
+	assert.equal(log.players, 3);
+	assert.ok(log.minutes.length >= 6, 'minute rows');
+	for (const m of log.minutes) {
+		assert.ok(isInt(m.enemies) && m.hpMul >= 1 && m.lvl.length === 3 && isInt(m.taken) && isInt(m.downs));
+	}
+	assert.ok(log.minutes[5].hpMul > log.minutes[0].hpMul, 'hp scale grows');
+	for (const p of log.team) {
+		assert.ok(HEROES[p.hero] && p.name.startsWith('Бот'));
+		assert.ok(p.picks.length >= p.level - 1 - 3, 'pick history');
+		assert.ok(p.picks.every((e) => typeof e[0] === 'number' && ['pick', 'skip', 'reroll'].includes(e[2])));
+		assert.ok(p.dmgBy.length > 0 && Math.abs(p.dmgBy.reduce((a, d) => a + d.pct, 0) - 100) < 1.5, 'damage shares');
+		assert.ok(p.downs.length >= 1, 'final down logged');
+		assert.ok(p.build.weapons.length >= 1);
+		assert.ok(p.takenTotal > 0 && Object.keys(p.taken).length > 0, 'damage taken by source');
+	}
+	assert.ok(log.team.some((p) => p.ups.length >= 1), 'revive logged');
+	assert.ok(log.summary.length >= 4 && /Топ-3 оружия/.test(log.summary[1]), 'summary');
+	assert.ok(log.summary.some((l) => /легко/i.test(l)) && log.summary.some((l) => /яжел|яжёл/.test(l)), 'easy/hard lines');
+	const text = logText(log);
+	assert.ok(text.length < 30 * 1024, `log text ${text.length} B`);
+	assert.deepEqual(JSON.parse(text.slice(text.indexOf('{'))), log);
+	assert.deepEqual(runStore.get(log.id), log);
+	assert.equal(runStore.list()[0].id, log.id);
+	console.log('run log: ok (%d B, #%s)\n  %s', text.length, log.id, log.summary.join('\n  '));
+}
 hub.handle(1, { t: 'again' });
 assert.equal(room.state, 'lobby');
 hub.handle(2, { t: 'leave' });
@@ -1293,6 +1330,204 @@ console.log('over/again/leave: ok');
 		assert.equal(r4.snapshot().p[0][13], 0);
 		console.log('new weapons lantern/trail/spear/ward: ok');
 	}
+}
+
+// --- bosses: schedule, telegraphs, mechanics ---
+{
+	const fxLog = [];
+	const mk = (heroes = ['smith']) => {
+		fxLog.length = 0;
+		const r = new Room('BOSS', (pid, msg) => { if (msg.t === 's' && pid === 1) for (const f of msg.fx) fxLog.push([msg.tm, f]); });
+		heroes.forEach((hero, i) => r.addPlayer(i + 1, `B${i + 1}`, hero));
+		r.start();
+		for (const h of r.heroes.values()) { h.x = 0; h.y = 0; h.weapons = new Map(); }
+		return r;
+	};
+	const step = (r, sec, each) => {
+		for (let i = 0; i < Math.round(sec * TICK_HZ); i++) {
+			for (const h of r.heroes.values()) { h.hp = h.maxHp; r.handle(h.pid, { t: 'pos', x: h.x, y: h.y, fx: 1, fy: 0 }); }
+			each?.();
+			r.tick(dt);
+		}
+	};
+	const boss = (r, type, x = 300, y = 0) => {
+		const b = r.spawnBoss(type, [...r.heroes.values()]);
+		b.x = x;
+		b.y = y;
+		return b;
+	};
+	const firstFx = (kind, from = 0) => fxLog.find(([t, f]) => f[0] === kind && t >= from);
+
+	// Schedule: 4 regular bosses in random order without repeats, then the Lord; hp grows with time and players.
+	{
+		const r = mk(['knight', 'witch']);
+		const alive = [...r.heroes.values()];
+		const order = [];
+		for (const t of BOSS_TIMES) {
+			r.time = t;
+			const before = r.bosses.length;
+			r.spawn(0.001, alive);
+			assert.equal(r.bosses.length, before + 1, `boss at ${t}`);
+			order.push(ENEMY_TYPES[r.bosses.at(-1).type]);
+		}
+		assert.deepEqual([...order.slice(0, 4)].sort(), [...BOSS_POOL].sort(), 'no repeats');
+		assert.equal(order[4], FINAL_BOSS.type);
+		assert.deepEqual(BOSS_TIMES, [180, 360, 540, 720, 870]);
+		assert.ok(r.bosses[4].maxHp > r.bosses[0].maxHp * 4, 'final is the strongest');
+		assert.ok(bossHpScale(540, 4) > bossHpScale(540, 2) * 1.5 && bossHpScale(540, 2) > bossHpScale(540, 1) * 1.5, 'hp by players');
+		assert.ok(r.runLog.bosses.length === 5 && r.runLog.bosses.every((b) => b.killedAt === null));
+	}
+	// Ram: a lane telegraph ≥ 0.6 s while standing still, then a fast dash.
+	{
+		const r = mk();
+		const b = boss(r, 'ram');
+		let x0 = null, tAim = null, tMove = null;
+		step(r, 3, () => {
+			if (b.bs === 'aim' && tAim === null) { tAim = r.time; x0 = b.x; }
+			if (tAim !== null && tMove === null && b.x !== x0) tMove = r.time;
+		});
+		assert.ok(firstFx('bline'), 'lane fx');
+		assert.ok(tMove - tAim >= 0.6, `ram telegraph ${tMove - tAim}`);
+		assert.ok(Math.abs(b.x - x0) > 200, 'dashed');
+	}
+	// Gunner: windup glow ≥ 0.6 s, then a ring of 16 shards; standing in it hurts.
+	{
+		const r = mk();
+		const b = boss(r, 'gunner');
+		let tWind = null, glow = false;
+		step(r, 6, () => {
+			if (b.bs === 'wind' && tWind === null) tWind = r.time;
+			if (b.windT > 0 && r.enemyState(b) & ST.windup) glow = true;
+		});
+		const shot = firstFx('eshot');
+		assert.ok(glow && shot && shot[0] - tWind >= 0.6, 'gunner telegraph');
+		assert.equal(fxLog.filter(([t, f]) => f[0] === 'eshot' && t === shot[0]).length, 16, 'ring of 16');
+	}
+	// Brood: warn circle, ×2 damage while calling, then a ring of bats.
+	{
+		const r = mk();
+		const b = boss(r, 'brood');
+		b.bcd = 0;
+		r.spawn = () => {};
+		const n0 = r.enemies.length;
+		step(r, 0.2);
+		assert.equal(b.bs, 'call');
+		assert.ok(firstFx('warn'), 'call warn');
+		assert.equal(r.hurtEnemy(b, 10, null), 20, 'vulnerable while calling');
+		step(r, 1.5);
+		assert.ok(r.enemies.filter((e) => ENEMY_TYPES[e.type] === 'bat').length >= 10 && r.enemies.length > n0, 'bats called');
+	}
+	// Twin: splits at half hp into two halves; the chest drops only after both; halves blink after a marked spot.
+	{
+		const r = mk();
+		const b = boss(r, 'twin');
+		r.spawn = () => {};
+		b.hp = b.maxHp * 0.49;
+		step(r, 0.1);
+		const halves = r.bosses.filter((e) => ENEMY_TYPES[e.type] === 'twinhalf');
+		assert.equal(halves.length, 2);
+		assert.ok(b.dead && !r.bosses.includes(b));
+		assert.ok(halves.every((h) => h.group === b.group && h.maxHp < b.maxHp * 0.5));
+		const snapBar = r.snapshot().boss;
+		assert.ok(snapBar[0] > halves[0].maxHp * 1.9 && snapBar[0] / snapBar[1] < 0.7 && ENEMY_TYPES[snapBar[2]] === 'twinhalf', 'one bar for both halves, continued');
+		halves[0].x = 600;
+		let tWarn = null, tJump = null, xBefore = halves[0].x;
+		step(r, 5, () => {
+			if (halves[0].bs === 'blink' && tWarn === null) tWarn = r.time;
+			if (tWarn !== null && tJump === null && halves[0].bs !== 'blink') tJump = r.time;
+		});
+		assert.ok(tJump - tWarn >= 0.6 && halves[0].x < xBefore - 100, 'blink after a warn');
+		fxLog.length = 0;
+		r.hurtEnemy(halves[0], 1e9, null);
+		step(r, 0.2);
+		assert.ok(!fxLog.some(([, f]) => f[0] === 'chest'), 'no chest while a half lives');
+		r.hurtEnemy(halves[1], 1e9, null);
+		step(r, 0.2);
+		assert.ok(fxLog.some(([, f]) => f[0] === 'chest'), 'chest after both');
+		const lb = r.runLog.bosses[0];
+		assert.ok(lb.type === 'twin' && lb.killedAt !== null && lb.sec > 0, 'log: twin killed');
+	}
+	// Lord: the shock ring is marked ≥ 0.6 s before it hits; a player who stays inside gets hurt, one who leaves does not.
+	{
+		const r = mk(['smith', 'knight']);
+		r.spawn = () => {};
+		const b = boss(r, 'boss', 150, 0);
+		b.speed = 0;
+		const [h1, h2] = [r.heroes.get(1), r.heroes.get(2)];
+		b.bcd = 0;
+		let warned = null;
+		const hp1 = [];
+		for (let i = 0; i < 1.2 * TICK_HZ; i++) {
+			h2.x = 2000;
+			r.handle(1, { t: 'pos', x: h1.x, y: h1.y, fx: 1, fy: 0 });
+			r.tick(dt);
+			hp1.push([r.time, h1.hp]);
+			if (warned === null && r.blasts.some((x) => x.from === 'boss:wave')) warned = r.time;
+		}
+		const hit = hp1.find(([, v]) => v < h1.maxHp);
+		assert.ok(warned !== null && hit && hit[0] - warned >= 0.6, 'lord wave telegraph');
+		const dn = r.runLog.p.get(1).taken['boss:wave'];
+		assert.ok(dn > 0, 'log: damage from the boss attack');
+	}
+	console.log('bosses x5: schedule, telegraphs, mechanics: ok');
+}
+
+// --- run log: choices, store on disk, /api/runs over HTTP ---
+{
+	const sent = [];
+	const r = new Room('LOGS', (pid, msg) => sent.push(msg));
+	r.addPlayer(1, 'Аня', 'witch');
+	r.start();
+	const h = r.heroes.get(1);
+	r.addXp(h, xpForNext(1, 1) + xpForNext(2, 1) + xpForNext(3, 1) + 1);
+	r.handle(1, { t: 'reroll' });
+	r.handle(1, { t: 'skip' });
+	r.handle(1, { t: 'pick', i: 0 });
+	const acts = r.runLog.p.get(1).picks.map((e) => e[2]);
+	assert.deepEqual(acts.slice(0, 3), ['reroll', 'skip', 'pick']);
+	assert.ok(r.runLog.p.get(1).picks.every((e) => e[1] >= 2 && typeof e[e.length - 1] === 'string'), 'offer list kept');
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-runs-'));
+	runStore.persist(dir);
+	r.time = 125;
+	r.finish(true);
+	const log = r.lastLog;
+	assert.ok(fs.existsSync(path.join(dir, `${log.id}.json`)) || await new Promise((ok) => setTimeout(() => ok(fs.existsSync(path.join(dir, `${log.id}.json`))), 200)), 'written to disk');
+	assert.equal(log.win, true);
+	assert.ok(/победа на 2:05/.test(log.summary[0]));
+	runStore.dir = null;
+	for (let i = 0; i < 35; i++) runStore.add({ ...log, id: 'Z' + String(i).padStart(5, '0') });
+	assert.equal(runStore.runs.length, 30, 'keeps last 30 in memory');
+	// Soft start is unchanged: solo and groups share the same curve before 3:00; groups get harder after it, solo does not.
+	for (const n of [1, 2, 4]) assert.equal(enemyHpScale(170, n), enemyHpScale(170, n) && (1 + 0.12 * 2) * (1 + 0.55 * (n - 1) + 0.05 * (n - 1) ** 2), 'pre-3:00 hp curve');
+	assert.ok(enemyHpScale(600, 2) / enemyHpScale(180, 2) > 2 * (enemyHpScale(600, 1) / enemyHpScale(180, 1)), 'groups ramp after 3:00');
+	assert.ok(enemyHpScale(600, 1) <= (1 + 0.12 * 10 + 0.02 * 49), 'solo not harder');
+	assert.equal(enemyDmgScale(600, 1), 1 + 0.06 * 7);
+	assert.ok(enemyDmgScale(600, 4) > enemyDmgScale(600, 2));
+
+	// HTTP: a fresh server loads the stored runs from disk.
+	const port = 3600 + Math.floor(Math.random() * 300);
+	const srv = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], { env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir }, stdio: 'ignore' });
+	try {
+		const get = async (p) => {
+			for (let i = 0; i < 50; i++) {
+				try { return await fetch(`http://127.0.0.1:${port}${p}`); } catch { await new Promise((ok) => setTimeout(ok, 100)); }
+			}
+			throw new Error('server did not start');
+		};
+		const list = await (await get('/api/runs')).json();
+		assert.ok(list.runs.some((x) => x.id === log.id && x.win === true && x.players[0].name === 'Аня'), 'list');
+		const one = await get(`/api/runs/${log.id}`);
+		assert.equal(one.status, 200);
+		assert.equal((await one.json()).id, log.id);
+		const txt = await (await get(`/api/runs/${log.id.toLowerCase()}.txt`)).text();
+		assert.ok(txt.startsWith('Ночная орда') && txt.includes(`"id":"${log.id}"`));
+		assert.equal((await get('/api/runs/NOPE00')).status, 404);
+		assert.equal((await get('/api/runs/../../etc')).status, 404);
+	} finally {
+		srv.kill();
+		fs.rmSync(dir, { recursive: true, force: true });
+	}
+	console.log('run log store + /api/runs: ok');
 }
 
 console.log('OK');

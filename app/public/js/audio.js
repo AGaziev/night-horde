@@ -439,7 +439,7 @@ export class Sound {
 			case 'die': {
 				const def = ENEMIES[ENEMY_TYPES[ev[3]]] || ENEMIES.bat;
 				const r = def.r || 12;
-				if (def === ENEMIES.boss) {
+				if (def.boss) {
 					if (!(v = this.voice('bigdie', 0.5, 0, 0, 2.5))) return;
 					this.thump(v.out, v.t, 120, 32, 1.4, 0.9);
 					this.hiss(v.out, v.t, 'lowpass', 1800, 120, 0.8, 1.6, 0.6);

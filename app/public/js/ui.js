@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -318,6 +318,10 @@ export class UI {
 			body.appendChild(tr);
 		}
 		$('over-again').hidden = !isHost;
+		const log = msg.log && typeof msg.log === 'object' ? msg.log : null;
+		this.runLog = log;
+		$('over-log').hidden = !log;
+		$('over-runid').textContent = log ? `Лог #${log.id}` : '';
 	}
 
 	// HUD (writes to the DOM only when values change)
@@ -399,6 +403,7 @@ export class UI {
 		// Boss.
 		const boss = snap.boss;
 		this.set('hud-boss', 'hidden', !boss);
+		if (boss && boss[2] !== undefined) this.set('hud-boss-name', 'text', ENEMIES[ENEMY_TYPES[boss[2]]]?.name || 'Босс');
 		if (boss) this.set('hud-boss-fill', 'width', `${Math.max(0, Math.min(100, (boss[0] / (boss[1] || 1)) * 100)).toFixed(1)}%`);
 	}
 

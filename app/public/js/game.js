@@ -69,6 +69,7 @@ export class Game {
 		this.hostile = new Map(); // enemy projectile id -> {x, y, vx, vy, st, end}
 		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
 		this.warns = [];
+		this.blines = []; // boss charge lanes {x1, y1, x2, y2, w, t, life}
 		this.broken = new Set(); // broken prop tiles, key tx * 100003 + ty
 		this.eliteAffix = new Map(); // enemy id -> index in ELITE_AFFIXES
 		this.orbs = new Map(); // ball lightning id -> {x0, y0, x1, y1, speed, st, life, r}
@@ -99,6 +100,7 @@ export class Game {
 		this.hostile.clear();
 		this.lobs.clear();
 		this.warns.length = 0;
+		this.blines.length = 0;
 		this.broken.clear();
 		this.eliteAffix.clear();
 		this.orbs.clear();
@@ -542,7 +544,7 @@ export class Game {
 			}
 			case 'die': {
 				const def = ENEMIES[ENEMY_TYPES[ev[3]]] || ENEMIES.bat;
-				this.burst(+ev[1], +ev[2], def.color, def === ENEMIES.boss ? 60 : def.r > 15 ? 14 : 8, def.r);
+				this.burst(+ev[1], +ev[2], def.color, def.boss ? 60 : def.r > 15 ? 14 : 8, def.r);
 				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.3, r0: def.r * 0.5, r1: def.r * 2, color: def.color });
 				break;
 			}
@@ -582,7 +584,7 @@ export class Game {
 			case 'boom': {
 				const x = +ev[1], y = +ev[2], r = +ev[3] || 60, kind = ev[4] | 0;
 				// 0 petard, 1 bloater, 2 volatile, 3 ball lightning, 4 ice grenade, 5 mine/pit, 6 molotov, 7 ward, 8 fireworks.
-				const color = ['#ffb74d', '#ef9a9a', '#ef9a9a', '#e1f5fe', '#81d4fa', '#ffa726', '#ff7043', '#ffe082', '#f48fb1'][kind] || '#ffb74d';
+				const color = ['#ffb74d', '#ef9a9a', '#ef9a9a', '#e1f5fe', '#81d4fa', '#ffa726', '#ff7043', '#ffe082', '#f48fb1', '#ea80fc'][kind] || '#ffb74d';
 				if (kind === 8) for (const c of ['#ff8a80', '#ffff8d', '#80d8ff', '#b9f6ca']) this.burst(x, y, c, 8, r * 0.4);
 				this.burst(x, y, color, 18, r * 0.3);
 				this.burst(x, y, '#fff3e0', 8, r * 0.15);
@@ -590,6 +592,9 @@ export class Game {
 				if (Math.hypot(x - this.local.x, y - this.local.y) < 260) this.shake = Math.min(12, this.shake + (kind === 0 ? 3 : 6));
 				break;
 			}
+			case 'bline':
+				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
+				break;
 			case 'warn':
 				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
 				break;
@@ -708,6 +713,7 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.warns, (w) => (w.t += dt) < w.life);
+		compact(this.blines, (l) => (l.t += dt) < l.life);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);

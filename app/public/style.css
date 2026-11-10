@@ -380,6 +380,9 @@ input[type="text"]:focus { border-color: var(--accent); }
 .over-title { font-size: clamp(2rem, 8vw, 3rem); font-weight: 900; text-align: center; }
 .over-title.win { color: var(--accent); }
 .over-title.lose { color: var(--danger); }
+.over-log { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; margin-top: 16px; }
+.over-runid { font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; margin-right: 4px; }
+.over-log-hint { flex-basis: 100%; text-align: center; margin: 0; font-size: 0.85rem; }
 .table-wrap { overflow-x: auto; margin-top: 16px; }
 .stats { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
 .stats th { text-align: left; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 6px 8px; }

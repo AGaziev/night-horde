@@ -10,7 +10,9 @@ import {
 	MAGNET_ITEM_EVERY, BREAK_TILE, BREAK_R, BREAK_DROPS, breakableAt, HOSTILE_R,
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, DUO_MIN_LEVEL, DUO_DEFER_OFFERS, duoStartLevel, weaponDef, weaponMaxLevel,
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
+	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale,
 } from '../public/shared/content.js';
+import { RunLog, runStore, enemyKey } from './runlog.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 const CELL = 64;
@@ -313,6 +315,7 @@ export class Room {
 		this.puddles = [];
 		this.bosses = [];
 		this.bossIdx = 0;
+		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
 		this.blasts = [];
 		this.traps = [];
@@ -348,6 +351,7 @@ export class Room {
 			const r = list.length > 1 ? 50 : 0;
 			this.heroes.set(m.pid, makeHero(m, Math.cos(a) * r, Math.sin(a) * r));
 		});
+		this.runLog = new RunLog(this);
 		this.broadcast(this.startMsg());
 	}
 
@@ -521,6 +525,7 @@ export class Room {
 		h.fused.add(b);
 		this.traps = this.traps.filter((t) => t.owner !== h); // trap-based parts start a fresh field
 		this.fx.push(['duo', h.pid, card.id]);
+		this.runLog?.fused(this, h, 'duo', card.id);
 		this.updateSynergy();
 		return true;
 	}
@@ -538,6 +543,7 @@ export class Room {
 		const i = num(msg.i);
 		if (!h?.offer || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
+		this.runLog?.choice(this, h, 'pick', c, h.offer);
 		this.deferSkippedDuos(h, c);
 		if (c.kind === 'duo') {
 			this.fuseDuo(h, c);
@@ -604,6 +610,7 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		if (!h?.offer || h.rerolls <= 0) return;
+		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h);
 		this.sendOffer(h);
@@ -614,6 +621,7 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		if (!h?.offer) return;
+		this.runLog?.choice(this, h, 'skip', null, h.offer);
 		this.deferSkippedDuos(h, null);
 		this.nextOffer(h);
 		this.addXp(h, SKIP_XP);
@@ -675,6 +683,7 @@ export class Room {
 			}
 		}
 
+		this.runLog?.tick(this);
 		if (this.checkAllDown()) return;
 		if (this.time >= RUN_SECONDS) {
 			this.finish(true);
@@ -696,9 +705,9 @@ export class Room {
 		const hp = E.hp * hpMul;
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
-			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.time), dmgMul: enemyDmgScale(this.time), r: E.r, xp: E.xp,
+			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.time, this.heroes.size), dmgMul: enemyDmgScale(this.time, this.heroes.size), r: E.r, xp: E.xp,
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
-			boss: type === 'boss', ai: E.ai ?? null,
+			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
 			burnT: 0, burnDps: 0, burnOwner: null, burnAcc: 0,
 			elite: null, windT: 0, fuseT: 0, shotT: E.shotCd ? E.shotCd * (0.5 + Math.random() * 0.5) : 0,
@@ -711,10 +720,9 @@ export class Room {
 	spawn(dt, alive) {
 		const n = this.heroes.size;
 		while (this.bossIdx < BOSS_TIMES.length && this.time >= BOSS_TIMES[this.bossIdx]) {
+			const type = this.bossIdx < BOSS_SCHEDULE.length ? this.bossPlan[this.bossIdx % this.bossPlan.length] : FINAL_BOSS.type;
 			this.bossIdx++;
-			const b = this.spawnEnemy('boss', alive, n);
-			this.bosses.push(b);
-			this.fx.push(['boss', ENEMIES.boss.name]);
+			this.spawnBoss(type, alive);
 		}
 		const wave = this.currentWave();
 		this.spawnAcc += wave.rate * spawnRateScale(n) * dt;
@@ -728,6 +736,15 @@ export class Room {
 			}
 			this.spawnEnemy(this.waveType(wave), alive, hpMul);
 		}
+	}
+
+	spawnBoss(type, alive) {
+		const b = this.spawnEnemy(type, alive, bossHpScale(this.time, this.heroes.size));
+		b.group = b.id;
+		this.bosses.push(b);
+		this.fx.push(['boss', ENEMIES[type].name]);
+		this.runLog?.bossSpawn(this, b);
+		return b;
 	}
 
 	currentWave() {
@@ -786,6 +803,7 @@ export class Room {
 			if (bd > FAR_DIST2) {
 				[e.x, e.y] = this.randomRingPos(alive);
 				e.windT = 0;
+				e.bs = 0;
 				continue;
 			}
 			if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
@@ -798,6 +816,7 @@ export class Room {
 			// Stop at contact distance so enemies don't stack on the player.
 			let speed = e.slowT > now ? e.speed * (1 - e.slow) : e.speed;
 			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
+			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
 			if (e.ai === 'ranged') {
 				if (this.rangedTick(e, best, d, dt)) continue;
 				const [kmin, kmax] = e.def.keep;
@@ -850,6 +869,217 @@ export class Room {
 		}
 	}
 
+	// --- bosses: every attack is telegraphed (warn circle, lane or windup glow) for ≥ 0.6 s. Returns true when it moved itself.
+
+	bossTick(e, t, d, dx, dy, speed, dt) {
+		const E = e.def;
+		const rage = E.rage && e.hp < e.maxHp * E.rage;
+		if (e.windT > 0) e.windT = Math.max(0, e.windT - dt);
+		switch (e.bk) {
+			case 'ram':
+				return this.dashTick(e, t, d, dt, true);
+			case 'brood': {
+				if (e.bs === 'call') {
+					e.bt -= dt;
+					if (e.bt <= 0) {
+						this.summon(e, E.call, e.tx, e.ty);
+						e.bs = 0;
+						e.bcd = E.callCd * (rage ? 0.8 : 1);
+					}
+					return true;
+				}
+				if (this.dashTick(e, t, d, dt, rage)) return true;
+				e.bcd -= dt;
+				if (e.bcd <= 0 && d < 700) {
+					e.bs = 'call';
+					e.bt = e.windT = E.windup;
+					e.vulnT = this.time + E.windup;
+					e.tx = t.x;
+					e.ty = t.y;
+					this.fx.push(['warn', Math.round(t.x), Math.round(t.y), E.call.ring + 20, round3(E.windup)]);
+					return true;
+				}
+				return false;
+			}
+			case 'gunner': {
+				if (e.bs === 'wind') {
+					e.bt -= dt;
+					if (e.bt <= 0) {
+						e.bs = 0;
+						e.bcd = E.cd;
+						this.shotRing(e, E.shots, E.shotSpeed, E.shotDmg, E.shotLife, Math.random() * Math.PI);
+						if (rage) this.after(0.35, () => !e.dead && this.shotRing(e, E.shots, E.shotSpeed, E.shotDmg, E.shotLife, Math.random() * Math.PI));
+					}
+					return true;
+				}
+				e.bcd -= dt;
+				if (e.bcd <= 0 && d < 600) {
+					e.bs = 'wind';
+					e.bt = e.windT = E.windup;
+					return true;
+				}
+				const [kmin, kmax] = E.keep;
+				if (d < kmin) this.bossStep(e, -dx, -dy, speed, dt);
+				else if (d <= kmax) {
+					const sg = Math.sin(e.phase + this.time * 0.3) >= 0 ? 1 : -1;
+					this.bossStep(e, -dy * sg, dx * sg, speed * 0.6, dt);
+				} else this.bossStep(e, dx, dy, speed, dt);
+				return true;
+			}
+			case 'twin':
+				if (!e.split && e.hp > 0 && e.hp <= e.maxHp * E.splitAt) {
+					this.splitTwin(e);
+					return true;
+				}
+				return false;
+			case 'half': {
+				if (e.bs === 'blink') {
+					e.bt -= dt;
+					if (e.bt <= 0) {
+						this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+						e.x = e.tx;
+						e.y = e.ty;
+						e.bs = 0;
+						e.bcd = E.blinkCd;
+					}
+					return true;
+				}
+				e.bcd -= dt;
+				if (e.bcd <= 0 && d > 120 && d < 900) {
+					const step = Math.min(E.blinkDist, d - e.r - PLAYER_RADIUS);
+					e.tx = e.x + dx * step;
+					e.ty = e.y + dy * step;
+					e.bs = 'blink';
+					e.bt = e.windT = E.blinkWarn;
+					this.fx.push(['warn', Math.round(e.tx), Math.round(e.ty), Math.round(e.r + 24), round3(E.blinkWarn)]);
+					return true;
+				}
+				return false;
+			}
+			case 'lord':
+				return this.lordTick(e, t, d, dt, rage);
+		}
+		return false;
+	}
+
+	bossStep(e, dx, dy, speed, dt) {
+		e.x += dx * speed * dt;
+		e.y += dy * speed * dt;
+	}
+
+	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
+	dashTick(e, t, d, dt, allowed) {
+		const E = e.def;
+		if (e.bs === 'aim') {
+			e.bt -= dt;
+			if (e.bt <= 0) {
+				e.bs = 'dash';
+				e.bt = E.dashTime;
+			}
+			return true;
+		}
+		if (e.bs === 'dash') {
+			e.bt -= dt;
+			this.bossStep(e, e.bvx, e.bvy, E.dashSpeed, dt);
+			if (e.bt <= 0) {
+				e.bs = 'rest';
+				e.bt = E.rest;
+			}
+			return true;
+		}
+		if (e.bs === 'rest') {
+			e.bt -= dt;
+			if (e.bt <= 0) e.bs = 0;
+			return true;
+		}
+		e.dcd -= dt;
+		if (!allowed || e.dcd > 0 || d > E.trigger || d < e.r) return false;
+		const l = d || 1;
+		e.bvx = (t.x - e.x) / l;
+		e.bvy = (t.y - e.y) / l;
+		e.bs = 'aim';
+		e.bt = e.windT = E.dashWarn;
+		e.dcd = 0.5;
+		const len = E.dashSpeed * E.dashTime;
+		this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + e.bvx * len), Math.round(e.y + e.bvy * len), Math.round(e.r * 2), round3(E.dashWarn)]);
+		return true;
+	}
+
+	// The Lord cycles: shock ring around itself → ring of bolts → swarm call. Faster below half hp.
+	lordTick(e, t, d, dt, rage) {
+		const E = e.def;
+		if (e.bs === 'ring') {
+			e.bt -= dt;
+			if (e.bt <= 0) {
+				e.bs = 0;
+				this.shotRing(e, E.ring.shots, E.ring.speed, E.ring.dmg, E.ring.life, Math.random() * Math.PI);
+				if (rage) this.after(0.4, () => !e.dead && this.shotRing(e, E.ring.shots, E.ring.speed, E.ring.dmg, E.ring.life, Math.random() * Math.PI));
+			}
+			return true;
+		}
+		e.bcd -= dt;
+		if (e.bcd > 0 || d > 700) return false;
+		e.bcd = E.cd * (rage ? 0.65 : 1);
+		const move = e.bt2 = ((e.bt2 ?? -1) + 1) % 3;
+		if (move === 0) {
+			this.addBlast(e.x, e.y, E.wave.r, E.wave.dmg * e.dmgMul, 0, null, 9, E.wave.warn, SRC_NONE, 'boss:wave');
+			return false;
+		}
+		if (move === 1) {
+			e.bs = 'ring';
+			e.bt = e.windT = E.ring.windup;
+			return true;
+		}
+		const tx = t.x, ty = t.y;
+		this.fx.push(['warn', Math.round(tx), Math.round(ty), E.call.ring + 20, round3(E.call.warn)]);
+		this.after(E.call.warn, () => !e.dead && this.summon(e, E.call, tx, ty));
+		return false;
+	}
+
+	summon(e, call, x, y) {
+		const alive = [...this.heroes.values()].filter((h) => h.st === 0);
+		if (!alive.length) return;
+		const count = Math.round(call.count * (1 + 0.25 * (this.heroes.size - 1)));
+		const hpMul = enemyHpScale(this.time, this.heroes.size);
+		for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 60; i++) {
+			const m = this.spawnEnemy(call.type, alive, hpMul);
+			const a = (i / count) * Math.PI * 2;
+			m.x = x + Math.cos(a) * call.ring;
+			m.y = y + Math.sin(a) * call.ring;
+		}
+	}
+
+	shotRing(e, n, speed, dmg, life, a0) {
+		for (let i = 0; i < n; i++) {
+			const a = a0 + (i / n) * Math.PI * 2;
+			const s = { id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, dmg: dmg * e.dmgMul, from: enemyKey(e) + ':shot' };
+			this.hostile.push(s);
+			this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
+		}
+	}
+
+	// The twin leaves the field (no kill, no chest) and two halves take over its group; the chest drops after both.
+	splitTwin(e) {
+		const E = e.def;
+		e.split = true;
+		e.dead = true;
+		const bi = this.bosses.indexOf(e);
+		if (bi >= 0) this.bosses.splice(bi, 1);
+		this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+		for (const side of [-1, 1]) {
+			const h = this.spawnEnemy('twinhalf', [...this.heroes.values()].filter((p) => p.st === 0), 1);
+			h.hp = h.maxHp = e.maxHp * E.halfHp;
+			h.x = e.x + side * 50;
+			h.y = e.y;
+			h.dmgMul = e.dmgMul;
+			h.dmg = h.def.dmg * e.dmgMul;
+			h.group = e.group;
+			h.barMax = e.maxHp / 2; // the bar continues from the whole twin's hp
+			h.bcd = 1.5 + (side > 0 ? 1.2 : 0);
+			this.bosses.push(h);
+		}
+	}
+
 	// Ranged enemy: wind up, then spit at the target's current position. Returns true while it stands still.
 	rangedTick(e, target, d, dt) {
 		const E = e.def;
@@ -876,7 +1106,7 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		const s = {
 			id: this.nextId++, x: e.x, y: e.y, vx: (dx / d) * E.shotSpeed, vy: (dy / d) * E.shotSpeed,
-			life: E.shotLife, dmg: E.shotDmg * e.dmgMul,
+			life: E.shotLife, dmg: E.shotDmg * e.dmgMul, from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
@@ -893,7 +1123,7 @@ export class Room {
 				const min = HOSTILE_R + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
 					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
-					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg);
+					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;
 				}
@@ -977,6 +1207,7 @@ export class Room {
 		const now = this.time;
 		let crit = false;
 		if (!src.raw && e.markT > now) dmg *= 1 + e.markMul;
+		if (e.vulnT > now) dmg *= e.def.vuln ?? 1;
 		if (h && !src.raw) {
 			if (h.rageT > now) dmg *= ITEMS.rage.mul;
 			if (this.synergy > 0) dmg *= 1 + this.synergy;
@@ -1054,14 +1285,17 @@ export class Room {
 		const bi = this.bosses.indexOf(e);
 		if (bi >= 0) {
 			this.bosses.splice(bi, 1);
-			this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
-			for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p);
+			if (!this.bosses.some((o) => o.group === e.group)) {
+				this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
+				this.runLog?.bossKilled(this, e);
+				for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p);
+			}
 		}
 	}
 
 	// kind: 0 petard (enemies only), 1 bloater, 2 volatile elite (both hurt players too).
-	addBlast(x, y, r, pdmg, edmg, owner, kind, delay, src = SRC_BLAST) {
-		const b = { x, y, r, pdmg, edmg, owner, kind, t: this.time + delay, src };
+	addBlast(x, y, r, pdmg, edmg, owner, kind, delay, src = SRC_BLAST, from = null) {
+		const b = { x, y, r, pdmg, edmg, owner, kind, t: this.time + delay, src, from };
 		if (delay <= 0) {
 			this.explode(b);
 			return;
@@ -1095,7 +1329,7 @@ export class Room {
 		if (b.pdmg > 0) {
 			for (const h of this.heroes.values()) {
 				const rr = b.r + PLAYER_RADIUS;
-				if (h.st === 0 && h.iframes <= 0 && dist2(h.x, h.y, b.x, b.y) < rr * rr) this.hurtPlayer(h, b.pdmg);
+				if (h.st === 0 && h.iframes <= 0 && dist2(h.x, h.y, b.x, b.y) < rr * rr) this.hurtPlayer(h, b.pdmg, b.from ?? (b.kind === 2 ? 'elite:blast' : 'bloater:blast'));
 			}
 		}
 		if (b.owner) this.breakAround(b.x, b.y, b.r, b.owner);
@@ -1296,7 +1530,7 @@ export class Room {
 					continue;
 				}
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now) continue;
-				this.hurtPlayer(h, e.dmg);
+				this.hurtPlayer(h, e.dmg, e.elite ? 'elite' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -1305,12 +1539,14 @@ export class Room {
 		}
 	}
 
-	hurtPlayer(h, dmg) {
+	hurtPlayer(h, dmg, from = 'other') {
 		if (h.ward > 0) {
 			this.wardAbsorb(h);
 			return;
 		}
-		h.hp -= Math.max(1, dmg * h.trait.dmgTaken - h.mods.armor);
+		const lost = Math.min(h.hp, Math.max(1, dmg * h.trait.dmgTaken - h.mods.armor));
+		h.hp -= lost;
+		this.runLog?.hurt(this, h, lost, from);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['hurt', h.pid]);
 		if (h.hp <= 0) {
@@ -1747,6 +1983,7 @@ export class Room {
 		h.weapons = next;
 		h.evolved.add(E.from);
 		this.fx.push(['evo', h.pid, card.id]);
+		this.runLog?.fused(this, h, 'evo', card.id);
 		return true;
 	}
 
@@ -2566,6 +2803,7 @@ export class Room {
 				h.iframes = REVIVE_IFRAMES;
 				h.lastPosT = this.time;
 				this.fx.push(['up', h.pid]);
+				this.runLog?.up(this, h);
 			}
 		}
 	}
@@ -2584,9 +2822,13 @@ export class Room {
 			h.offer = null;
 			h.queue = 0;
 		}
+		const log = this.runLog?.build(this, win) ?? null;
+		if (log) runStore.add(log);
+		this.lastLog = log;
 		this.overMsg = {
 			t: 'over', win, time: Math.round(this.time * 10) / 10, host: this.host,
 			stats: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level })),
+			runId: log?.id ?? null, log,
 		};
 		this.broadcast(this.overMsg);
 	}
@@ -2640,9 +2882,16 @@ export class Room {
 		const it = [];
 		for (const i of this.items) if (visible(i.x, i.y)) it.push(i.id, i.type, Math.round(i.x), Math.round(i.y));
 		const boss = this.bosses.find((x) => !x.dead);
+		let bossBar = null;
+		if (boss) {
+			// Group bar: a split twin shows both halves as one bar; [hp, maxHp, enemy type].
+			let hp = 0, max = 0;
+			for (const o of this.bosses) if (o.group === boss.group && !o.dead) { hp += o.hp; max += o.barMax ?? o.maxHp; }
+			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
+		}
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
-			fx: this.fx, boss: boss ? [Math.ceil(boss.hp), Math.round(boss.maxHp)] : null,
+			fx: this.fx, boss: bossBar,
 		};
 		this.fx = [];
 		this.hitFx = 0;
