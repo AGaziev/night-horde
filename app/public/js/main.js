@@ -3,7 +3,7 @@ import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
 import { Renderer } from './render.js';
-import { UI, rememberDuo, fmtTime } from './ui.js';
+import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
 import { Sound } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -40,6 +40,10 @@ const state = {
 	host: null,
 	myReady: false,
 	urlRoom: (new URLSearchParams(location.search).get('room') || '').trim().toUpperCase(),
+	// v22: srv — the server keeps this player's progress (portal user, storage on); board — weekly records are on.
+	srv: false,
+	board: false,
+	migSent: false,
 };
 
 function goMenu() {
@@ -49,6 +53,7 @@ function goMenu() {
 	ui.show('menu');
 	sound.setMode('menu');
 	net.send({ t: 'list' });
+	if (state.board) net.send({ t: 'top' });
 }
 
 function goGame() {
@@ -98,6 +103,31 @@ net.on('welcome', (msg) => {
 		history.replaceState(null, '', location.pathname);
 	}
 });
+
+// v22: progress from the server. The first time the browser hands over its own totals once (the server keeps the
+// bigger of both); afterwards the server's totals replace the local ones, localStorage is only a cache.
+net.on('prog', (msg) => {
+	const boardWas = state.board;
+	state.board = msg.board === true;
+	ui.setBoard(state.board);
+	if (state.board && !boardWas && ui.screen === 'menu') net.send({ t: 'top' });
+	if (!msg.srv || !msg.ach) return;
+	if (!msg.mig) {
+		if (!state.migSent) {
+			state.migSent = true;
+			net.send({ t: 'mig', ach: ach.stats, duos: [...knownDuos()] });
+		}
+		return;
+	}
+	state.srv = true;
+	ach.stats = mergeAchStats({}, msg.ach);
+	store.set('nh.ach', JSON.stringify(ach.stats));
+	rememberDuos(msg.duos);
+	ui.setUnlocks(unlocked(), ach.stats);
+	ui.setLords(ach.stats.lords);
+});
+
+net.on('top', (msg) => ui.renderTop(msg));
 
 net.on('rooms', (msg) => {
 	ui.renderRooms(msg.rooms, joinRoom);
@@ -194,7 +224,8 @@ function takeAchievements(msg) {
 	if (!mine?.ach || (msg.runId && store.get('nh.achRun') === msg.runId)) return [];
 	if (msg.runId) store.set('nh.achRun', msg.runId);
 	const before = unlocked();
-	ach.stats = mergeAchStats(ach.stats, mine.ach);
+	// v22: a portal user gets the server's totals after the run (`tot`), a guest adds the run locally as before.
+	ach.stats = mine.tot ? mergeAchStats({}, mine.tot) : mergeAchStats(ach.stats, mine.ach);
 	store.set('nh.ach', JSON.stringify(ach.stats));
 	ui.setUnlocks(unlocked(), ach.stats);
 	ui.setLords(ach.stats.lords);
@@ -398,6 +429,7 @@ $('menu-code').addEventListener('keydown', (e) => {
 	if (e.key === 'Enter') joinRoom(e.target.value);
 });
 $('menu-refresh').addEventListener('click', () => net.send({ t: 'list' }));
+$('top-refresh').addEventListener('click', () => net.send({ t: 'top' }));
 
 $('lobby-ready').addEventListener('click', () => net.send({ t: 'ready', v: !state.myReady }));
 $('lobby-start').addEventListener('click', () => net.send({ t: 'start' }));

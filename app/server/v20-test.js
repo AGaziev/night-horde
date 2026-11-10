@@ -35,8 +35,8 @@ function setBuild(r, h, weapons, passives = ['crit', 'mail', 'area', 'regen'], l
 }
 const NO_PAIRS = ['whip', 'bolt', 'knives', 'ward', 'lantern', 'frost']; // no duo pairs, no evolutions with the artifacts above
 
-assert.equal(GAME_VERSION, 'v21');
-assert.equal(PROTO, 18);
+assert.equal(GAME_VERSION, 'v22');
+assert.equal(PROTO, 19);
 
 // --- table: two variants for each of the 15 plain weapons, one-line descriptions, stats patched only at level 5 ---
 {

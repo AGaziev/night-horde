@@ -1783,7 +1783,7 @@ console.log('over/again/leave: ok');
 
 	// HTTP: a fresh server loads the stored runs from disk.
 	const port = 3600 + Math.floor(Math.random() * 300);
-	const srv = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], { env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir }, stdio: 'ignore' });
+	const srv = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], { env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: 'ignore' });
 	try {
 		const get = async (p) => {
 			for (let i = 0; i < 50; i++) {
@@ -1801,7 +1801,7 @@ console.log('over/again/leave: ok');
 		assert.equal((await get('/api/runs/NOPE00')).status, 404);
 		assert.equal((await get('/api/runs/../../etc')).status, 404);
 		const busy = await (await get('/api/busy')).json();
-		assert.deepEqual(busy, { playing: 0, players: 0, online: 0, v: GAME_VERSION }, '/api/busy: idle server');
+		assert.deepEqual(busy, { playing: 0, players: 0, online: 0, v: GAME_VERSION, storage: false }, '/api/busy: idle server, no storage key');
 	} finally {
 		srv.kill();
 		fs.rmSync(dir, { recursive: true, force: true });

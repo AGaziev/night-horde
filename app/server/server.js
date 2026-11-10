@@ -8,6 +8,7 @@ import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
 import { TICK_HZ, GAME_VERSION } from '../public/shared/content.js';
+import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.resolve(fileURLToPath(new URL('../public/', import.meta.url)));
@@ -24,6 +25,17 @@ const SID_RE = /^[A-Za-z0-9_-]{8,64}$/;
 const RUNS_DIR = process.env.HORDE_RUNS_DIR || '/tmp/horde-runs';
 
 runStore.persist(RUNS_DIR);
+
+// v22: player progress in the Vibecode app storage; without the key everything stays in the browser.
+const STORAGE_TICK_MS = 2_000;
+const APP_KEY = process.env.VIBE_APP_KEY || '';
+// Only for local test runs: a key prefix such as «selftest/» (letters, digits, - _ /), empty on production.
+const STORAGE_PREFIX = /^[A-Za-z0-9_-]+\/$/.test(process.env.HORDE_STORAGE_PREFIX ?? '') ? process.env.HORDE_STORAGE_PREFIX : '';
+const store = new ProgressStore({
+	backend: APP_KEY ? vibeBackend(APP_KEY, { prefix: STORAGE_PREFIX }) : null,
+	onLoaded: (uid) => sendProgress(uid),
+});
+console.log(`storage: ${store.enabled ? `on${STORAGE_PREFIX ? `, prefix ${STORAGE_PREFIX}` : ''}` : 'off (no VIBE_APP_KEY)'}`);
 
 const MIME = {
 	'.html': 'text/html; charset=utf-8',
@@ -68,14 +80,47 @@ function headerName(req) {
 function createSession(req) {
 	const sid = crypto.randomBytes(16).toString('base64url');
 	const pid = nextPid++;
-	const name = headerName(req) || `Игрок ${++guestNo}`;
-	const s = { sid, pid, conn: null, timer: null, tokens: MSG_RATE_PER_SEC, tokensAt: Date.now() };
+	const portalName = headerName(req);
+	const name = portalName || `Игрок ${++guestNo}`;
+	// Only a numeric X-Vibe-User-Id is a portal user; guests and prefixed ids keep progress in the browser.
+	const uid = bitrixUid(req.headers['x-vibe-user-id']);
+	const s = { sid, pid, uid, portalName, migSent: false, conn: null, timer: null, tokens: MSG_RATE_PER_SEC, tokensAt: Date.now() };
 	sessions.set(sid, s);
 	byPid.set(pid, s);
 	hub.addPlayer(pid, name);
 	scheduleRemoval(s, UNUSED_SESSION_MS);
+	if (uid && store.enabled) {
+		store.retain(uid).then((rec) => rec && sendProgress(uid));
+	}
 	return s;
 }
+
+function sendProgress(uid) {
+	const rec = store.record(uid);
+	const json = JSON.stringify(progressMsg(store, rec));
+	for (const s of sessions.values()) {
+		if (s.uid !== uid) continue;
+		s.conn?.send(json, false);
+		syncUnlocked(s);
+	}
+}
+
+// Totals and weekly records at the end of a run (called by the room, synchronously, before `over`).
+hub.onRunEnd = (info) => {
+	const tot = new Map();
+	if (!store.enabled) return tot;
+	for (const st of info.stats) {
+		const s = byPid.get(st.pid);
+		if (!s?.uid) continue;
+		const t = store.addRun(s.uid, { ach: st.ach, duos: info.duos.get(st.pid) });
+		if (t) tot.set(st.pid, t);
+		store.addResult(s.uid, {
+			name: s.portalName || st.name, hero: st.hero, win: info.win, lord: info.grade === 2, time: info.time, kills: st.kills,
+			mode: info.mode, players: info.players, at: Date.now(),
+		});
+	}
+	return tot;
+};
 
 function scheduleRemoval(s, ms) {
 	clearTimeout(s.timer);
@@ -83,6 +128,7 @@ function scheduleRemoval(s, ms) {
 		if (s.conn) return;
 		sessions.delete(s.sid);
 		byPid.delete(s.pid);
+		if (s.uid) store.release(s.uid);
 		clientProto.delete(s.pid);
 		hub.removePlayer(s.pid);
 	}, ms);
@@ -103,6 +149,7 @@ function attach(s, conn, proto) {
 	clientProto.set(s.pid, proto);
 	hub.setOffline(s.pid, false);
 	hub.welcome(s.pid);
+	conn.send(JSON.stringify(progressMsg(store, s.uid ? store.record(s.uid) : null)), false);
 	if (proto < PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
 }
 
@@ -124,10 +171,46 @@ function allowMessage(s) {
 	return true;
 }
 
+// v22 messages that need the session's portal user: the browser's progress handed over once, the weekly top.
+function handleProgress(s, msg) {
+	if (msg.t === 'mig') {
+		const rec = s.uid && store.record(s.uid);
+		if (!rec || s.migSent) return true;
+		s.migSent = true;
+		store.migrate(s.uid, msg);
+		sendProgress(s.uid);
+		return true;
+	}
+	if (msg.t === 'top') {
+		const week = isoWeek();
+		const rows = store.enabled ? store.top(week, s.uid) : null;
+		s.conn?.send(JSON.stringify({ t: 'top', week, rows, off: !store.enabled }), false);
+		// Not read yet: the answer follows the read; a failed read says «unavailable» instead of loading forever.
+		if (store.enabled && !rows) store.loadBoard(week).then((r) => s.conn?.send(JSON.stringify({ t: 'top', week, rows: r ? store.top(week, s.uid) : null, off: !r }), false));
+		return true;
+	}
+	return false;
+}
+
+// For a portal user with a read object the server, not the browser, says which heroes are open.
+function serverUnlocked(s) {
+	const rec = s.uid && store.record(s.uid);
+	return rec ? unlockedOf(rec) : null;
+}
+function syncUnlocked(s) {
+	const list = serverUnlocked(s);
+	if (list && hub.players.get(s.pid)?.room) hub.handle(s.pid, { t: 'heroes', heroes: list });
+}
+
 function dispatch(s, msg) {
 	if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return;
 	if (!allowMessage(s)) return;
 	try {
+		if (handleProgress(s, msg)) return;
+		if (msg.t === 'heroes' || msg.t === 'create' || msg.t === 'join') {
+			const list = serverUnlocked(s);
+			if (list) msg = { ...msg, heroes: list };
+		}
 		hub.handle(s.pid, msg);
 	} catch (e) {
 		console.error('handle error', e);
@@ -274,7 +357,7 @@ const server = http.createServer((req, res) => {
 	if (p === '/api/events') return handleEvents(req, res, url);
 	if (p === '/api/send') return handleSend(req, res, url);
 	if (p === '/api/runs' || p.startsWith('/api/runs/')) return handleRuns(req, res, p);
-	if (p === '/api/busy') return sendJson(res, 200, { ...hub.busy(), v: GAME_VERSION });
+	if (p === '/api/busy') return sendJson(res, 200, { ...hub.busy(), v: GAME_VERSION, storage: store.enabled });
 	if (p.startsWith('/api/')) return sendText(res, 404, 'not found');
 	serveStatic(req, res, p);
 });
@@ -348,5 +431,21 @@ setInterval(() => {
 		console.error('tick error', e);
 	}
 }, 1000 / TICK_HZ);
+
+if (store.enabled) {
+	setInterval(() => store.tick(), STORAGE_TICK_MS).unref();
+	store.loadBoard(isoWeek());
+}
+
+// A deploy stops the process: what is still in the cache goes to the storage first (up to 5 s).
+let stopping = false;
+for (const sig of ['SIGTERM', 'SIGINT']) {
+	process.on(sig, async () => {
+		if (stopping) return;
+		stopping = true;
+		await store.flush(5_000);
+		process.exit(0);
+	});
+}
 
 server.listen(PORT, () => console.log(`Ночная орда: http://localhost:${PORT}`));

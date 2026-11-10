@@ -13,6 +13,13 @@ export function rememberDuo(id) {
 	try { localStorage.setItem(DUO_STORE, JSON.stringify([...set])); } catch { /* private mode */ }
 	return isNew;
 }
+// v22: duos the server knows for a portal user join the browser's list.
+export function rememberDuos(ids) {
+	if (!Array.isArray(ids) || !ids.length) return;
+	const set = knownDuos();
+	for (const id of ids) if (DUOS[id]) set.add(id);
+	try { localStorage.setItem(DUO_STORE, JSON.stringify([...set])); } catch { /* private mode */ }
+}
 const CHEST_REVEAL_MS = 600; // boss chest: one card every 0.6 s
 const lvlText = (id, lvl) => (EVOS[id] ? '★' : DUOS[id] ? ROMAN[lvl - 1] || String(lvl) : String(lvl));
 import { drawHeroPreview } from './render.js';
@@ -173,6 +180,37 @@ export class UI {
 		c.textContent = this.lords ? `👑 ${this.lords}` : '';
 		c.title = 'Владыка ночи повержен, раз: ' + this.lords;
 		if (this.lastLobby) this.renderLobby(...this.lastLobby);
+	}
+
+	// v22: top 10 of the week (the server keeps everyone's best run); hidden while the storage is off.
+	setBoard(on) {
+		$('top').hidden = !on;
+	}
+
+	renderTop(msg) {
+		const list = $('top-list');
+		list.textContent = '';
+		$('top-note').textContent = msg.week ? `Неделя ${msg.week.split('-W')[1]} · лучший забег каждого` : '';
+		if (!Array.isArray(msg.rows)) {
+			list.appendChild(el('li', 'empty', msg.off ? 'Рекорды недели сейчас недоступны' : 'Загрузка…'));
+			return;
+		}
+		if (!msg.rows.length) {
+			list.appendChild(el('li', 'empty', 'На этой неделе ещё никто не встретил рассвет — будьте первым'));
+			return;
+		}
+		msg.rows.forEach((r, i) => {
+			const li = el('li', r.me ? 'me' : '');
+			li.appendChild(el('span', 'top-n', String(i + 1)));
+			const mark = el('span', 'top-mark', r.lord ? '👑' : r.win ? '☀' : '✝');
+			mark.title = r.lord ? 'Владыка повержен' : r.win ? 'Ночь пережита' : 'Отряд пал';
+			li.appendChild(mark);
+			const who = el('span', 'top-who', r.name);
+			who.appendChild(el('small', '', `${HEROES[r.hero]?.name ?? ''}${r.players > 1 ? ` · отряд ${r.players}` : ''}`));
+			li.appendChild(who);
+			li.appendChild(el('span', 'top-res', `${MODES[r.mode]?.short ?? ''} ${fmtTime(r.time)} · ${r.kills}`));
+			list.appendChild(li);
+		});
 	}
 
 	setUnlocks(unlocked, stats) {

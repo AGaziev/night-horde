@@ -4085,11 +4085,22 @@ export class Room {
 		const log = this.runLog?.build(this, win) ?? null;
 		if (log) runStore.add(log);
 		this.lastLog = log;
+		const stats = [...this.heroes.values()].map((h) => ({
+			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
+		}));
+		// v22: the server keeps the totals of portal users; `tot` is a player's totals after this run.
+		if (this.onRunEnd) {
+			const duos = new Map([...this.heroes.values()].map((h) => [h.pid, [...h.weapons.keys()].filter((id) => DUOS[id])]));
+			try {
+				const tot = this.onRunEnd({ win, grade, mode: this.mode, time: Math.round(this.time), players: stats.length, stats, duos });
+				for (const s of stats) if (tot?.has(s.pid)) s.tot = tot.get(s.pid);
+			} catch (e) {
+				console.error('run end hook', e);
+			}
+		}
 		this.overMsg = {
 			t: 'over', win, grade, fin: this.finaleResult(), time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
-			stats: [...this.heroes.values()].map((h) => ({
-				pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
-			})),
+			stats,
 			runId: log?.id ?? null, log,
 		};
 		this.broadcast(this.overMsg);
@@ -4202,6 +4213,7 @@ export class Hub {
 		this.send = send;
 		this.players = new Map(); // pid -> {pid, name, room}
 		this.rooms = new Map();
+		this.onRunEnd = null; // v22: (info) => Map pid -> totals, given to every room
 	}
 
 	addPlayer(pid, name) {
@@ -4298,6 +4310,7 @@ export class Hub {
 			case 'create': {
 				this.leaveRoom(pid);
 				const room = new Room(this.newCode(), this.send);
+				room.onRunEnd = this.onRunEnd;
 				room.setMode(msg.mode);
 				this.rooms.set(room.code, room);
 				room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes));

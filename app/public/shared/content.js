@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v21';
+export const GAME_VERSION = 'v22';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -138,7 +138,7 @@ export function clampToRing(x, y, cx, cy, r) {
 }
 
 // Hero unlocks (M2): one hero per role is open from the start, the rest open by achievements.
-// Progress lives in the browser; the server counts per-run stats (`runAchievements`) and sends them in `over`.
+// The server counts per-run stats (`runAchievements`) and sends them in `over`; totals live in the browser, for portal users (v22) on the server.
 // agg: how a run's value joins the total — sum or best.
 export const START_HEROES = ['knight', 'witch', 'alchemist'];
 export const UNLOCKS = {

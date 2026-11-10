@@ -665,3 +665,14 @@ input[type="text"]:focus { border-color: var(--accent); }
 	.levelup-banhint { font-size: 0.7rem; }
 	.card-ovr .card-hint { display: none; } /* the one-line description needs the room */
 }
+
+/* v22: weekly records in the menu */
+.top-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.top-list li { display: grid; grid-template-columns: 1.6em 1.6em 1fr auto; align-items: center; gap: 6px; padding: 7px 10px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; background: rgba(255, 255, 255, 0.03); font-size: 14px; }
+.top-list li.me { border-color: #ffe082; }
+.top-list li.empty { display: block; text-align: center; color: var(--muted); border-style: dashed; }
+.top-list .top-n { color: var(--muted); font-weight: 700; text-align: right; }
+.top-list .top-who { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.top-list .top-who small { color: var(--muted); margin-left: 6px; }
+.top-list .top-res { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+#top-note:empty { display: none; }
