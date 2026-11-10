@@ -15,6 +15,7 @@ export function rememberDuo(id) {
 }
 const lvlText = (id, lvl) => (EVOS[id] ? '★' : DUOS[id] ? ROMAN[lvl - 1] || String(lvl) : String(lvl));
 import { drawHeroPreview } from './render.js';
+import { sprites } from './sprites.js';
 import { P } from './game.js';
 
 const $ = (id) => document.getElementById(id);
@@ -39,6 +40,17 @@ export class UI {
 		this.levelup = $('levelup');
 		this.cache = Object.create(null);
 		this.heroCards = new Map();
+		this.heroSel = null;
+		this.walkTimer = 0;
+		this.lastLobby = null;
+		this.lastOver = null;
+		// Portraits switch from vector icons to sprites once the atlas arrives.
+		sprites.whenReady(() => {
+			if (this.heroSel) this.selectHero(this.heroSel.id, this.heroSel.color);
+			if (this.lastLobby) this.renderLobby(...this.lastLobby);
+			if (this.lastOver) this.renderOver(...this.lastOver);
+			this.cache.allies = '';
+		});
 		this.offerKey = '';
 		this.onPick = null;
 		this.onHero = null;
@@ -115,8 +127,13 @@ export class UI {
 			const card = el('button', 'hero-card');
 			card.type = 'button';
 			card.style.setProperty('--hero-color', h.color);
+			const pic = el('div', 'hero-pic');
 			const cv = document.createElement('canvas');
-			card.appendChild(cv);
+			const img = el('img', 'portrait');
+			img.alt = '';
+			img.hidden = true;
+			pic.append(cv, img);
+			card.appendChild(pic);
 			card.appendChild(el('div', 'hero-name', h.name));
 			card.appendChild(el('div', 'hero-desc', h.desc));
 			const w = WEAPONS[h.weapon];
@@ -125,19 +142,47 @@ export class UI {
 			if (h.traitDesc) card.appendChild(el('div', 'hero-trait', `★ ${h.traitDesc}`));
 			card.addEventListener('click', () => this.onHero && this.onHero(id));
 			grid.appendChild(card);
-			this.heroCards.set(id, { card, cv });
+			this.heroCards.set(id, { card, cv, img });
 		}
 		this.selectHero(selected, '#90a4ae');
 	}
 
 	selectHero(id, color) {
-		for (const [hid, { card, cv }] of this.heroCards) {
+		this.heroSel = { id, color };
+		const live = sprites.ready;
+		for (const [hid, { card, cv, img }] of this.heroCards) {
+			const c = hid === id ? color : '#5c6378';
 			card.classList.toggle('selected', hid === id);
-			drawHeroPreview(cv, hid, hid === id ? color : '#5c6378');
+			const url = live && sprites.portrait(hid, c, 0);
+			cv.hidden = !!url;
+			img.hidden = !url;
+			if (url) img.src = url;
+			else drawHeroPreview(cv, hid, c);
 		}
+		this.animateSelected();
+	}
+
+	// Walk cycle on the selected card while the lobby is open.
+	animateSelected() {
+		clearInterval(this.walkTimer);
+		this.walkTimer = 0;
+		const sel = this.heroSel && this.heroCards.get(this.heroSel.id);
+		const sheet = sel && sprites.ready && sprites.get(this.heroSel.id);
+		if (!sheet || sheet.walk < 2) return;
+		let f = 0;
+		this.walkTimer = setInterval(() => {
+			if (this.screen !== 'lobby' || !sel.card.isConnected) {
+				clearInterval(this.walkTimer);
+				this.walkTimer = 0;
+				return;
+			}
+			f = (f + 1) % sheet.walk;
+			sel.img.src = sprites.portrait(this.heroSel.id, this.heroSel.color, f);
+		}, 1000 / (sheet.fps || 8));
 	}
 
 	renderLobby(lobby, me) {
+		this.lastLobby = [lobby, me];
 		$('lobby-code').textContent = lobby.code || '—';
 		const players = Array.isArray(lobby.players) ? lobby.players : [];
 		$('lobby-count').textContent = `${players.length}/${MAX_PLAYERS}`;
@@ -146,10 +191,7 @@ export class UI {
 		let myReady = false;
 		for (const p of players) {
 			const li = el('li');
-			const dot = el('span', 'dot');
-			dot.style.background = p.color;
-			dot.style.color = p.color;
-			li.appendChild(dot);
+			li.appendChild(heroMark(p.hero, p.color));
 			li.appendChild(el('span', 'grow', p.name));
 			const hero = HEROES[p.hero];
 			if (hero) li.appendChild(el('span', 'tag', hero.name));
@@ -293,6 +335,7 @@ export class UI {
 	// Game over
 
 	renderOver(msg, me, isHost) {
+		this.lastOver = [msg, me, isHost];
 		const title = $('over-title');
 		title.textContent = msg.win ? 'Победа!' : 'Орда победила';
 		title.className = 'over-title ' + (msg.win ? 'win' : 'lose');
@@ -305,10 +348,7 @@ export class UI {
 		for (const s of stats) {
 			const tr = el('tr', s.pid === me ? 'me' : '');
 			const name = el('td');
-			const dot = el('span', 'dot');
-			dot.style.background = s.color || '#90a4ae';
-			dot.style.color = s.color || '#90a4ae';
-			name.appendChild(dot);
+			name.appendChild(heroMark(s.hero, s.color || '#90a4ae'));
 			name.appendChild(el('span', '', s.name));
 			tr.appendChild(name);
 			tr.appendChild(el('td', '', HEROES[s.hero]?.name || '—'));
@@ -387,9 +427,7 @@ export class UI {
 				const m = game.meta(r[P.pid]);
 				const down = r[P.st] === 1;
 				const li = el('li', down ? 'down' : '');
-				const dot = el('span', 'dot');
-				dot.style.background = m.color;
-				li.appendChild(dot);
+				li.appendChild(heroMark(m.hero, m.color));
 				li.appendChild(el('span', 'nm', (down ? '✝ ' : '') + m.name));
 				const bar = el('div', 'bar');
 				const fill = el('i');
@@ -420,6 +458,21 @@ export class UI {
 	setBossName(name) {
 		$('hud-boss-name').textContent = name || 'Босс';
 	}
+}
+
+// Player marker: hero portrait in the player's colour, or the old colour dot until the atlas loads.
+function heroMark(hero, color) {
+	const url = hero && sprites.ready ? sprites.portrait(hero, color, 0) : null;
+	if (url) {
+		const img = el('img', 'portrait portrait-sm');
+		img.alt = '';
+		img.src = url;
+		return img;
+	}
+	const dot = el('span', 'dot');
+	dot.style.background = color;
+	dot.style.color = color;
+	return dot;
 }
 
 function fillIcons(box, items, slots, slotsTitle) {

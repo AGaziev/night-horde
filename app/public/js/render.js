@@ -4,6 +4,8 @@ import {
 	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS,
 } from '/shared/content.js';
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD } from './game.js';
+import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
+import { Overlay, DprController } from './display.js';
 
 const TILE = 96;
 const GEM_COLORS = ['#4fc3f7', '#81c784', '#f06292', '#ffd54f'];
@@ -21,6 +23,12 @@ const GROUND = ['#13171b', '#141a1d', '#12161a', '#151a1b'];
 const TYPE_COUNT = ENEMY_TYPES.length;
 const CAP = MAX_ENEMIES + 64;
 const TAU = Math.PI * 2;
+// Sheets are drawn at 2x game units: 0.5 gives one art pixel per device pixel at DPR 2.
+const ART = 0.5;
+const PROJ_ART = { bolt: 0.8, knife: 0.8, sickle: 1, icedisc: 1, spear: 1.6, hostile: 0.75 };
+const DECOR = ['prop_gravestone', 'prop_stump', 'prop_mushrooms'];
+const DECOR_CELL = 200;
+const HERO_FOOT = 14 * 0.95;
 
 function hash2(x, y) {
 	let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
@@ -69,25 +77,22 @@ export class Renderer {
 			const c = ENEMIES[id].color;
 			this.shades[id] = { base: c, dark: shade(c, 0.55), light: shade(c, 1.25) };
 		}
+		this.sprites = sprites;
+		this.heroMotion = new Map();
+		this.arrowBuf = [];
+		this.overlay = new Overlay();
+		this.dprCtl = new DprController(() => this.resize());
 		this.resize();
 		addEventListener('resize', () => this.resize());
 	}
 
 	resize() {
-		this.dpr = Math.min(2, window.devicePixelRatio || 1);
+		this.dpr = this.dprCtl.value;
 		this.w = window.innerWidth;
 		this.h = window.innerHeight;
 		this.canvas.width = Math.round(this.w * this.dpr);
 		this.canvas.height = Math.round(this.h * this.dpr);
 		this.zoom = Math.min(1.1, Math.max(0.6, Math.min(this.w, this.h) / 720));
-		const ctx = this.ctx;
-		const r = Math.hypot(this.w, this.h) / 2;
-		this.vignette = ctx.createRadialGradient(this.w / 2, this.h / 2, r * 0.35, this.w / 2, this.h / 2, r);
-		this.vignette.addColorStop(0, 'rgba(0,0,0,0)');
-		this.vignette.addColorStop(1, 'rgba(0,0,0,0.7)');
-		this.hurtGrad = ctx.createRadialGradient(this.w / 2, this.h / 2, r * 0.4, this.w / 2, this.h / 2, r);
-		this.hurtGrad.addColorStop(0, 'rgba(200,0,0,0)');
-		this.hurtGrad.addColorStop(1, 'rgba(200,0,0,0.55)');
 	}
 
 	draw(game, dt) {
@@ -95,6 +100,7 @@ export class Renderer {
 		const { w, h, dpr } = this;
 		const z = this.zoom;
 		const now = performance.now() / 1000;
+		this.dt = dt;
 		const view = game.view;
 		const inGame = game.running && view.b;
 		this.game = game;
@@ -117,7 +123,11 @@ export class Renderer {
 		const vy0 = this.camY - halfH - 60, vy1 = this.camY + halfH + 60;
 		this.vx0 = vx0; this.vx1 = vx1; this.vy0 = vy0; this.vy1 = vy1;
 
-		ctx.setTransform(dpr * z, 0, 0, dpr * z, (w / 2 + sx - this.camX * z) * dpr, (h / 2 + sy - this.camY * z) * dpr);
+		this.ox = (w / 2 + sx - this.camX * z) * dpr;
+		this.oy = (h / 2 + sy - this.camY * z) * dpr;
+		this.k = dpr * z;
+		ctx.setTransform(this.k, 0, 0, this.k, this.ox, this.oy);
+		ctx.imageSmoothingEnabled = false;
 		this.drawGround(ctx, vx0, vy0, vx1, vy1);
 
 		if (inGame) {
@@ -145,24 +155,16 @@ export class Renderer {
 		}
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		ctx.fillStyle = this.vignette;
-		ctx.fillRect(0, 0, w, h);
-		if (inGame) {
-			if (game.evoFlash) {
-				// Own evolution: a 120 ms full-screen flash in the weapon colour.
-				ctx.globalAlpha = 0.35 * (1 - game.evoFlash.t / 0.12);
-				ctx.fillStyle = game.evoFlash.color;
-				ctx.fillRect(0, 0, w, h);
-				ctx.globalAlpha = 1;
-			}
-			if (game.hurtFlash > 0) {
-				ctx.globalAlpha = game.hurtFlash;
-				ctx.fillStyle = this.hurtGrad;
-				ctx.fillRect(0, 0, w, h);
-				ctx.globalAlpha = 1;
-			}
-			this.drawArrows(ctx, game, now);
+		if (inGame && game.evoFlash) {
+			// Own evolution: a 120 ms full-screen flash in the weapon colour.
+			ctx.globalAlpha = 0.35 * (1 - game.evoFlash.t / 0.12);
+			ctx.fillStyle = game.evoFlash.color;
+			ctx.fillRect(0, 0, w, h);
+			ctx.globalAlpha = 1;
 		}
+		this.overlay.hurt(inGame ? game.hurtFlash : 0);
+		this.overlay.arrows(inGame ? this.arrowList(game, now) : null);
+		this.dprCtl.frame();
 	}
 
 	toScreen(x, y, out) {
@@ -172,6 +174,42 @@ export class Renderer {
 	}
 
 	drawGround(ctx, x0, y0, x1, y1) {
+		const g = this.sprites.ready && this.sprites.get('ground');
+		if (!g) return this.drawGroundVector(ctx, x0, y0, x1, y1);
+		// Tiles blitted on whole device pixels: much cheaper than a transformed pattern under software raster.
+		const k = this.k, step = g.cw * ART;
+		const size = Math.ceil(step * k);
+		const tx0 = Math.floor(x0 / step), tx1 = Math.floor(x1 / step);
+		const ty0 = Math.floor(y0 / step), ty1 = Math.floor(y1 / step);
+		ctx.setTransform(1, 0, 0, 1, 0, 0);
+		for (let ty = ty0; ty <= ty1; ty++) {
+			const dy = Math.round(this.oy + ty * step * k);
+			for (let tx = tx0; tx <= tx1; tx++) ctx.drawImage(g.img, Math.round(this.ox + tx * step * k), dy, size, size);
+		}
+		ctx.setTransform(k, 0, 0, k, this.ox, this.oy);
+		this.drawDecor(ctx, x0, y0, x1, y1);
+	}
+
+	// Rare non-colliding decor, seeded by world cell; never on top of a breakable prop.
+	drawDecor(ctx, x0, y0, x1, y1) {
+		const cx0 = Math.floor((x0 - 40) / DECOR_CELL), cx1 = Math.floor((x1 + 40) / DECOR_CELL);
+		const cy0 = Math.floor(y0 / DECOR_CELL), cy1 = Math.floor((y1 + 40) / DECOR_CELL);
+		for (let cy = cy0; cy <= cy1; cy++) {
+			for (let cx = cx0; cx <= cx1; cx++) {
+				const hv = hash2(cx * 7 + 3301, cy * 13 - 911);
+				if (hv % 9 !== 0) continue;
+				const s = this.sprites.get(DECOR[(hv >>> 8) % DECOR.length]);
+				if (!s) continue;
+				const x = cx * DECOR_CELL + 30 + ((hv >>> 12) % (DECOR_CELL - 60));
+				const y = cy * DECOR_CELL + 30 + ((hv >>> 20) % (DECOR_CELL - 60));
+				const b = breakableAt(Math.floor(x / BREAK_TILE), Math.floor(y / BREAK_TILE));
+				if (b && (b.x - x) ** 2 + (b.y - y) ** 2 < 4900) continue;
+				blit(ctx, s, 0, x, y, ART, (hv & 16) !== 0);
+			}
+		}
+	}
+
+	drawGroundVector(ctx, x0, y0, x1, y1) {
 		const tx0 = Math.floor(x0 / TILE), tx1 = Math.floor(x1 / TILE);
 		const ty0 = Math.floor(y0 / TILE), ty1 = Math.floor(y1 / TILE);
 		for (let b = 0; b < GROUND.length; b++) {
@@ -464,7 +502,7 @@ export class Renderer {
 
 		this.drawWindupWarnings(ctx, cnt, now);
 		for (let ty = 0; ty < TYPE_COUNT; ty++) {
-			if (BOSS_SET.has(ty)) for (let k = 0; k < cnt[ty]; k++) this.drawBoss(ctx, this.ex[ty][k], this.ey[ty][k], now, ty, this.est[ty][k], this.eid[ty][k]);
+			if (BOSS_SET.has(ty)) for (let k = 0; k < cnt[ty]; k++) this.drawBoss(ctx, this.ex[ty][k], this.ey[ty][k], now, ty, this.est[ty][k], this.eid[ty][k], this.edx[ty][k]);
 			else this.drawType(ctx, ty, cnt[ty], now);
 		}
 		for (const el of elites) this.drawElite(ctx, el, now);
@@ -495,6 +533,7 @@ export class Renderer {
 	}
 
 	drawType(ctx, ty, n, now) {
+		if (n && this.drawEnemySprites(ctx, ty, n, now)) return;
 		switch (ty) {
 			case 0: return this.drawBats(ctx, n, now);
 			case 1: return this.drawGhouls(ctx, n, now);
@@ -504,6 +543,40 @@ export class Renderer {
 			case SPITTER_T: return this.drawSpitters(ctx, n, now);
 			case BLOATER_T: return this.drawBloaters(ctx, n, now);
 		}
+	}
+
+	drawEnemySprites(ctx, ty, n, now) {
+		const s = this.sprites.get(ENEMY_TYPES[ty]);
+		if (!s) return false;
+		const r = ENEMIES[ENEMY_TYPES[ty]].r;
+		const sc = ART * r / (s.body || r);
+		const foot = r * 0.85;
+		const xs = this.ex[ty], ys = this.ey[ty], ids = this.eid[ty], st = this.est[ty], dx = this.edx[ty];
+		for (let k = 0; k < n; k++) {
+			const x = xs[k], y = ys[k], f = st[k];
+			let scale = sc;
+			if (ty === SPITTER_T || ty === BLOATER_T) {
+				const wind = (f & ST.windup) !== 0;
+				if (ty === SPITTER_T) {
+					scale *= wind ? 1.18 + Math.sin(now * 40) * 0.04 : 1 + Math.sin(now * 3 + ids[k]) * 0.04;
+					if (wind) {
+						ctx.fillStyle = 'rgba(178,255,89,0.35)';
+						ctx.beginPath();
+						ctx.arc(x, y, r * 1.9, 0, TAU);
+						ctx.fill();
+					}
+				} else scale *= wind ? 1.25 + Math.sin(now * 35) * 0.08 : 1;
+			}
+			const still = (f & (ST.frozen | ST.root)) !== 0;
+			blit(ctx, s, still ? 0 : walkFrame(s, now, ids[k]), x, y + foot, scale, dx[k] < -0.3);
+			if (ty === BLOATER_T && (f & ST.windup) && Math.sin(now * 30) > 0) {
+				ctx.fillStyle = 'rgba(255,82,82,0.45)';
+				ctx.beginPath();
+				ctx.arc(x, y - 2, r * 1.2, 0, TAU);
+				ctx.fill();
+			}
+		}
+		return true;
 	}
 
 	// Elites: the regular figure scaled up, golden halo and the affix name.
@@ -522,7 +595,7 @@ export class Renderer {
 		ctx.translate(el.x, el.y);
 		ctx.scale(ELITE_R_MUL, ELITE_R_MUL);
 		ctx.translate(-el.x, -el.y);
-		if (BOSS_SET.has(el.type)) this.drawBoss(ctx, el.x, el.y, now, el.type, el.st, el.id);
+		if (BOSS_SET.has(el.type)) this.drawBoss(ctx, el.x, el.y, now, el.type, el.st, el.id, el.dx);
 		else this.drawType(ctx, el.type, 1, now);
 		ctx.restore();
 		[this.ex[el.type], this.ey[el.type], this.eh[el.type], this.eid[el.type], this.edx[el.type], this.est[el.type]] = saved;
@@ -836,7 +909,7 @@ export class Renderer {
 	}
 
 	// Bosses: windup glow (an attack is coming) under a per-kind figure.
-	drawBoss(ctx, x, y, now, ty = BOSS_T, st = 0, id = 0) {
+	drawBoss(ctx, x, y, now, ty = BOSS_T, st = 0, id = 0, dx = 0) {
 		const def = ENEMIES[ENEMY_TYPES[ty]] || ENEMIES.boss;
 		const r = def.r;
 		if (st & ST.windup) {
@@ -848,6 +921,11 @@ export class Renderer {
 			ctx.strokeStyle = `rgba(255,241,118,${0.6 + 0.4 * k})`;
 			ctx.lineWidth = 3;
 			ctx.stroke();
+		}
+		const s = this.sprites.get(ENEMY_TYPES[ty]);
+		if (s) {
+			const f = (st & ST.windup) && s.attack ? attackFrame(s, now) : (st & (ST.frozen | ST.root)) ? 0 : walkFrame(s, now, id);
+			return blit(ctx, s, f, x, y + r * 0.85, ART * r / (s.body || r), dx < -0.3);
 		}
 		switch (def.bk) {
 			case 'brood': return this.drawBrood(ctx, x, y, r, def.color, now, id);
@@ -1204,6 +1282,7 @@ export class Renderer {
 		const shots = [];
 		for (const s of game.shots.values()) if (s.show && this.visible(s.x, s.y)) shots.push(s);
 		if (!shots.length) return;
+		if (this.drawShotSprites(ctx, shots, now)) return;
 		this.drawSickles(ctx, shots, now);
 		this.drawIceDiscs(ctx, shots, now);
 		this.drawSpears(ctx, shots);
@@ -1263,6 +1342,48 @@ export class Renderer {
 		}
 		ctx.fill();
 		ctx.stroke();
+	}
+
+	// Sprite at x,y rotated by ang around its anchor; resets to the world transform afterwards via endRot().
+	rotBlit(ctx, s, f, x, y, ang, scale) {
+		const k = this.k, c = Math.cos(ang) * k, n = Math.sin(ang) * k;
+		ctx.setTransform(c, n, -n, c, this.ox + k * x, this.oy + k * y);
+		ctx.drawImage(s.img, f * s.cw, 0, s.cw, s.ch, -s.ax * scale, -s.ay * scale, s.cw * scale, s.ch * scale);
+	}
+
+	endRot(ctx) {
+		ctx.setTransform(this.k, 0, 0, this.k, this.ox, this.oy);
+	}
+
+	drawShotSprites(ctx, shots, now) {
+		const sp = this.sprites;
+		if (!sp.ready) return false;
+		const sheets = PROJECTILE_KINDS.map((k) => sp.get(k));
+		if (sheets.some((x) => !x)) return false;
+		// Motion trails keep fast projectiles readable.
+		ctx.lineCap = 'round';
+		for (const [kind, color, len, width] of [[0, 'rgba(206,147,216,0.45)', 26, 6], [1, 'rgba(236,239,241,0.35)', 22, 3], [SPEAR_K, 'rgba(255,224,178,0.35)', 60, 7]]) {
+			ctx.strokeStyle = color;
+			ctx.lineWidth = width;
+			ctx.beginPath();
+			for (const s of shots) {
+				if (s.kind !== kind) continue;
+				const v = Math.hypot(s.vx, s.vy) || 1;
+				ctx.moveTo(s.x - s.vx / v * len, s.y - s.vy / v * len);
+				ctx.lineTo(s.x, s.y);
+			}
+			ctx.stroke();
+		}
+		ctx.lineCap = 'butt';
+		for (const s of shots) {
+			const sh = sheets[s.kind];
+			if (!sh) continue;
+			const id = PROJECTILE_KINDS[s.kind];
+			const ang = s.kind === SICKLE_K ? now * 16 + s.st * 7 : s.kind === ICEDISC_K ? now * 14 + s.st * 5 : Math.atan2(s.vy, s.vx);
+			this.rotBlit(ctx, sh, walkFrame(sh, now, (s.st * 997) | 0), s.x, s.y, ang, PROJ_ART[id] ?? 1);
+		}
+		this.endRot(ctx);
+		return true;
 	}
 
 	drawSickles(ctx, shots, now) {
@@ -1594,6 +1715,33 @@ export class Renderer {
 	// Enemy blobs: green drop with a ground shadow and a short trail so they are easy to dodge.
 	drawHostile(ctx, game, now) {
 		if (!game.hostile.size) return;
+		const sh = this.sprites.ready ? this.sprites.get('hostile') : null;
+		if (sh) {
+			ctx.fillStyle = 'rgba(0,0,0,0.35)';
+			ctx.beginPath();
+			for (const s of game.hostile.values()) {
+				if (!s.show || !this.visible(s.x, s.y)) continue;
+				ctx.moveTo(s.x + 7, s.y + 12);
+				ctx.ellipse(s.x, s.y + 12, 7, 3, 0, 0, TAU);
+			}
+			ctx.fill();
+			// Glow keeps enemy shots readable on the dark ground.
+			const gr = 12 + Math.sin(now * 20) * 1.5;
+			ctx.fillStyle = 'rgba(178,255,89,0.3)';
+			ctx.beginPath();
+			for (const s of game.hostile.values()) {
+				if (!s.show || !this.visible(s.x, s.y)) continue;
+				ctx.moveTo(s.x + gr, s.y);
+				ctx.arc(s.x, s.y, gr, 0, TAU);
+			}
+			ctx.fill();
+			for (const s of game.hostile.values()) {
+				if (!s.show || !this.visible(s.x, s.y)) continue;
+				this.rotBlit(ctx, sh, walkFrame(sh, now, (s.st * 997) | 0), s.x, s.y, Math.atan2(s.vy, s.vx), PROJ_ART.hostile);
+			}
+			this.endRot(ctx);
+			return;
+		}
 		for (const s of game.hostile.values()) {
 			if (!s.show || !this.visible(s.x, s.y)) continue;
 			const v = Math.hypot(s.vx, s.vy) || 1;
@@ -2064,9 +2212,12 @@ export class Renderer {
 				fy = ra[P.fy] + (row[P.fy] - ra[P.fy]) * t;
 			}
 			const down = row[P.st] === 1;
-			if (down) this.drawDowned(ctx, x, y, meta, row[P.rev] || 0, now);
+			const moving = this.heroMoving(pid, x, y);
+			const sprite = this.sprites.ready ? this.sprites.tinted(meta.hero, meta.color) : null;
+			if (down) this.drawDowned(ctx, x, y, meta, row[P.rev] || 0, now, sprite, fx);
 			else {
-				drawHero(ctx, x, y, meta.hero, meta.color, fx || 1, fy || 0, now, me);
+				if (sprite) this.drawHeroSprite(ctx, sprite, x, y, meta.color, fx || 1, fy || 0, now, me, moving, pid);
+				else drawHero(ctx, x, y, meta.hero, meta.color, fx || 1, fy || 0, now, me);
 				const wl = Array.isArray(row[P.w]) ? row[P.w] : [];
 				this.drawWard(ctx, x, y, row[P.ward] | 0, wl.some((w) => Array.isArray(w) && w[0] === 'bastion'), now);
 			}
@@ -2074,9 +2225,10 @@ export class Renderer {
 			ctx.font = '600 12px system-ui, sans-serif';
 			ctx.lineWidth = 3;
 			ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-			ctx.strokeText(meta.name, x, y - 34);
+			const ny = sprite && !down ? y - 40 : y - 34;
+			ctx.strokeText(meta.name, x, ny);
 			ctx.fillStyle = me ? '#ffffff' : meta.color;
-			ctx.fillText(meta.name, x, y - 34);
+			ctx.fillText(meta.name, x, ny);
 			if (!down) {
 				const hp = Math.max(0, Math.min(1, row[P.hp] / (row[P.maxHp] || 1)));
 				ctx.fillStyle = 'rgba(0,0,0,0.65)';
@@ -2088,8 +2240,53 @@ export class Renderer {
 		// The own hero is drawn even before the first snapshot that contains it.
 		if (!mineDrawn && game.me !== null && game.running && !b.pMap.has(game.me)) {
 			const meta = game.meta(game.me);
-			drawHero(ctx, game.local.x, game.local.y, meta.hero, meta.color, game.local.fx, game.local.fy, now, true);
+			const sprite = this.sprites.ready ? this.sprites.tinted(meta.hero, meta.color) : null;
+			if (sprite) this.drawHeroSprite(ctx, sprite, game.local.x, game.local.y, meta.color, game.local.fx, game.local.fy, now, true, false, game.me);
+			else drawHero(ctx, game.local.x, game.local.y, meta.hero, meta.color, game.local.fx, game.local.fy, now, true);
 		}
+	}
+
+	// Smoothed speed from rendered positions; works the same for the local hero and interpolated others.
+	heroMoving(pid, x, y) {
+		let m = this.heroMotion.get(pid);
+		if (!m) {
+			if (this.heroMotion.size > 32) this.heroMotion.clear();
+			m = { x, y, v: 0 };
+			this.heroMotion.set(pid, m);
+		}
+		const dt = Math.max(1e-3, this.dt || 0.016);
+		const v = Math.hypot(x - m.x, y - m.y) / dt;
+		m.v += (Math.min(v, 1000) - m.v) * Math.min(1, dt * 10);
+		m.x = x;
+		m.y = y;
+		return m.v > 25;
+	}
+
+	drawHeroSprite(ctx, s, x, y, color, fx, fy, now, me, moving, pid) {
+		const r = 14;
+		ctx.fillStyle = 'rgba(0,0,0,0.38)';
+		ctx.beginPath();
+		ctx.ellipse(x, y + r * 0.95, r * 1.05, r * 0.38, 0, 0, TAU);
+		ctx.fill();
+		if (me) {
+			ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.ellipse(x, y + r * 0.95, r * 1.5, r * 0.55, 0, 0, TAU);
+			ctx.stroke();
+		}
+		const len = Math.hypot(fx, fy) || 1;
+		const ux = fx / len, uy = fy / len;
+		ctx.fillStyle = color;
+		ctx.globalAlpha = 0.85;
+		ctx.beginPath();
+		ctx.moveTo(x + ux * (r + 10), y + uy * (r + 10));
+		ctx.lineTo(x + ux * (r + 2) - uy * 6, y + uy * (r + 2) + ux * 6);
+		ctx.lineTo(x + ux * (r + 2) + uy * 6, y + uy * (r + 2) - ux * 6);
+		ctx.closePath();
+		ctx.fill();
+		ctx.globalAlpha = 1;
+		blit(ctx, s, moving ? walkFrame(s, now, pid) : 0, x, y + HERO_FOOT, ART * r / (s.body || r), ux < -0.2);
 	}
 
 	// Auras of alive heroes whose trait heals allies inside them.
@@ -2130,21 +2327,24 @@ export class Renderer {
 		ctx.fill();
 	}
 
-	drawDowned(ctx, x, y, meta, rev, now) {
+	drawDowned(ctx, x, y, meta, rev, now, sprite, fx) {
 		ctx.fillStyle = 'rgba(0,0,0,0.35)';
 		ctx.beginPath();
 		ctx.ellipse(x, y + 8, 20, 7, 0, 0, TAU);
 		ctx.fill();
-		ctx.fillStyle = '#5f6370';
-		ctx.beginPath();
-		ctx.ellipse(x, y + 4, 17, 9, 0, 0, TAU);
-		ctx.fill();
-		ctx.strokeStyle = meta.color;
-		ctx.lineWidth = 2;
-		ctx.stroke();
-		ctx.fillStyle = '#e8e9f3';
-		ctx.font = '700 14px system-ui, sans-serif';
-		ctx.fillText('✝', x, y + 3);
+		if (sprite) blit(ctx, sprite, sprite.frames - 1, x, y + HERO_FOOT, ART * 14 / (sprite.body || 14), fx < -0.2);
+		else {
+			ctx.fillStyle = '#5f6370';
+			ctx.beginPath();
+			ctx.ellipse(x, y + 4, 17, 9, 0, 0, TAU);
+			ctx.fill();
+			ctx.strokeStyle = meta.color;
+			ctx.lineWidth = 2;
+			ctx.stroke();
+			ctx.fillStyle = '#e8e9f3';
+			ctx.font = '700 14px system-ui, sans-serif';
+			ctx.fillText('✝', x, y + 3);
+		}
 		// Revive ring.
 		const pulse = 0.5 + Math.sin(now * 5) * 0.2;
 		ctx.strokeStyle = `rgba(255,255,255,${pulse * 0.4})`;
@@ -2291,7 +2491,9 @@ export class Renderer {
 	}
 
 	// Edge-of-screen arrows pointing to downed allies outside the view.
-	drawArrows(ctx, game, now) {
+	arrowList(game, now) {
+		const out = this.arrowBuf;
+		out.length = 0;
 		const b = game.view.b;
 		const m = 28;
 		const cx = this.w / 2, cy = this.h / 2;
@@ -2303,35 +2505,10 @@ export class Renderer {
 			if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
 			const dx = s.x - cx, dy = s.y - cy;
 			const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-			const ax = cx + dx * k, ay = cy + dy * k;
-			const ang = Math.atan2(dy, dx);
 			const meta = game.meta(row[P.pid]);
-			const pulse = 1 + Math.sin(now * 6) * 0.15;
-			ctx.save();
-			ctx.translate(ax, ay);
-			ctx.rotate(ang);
-			ctx.scale(pulse, pulse);
-			ctx.fillStyle = meta.color;
-			ctx.strokeStyle = '#000';
-			ctx.lineWidth = 2;
-			ctx.beginPath();
-			ctx.moveTo(14, 0);
-			ctx.lineTo(-8, -10);
-			ctx.lineTo(-3, 0);
-			ctx.lineTo(-8, 10);
-			ctx.closePath();
-			ctx.stroke();
-			ctx.fill();
-			ctx.restore();
-			ctx.font = '700 11px system-ui, sans-serif';
-			ctx.textAlign = 'center';
-			ctx.lineWidth = 3;
-			ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-			const lx = ax - Math.cos(ang) * 26, ly = ay - Math.sin(ang) * 22;
-			ctx.strokeText('✝ ' + meta.name, lx, ly);
-			ctx.fillStyle = '#fff';
-			ctx.fillText('✝ ' + meta.name, lx, ly);
+			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: meta.color, name: meta.name });
 		}
+		return out;
 	}
 }
 

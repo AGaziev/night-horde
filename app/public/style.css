@@ -45,6 +45,19 @@ body {
 	touch-action: none;
 }
 
+/* Screen-space effects over the canvas, under HUD and screens. */
+.fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 1; }
+.fx-vignette { background: radial-gradient(circle farthest-corner at 50% 50%, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.7) 100%); }
+.fx-hurt { background: radial-gradient(circle farthest-corner at 50% 50%, rgba(200, 0, 0, 0) 40%, rgba(200, 0, 0, 0.55) 100%); opacity: 0; will-change: opacity; }
+.fx-arrows { z-index: 2; overflow: hidden; }
+.fx-arrow { position: absolute; left: 0; top: 0; }
+.fx-arrow svg { position: absolute; left: 0; top: 0; overflow: visible; }
+.fx-arrow span {
+	position: absolute; left: 0; top: 0; white-space: nowrap;
+	font: 700 11px system-ui, sans-serif; color: #fff;
+	text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 3px #000;
+}
+
 button, input { font: inherit; color: inherit; }
 
 /* Screens */
@@ -191,6 +204,10 @@ input[type="text"]:focus { border-color: var(--accent); }
 .hero-card:hover { background: rgba(255, 255, 255, 0.08); }
 .hero-card.selected { border-color: var(--hero-color, var(--accent)); background: rgba(255, 255, 255, 0.09); transform: translateY(-2px); }
 .hero-card canvas { width: 56px; height: 56px; }
+.hero-pic { width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; }
+.portrait { image-rendering: pixelated; flex: none; }
+.hero-pic .portrait { width: 64px; height: 64px; }
+.portrait-sm { width: 26px; height: 26px; margin: -6px 0; }
 .hero-name { font-weight: 800; font-size: 1.05rem; }
 .hero-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.3; }
 .hero-stats { font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
@@ -309,6 +326,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 .hud-allies .bar i { display: block; height: 100%; background: var(--ok); }
 .hud-allies li.down .nm { color: var(--danger); }
 .hud-allies li .dot { width: 8px; height: 8px; box-shadow: none; }
+.hud-allies li .portrait-sm { width: 16px; height: 16px; margin: 0 0 0 -4px; grid-row: span 2; }
+.hud-allies li.down .portrait-sm { filter: grayscale(1) brightness(0.7); }
 
 .hud-boss { position: absolute; top: 92px; left: 50%; transform: translateX(-50%); width: min(480px, 80vw); text-align: center; }
 .hud-boss-name { font-weight: 800; color: #ff8a80; text-shadow: 0 0 10px rgba(211, 47, 47, 0.8), 0 1px 2px #000; font-size: 0.9rem; letter-spacing: 0.05em; }
@@ -446,6 +465,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 	.hero-name { font-size: 0.95rem; }
 	.hero-trait { font-size: 0.68rem; padding: 3px 5px; }
 	.hero-card canvas { width: 44px; height: 44px; }
+	.hero-pic, .hero-pic .portrait { width: 52px; height: 52px; }
 	.hero-desc { font-size: 0.72rem; }
 	.room-code { font-size: 1.6rem; }
 	.hud-time { font-size: 1.25rem; }
