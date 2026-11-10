@@ -18,6 +18,16 @@ if (FINALE) {
 	if (process.env.FIN_REVIVE === '0') FINALE.rageRevive = false;
 }
 const FLEE = !!process.env.FLEE;
+// v23 group knobs: MODE_DMG / MODE_HP="1,0.85,0.8,1" (this MODE's dmgMul / hpMul by players), LATE_DMG / LATE_HP="0,0,0.07,0.1"
+// (GROUP_LATE per minute) — patched in this process only.
+{
+	const C = await import(APP + '/public/shared/content.js');
+	const arr = (v) => v.split(',').map(Number);
+	if (process.env.MODE_DMG) C.MODES[MODE].dmgMul = arr(process.env.MODE_DMG);
+	if (process.env.MODE_HP) C.MODES[MODE].hpMul = arr(process.env.MODE_HP);
+	if (process.env.LATE_DMG) C.GROUP_LATE.dmgPerMin = arr(process.env.LATE_DMG);
+	if (process.env.LATE_HP) C.GROUP_LATE.hpPerMin = arr(process.env.LATE_HP);
+}
 
 const [nS = '2', runsS = '4', pick = 'smart', secS = String(MODES?.[MODE]?.seconds ?? 900), heroesCsv = 'knight,witch,ranger,herald,smith,stormcaller,alchemist,spearmaiden'] = process.argv.slice(2);
 const N = +nS, RUNS = +runsS, SECS = +secS;
