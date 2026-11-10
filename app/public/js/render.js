@@ -1,7 +1,7 @@
 // Canvas 2D renderer: everything is procedural.
 import {
 	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
-	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT,
+	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT, weaponLevel,
 } from '/shared/content.js';
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
@@ -1262,7 +1262,8 @@ export class Renderer {
 					continue;
 				}
 				if (wl[0] !== 'aura' && wl[0] !== 'tocsin') continue;
-				const def = wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : WEAPONS.aura.levels[Math.max(0, Math.min(4, (wl[1] | 0) - 1))];
+				// v20: an overclock (wl[3]) changes the radius the server hits with.
+				const def = wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : weaponLevel('aura', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0);
 				const pos = game.playerPos(row[P.pid], this.tmp);
 				if (!pos) continue;
 				const r = def.radius * (row[P.pid] === game.me ? game.areaMul() : 1);
@@ -1332,7 +1333,7 @@ export class Renderer {
 					continue;
 				}
 				if (wl[0] !== 'orbit') continue;
-				const lv = WEAPONS.orbit.levels[Math.max(0, Math.min(4, (wl[1] | 0) - 1))];
+				const lv = weaponLevel('orbit', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0); // v20: overclocks change radius and speed
 				const def = { ...lv, count: lv.count + Math.max(0, wl[2] | 0) }; // + Echo blades
 				const pos = game.playerPos(row[P.pid], this.tmp);
 				if (!pos) continue;
@@ -1398,6 +1399,27 @@ export class Renderer {
 		const shots = [];
 		for (const s of game.shots.values()) if (s.show && this.visible(s.x, s.y)) shots.push(s);
 		if (!shots.length) return;
+		// v20 «Шаровая молния»: a big crackling ball under the usual spark.
+		for (const s of shots) {
+			if (!s.big) continue;
+			const g = ctx.createRadialGradient(s.x, s.y, 2, s.x, s.y, 26);
+			g.addColorStop(0, 'rgba(255,255,255,0.95)');
+			g.addColorStop(0.45, 'rgba(206,147,216,0.75)');
+			g.addColorStop(1, 'rgba(126,87,194,0)');
+			ctx.fillStyle = g;
+			ctx.beginPath();
+			ctx.arc(s.x, s.y, 26, 0, TAU);
+			ctx.fill();
+			ctx.strokeStyle = 'rgba(225,190,231,0.9)';
+			ctx.lineWidth = 1.5;
+			ctx.beginPath();
+			for (let k = 0; k < 4; k++) {
+				const a = now * 9 + k * 1.57 + s.st * 3;
+				ctx.moveTo(s.x + Math.cos(a) * 6, s.y + Math.sin(a) * 6);
+				ctx.lineTo(s.x + Math.cos(a + 0.5) * 17, s.y + Math.sin(a + 0.5) * 17);
+			}
+			ctx.stroke();
+		}
 		if (this.drawShotSprites(ctx, shots, now)) return;
 		this.drawSickles(ctx, shots, now);
 		this.drawIceDiscs(ctx, shots, now);
@@ -2782,7 +2804,7 @@ export class Renderer {
 			if (!wl) continue;
 			const pos = game.playerPos(pid, this.tmp);
 			if (!pos) continue;
-			const def = wl[0] === 'aura' ? WEAPONS.aura.levels[Math.max(0, Math.min(4, (wl[1] | 0) - 1))] : wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : duoLevel('aurora', wl[1]);
+			const def = wl[0] === 'aura' ? weaponLevel('aura', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0) : wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : duoLevel('aurora', wl[1]);
 			out.push({ pid, x: pos.x, y: pos.y, r: def.radius * (pid === game.me ? game.areaMul() : 1) });
 		}
 		return out;

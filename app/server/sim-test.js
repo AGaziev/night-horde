@@ -36,8 +36,10 @@ function checkSnapshot(s) {
 		assert.equal(typeof p[11], 'number');
 		for (const [id, lvl, extra, mask] of p[12]) {
 			assert.ok((WEAPON_IDS.includes(id) || (DUO_IDS.includes(id) && lvl <= 3) || (EVO_IDS.includes(id) && lvl === 1)) && isInt(lvl), `weapon ${id}`);
-			assert.ok(extra === undefined || (['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) && isInt(extra)));
-			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)));
+			// v20: an overclocked plain weapon at level 5 carries [id, lvl, echo amount, variant 1|2].
+			const ovr = WEAPON_IDS.includes(id) && lvl === 5 && (mask === 1 || mask === 2);
+			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || ovr) && isInt(extra)));
+			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr);
 		}
 	}
 	const flat = (arr, n) => {
@@ -64,14 +66,14 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
 		if (arity[f[0]]) assert.equal(f.length, arity[f[0]], `fx ${f[0]} arity`);
-		if (f[0] === 'shot') assert.ok(f.length === 10 || f.length === 12, 'shot arity');
+		if (f[0] === 'shot') assert.ok(f.length === 10 || f.length === 12 || f.length === 13, 'shot arity'); // 13: v20 big projectile
 		if (f[0] === 'hit') assert.ok(f.length === 4 || (f.length === 6 && f[4] === 1), 'hit arity');
 		if (f[0] === 'shot') assert.ok(f[2] >= 0 && f[2] < PROJECTILE_KINDS.length && f[7] > 0 && f[9] <= s.tm + 0.01); // tm has 2 decimals, event times 3
 		if (f[0] === 'pend') assert.ok(f[4] <= s.tm + 0.01);
@@ -560,7 +562,9 @@ console.log('over/again/leave: ok');
 		r.grantOffer(h);
 		assert.deepEqual(lastOffer().slots, [5, 6, 4, 4], 'slots in the offer');
 		for (const w of h.weapons.values()) w.lvl = MAX_LEVEL;
-		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0 });
+		// v20: overclocks come before embers, so the weapons here are already overclocked.
+		for (const w of h.weapons.values()) w.oc = 1;
+		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0, oc: 1 });
 		for (const id of h.passives.keys()) h.passives.set(id, MAX_LEVEL);
 		h.offer = null;
 		assert.deepEqual(r.makeChoices(h).map((c) => c.kind), ['ember', 'ember', 'ember'], 'all maxed: embers instead of healing');
@@ -573,7 +577,7 @@ console.log('over/again/leave: ok');
 			assert.equal(c.length, 3);
 		}
 		// Same with a free artifact slot: artifacts fill the offer, embers stay out.
-		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0 });
+		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0, oc: 1 });
 		h.passives.delete('regen');
 		r.recalcMods(h);
 		for (let k = 0; k < 30; k++) assert.ok(!r.makeChoices(h).some((x) => x.kind === 'ember'), 'free artifact slot: no embers');

@@ -613,3 +613,40 @@ input[type="text"]:focus { border-color: var(--accent); }
 .over-unlock .portrait-sm { margin: 0; width: 32px; height: 32px; }
 @keyframes unlock-in { from { transform: scale(0.85); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .over-unlock { animation: none; } }
+
+/* v20: overclock cards, «Изгнать», ember totals in the HUD, boss chest reveal */
+.card-wrap { display: flex; flex-direction: column; gap: 4px; min-width: 0; pointer-events: auto; }
+.card-wrap > .card { flex: 1; width: 100%; }
+.card-ovr { border-color: #b388ff; background: linear-gradient(160deg, rgba(179, 136, 255, 0.22), rgba(64, 196, 255, 0.08)), var(--panel, #161a24); box-shadow: 0 0 20px rgba(179, 136, 255, 0.35); }
+.card-ovr .card-name, .card-ovr .card-kind { color: #d1c4e9; }
+.card-ovr .card-icon { color: #b388ff; }
+.card-ovr-of { color: #b388ff; }
+.card-ban {
+	padding: 5px 4px; min-height: 30px;
+	font: inherit; font-size: 0.72rem; color: #ffab91;
+	background: rgba(18, 20, 34, 0.9); border: 1px solid rgba(255, 138, 101, 0.45); border-radius: 8px;
+	cursor: pointer; pointer-events: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-ban:hover:not(:disabled) { border-color: #ff8a65; color: #ffccbc; }
+.card-ban.armed { background: #b71c1c; border-color: #ff8a65; color: #fff; font-weight: 700; }
+.card-ban:disabled { opacity: 0.4; cursor: default; }
+.levelup-banhint { text-align: center; font-size: 0.8rem; color: #ffab91; text-shadow: 0 1px 4px #000; margin: -2px 0 6px; }
+.ban-mode .card-wrap > .card { border-color: #ff8a65; box-shadow: 0 0 16px rgba(255, 138, 101, 0.45); }
+.hud-icon-ovr { border-color: #b388ff !important; box-shadow: 0 0 8px rgba(179, 136, 255, 0.55); }
+.hud-embers { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 0.72rem; color: #ffab91; text-shadow: 0 1px 3px #000; margin-top: 2px; }
+.hud-ember { white-space: nowrap; }
+/* Face-down chest card: the content is hidden, the frame shimmers until its turn. */
+.card-veil > .card { pointer-events: none; border-color: #ffd54f; background: repeating-linear-gradient(135deg, rgba(255, 213, 79, 0.16) 0 10px, rgba(18, 20, 34, 0.94) 10px 20px); animation: veil-pulse 0.6s ease-in-out infinite; }
+.card-veil > .card > * { visibility: hidden; }
+.card-veil > .card::after { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 2.2rem; font-weight: 900; color: #ffd54f; animation: none; background: none; }
+.card-veil > .card-ban { visibility: hidden; }
+.card-reveal > .card { animation: card-flip 0.28s ease-out; }
+@keyframes veil-pulse { 50% { box-shadow: 0 0 22px rgba(255, 213, 79, 0.55); } }
+@keyframes card-flip { from { transform: rotateY(90deg) scale(1.06); filter: brightness(2); } to { transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .card-veil > .card, .card-reveal > .card { animation: none; } }
+@media (max-width: 560px) {
+	.card-ban { font-size: 0.66rem; padding: 6px 2px; min-height: 32px; }
+	.hud-embers { font-size: 0.66rem; gap: 2px 6px; }
+	.levelup-banhint { font-size: 0.7rem; }
+	.card-ovr .card-hint { display: none; } /* the one-line description needs the room */
+}

@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 16;
+export const PROTO = 17;
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.
@@ -21,7 +21,7 @@ export const FX_NAMES = [
 	'hit', 'shot', 'pend', 'zap', 'ptgt', 'eshot', 'epend', 'shard', 'boom', 'zk', 'lob', 'die', 'tslash', 'hurt', 'snap',
 	'orb', 'tfan', 'crescent', 'bell', 'frost', 'ward', 'warn', 'bline', 'brk', 'inv', 'elite', 'boss', 'slash', 'down',
 	'up', 'lvl', 'chest', 'slowz', 'duo', 'evo', 'cone', 'item', 'open', 'blink', 'react', 'banner',
-	'eorb', 'evt', 'evte', 'altar',
+	'eorb', 'evt', 'evte', 'altar', 'apulse', 'ovr',
 ];
 
 // 64 symbols; '.', '*', '!', '~', '^' stay free as markers.

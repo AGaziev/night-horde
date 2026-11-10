@@ -18,6 +18,7 @@ export class Input {
 		this.onDigit = null;
 		this.onReroll = null;
 		this.onSkip = null;
+		this.onBan = null;
 		this.out = { x: 0, y: 0 };
 
 		addEventListener('keydown', (e) => {
@@ -32,6 +33,7 @@ export class Input {
 			if (m && this.onDigit) this.onDigit(Number(m[1]) - 1);
 			else if (e.code === 'KeyR' && this.onReroll) this.onReroll();
 			else if (e.code === 'KeyX' && this.onSkip) this.onSkip();
+			else if (e.code === 'KeyB' && this.onBan) this.onBan();
 		});
 		addEventListener('keyup', (e) => {
 			const k = KEYS[e.code];

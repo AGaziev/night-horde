@@ -1,4 +1,4 @@
-import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress } from '/shared/content.js';
+import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
@@ -175,6 +175,11 @@ net.on('lvl', (msg) => {
 	if (ui.showOffer(msg) && msg.choices?.some((c) => c.rar === 3)) sound.legendary();
 });
 
+// v20: embers taken so far, for the HUD.
+net.on('emb', (msg) => {
+	if (game.running && msg.e && typeof msg.e === 'object') game.embers = msg.e;
+});
+
 net.on('over', (msg) => {
 	input.setEnabled(false);
 	clearTimeout(overTimer);
@@ -212,7 +217,7 @@ net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
 
 // Game events
 
-game.onEvent = (kind, arg, arg2) => {
+game.onEvent = (kind, arg, arg2, arg3) => {
 	switch (kind) {
 		case 'boss':
 			ui.setBossName(arg);
@@ -242,6 +247,17 @@ game.onEvent = (kind, arg, arg2) => {
 				ui.flashWeapons();
 			} else {
 				ui.toast(`${game.meta(arg).name}: эволюция «${name}»`, 'info');
+			}
+			break;
+		}
+		case 'ovr': {
+			const name = OVERCLOCKS[arg2]?.[arg3 - 1]?.name || 'разгон';
+			const wName = WEAPONS[arg2]?.name || 'оружие';
+			if (arg === state.me) {
+				ui.banner(`Разгон: ${wName} — «${name}»`);
+				ui.flashWeapons();
+			} else {
+				ui.toast(`${game.meta(arg).name}: разгон «${name}» (${wName})`, 'info');
 			}
 			break;
 		}
@@ -296,6 +312,9 @@ game.onEvent = (kind, arg, arg2) => {
 
 function pick(i) {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
+	// v20: in «Изгнать» mode a digit banishes; a boss chest card cannot be taken before it is revealed.
+	if (ui.banMode) return void ban(i);
+	if (!ui.cardReady(i)) return;
 	if (game.pick(i)) {
 		sound.card('pick');
 		ui.hideOffer();
@@ -315,6 +334,17 @@ function skip() {
 		ui.hideOffer();
 	}
 }
+function ban(i) {
+	if (ui.screen !== 'game' || ui.levelup.hidden || !ui.cardReady(i)) return;
+	if (game.ban(i)) sound.card('reroll');
+	ui.setBanMode(false);
+}
+ui.onBan = ban;
+// B: the next digit (or a tap on a card) banishes instead of picking; B again cancels.
+input.onBan = () => {
+	if (ui.screen !== 'game' || ui.levelup.hidden || !(game.offer?.bans > 0)) return;
+	ui.setBanMode(!ui.banMode);
+};
 ui.onReroll = input.onReroll = reroll;
 ui.onSkip = input.onSkip = skip;
 

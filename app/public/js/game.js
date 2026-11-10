@@ -1,5 +1,8 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS } from '/shared/content.js';
+import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS } from '/shared/content.js';
+
+// Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
+export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
 
 // Render clock. Snapshots arrive unevenly (tunnel bursts, server tick stalls), so the delay adapts:
 // render time = now - p90(arrival - tm) over the last CLOCK_WINDOW snapshots - p90(snapshot gap) - margin.
@@ -54,6 +57,7 @@ export class Game {
 		this.snaps = [];
 		this.resetClock();
 		this.local = { x: 0, y: 0, fx: 1, fy: 0 };
+		this.embers = {};
 		this.passives = {};
 		this.pvals = {};
 		this.offer = null;
@@ -99,6 +103,7 @@ export class Game {
 		this.resetClock();
 		this.passives = {};
 		this.pvals = {};
+		this.embers = {}; // v20: embers taken so far (message `emb`), shown in the HUD
 		this.offer = null;
 		this.shots.clear();
 		this.numbers.length = 0;
@@ -228,6 +233,14 @@ export class Game {
 		}
 		this.net.send({ t: 'pick', i });
 		this.offer = null;
+		return true;
+	}
+
+	// v20 «Изгнать»: the card leaves the pool for the rest of the run; the server answers with a new offer.
+	ban(i) {
+		const c = this.offer?.choices[i];
+		if (!c || !(this.offer.bans > 0) || !canBan(c)) return false;
+		this.net.send({ t: 'ban', i });
 		return true;
 	}
 
@@ -462,7 +475,9 @@ export class Game {
 					speed: Math.hypot(+ev[5], +ev[6]) || 1, target: ev[8] | 0, retarget: null,
 					st, simT: st, end: st + (+ev[7] || 1), endX: null, endY: null, show: false,
 					// Returning projectile (sickle): owner pid and the time it turns back.
-					owner: ev.length >= 12 ? ev[10] : null, turn: ev.length >= 12 ? st + (+ev[11] || 0) : Infinity,
+					// v20: a 13th field marks a big projectile («Шаровая молния»), its owner field is -1.
+					owner: ev.length >= 12 && ev[10] >= 0 ? ev[10] : null, turn: ev.length >= 12 && ev[10] >= 0 ? st + (+ev[11] || 0) : Infinity,
+					big: ev.length >= 13 ? ev[12] | 0 : 0,
 				});
 				break;
 			}
@@ -688,6 +703,21 @@ export class Game {
 			case 'frost': {
 				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
 				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.45, r0: 16, r1: +ev[2] || 110, color: '#b3e5fc', pid: ev[1], frost: true });
+				break;
+			}
+			case 'apulse': {
+				// v20 overclock «Пульс»: the aura beats as a ring in the hero's colour.
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.4, r0: 20, r1: +ev[2] || 140, color: this.meta(ev[1]).color, pid: ev[1], fill: true });
+				break;
+			}
+			case 'ovr': {
+				this.onEvent('ovr', ev[1], ev[2], ev[3]);
+				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
+				if (pt) {
+					this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.6, r0: 10, r1: 170, color: '#b388ff', pid: ev[1] });
+					this.burst(pt.x, pt.y, '#b388ff', 24, 12);
+				}
 				break;
 			}
 			case 'tslash':

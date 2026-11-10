@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v19';
+export const GAME_VERSION = 'v20';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -72,7 +72,8 @@ export const HEROES = {
 // dmgMul (v18, same indexing): pairs fell to hits (Трубач shots first), not to enemy hp, so only their enemy damage is softer.
 export const MODES = {
 	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 1] },
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.85, 1] },
+	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.8, 1] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -886,8 +887,89 @@ export const weaponDef = (id) => WEAPONS[id] ?? DUOS[id] ?? EVOS[id];
 export const weaponMaxLevel = (id) => (DUOS[id] ? DUO_MAX_LEVEL : EVOS[id] ? 1 : MAX_LEVEL);
 export const ROMAN = ['I', 'II', 'III'];
 
+// Overclocks (v20): a plain weapon at level 5 takes one of two behaviour changes. `mul` / `set` / `add` patch the level-5 stats
+// (shared with the client so it draws what the server simulates), the rest of the behaviour lives in server/game.js by `id`.
+// An overclock is lost when the weapon is fused into a duo or evolves: those have their own behaviour.
+export const OVERCLOCKS = {
+	bolt: [
+		{ id: 'ball', name: 'Шаровая молния', desc: 'Одна большая медленная искра вместо нескольких: пробивает строй и сама ищет следующую цель' },
+		{ id: 'ring', name: 'Кольцо искр', desc: 'Вдвое больше искр разлетаются кольцом, без наведения' },
+	],
+	whip: [
+		{ id: 'lunge', name: 'Выпад', desc: 'Удар только в сторону врага, зато на 70% длиннее и в полтора раза сильнее', mul: { range: 1.7, dmg: 1.5 }, set: { both: false } },
+		{ id: 'twin', name: 'Двойной взмах', desc: 'Каждый удар повторяется через четверть секунды; удары слабее', mul: { dmg: 0.6 } },
+	],
+	knives: [
+		{ id: 'fan', name: 'Широкий веер', desc: '+3 ножа широким веером, но летят вдвое ближе', add: { count: 3 }, set: { spread: 0.2 }, mul: { dmg: 0.92 } },
+		{ id: 'ricochet', name: 'Рикошет', desc: 'На нож меньше, зато нож после попадания поворачивает к соседнему врагу', add: { count: -1 } },
+	],
+	orbit: [
+		{ id: 'wide', name: 'Большой круг', desc: 'Клинки кружат в полтора раза дальше от героя, но медленнее', mul: { radius: 1.5, rps: 0.85 } },
+		{ id: 'grinder', name: 'Мясорубка', desc: 'Клинки кружат вплотную к герою и намного быстрее', mul: { radius: 0.65, rps: 1.6, hitCd: 0.95 } },
+	],
+	aura: [
+		{ id: 'pulse', name: 'Пульс', desc: 'Вместо постоянного урона — мощная широкая волна раз в 1,4 с', set: { tick: 1.4 }, mul: { dmg: 3, radius: 1.25 } },
+		{ id: 'heat', name: 'Жар', desc: 'Ореол на треть уже, но жжёт почти вдвое сильнее', mul: { radius: 0.7, dmg: 1.8 } },
+	],
+	lightning: [
+		{ id: 'near', name: 'Ближний гром', desc: 'Молнии бьют ближайших к герою врагов, а не случайных', mul: { dmg: 1.05 } },
+		{ id: 'blast', name: 'Раскат', desc: 'На молнию меньше, зато конец каждой цепи взрывается', add: { strikes: -1 } },
+	],
+	flask: [
+		{ id: 'lake', name: 'Озеро', desc: 'Одна огромная лужа вместо нескольких' },
+		{ id: 'moat', name: 'Ров', desc: 'Лужи ложатся кольцом вокруг героя и держатся в полтора раза дольше', mul: { duration: 1.5, dmg: 0.8 } },
+	],
+	sickle: [
+		{ id: 'far', name: 'Дальний бросок', desc: 'На серп меньше, зато летят в полтора раза дальше', add: { count: -1 }, mul: { range: 1.5 } },
+		{ id: 'whirl', name: 'Круговой бросок', desc: '+1 серп; серпы разлетаются во все стороны, а не в ближайших врагов', add: { count: 1 } },
+	],
+	bomb: [
+		{ id: 'big', name: 'Большой заряд', desc: 'Одна петарда вместо нескольких: взрыв намного шире и сильнее', mul: { radius: 1.6, dmg: 1.6 } },
+		{ id: 'cluster', name: 'Кассета', desc: '+2 петарды, все ложатся крестом в одну точку; каждая меньше и слабее', add: { count: 2 }, mul: { radius: 0.75, dmg: 0.85 } },
+	],
+	frost: [
+		{ id: 'deep', name: 'Стужа', desc: 'Волна на треть уже, зато бьёт сильнее и замораживает втрое дольше', mul: { radius: 0.7, freeze: 3, dmg: 1.4 } },
+		{ id: 'drift', name: 'Позёмка', desc: 'Волна шире и чаще, но слабее и больше не замораживает', mul: { radius: 1.35, cd: 0.75, dmg: 0.55 }, set: { freeze: 0 } },
+	],
+	traps: [
+		{ id: 'shards', name: 'Осколки', desc: 'Сработавший капкан разбрасывает три шипа; сам бьёт слабее', mul: { dmg: 0.8 } },
+		{ id: 'circle', name: 'Кольцо', desc: 'Ставит сразу три капкана кольцом вокруг героя, но втрое реже', mul: { cd: 2.8 } },
+	],
+	lantern: [
+		{ id: 'beam', name: 'Узкий луч', desc: 'Луч вдвое уже и в полтора раза длиннее, метка сильнее', mul: { angle: 0.45, range: 1.45, dmg: 1.05 }, add: { mark: 0.1 } },
+		{ id: 'halo', name: 'Круговой свет', desc: 'Светит во все стороны, но вдвое ближе и метка слабее', set: { angle: 360 }, mul: { range: 0.55, mark: 0.75 } },
+	],
+	trail: [
+		{ id: 'wide', name: 'Широкая полоса', desc: 'Огонь в полтора раза шире, но ложится вдвое реже', mul: { radius: 1.6, every: 2 } },
+		{ id: 'long', name: 'Долгий жар', desc: 'Огонь горит вдвое дольше, но жжёт слабее', mul: { dur: 2, dmg: 0.5 }, set: { max: 36 } },
+	],
+	spear: [
+		{ id: 'back', name: 'Возврат', desc: 'Копьё возвращается к герою и бьёт второй раз; каждый удар слабее', mul: { dmg: 0.6 } },
+		{ id: 'caltrop', name: 'Шипы', desc: 'Копьё оставляет за собой шипы, которые держат врагов; само бьёт слабее', mul: { dmg: 0.75 } },
+	],
+	ward: [
+		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато вспышка на каждом поглощённом ударе', add: { charges: -1 } },
+		{ id: 'quick', name: 'Быстрый щит', desc: 'Один заряд, но восстанавливается на треть быстрее; вспышка шире и слабее', set: { charges: 1 }, mul: { cd: 0.7, burstR: 1.3, burstDmg: 0.5 } },
+	],
+};
+const ocCache = {};
+// Stats of weapon `id` at `lvl` with overclock `oc` (1 or 2; 0 / unknown — plain level stats).
+export function weaponLevel(id, lvl, oc = 0) {
+	const base = weaponDef(id).levels[lvl - 1];
+	const O = oc ? OVERCLOCKS[id]?.[oc - 1] : null;
+	if (!O) return base;
+	const key = `${id}:${lvl}:${oc}`;
+	if (ocCache[key]) return ocCache[key];
+	const L = { ...base, ...(O.set ?? {}) };
+	for (const [k, v] of Object.entries(O.mul ?? {})) L[k] = Math.round(L[k] * v * 1000) / 1000;
+	for (const [k, v] of Object.entries(O.add ?? {})) L[k] = Math.round((L[k] + v) * 1000) / 1000;
+	return (ocCache[key] = L);
+}
+export const overclockId = (id, oc) => (oc ? OVERCLOCKS[id]?.[oc - 1]?.id ?? null : null);
+
 // Level-up offers.
 export const REROLLS_START = 2;
+export const BANS_START = 2; // «Изгнать»: remove an offered card from the pool for the rest of the run
 export const SKIP_XP = 10;
 export const RARE_CHANCE = 0.05; // chance that the 3rd card is rare, × (1 + luck)
 export const CHEST_RARE_CHANCE = 0.3;
@@ -925,7 +1007,7 @@ export const ITEMS = {
 	rage: { name: 'Склянка ярости', desc: '+50% урона на 10 с всем рядом', mul: 1.5, dur: 10, radius: 300 },
 	cracker: { name: 'Хлопушка', desc: 'Сметает врагов на экране', radius: 650, bigFrac: 0.1 },
 	slowtime: { name: 'Песок времени', desc: 'Враги на экране замедлены на 6 с', slow: 0.7, dur: 6, radius: 650 },
-	feather: { name: 'Перо', desc: '+1 «Перебросить»' },
+	feather: { name: 'Перо', desc: '+1 «Перебросить» и +1 «Изгнать»' },
 	chest: { name: 'Малый сундук', desc: 'Улучшение на выбор' },
 	star: { name: 'Осколок звезды', desc: 'Всем: треть уровня опыта и +20 здоровья' },
 };

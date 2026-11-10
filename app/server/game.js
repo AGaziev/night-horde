@@ -13,6 +13,7 @@ import {
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
+	OVERCLOCKS, weaponLevel, overclockId, BANS_START,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
@@ -93,6 +94,8 @@ const SRC_CRACKER = { weapon: 'cracker', tags: ['aoe'], raw: true }; // raw: fix
 const SRC_STAR = { weapon: 'star', tags: ['aoe'], raw: true };
 const SPECIAL_IDS = Object.keys(SPECIALS);
 const SHIELD_COS = Math.cos((ENEMIES.shield.arc * Math.PI) / 180);
+const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
+const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
 const shuffle = (a) => {
 	for (let i = a.length - 1; i > 0; i--) {
@@ -205,6 +208,7 @@ function makeHero(member, x, y) {
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
+		bans: BANS_START, banned: new Set(), spinQueue: 0, offerSpin: false,
 		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null, downT: 0, offline: false,
 	};
 }
@@ -359,6 +363,7 @@ export class Room {
 			this.needKey?.add(pid);
 			this.send(pid, this.startMsg());
 			const h = this.heroes.get(pid);
+			if (h) this.sendEmbers(h);
 			if (h?.offer) this.sendOffer(h);
 		} else if (this.state === 'over' && this.overMsg) {
 			this.send(pid, this.overMsg);
@@ -421,6 +426,9 @@ export class Room {
 				break;
 			case 'reroll':
 				this.onReroll(pid);
+				break;
+			case 'ban':
+				this.onBan(pid, msg);
 				break;
 			case 'skip':
 				this.onSkip(pid);
@@ -576,8 +584,10 @@ export class Room {
 	// --- level-up offers ---
 
 	// `boost` — extra chance for «Кузня удачи» (small chest); `floor` — lowest rarity of the best card (chests).
-	grantOffer(h, boost = false, floor = 0) {
+	// `spin` — a boss chest: the client reveals the cards one by one.
+	grantOffer(h, boost = false, floor = 0, spin = false) {
 		if (boost) h.boostQueue++;
+		if (spin) h.spinQueue++;
 		if (floor > 0) h.floors.push(floor);
 		if (h.offer) {
 			h.queue++;
@@ -588,9 +598,14 @@ export class Room {
 		}
 	}
 
+	// Embers taken so far: the HUD shows the totals (v20).
+	sendEmbers(h) {
+		this.send(h.pid, { t: 'emb', e: { ...h.embers } });
+	}
+
 	sendOffer(h) {
 		this.send(h.pid, {
-			t: 'lvl', choices: h.offer, pending: h.queue, rerolls: h.rerolls, skipXp: SKIP_XP,
+			t: 'lvl', choices: h.offer, pending: h.queue, rerolls: h.rerolls, bans: h.bans, spin: h.offerSpin ? 1 : undefined, skipXp: SKIP_XP,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
 	}
@@ -603,7 +618,9 @@ export class Room {
 			h.offerBoost = h.boostQueue > 0;
 			if (h.offerBoost) h.boostQueue--;
 			h.offerFloor = h.floors.shift() ?? 0;
-		}
+			h.offerSpin = h.spinQueue > 0;
+			if (h.offerSpin) h.spinQueue--;
+		} else h.offerSpin = false;
 		const boost = h.offerBoost;
 		h.offerNo++;
 		this.updateCombos(h);
@@ -611,6 +628,7 @@ export class Room {
 		for (const id of [...WEAPON_IDS, ...DUO_IDS, ...EVO_IDS]) {
 			const w = h.weapons.get(id);
 			const W = weaponDef(id);
+			if (h.banned.has('weapon:' + id)) continue;
 			if (w) {
 				if (w.lvl < weaponMaxLevel(id)) ups.push({ id, kind: 'weapon', name: W.name, icon: W.icon, desc: upgradeDesc(id, w.lvl + 1), level: w.lvl + 1, duo: DUOS[id] ? 1 : undefined });
 			} else if (WEAPONS[id] && !h.fused.has(id) && !h.evolved.has(id) && h.weapons.size < MAX_WEAPONS) {
@@ -623,7 +641,7 @@ export class Room {
 		for (const id of PASSIVE_IDS) {
 			const lvl = h.passives.get(id) ?? 0;
 			const P = PASSIVES[id];
-			if (P.coop && this.heroes.size < 2) continue;
+			if ((P.coop && this.heroes.size < 2) || h.banned.has('passive:' + id)) continue;
 			if (lvl ? lvl < MAX_LEVEL : h.passives.size < MAX_PASSIVES) {
 				(lvl ? ups : newP).push({ id, kind: 'passive', name: P.name, icon: P.icon, desc: P.desc, level: lvl + 1 });
 			}
@@ -653,12 +671,20 @@ export class Room {
 		// An evolution or a ready duo goes to slot 1 (unless the player declined it recently).
 		const evo = this.readyEvo(h);
 		const ready = h.combos.find((c) => c.ready && !(h.duoDefer[c.id] > h.offerNo));
+		// v20: a weapon ready for an overclock brings both variants as two cards (unless declined recently) — once the build
+		// is nearly done: while two or more regular cards (upgrades or new picks) are available, the overclock waits.
+		// An overclock replaces embers, it does not compete with upgrades (with it mid-run the human bot fell 43% → 27%).
+		const regular = ups.length + (h.weapons.size < MAX_WEAPONS ? newW.length : 0) + newP.length;
+		const ovr = evo || ready || regular >= OVR_REGULAR_MAX ? null : this.readyOvr(h);
 		if (evo) out.push(this.evoCard(h, evo));
 		else if (ready) out.push(this.duoCard(h, ready));
+		else if (ovr) out.push(...this.ovrCards(h, ovr));
 		else if (!take(ups)) take(fresh());
-		if (Math.random() < 0.5) {
-			if (!take(ups)) take(fresh());
-		} else if (!take(fresh())) take(ups);
+		if (out.length < 2) {
+			if (Math.random() < 0.5) {
+				if (!take(ups)) take(fresh());
+			} else if (!take(fresh())) take(ups);
+		}
 		take(shuffle([...ups, ...newW, ...newP]));
 		h.lastOfferNewW = newWTaken;
 		// Nothing left to upgrade: a free weapon slot beats embers, the new-weapon pacing rules give way.
@@ -669,8 +695,16 @@ export class Room {
 			out.push(c);
 		}
 		const heal = { id: 'heal', kind: 'heal', name: 'Лечение', icon: '✚', desc: `+${HEAL_AMOUNT} здоровья`, level: 0 };
-		// Nothing (or not enough) left to upgrade: embers — small permanent bonuses for this run.
-		if (out.length < 3) out.push(...this.emberCards(h, 3 - out.length));
+		// Not enough to upgrade: overclocks fill the offer, the recently declined ones too.
+		if (out.length < 3 && !ovr) {
+			for (const id of this.ovrList(h, true)) {
+				const cards = this.ovrCards(h, id);
+				if (out.length + cards.length > 3) continue;
+				out.unshift(...cards);
+			}
+		}
+		// v20: embers are the fallback — only when there is nothing left to upgrade or overclock.
+		if (!out.length) out.push(...this.emberCards(h, 3));
 		for (const c of out) {
 			if (lonely && c.kind === 'weapon' && c.level === 1) c.rec = 1;
 			this.duoHint(h, c);
@@ -721,6 +755,7 @@ export class Room {
 		return {
 			id: c.id, kind: 'duo', name: D.name, icon: D.icon, desc: D.desc, level, parts: [c.a, c.b],
 			partNames: [WEAPONS[c.a].name, WEAPONS[c.b].name], partIcons: [WEAPONS[c.a].icon, WEAPONS[c.b].icon],
+			loseOvr: this.ovrNames(h, [c.a, c.b]),
 		};
 	}
 
@@ -749,6 +784,75 @@ export class Room {
 		const syn = SYNERGIES.find((x) => (c.kind === 'weapon' && x.weapon === c.id && h.passives.has(x.passive))
 			|| (c.kind === 'passive' && x.passive === c.id && h.weapons.has(x.weapon)));
 		if (syn) c.synHint = { withName: c.kind === 'weapon' ? PASSIVES[syn.passive].name : WEAPONS[syn.weapon].name, desc: syn.desc };
+	}
+
+	// --- v20: overclocks and banishing ---
+
+	// Names of the overclocks that a duo or an evolution of these weapons would drop (shown on the card), or undefined.
+	ovrNames(h, ids) {
+		const out = ids.map((id) => OVERCLOCKS[id]?.[(h.weapons.get(id)?.oc ?? 0) - 1]?.name).filter(Boolean);
+		return out.length ? out : undefined;
+	}
+
+	// Weapons that may be overclocked now: plain, level 5, no overclock yet, a variant left in the pool.
+	// A weapon whose duo partner is owned (and a duo slot is left) waits for the duo. A weapon whose evolution is still within reach waits: the artifact is owned (the evolution card comes by itself,
+	// unless it was declined) or can still be taken into a free slot. `all` ignores a recent refusal.
+	ovrList(h, all = false) {
+		const out = [];
+		const duoOpen = this.duoCount(h) < MAX_DUOS;
+		for (const [id, w] of h.weapons) {
+			if (!OVERCLOCKS[id] || w.oc || w.lvl < MAX_LEVEL) continue;
+			if (!OVERCLOCKS[id].some((_, k) => !h.banned.has(`ovr:${id}:${k + 1}`))) continue;
+			if (!all && h.duoDefer['ovr:' + id] > h.offerNo) continue;
+			// A duo partner is owned: the duo is within reach (it would drop the overclock), wait for it.
+			if (duoOpen && [...h.weapons.keys()].some((o) => o !== id && WEAPONS[o] && DUO_BY_PAIR[duoKey(id, o)])) continue;
+			const evo = EVO_BY_WEAPON[id];
+			if (evo) {
+				const req = EVOS[evo].requires;
+				if (h.passives.has(req)) {
+					if (!(h.duoDefer[evo] > h.offerNo)) continue;
+				} else if (h.passives.size < MAX_PASSIVES && !h.banned.has('passive:' + req) && !(PASSIVES[req].coop && this.heroes.size < 2)) continue;
+			}
+			out.push(id);
+		}
+		return out;
+	}
+
+	readyOvr(h) {
+		return this.ovrList(h)[0] ?? null;
+	}
+
+	ovrCards(h, id) {
+		const W = WEAPONS[id];
+		return OVERCLOCKS[id].map((O, k) => ({ id, kind: 'ovr', v: k + 1, name: O.name, icon: W.icon, desc: O.desc, level: 0, wName: W.name }))
+			.filter((c) => !h.banned.has(`ovr:${id}:${c.v}`));
+	}
+
+	// «Изгнать»: the card leaves the pool for the rest of the run, the offer is rebuilt for free.
+	// Duos, evolutions, healing, embers and «Кузня удачи» cannot be banished.
+	onBan(pid, msg) {
+		if (this.state !== 'play') return;
+		const h = this.heroes.get(pid);
+		const i = num(msg.i);
+		if (!h?.offer || h.bans <= 0 || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
+		const c = h.offer[i];
+		if (c.kind !== 'weapon' && c.kind !== 'passive' && c.kind !== 'ovr') return;
+		if (c.kind === 'weapon' && !WEAPONS[c.id]) return;
+		this.runLog?.choice(this, h, 'ban', c, h.offer);
+		h.banned.add(c.kind === 'ovr' ? `ovr:${c.id}:${c.v}` : `${c.kind}:${c.id}`);
+		h.bans--;
+		h.offer = this.makeChoices(h, true); // like a reroll: the new cards show at once, no chest reveal
+		this.sendOffer(h);
+	}
+
+	overclock(h, c) {
+		const w = h.weapons.get(c.id);
+		if (!w || w.oc || w.lvl < MAX_LEVEL || !OVERCLOCKS[c.id]?.[c.v - 1]) return false;
+		w.oc = c.v;
+		w.t = Math.min(w.t, 0.3);
+		if (c.id === 'ward') h.ward = Math.min(h.ward, weaponLevel('ward', w.lvl, w.oc).charges + h.mods.amount);
+		this.fx.push(['ovr', h.pid, c.id, c.v]);
+		return true;
 	}
 
 	duoCount(h) {
@@ -795,8 +899,11 @@ export class Room {
 			this.fuseDuo(h, c);
 		} else if (c.kind === 'evo') {
 			this.evolve(h, c);
+		} else if (c.kind === 'ovr') {
+			this.overclock(h, c);
 		} else if (c.kind === 'ember') {
 			h.embers[c.id] = (h.embers[c.id] ?? 0) + 1;
+			this.sendEmbers(h);
 			const before = h.maxHp;
 			this.recalcMods(h);
 			if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + (h.maxHp - before) + (EMBERS[c.id].heal ?? 0));
@@ -820,12 +927,17 @@ export class Room {
 			h.hp = Math.min(h.maxHp, h.hp + HEAL_AMOUNT);
 		}
 		if (c.kind === 'weapon' || c.kind === 'rare' || c.kind === 'duo' || c.kind === 'evo') this.updateCombos(h);
+		this.runLog?.picked(this, h);
 		this.nextOffer(h);
 	}
 
 	// A duo card that was not taken (another card or «Отказаться») comes back after DUO_DEFER_OFFERS offers.
 	deferSkippedDuos(h, picked) {
-		for (const c of h.offer ?? []) if ((c.kind === 'duo' || c.kind === 'evo') && c !== picked) h.duoDefer[c.id] = h.offerNo + DUO_DEFER_OFFERS;
+		for (const c of h.offer ?? []) {
+			if ((c.kind === 'duo' || c.kind === 'evo') && c !== picked) h.duoDefer[c.id] = h.offerNo + DUO_DEFER_OFFERS;
+			// Taking the other variant is not a refusal.
+			if (c.kind === 'ovr' && !(picked?.kind === 'ovr' && picked.id === c.id)) h.duoDefer['ovr:' + c.id] = h.offerNo + DUO_DEFER_OFFERS;
+		}
 	}
 
 	// The single place where owned weapon pairs are matched against DUOS: h.combos = [{id, a, b, ready}].
@@ -1827,7 +1939,7 @@ export class Room {
 				this.runLog?.bossKilled(this, e);
 				this.bossKills++;
 				// Every hero, downed too: team xp keeps a downed ally level with the rest, chests do the same (v18.1).
-				for (const p of this.heroes.values()) this.grantOffer(p, false, CHEST_FLOOR.boss);
+				for (const p of this.heroes.values()) this.grantOffer(p, false, CHEST_FLOOR.boss, true);
 			}
 		}
 	}
@@ -1996,6 +2108,7 @@ export class Room {
 			}
 			case 'feather':
 				h.rerolls++;
+				h.bans++;
 				if (h.offer) this.sendOffer(h);
 				break;
 			case 'chest':
@@ -2175,7 +2288,8 @@ export class Room {
 	}
 
 	updateWeapon(h, id, w, dt) {
-		const L = weaponDef(id).levels[w.lvl - 1];
+		const L = weaponLevel(id, w.lvl, w.oc);
+		const oc = overclockId(id, w.oc);
 		const { dmgMul, cdMul, areaMul, amount, durMul } = h.mods;
 		const src = SRC[id];
 		switch (id) {
@@ -2243,6 +2357,20 @@ export class Room {
 					w.t = 0.1;
 					return;
 				}
+				if (oc === 'ball') {
+					// One big slow spark carries the damage of the whole volley and keeps seeking after every hit.
+					const t = targets[0];
+					this.addProjectile(h, 'bolt', Math.atan2(t.y - h.y, t.x - h.x), L.speed * 0.7, dmg * count * 0.34, L.pierce + 4, 3, t, 0, { src, r: 13, seek: true, big: 1 });
+					w.t = L.cd * cdMul;
+					return;
+				}
+				if (oc === 'ring') {
+					const n = count * 2;
+					w.rot = (w.rot ?? 0) + 0.4;
+					for (let i = 0; i < n; i++) this.addProjectile(h, 'bolt', w.rot + (i * Math.PI * 2) / n, L.speed, dmg * 0.75, L.pierce, 1.2, null, 0, { src });
+					w.t = L.cd * cdMul;
+					return;
+				}
 				for (let i = 0; i < count; i++) {
 					const t = targets[i % targets.length];
 					const a = Math.atan2(t.y - h.y, t.x - h.x) + (i - (count - 1) / 2) * 0.25;
@@ -2257,7 +2385,7 @@ export class Room {
 				const target = this.nearestEnemies(h.x, h.y, 1, KNIFE_AIM_RANGE)[0];
 				const base = target ? Math.atan2(target.y - h.y, target.x - h.x) : Math.atan2(h.fy, h.fx);
 				for (let i = 0; i < count; i++) {
-					this.addProjectile(h, 'knife', base + (i - (count - 1) / 2) * L.spread, L.speed, dmg, L.pierce, 1.1, null);
+					this.addProjectile(h, 'knife', base + (i - (count - 1) / 2) * L.spread, L.speed, dmg, L.pierce, oc === 'fan' ? 0.5 : 1.1, null, 0, { seek: oc === 'ricochet' });
 				}
 				w.t = L.cd * cdMul;
 				return;
@@ -2273,10 +2401,11 @@ export class Room {
 				for (let i = 0; i < count; i++) {
 					const t = targets[i % targets.length];
 					const spread = i < targets.length ? 0 : (i - targets.length + 1) * 0.5;
-					const a = Math.atan2(t.y - h.y, t.x - h.x) + spread;
+					const a = oc === 'whirl' ? (w.rot ?? 0) + (i * Math.PI * 2) / count : Math.atan2(t.y - h.y, t.x - h.x) + spread;
 					const speed = L.speed * h.mods.speedMul; // Серп + Лёгкость
 					this.addProjectile(h, 'sickle', a, speed, dmg, Infinity, (range / speed) * 2 + 1.5, null, range / speed);
 				}
+				if (oc === 'whirl') w.rot = (w.rot ?? 0) + 0.5;
 				w.t = L.cd * cdMul;
 				return;
 			}
@@ -2286,6 +2415,15 @@ export class Room {
 				const dir = target ? (target.x >= h.x ? 1 : -1) : (h.fx >= 0 ? 1 : -1);
 				this.slash(h, dir, range, width, dmg);
 				if (L.both) this.slash(h, -dir, range, width, dmg);
+				if (oc === 'twin') {
+					this.after(0.25, () => {
+						if (h.st !== 0 || h.weapons.get('whip') !== w) return;
+						const t2 = this.nearestEnemies(h.x, h.y, 1, range + width)[0];
+						const d2 = t2 ? (t2.x >= h.x ? 1 : -1) : dir;
+						this.slash(h, d2, range, width, dmg);
+						this.slash(h, -d2, range, width, dmg);
+					});
+				}
 				w.t = L.cd * cdMul;
 				return;
 			}
@@ -2306,6 +2444,7 @@ export class Room {
 					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2);
 				}
 				this.breakAround(h.x, h.y, r, h);
+				if (oc === 'pulse') this.fx.push(['apulse', h.pid, Math.round(r)]);
 				w.t = L.tick;
 				return;
 			}
@@ -2335,19 +2474,27 @@ export class Room {
 			case 'molotov':
 			case 'icebomb': {
 				const lobKind = id === 'bomb' ? 0 : id === 'molotov' ? 1 : 2;
-				const cross = id === 'bomb' && amount >= 2 ? amount : 0; // Петарда + Эхо
-				const thrown = this.throwBombs(h, L.count + amount, L.fuse, lobKind, (x, y) => ({
-					x, y, r: L.radius * areaMul, pdmg: 0, edmg: dmg, owner: h, src, burn: id === 'bomb' ? BOMB_BURN : null,
+				// Overclocks: «Большой заряд» — one bomb (Echo widens it), «Кассета» — every bomb in a cross around one point.
+				const n = oc === 'big' ? 1 : L.count + amount;
+				const cross = oc === 'big' ? 0 : oc === 'cluster' ? n - 1 : id === 'bomb' && amount >= 2 ? amount : 0; // Петарда + Эхо
+				const bigMul = oc === 'big' ? 1 + 0.1 * amount : 1;
+				const thrown = this.throwBombs(h, n, L.fuse, lobKind, (x, y) => ({
+					x, y, r: L.radius * areaMul * bigMul, pdmg: 0, edmg: dmg, owner: h, src, burn: id === 'bomb' ? BOMB_BURN : null,
 					kind: lobKind === 0 ? 0 : lobKind === 1 ? 6 : 4,
 					then: lobKind === 1 ? (b) => this.firePool(h, b, L) : lobKind === 2 ? (b) => this.iceBurst(h, b, L) : null,
 				}), cross);
 				w.t = thrown ? L.cd * cdMul : 0.2;
 				return;
 			}
-			case 'traps':
-				this.layTrap(h, { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, splash: L.splash * areaMul, max: L.max, src }); // + Песочные часы
+			case 'traps': {
+				const o = { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, splash: L.splash * areaMul, max: L.max, src, shards: oc === 'shards' }; // + Песочные часы
+				if (oc === 'circle') {
+					w.rot = (w.rot ?? 0) + 0.7;
+					for (let k = 0; k < 3; k++) this.layTrap(h, { ...o, x: h.x + Math.cos(w.rot + k * 2.094) * 64, y: h.y + Math.sin(w.rot + k * 2.094) * 64 });
+				} else this.layTrap(h, o);
 				w.t = L.cd * cdMul;
 				return;
+			}
 			case 'minefield':
 				this.layTrap(h, { kind: 1, r: L.trigger * areaMul, dmg, blastR: L.radius * areaMul, kb: L.kb, recharge: L.recharge, max: L.max, src, burn: MINE_BURN });
 				w.t = L.cd * cdMul;
@@ -2453,12 +2600,15 @@ export class Room {
 					w.t = 0.2;
 					return;
 				}
-				if (id === 'tempest') cand.sort((a, b) => dist2(a.x, a.y, h.x, h.y) - dist2(b.x, b.y, h.x, h.y)); // the first strike hits the nearest
+				if (id === 'tempest' || oc === 'near') cand.sort((a, b) => dist2(a.x, a.y, h.x, h.y) - dist2(b.x, b.y, h.x, h.y)); // the first strike hits the nearest
 				for (let s = 0; s < L.strikes + amount && cand.length; s++) {
 					const idx = id === 'tempest' && s === 0 ? 0 : Math.floor(Math.random() * cand.length);
 					let t = cand[idx];
-					cand[idx] = cand[cand.length - 1];
-					cand.pop();
+					if (oc === 'near') t = cand.shift();
+					else {
+						cand[idx] = cand[cand.length - 1];
+						cand.pop();
+					}
 					this.fx.push(['zap', Math.round(t.x), Math.round(t.y - 320), Math.round(t.x), Math.round(t.y)]);
 					const hit = [t];
 					this.hurtEnemy(t, dmg, h, src);
@@ -2473,6 +2623,7 @@ export class Room {
 						this.hurtEnemy(next, dmg, h, src);
 						t = next;
 					}
+					if (oc === 'blast') this.explode({ x: t.x, y: t.y, r: 70 * areaMul, pdmg: 0, edmg: dmg * 0.5, owner: h, kind: 0, src });
 				}
 				w.t = L.cd * cdMul;
 				return;
@@ -2495,9 +2646,11 @@ export class Room {
 				const a = Math.atan2(t.y - h.y, t.x - h.x);
 				const n = (L.count ?? 1) + amount;
 				const bond = h.mods.bond > 0;
+				const fly = SPEAR_RANGE / L.speed;
 				for (let i = 0; i < n; i++) {
-					this.addProjectile(h, 'spear', a + (i - (n - 1) / 2) * 0.12, L.speed, dmg, L.pierce, SPEAR_RANGE / L.speed + 0.25, null, 0, {
+					this.addProjectile(h, 'spear', a + (i - (n - 1) / 2) * 0.12, L.speed, dmg, L.pierce, oc === 'back' ? fly * 2 + 1 : fly + 0.25, null, oc === 'back' ? fly * 0.8 : 0, {
 						src, kb: L.kb, r: L.width / 2, bond,
+						caltrop: oc === 'caltrop' ? { every: 90, acc: 45, dmg: dmg * OVR_SPIKE.frac } : null,
 						shed: id === 'volley' ? { every: L.every, acc: 0, dmg: L.knifeDmg * dmgMul, speed: 560, life: 0.45 } : null,
 						onEnd: id === 'banner' && i === 0 ? (p) => this.plantBanner(h, p.x, p.y, L) : null,
 					});
@@ -2535,12 +2688,17 @@ export class Room {
 				return;
 			case 'flask':
 			case 'quagmire': {
-				const count = L.count + amount;
+				const total = L.count + amount;
+				const count = oc === 'lake' ? 1 : total;
 				const targets = this.nearestEnemies(h.x, h.y, count, 300);
+				if (oc === 'moat') w.rot = (w.rot ?? 0) + 1;
 				for (let i = 0; i < count; i++) {
 					let x, y;
 					const t = targets[i];
-					if (t) {
+					if (oc === 'moat') {
+						x = h.x + Math.cos(w.rot + (i * Math.PI * 2) / count) * 70;
+						y = h.y + Math.sin(w.rot + (i * Math.PI * 2) / count) * 70;
+					} else if (t) {
 						x = t.x;
 						y = t.y;
 					} else {
@@ -2548,7 +2706,8 @@ export class Room {
 						x = h.x + Math.cos(a) * d;
 						y = h.y + Math.sin(a) * d;
 					}
-					const z = { id: this.nextId++, owner: h, x, y, r: L.radius * areaMul, life: L.duration * durMul, dmg, tick: L.tick, t: 0, slow: Math.max(h.trait.puddleSlow, L.slow ?? 0), wet: true, src };
+					const zr = L.radius * areaMul * (oc === 'lake' ? Math.sqrt(total) * 1.25 : 1);
+					const z = { id: this.nextId++, owner: h, x, y, r: zr, life: L.duration * durMul, dmg, tick: L.tick, t: 0, slow: Math.max(h.trait.puddleSlow, L.slow ?? 0), wet: true, src };
 					this.puddles.push(z);
 					if (z.slow > 0) this.fx.push(['slowz', z.id]);
 				}
@@ -2565,6 +2724,7 @@ export class Room {
 		return {
 			id, kind: 'evo', name: E.name, icon: E.icon, desc: E.desc, level: 1, from: E.from, requires: E.requires,
 			fromName: WEAPONS[E.from].name, fromIcon: WEAPONS[E.from].icon, reqName: PASSIVES[E.requires].name, reqIcon: PASSIVES[E.requires].icon,
+			loseOvr: this.ovrNames(h, [E.from]),
 		};
 	}
 
@@ -2631,6 +2791,7 @@ export class Room {
 	// Ward / Bastion: charges refill one per cd; a full shield starts the run full.
 	wardTick(h, w, L, dt) {
 		h.wardMax = L.charges + h.mods.amount;
+		if (h.ward > h.wardMax && w.init) h.ward = h.wardMax;
 		if (!w.init) {
 			w.init = true;
 			h.ward = h.wardMax;
@@ -2652,7 +2813,7 @@ export class Room {
 	wardAbsorb(h) {
 		const id = h.weapons.has('bastion') ? 'bastion' : h.weapons.has('phalanx') ? 'phalanx' : 'ward';
 		const w = h.weapons.get(id);
-		const L = weaponDef(id).levels[(w?.lvl ?? 1) - 1];
+		const L = weaponLevel(id, w?.lvl ?? 1, w?.oc);
 		h.ward--;
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
@@ -2661,7 +2822,7 @@ export class Room {
 			this.spearRing(h, L);
 			return;
 		}
-		if (id === 'bastion' || h.ward <= 0) {
+		if (id === 'bastion' || h.ward <= 0 || overclockId(id, w?.oc) === 'thorns') {
 			this.explode({ x: h.x, y: h.y, r: L.burstR * h.mods.areaMul, pdmg: 0, edmg: L.burstDmg * h.mods.dmgMul, owner: h, kind: 7, src: SRC[id], kb: L.kb });
 		}
 		if (id === 'bastion') {
@@ -3067,7 +3228,7 @@ export class Room {
 		}
 		const kind = o.kind ?? 0;
 		this.traps.push({
-			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src,
+			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src, shards: o.shards ?? false,
 			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM,
 		});
 		if (o.max) {
@@ -3315,12 +3476,14 @@ export class Room {
 			x: opts.x ?? h.x, y: opts.y ?? h.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, speed, dmg, pierce, life, target,
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
 			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
+			seek: opts.seek ?? false, caltrop: opts.caltrop ?? null,
 		};
 		this.projectiles.push(p);
 		// Projectiles often live shorter than a snapshot interval, so clients simulate them from events.
 		const ev = ['shot', p.id, p.kind, Math.round(p.x), Math.round(p.y), Math.round(p.vx), Math.round(p.vy),
 			round3(life), target ? target.id : -1, round3(this.time)];
 		if (outT > 0) ev.push(h.pid, round3(outT));
+		else if (opts.big) ev.push(-1, 0, opts.big); // v20: a big projectile («Шаровая молния»)
 		this.fx.push(ev);
 	}
 
@@ -3373,6 +3536,19 @@ export class Room {
 		this.fx.push(['banner', h.pid, Math.round(x), Math.round(y), round3(L.life * h.mods.durMul), Math.round(b.r)]);
 	}
 
+	seekNext(p, from) {
+		let best = null, bd = 260 * 260;
+		for (const e of this.grid.query(from.x, from.y, 260, this.q3)) {
+			if (e.dead || p.hit.includes(e.id)) continue;
+			const d = dist2(from.x, from.y, e.x, e.y);
+			if (d < bd) {
+				bd = d;
+				best = e;
+			}
+		}
+		return best;
+	}
+
 	endProjectile(p) {
 		this.fx.push(['pend', p.id, Math.round(p.x), Math.round(p.y), round3(this.time)]);
 	}
@@ -3390,6 +3566,13 @@ export class Room {
 			}
 			if (p.trail) this.iceTrail(p, dt);
 			if (p.shed) this.shedKnives(p, dt);
+			if (p.caltrop && !(p.returns && p.outT <= 0)) {
+				p.caltrop.acc += p.speed * dt;
+				if (p.caltrop.acc >= p.caltrop.every) {
+					p.caltrop.acc -= p.caltrop.every;
+					this.layTrap(p.owner, { kind: 3, x: p.x, y: p.y, r: 14, dmg: p.caltrop.dmg, root: OVR_SPIKE.root, life: OVR_SPIKE.life, max: OVR_SPIKE.max, src: p.src });
+				}
+			}
 			if (p.bond && !p.bonded) this.spearBond(p);
 			if (p.outT > 0) {
 				p.outT -= dt;
@@ -3407,7 +3590,7 @@ export class Room {
 			}
 			if (p.target) {
 				if (p.target.dead) {
-					p.target = this.nearestEnemies(p.x, p.y, 1, 400)[0] ?? null;
+					p.target = p.seek ? this.seekNext(p, p) : this.nearestEnemies(p.x, p.y, 1, 400)[0] ?? null;
 					this.fx.push(['ptgt', p.id, p.target ? p.target.id : -1, round3(this.time)]);
 				}
 				if (p.target) {
@@ -3439,10 +3622,14 @@ export class Room {
 					p.pierce++;
 				}
 				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
-				if (p.kb && !e.dead && !e.boss) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
+				if (p.kb && !e.dead && !e.boss && !(p.returns && p.outT <= 0)) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
 				if (p.split) this.splitSpark(p, e);
 				if (--p.pierce <= 0) break;
-				if (p.target === e) {
+				if (p.seek) {
+					// Overclocks «Рикошет» and «Шаровая молния»: after a hit the projectile turns to a neighbour it has not hit yet.
+					p.target = this.seekNext(p, e);
+					this.fx.push(['ptgt', p.id, p.target ? p.target.id : -1, round3(this.time)]);
+				} else if (p.target === e) {
 					p.target = null;
 					this.fx.push(['ptgt', p.id, -1, round3(this.time)]);
 				}
@@ -3456,6 +3643,7 @@ export class Room {
 	updateTraps(dt) {
 		if (!this.traps.length) return;
 		const near = this.q1;
+		const shards = [];
 		let j = 0;
 		for (const t of this.traps) {
 			if (!this.heroes.has(t.owner.pid) || dist2(t.x, t.y, t.owner.x, t.owner.y) > TRAP_FAR2) continue;
@@ -3500,6 +3688,7 @@ export class Room {
 				t.armT = this.time + t.rearm;
 				this.traps[j++] = t;
 			}
+			if (t.shards) shards.push(t);
 			if (t.splash > 0) {
 				for (const e of this.grid.query(t.x, t.y, t.splash + MAX_ENEMY_R, near)) {
 					const rr = t.splash + e.r * 0.5;
@@ -3508,6 +3697,13 @@ export class Room {
 			}
 		}
 		this.traps.length = j;
+		// «Осколки»: three spikes around a trap that went off.
+		for (const t of shards) {
+			const a0 = Math.random() * Math.PI * 2;
+			for (let k = 0; k < 3; k++) {
+				this.layTrap(t.owner, { kind: 3, x: t.x + Math.cos(a0 + k * 2.094) * 38, y: t.y + Math.sin(a0 + k * 2.094) * 38, r: 14, dmg: t.dmg * OVR_SPIKE.frac, root: OVR_SPIKE.root, life: OVR_SPIKE.life, max: OVR_SPIKE.max, src: t.src });
+			}
+		}
 	}
 
 	updatePuddles(dt) {
@@ -3715,7 +3911,9 @@ export class Room {
 			h.pid, Math.round(h.x), Math.round(h.y), Math.ceil(h.hp), Math.round(h.maxHp), h.level,
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
+			// v20: an overclocked weapon gets a 4th field with the variant (1 or 2).
 			[...h.weapons].map(([id, w]) => (id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
+				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
 			h.ward,
 		]);

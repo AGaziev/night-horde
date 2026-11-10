@@ -4,7 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {
 	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES, modeOf,
-	SPECIALS, EVENTS, EVENT_INDEX, ALTAR_DEALS,
+	SPECIALS, EVENTS, EVENT_INDEX, ALTAR_DEALS, MAX_WEAPONS, MAX_PASSIVES, OVERCLOCKS, WEAPONS, PASSIVES,
 } from '../public/shared/content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
@@ -20,6 +20,7 @@ const BOSS_NEAR = 400; // a boss is «near» while an alive player is this close
 const r1 = (v) => Math.round(v * 10) / 10;
 const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', star: 'Падающая звезда', other: 'Прочее' };
 const SPECIAL_IDS = Object.keys(SPECIALS);
+const PASSIVE_OR_WEAPON = (id) => weaponDef(id)?.name ?? PASSIVES[id]?.name ?? id;
 export const srcName = (id) => SRC_NAMES[id] ?? (id.startsWith('r_') && REACTIONS[id.slice(2)] ? `Реакция «${REACTIONS[id.slice(2)].name}»` : null) ?? weaponDef(id)?.name ?? id;
 const enemyName = (key) => {
 	const [type, how] = key.split(':');
@@ -53,6 +54,8 @@ export class RunLog {
 				minHp: h.maxHp, minHpT: 0, rar: newRar(),
 				// v15: per-minute hp [end, min, max] and weapon dps, recent hits, down details, declined new weapons.
 				hpMin: [], minuteMin: h.hp, dps: [], lastDmgBy: {}, hits: [], deaths: [], declinedW: 0, declinedLonely: 0, drops: [],
+				// v20: overclock offers (per weapon, both variants count once) / taken, banished cards, when the 6 + 4 slots filled up.
+				ovr: { seen: 0, took: [] }, bans: [], slotsFullT: null,
 			});
 		}
 	}
@@ -102,11 +105,15 @@ export class RunLog {
 		}
 	}
 
-	// act: 'pick' | 'skip' | 'reroll'; offer: the cards that were on screen.
+	// act: 'pick' | 'skip' | 'reroll' | 'ban'; offer: the cards that were on screen. Overclock cards are `weapon~variant`.
 	choice(room, h, act, card, offer) {
 		const p = this.p.get(h.pid);
 		if (!p) return;
-		const of = (offer ?? []).map((c) => (c.level > 1 ? `${c.id}${c.level}` : c.id) + (c.rar > 0 ? `*${c.rar}` : '')).join(',');
+		const cid = (c) => (c.kind === 'ovr' ? `${c.id}~${c.v}` : c.id);
+		const of = (offer ?? []).map((c) => (c.level > 1 ? `${c.id}${c.level}` : cid(c)) + (c.rar > 0 ? `*${c.rar}` : '')).join(',');
+		p.ovr.seen += new Set((offer ?? []).filter((c) => c.kind === 'ovr').map((c) => c.id)).size;
+		if (act === 'pick' && card?.kind === 'ovr') p.ovr.took.push([r1(room.time), cid(card)]);
+		if (act === 'ban' && card) p.bans.push([r1(room.time), cid(card)]);
 		for (const c of offer ?? []) if (c.rar !== undefined) p.rar.seen[c.rar]++;
 		if (card?.rar !== undefined) p.rar.took[card.rar]++;
 		const newW = (offer ?? []).some((c) => c.kind === 'weapon' && (c.from ?? c.level - 1) === 0);
@@ -115,9 +122,15 @@ export class RunLog {
 			if (h.weapons.size < 2) p.declinedLonely++;
 		}
 		const e = [r1(room.time), h.level, act];
-		if (card) e.push(card.id, card.kind, card.level, card.rar ?? null);
+		if (card) e.push(cid(card), card.kind, card.level, card.rar ?? null);
 		if (of) e.push(of);
 		p.picks.push(e);
+	}
+
+	// After a pick is applied: the moment all weapon and artifact slots are taken for the first time.
+	picked(room, h) {
+		const p = this.p.get(h.pid);
+		if (p && p.slotsFullT === null && h.weapons.size >= MAX_WEAPONS && h.passives.size >= MAX_PASSIVES) p.slotsFullT = r1(room.time);
 	}
 
 	fused(room, h, kind, id) {
@@ -240,7 +253,10 @@ export class RunLog {
 	build(room, win) {
 		if (room.time - (this.nextSample - 60) >= 5) this.sample(room);
 		const players = [...room.heroes.values()].map((h) => {
-			const p = this.p.get(h.pid) ?? { picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar() };
+			const p = this.p.get(h.pid) ?? { picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar(), ovr: { seen: 0, took: [] }, bans: [], slotsFullT: null };
+			// Share of embers among the cards taken in the last third of the run.
+			const late = p.picks.filter((e) => e[2] === 'pick' && e[0] >= room.runLength * (2 / 3));
+			const lateEmb = late.filter((e) => e[4] === 'ember').length;
 			const total = Object.values(h.dmgBy).reduce((s, v) => s + v, 0) || 1;
 			const dmgBy = Object.entries(h.dmgBy).filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1])
 				.map(([id, v]) => ({ id, name: srcName(id), dmg: Math.round(v), pct: r1((v / total) * 100) }));
@@ -255,14 +271,17 @@ export class RunLog {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 					passives: [...h.passives].map(([id, l]) => `${id}${l}`),
 					embers: { ...h.embers },
+					ovr: [...h.weapons].filter(([, w]) => w.oc).map(([id, w]) => `${id}~${w.oc}`),
 				},
+				ovr: { seen: p.ovr.seen, took: p.ovr.took }, bans: p.bans, slotsFullAt: p.slotsFullT,
+				late: { picks: late.length, embers: lateEmb, emberShare: late.length ? Math.round((lateEmb / late.length) * 100) : null },
 				picks: p.picks,
 			};
 		});
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
 			mode: room.mode ?? 'night', runLength: room.runLength, win, time: r1(room.time), kills: room.kills,
-			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common',
+			pickFormat: '[time, level, pick|skip|reroll|ban, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common; overclock: weapon~variant',
 			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
 			summary: [], minutes: this.minutes, peaks: this.peaks, team: players,
 			bosses: this.bosses.map(({ group, nearMark, ...b }) => ({
@@ -396,6 +415,11 @@ function playerLines(p) {
 		if (dips.length) out.push(`${pre} провал урона на минутах: ${dips.join(', ')} (−25% и больше к прошлой минуте)`);
 	}
 	if (p.hpByMin?.length) out.push(`${pre} здоровье по минутам (мин. за минуту): ${p.hpByMin.map((x) => x[1]).join(' ')} из ${p.maxHp}`);
+	const ovrName = (s) => { const [id, v] = s.split('~'); return v ? `${WEAPONS[id]?.name ?? id} — «${OVERCLOCKS[id]?.[v - 1]?.name ?? v}»` : PASSIVE_OR_WEAPON(id); };
+	if (p.ovr) {
+		out.push(`${pre} разгоны: предложено ${p.ovr.seen}, взято ${p.ovr.took.length}${p.ovr.took.length ? ` (${p.ovr.took.map(([t, s]) => `${ovrName(s)} на ${mmss(t)}`).join(', ')})` : ''}; изгнано ${p.bans.length}${p.bans.length ? ` (${p.bans.map(([t, s]) => `${ovrName(s)} на ${mmss(t)}`).join(', ')})` : ''}`);
+		out.push(`${pre} слоты 6 + 4 заполнены: ${p.slotsFullAt === null ? 'нет' : mmss(p.slotsFullAt)}; угли в последней трети забега: ${p.late.emberShare === null ? 'выборов не было' : `${p.late.embers} из ${p.late.picks} выборов (${p.late.emberShare}%)`}`);
+	}
 	if (p.declinedNewWeapon) out.push(`${pre} отказался от нового оружия ${p.declinedNewWeapon} раз${p.declinedNewWeaponLonely ? ` (из них ${p.declinedNewWeaponLonely} — с одним оружием)` : ''}`);
 	return out;
 }

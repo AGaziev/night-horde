@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -13,10 +13,11 @@ export function rememberDuo(id) {
 	try { localStorage.setItem(DUO_STORE, JSON.stringify([...set])); } catch { /* private mode */ }
 	return isNew;
 }
+const CHEST_REVEAL_MS = 600; // boss chest: one card every 0.6 s
 const lvlText = (id, lvl) => (EVOS[id] ? '★' : DUOS[id] ? ROMAN[lvl - 1] || String(lvl) : String(lvl));
 import { drawHeroPreview } from './render.js';
 import { sprites } from './sprites.js';
-import { P } from './game.js';
+import { P, canBan } from './game.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -302,18 +303,64 @@ export class UI {
 		$('levelup-skipxp').textContent = offer.skipXp ? `(+${offer.skipXp} опыта)` : '';
 		const [wUsed, wMax, pUsed, pMax] = Array.isArray(offer.slots) ? offer.slots : [0, MAX_WEAPONS, 0, MAX_PASSIVES];
 		$('levelup-slots').textContent = `Оружие ${wUsed}/${wMax} · Артефакты ${pUsed}/${pMax}`;
+		// v20 «Изгнать»: charges on every card button, also when the same cards are sent again (a feather was picked up).
+		const bans = offer.bans | 0;
+		this.bans = bans;
+		for (const b of document.querySelectorAll('#levelup-cards .card-ban')) this.banLabel(b, false);
 		if (key === this.offerKey && !this.levelup.hidden) return false;
 		this.offerKey = key;
+		this.setBanMode(false);
 		const box = $('levelup-cards');
 		box.textContent = '';
+		// Boss chest (`spin`): the cards are revealed one by one, CHEST_REVEAL_MS apart; a hidden card cannot be taken.
+		for (const t of this.revealTimers ?? []) clearTimeout(t);
+		this.revealTimers = [];
+		const spin = !!offer.spin && choices.length > 0;
+		const now = performance.now();
+		this.readyAt = choices.map((_, i) => (spin ? now + CHEST_REVEAL_MS * (i + 1) : 0));
+		$('levelup-title-text').textContent = spin ? 'Сундук босса!' : 'Новый уровень!';
 		const known = knownDuos();
+		const add = (card, c, i) => {
+			const wrap = el('div', spin ? 'card-wrap card-veil' : 'card-wrap');
+			wrap.appendChild(card);
+			if (canBan(c)) {
+				const b = el('button', 'card-ban');
+				b.type = 'button';
+				this.banLabel(b, false);
+				b.addEventListener('click', () => {
+					if (!this.cardReady(i) || !(this.bans > 0)) return;
+					// Two taps: the first one arms the button, so a slip on a phone does not banish a card.
+					if (!b.classList.contains('armed')) {
+						for (const o of box.querySelectorAll('.card-ban.armed')) this.banLabel(o, false);
+						this.banLabel(b, true);
+						clearTimeout(this.banArmT);
+						this.banArmT = setTimeout(() => this.banLabel(b, false), 3000);
+						return;
+					}
+					this.onBan && this.onBan(i);
+				});
+				wrap.appendChild(b);
+			}
+			if (spin) {
+				this.revealTimers.push(setTimeout(() => {
+					wrap.classList.remove('card-veil');
+					wrap.classList.add('card-reveal');
+					this.onReveal && this.onReveal(i, c);
+				}, CHEST_REVEAL_MS * (i + 1)));
+			}
+			box.appendChild(wrap);
+		};
 		choices.forEach((c, i) => {
 			if (c.kind === 'duo') {
-				box.appendChild(this.duoCard(c, i));
+				add(this.duoCard(c, i), c, i);
 				return;
 			}
 			if (c.kind === 'evo') {
-				box.appendChild(this.evoCard(c, i));
+				add(this.evoCard(c, i), c, i);
+				return;
+			}
+			if (c.kind === 'ovr') {
+				add(this.ovrCard(c, i), c, i);
 				return;
 			}
 			const R = RARITIES[c.rar];
@@ -353,11 +400,45 @@ export class UI {
 			if (c.reactHint) card.appendChild(el('div', 'card-hint card-hint-react', `💥 реакция «${c.reactHint.name}» с «${c.reactHint.withName}»${c.reactHint.ally ? ' союзника' : ''}`));
 			if (c.synHint) card.appendChild(el('div', 'card-hint', `✦ с «${c.synHint.withName}»: ${c.synHint.desc}`));
 			card.addEventListener('click', () => this.onPick && this.onPick(i));
-			box.appendChild(card);
+			add(card, c, i);
 		});
 		box.style.gridTemplateColumns = `repeat(${Math.max(1, choices.length)}, 1fr)`;
 		this.levelup.hidden = false;
 		return true;
+	}
+
+	// v20. Overclock card: the weapon's icon, the variant's name and its one-line description.
+	ovrCard(c, i) {
+		const card = el('button', 'card card-ovr');
+		card.type = 'button';
+		card.appendChild(el('span', 'card-key', String(i + 1)));
+		card.appendChild(el('span', 'card-kind', 'разгон'));
+		card.appendChild(el('div', 'card-icon', c.icon || WEAPONS[c.id]?.icon || '?'));
+		card.appendChild(el('div', 'card-name', c.name || OVERCLOCKS[c.id]?.[c.v - 1]?.name || 'Разгон'));
+		card.appendChild(el('div', 'card-level card-ovr-of', `Разгон: ${c.wName || WEAPONS[c.id]?.name || ''}`));
+		card.appendChild(el('div', 'card-desc', c.desc || ''));
+		card.appendChild(el('div', 'card-hint', '⚙ один разгон на оружие, до конца забега'));
+		card.addEventListener('click', () => this.onPick && this.onPick(i));
+		return card;
+	}
+
+	banLabel(b, armed) {
+		b.classList.toggle('armed', armed);
+		b.disabled = !(this.bans > 0);
+		b.textContent = armed ? 'Точно убрать?' : `🚫 Изгнать (${this.bans | 0})`;
+		b.title = 'Убрать эту карточку из выбора до конца забега (B, затем номер карточки)';
+	}
+
+	// B on the keyboard: the next card tap or digit banishes instead of picking.
+	setBanMode(on) {
+		this.banMode = !!on;
+		this.levelup.classList.toggle('ban-mode', this.banMode);
+		$('levelup-banhint').hidden = !this.banMode;
+	}
+
+	// False while a boss chest card is still face down.
+	cardReady(i) {
+		return !(this.readyAt?.[i] > performance.now());
 	}
 
 	// Duo card: both part icons merge into the duo icon; the price is spelled out.
@@ -377,6 +458,7 @@ export class UI {
 		card.appendChild(el('div', 'card-desc', c.desc || ''));
 		card.appendChild(el('div', 'card-hint', '⇄ освобождает слот оружия'));
 		card.appendChild(el('div', 'card-warn', '⚠ эти оружия не смогут эволюционировать'));
+		if (c.loseOvr?.length) card.appendChild(el('div', 'card-warn', `⚠ разгон «${c.loseOvr.join('», «')}» пропадёт`));
 		card.addEventListener('click', () => this.onPick && this.onPick(i));
 		return card;
 	}
@@ -396,6 +478,7 @@ export class UI {
 		card.appendChild(el('div', 'card-level card-new', `Эволюция: ${c.fromName} + ${c.reqName}`));
 		card.appendChild(el('div', 'card-desc', c.desc || ''));
 		card.appendChild(el('div', 'card-warn', '⚠ оружие не сможет войти в связку'));
+		if (c.loseOvr?.length) card.appendChild(el('div', 'card-warn', `⚠ разгон «${c.loseOvr.join('», «')}» пропадёт`));
 		card.addEventListener('click', () => this.onPick && this.onPick(i));
 		return card;
 	}
@@ -411,6 +494,10 @@ export class UI {
 	hideOffer() {
 		this.levelup.hidden = true;
 		this.offerKey = '';
+		for (const t of this.revealTimers ?? []) clearTimeout(t);
+		this.revealTimers = [];
+		this.readyAt = [];
+		this.setBanMode(false);
 	}
 
 	// Game over
@@ -499,7 +586,11 @@ export class UI {
 			if (this.cache.weapons !== wKey) {
 				this.cache.weapons = wKey;
 				const box = $('hud-weapons');
-				fillIcons(box, w.map(([id, lvl]) => [weaponDef(id)?.icon || '?', lvlText(id, lvl), weaponDef(id)?.name || id, EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : '']), `${w.length}/${MAX_WEAPONS}`, 'Слоты оружия');
+				// v20: an overclocked weapon (4th field of a plain weapon) gets a violet frame, a mark and the variant in the title.
+				fillIcons(box, w.map(([id, lvl, , oc]) => {
+					const O = WEAPONS[id] && oc ? OVERCLOCKS[id]?.[oc - 1] : null;
+					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), (weaponDef(id)?.name || id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : ''), EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
+				}), `${w.length}/${MAX_WEAPONS}`, 'Слоты оружия');
 				drawDuoLinks(box, w);
 			}
 		}
@@ -508,6 +599,21 @@ export class UI {
 			this.cache.passives = pKey;
 			const ps = Object.entries(game.passives);
 			fillIcons($('hud-passives'), ps.map(([id, lvl]) => [PASSIVES[id]?.icon || '?', lvl, PASSIVES[id]?.name || id]), `${ps.length}/${MAX_PASSIVES}`, 'Слоты артефактов');
+		}
+
+		// v20: embers taken so far with their total effect.
+		const eKey = JSON.stringify(game.embers ?? {});
+		if (this.cache.embers !== eKey) {
+			this.cache.embers = eKey;
+			const parts = Object.entries(game.embers ?? {}).filter(([id, n]) => EMBERS[id] && n > 0).map(([id, n]) => emberText(id, n));
+			const box = $('hud-embers');
+			box.hidden = !parts.length;
+			box.textContent = '';
+			for (const [text, title] of parts) {
+				const s = el('span', 'hud-ember', text);
+				s.title = title;
+				box.appendChild(s);
+			}
 		}
 
 		this.set('hud-syn', 'hidden', !(game.syn > 0));
@@ -553,6 +659,7 @@ export class UI {
 		$('hud-weapons').textContent = '';
 		$('hud-passives').textContent = '';
 		$('hud-allies').textContent = '';
+		$('hud-embers').hidden = true;
 		$('hud-boss').hidden = true;
 		$('hud-down').hidden = true;
 		$('banner').hidden = true;
@@ -576,6 +683,14 @@ function heroMark(hero, color) {
 	dot.style.background = color;
 	dot.style.color = color;
 	return dot;
+}
+
+// «♦×6 +30%»: ember icon, how many were taken and what they add up to.
+function emberText(id, n) {
+	const E = EMBERS[id];
+	const v = E.value * n;
+	const total = E.stat === 'maxHp' ? `+${Math.round(v)}` : `${v < 0 ? '−' : '+'}${Math.round(Math.abs(v) * 100)}%`;
+	return [`${E.icon}×${n} ${total}`, `${E.name} ×${n}: ${E.desc.replace(/^[+−-]?[\d.,]+%?/, total)}`];
 }
 
 function fillIcons(box, items, slots, slotsTitle) {

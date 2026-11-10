@@ -70,6 +70,7 @@
 				<div class="hud-hp"><div id="hud-hp-fill"></div><span id="hud-hp-text"></span></div>
 				<div id="hud-weapons" class="hud-icons"></div>
 				<div id="hud-passives" class="hud-icons hud-icons-small"></div>
+				<div id="hud-embers" class="hud-embers" hidden></div>
 				<div id="hud-syn" class="hud-syn" hidden></div>
 			</div>
 			<div class="hud-center">
@@ -94,8 +95,9 @@
 
 	<!-- Level-up -->
 	<div id="levelup" class="levelup" hidden>
-		<div class="levelup-title">Новый уровень! <span id="levelup-pending" class="muted"></span></div>
+		<div class="levelup-title"><span id="levelup-title-text">Новый уровень!</span> <span id="levelup-pending" class="muted"></span></div>
 		<div id="levelup-slots" class="levelup-slots"></div>
+		<div id="levelup-banhint" class="levelup-banhint" hidden>Изгнание: выберите карточку (1–3), которую убрать до конца забега. B — отмена</div>
 		<div id="levelup-cards" class="levelup-cards"></div>
 		<div class="levelup-actions">
 			<button id="levelup-reroll" class="btn btn-small" type="button">⟳ Перебросить <span id="levelup-rerolls"></span> <kbd>R</kbd></button>
