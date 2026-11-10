@@ -11,7 +11,7 @@ import {
 	DUOS, DUO_IDS, DUO_BY_PAIR, duoKey, MAX_DUOS, DUO_MIN_LEVEL, DUO_DEFER_OFFERS, duoStartLevel, weaponDef, weaponMaxLevel,
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
-	beaconAngle, PEAK_WARN, peakSchedule, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
+	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul,
 } from '../public/shared/content.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
@@ -35,7 +35,7 @@ const ORBIT_BLADE_R = 12;
 const LIGHTNING_RANGE = 600;
 const CHAIN_RANGE = 170;
 const BOLT_RANGE = 700;
-const HEAL_AMOUNT = 30;
+const HEAL_AMOUNT = 40;
 const REVIVE_IFRAMES = 1.5;
 const SLOW_HOLD = 0.1; // seconds a puddle slow lingers after the last check
 const MAX_CRIT_FX = 12;
@@ -52,6 +52,9 @@ const TRAP_BEHIND = 30;
 const MOVE_RECENT = 0.3;
 const SPLASH_FRAC = 0.5;
 const DENSE_R = 80;
+const ORB_AIM_EVERY = 0.4;
+const ORB_AIM_RANGE = 320;
+const ORB_AIM_MIN = 24;
 const BOMB_RANGE = 320;
 const LEECH_EVERY = 0.5;
 const LEECH_R = 120;
@@ -197,7 +200,7 @@ function makeHero(member, x, y) {
 		kills: 0, dmg: 0, dmgBy: {}, revives: 0, knifeKills: 0,
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
-		guard: 0, bondMul: 1, bannerT: 0,
+		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
 	};
 }
 
@@ -570,7 +573,9 @@ export class Room {
 		const out = [];
 		const used = new Set();
 		let newWTaken = false;
-		const allowNewW = !h.lastOfferNewW;
+		// A single weapon is a trap: new weapons are offered every time and marked as recommended.
+		const lonely = h.weapons.size < 2;
+		const allowNewW = lonely || !h.lastOfferNewW;
 		const take = (arr) => {
 			for (const c of arr) {
 				const key = c.kind + c.id;
@@ -595,10 +600,18 @@ export class Room {
 		} else if (!take(fresh())) take(ups);
 		take(shuffle([...ups, ...newW, ...newP]));
 		h.lastOfferNewW = newWTaken;
+		// Nothing left to upgrade: a free weapon slot beats embers, the new-weapon pacing rules give way.
+		for (const c of shuffle([...newW, ...newP])) {
+			if (out.length >= 3) break;
+			if (used.has(c.kind + c.id)) continue;
+			used.add(c.kind + c.id);
+			out.push(c);
+		}
 		const heal = { id: 'heal', kind: 'heal', name: 'Лечение', icon: '✚', desc: `+${HEAL_AMOUNT} здоровья`, level: 0 };
 		// Nothing (or not enough) left to upgrade: embers — small permanent bonuses for this run.
 		if (out.length < 3) out.push(...this.emberCards(h, 3 - out.length));
 		for (const c of out) {
+			if (lonely && c.kind === 'weapon' && c.level === 1) c.rec = 1;
 			this.duoHint(h, c);
 			this.waveHints(h, c);
 		}
@@ -756,6 +769,7 @@ export class Room {
 
 	// The single place where owned weapon pairs are matched against DUOS: h.combos = [{id, a, b, ready}].
 	updateCombos(h) {
+		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire'));
 		const own = [...h.weapons].filter(([id]) => !DUOS[id]);
 		const out = [];
 		if (this.duoCount(h) < MAX_DUOS) {
@@ -809,6 +823,7 @@ export class Room {
 			const P = PASSIVES[id];
 			m[P.stat] += !P.values && h.pval?.[id] !== undefined ? h.pval[id] : passiveValue(id, lvl);
 			for (const [k, arr] of Object.entries(P.extra ?? {})) m[k] = Math.max(m[k], arr[Math.min(arr.length, lvl) - 1]);
+			for (const [k, v] of Object.entries(P.bonus ?? {})) m[k] += v * lvl;
 		}
 		for (const [id, n] of Object.entries(h.embers ?? {})) m[EMBERS[id].stat] += EMBERS[id].value * n;
 		m.cdMul = Math.max(0.3, m.cdMul);
@@ -904,12 +919,15 @@ export class Room {
 	spawn(dt, alive) {
 		const n = this.heroes.size;
 		while (this.bossIdx < this.bossAt.length && this.time >= this.bossAt[this.bossIdx]) {
-			const type = this.bossIdx < BOSS_SCHEDULE.length ? this.bossPlan[this.bossIdx % this.bossPlan.length] : FINAL_BOSS.type;
+			const slot = this.bossIdx;
+			const type = slot < BOSS_SCHEDULE.length ? this.bossPlan[slot % this.bossPlan.length] : FINAL_BOSS.type;
 			this.bossIdx++;
-			this.spawnBoss(type, alive);
+			this.spawnBoss(type, alive, slot);
 		}
 		const wave = this.currentWave();
-		this.spawnAcc += wave.rate * spawnRateScale(n) * (this.peak?.spawnMul ?? 1) * dt;
+		const pk = this.peak;
+		const peakMul = pk?.spawnMul ? 1 + (pk.spawnMul - 1) * Math.min(1, pk.ramp ? (this.time - pk.at) / pk.ramp : 1) : 1;
+		this.spawnAcc += wave.rate * spawnRateScale(n) * peakMul * dt;
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
@@ -923,8 +941,8 @@ export class Room {
 		}
 	}
 
-	spawnBoss(type, alive) {
-		const b = this.spawnEnemy(type, alive, bossHpScale(this.nt, this.heroes.size));
+	spawnBoss(type, alive, slot = -1) {
+		const b = this.spawnEnemy(type, alive, bossHpScale(this.nt, this.heroes.size, slot));
 		b.group = b.id;
 		this.bosses.push(b);
 		this.fx.push(['boss', ENEMIES[type].name]);
@@ -1478,6 +1496,7 @@ export class Room {
 			h.dmgBy[src.weapon] = (h.dmgBy[src.weapon] ?? 0) + dealt;
 		}
 		e.hp -= dmg;
+		if (e.boss) this.runLog?.bossHit(this, e, dealt, h);
 		this.lastCrit = crit;
 		if (crit && this.critFx < MAX_CRIT_FX) {
 			this.critFx++;
@@ -1487,7 +1506,11 @@ export class Room {
 			this.fx.push(['hit', Math.round(e.x), Math.round(e.y), Math.max(1, Math.round(dmg))]);
 		}
 		if (e.hp <= 0) this.killEnemy(e, h, src);
-		else if (h && h.mods.burnChance > 0 && !src.react && Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
+		else if (h && h.mods.burnChance > 0 && !src.react) {
+			if (h.fireW) {
+				if (Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
+			} else if (e.burnT <= this.time + 1) this.burn(e, h, h.mods.burnDps * EMBER_WEAK.frac, EMBER_WEAK.dur);
+		}
 		return dmg;
 	}
 
@@ -1586,7 +1609,9 @@ export class Room {
 			this.fx.push(['die', Math.round(e.x), Math.round(e.y), e.type]);
 		}
 		const luck = h ? h.mods.luck : 0;
-		this.dropGem(e.x, e.y, e.beaconT > this.time ? e.xp * EVOS.beacon.levels[0].xpMul : e.xp, Math.random() < GOLD_GEM_CHANCE * (1 + luck));
+		const gold = Math.random() < GOLD_GEM_CHANCE * (1 + luck);
+		const xp = e.beaconT > this.time ? e.xp * EVOS.beacon.levels[0].xpMul : e.xp;
+		this.dropGem(e.x, e.y, gold ? xp * GOLD_GEM_MUL : xp, gold);
 		if (e.burnT > this.time && e.burnOwner?.weapons.has('firepath')) this.spreadFire(e);
 		if (h && src.weapon === 'fireworks') this.gems[this.gems.length - 1].pull = h;
 		if (e.ai === 'exploder' && !e.exploded) {
@@ -1600,6 +1625,7 @@ export class Room {
 			if (Math.random() < ELITE_CHEST_CHANCE * (1 + luck)) this.dropItem('chest', e.x, e.y);
 			else this.dropGem(e.x + 12, e.y, e.xp * GOLD_GEM_MUL, true);
 		}
+		if (h && h.st === 0 && !e.boss && Math.random() < DEW_DROP.chance * (h.hp < h.maxHp * DEW_DROP.lowHp ? DEW_DROP.lowMul : 1)) this.dropItem('dew', e.x, e.y);
 		if (e.type === TYPE_INDEX.brute && this.time >= this.nextMagnetT) {
 			this.nextMagnetT = this.time + MAGNET_ITEM_EVERY;
 			this.dropItem('magnet', e.x, e.y + 10);
@@ -2153,7 +2179,7 @@ export class Room {
 				for (const p of pts) {
 					const o = {
 						id: this.nextId++, owner: h, x: h.x, y: h.y, tx: p.x, ty: p.y, speed: L.speed, life: L.life,
-						r: L.radius * areaMul, dmg, tick: L.tick, t: L.tick, boom: L.boom * dmgMul, boomR: L.boomR * areaMul, src,
+						r: L.radius * areaMul, dmg, tick: L.tick, t: L.tick, boom: L.boom * dmgMul, boomR: L.boomR * areaMul, zap: (L.zap ?? 0) * dmgMul, src, aimT: ORB_AIM_EVERY,
 					};
 					this.orbs.push(o);
 					this.fx.push(['orb', o.id, Math.round(o.x), Math.round(o.y), Math.round(o.tx), Math.round(o.ty), o.speed, round3(o.life), round3(this.time), Math.round(o.r)]);
@@ -2960,10 +2986,36 @@ export class Room {
 		}
 	}
 
+	// The densest spot within `range` of (x, y): the enemy with the most neighbors among the 12 nearest.
+	densestNear(x, y, range) {
+		let best = null, bn = -1;
+		for (const c of this.nearestEnemies(x, y, 12, range)) {
+			let n = 0;
+			for (const o of this.grid.query(c.x, c.y, DENSE_R, this.q3)) if (!o.dead && dist2(o.x, o.y, c.x, c.y) < DENSE_R * DENSE_R) n++;
+			if (n > bn) {
+				bn = n;
+				best = c;
+			}
+		}
+		return best;
+	}
+
+	// Ball lightning homes in on the densest group near it; clients get the new leg as 'orbm'.
+	aimOrb(o) {
+		o.aimT = ORB_AIM_EVERY;
+		const c = this.densestNear(o.x, o.y, ORB_AIM_RANGE);
+		if (!c || dist2(c.x, c.y, o.tx, o.ty) < ORB_AIM_MIN * ORB_AIM_MIN) return;
+		o.tx = c.x;
+		o.ty = c.y;
+		this.fx.push(['orbm', o.id, Math.round(o.x), Math.round(o.y), Math.round(o.tx), Math.round(o.ty), o.speed, round3(o.life), round3(this.time), Math.round(o.r)]);
+	}
+
 	updateOrbs(dt) {
 		if (!this.orbs.length) return;
 		let j = 0;
 		for (const o of this.orbs) {
+			o.aimT -= dt;
+			if (o.aimT <= 0) this.aimOrb(o);
 			const dx = o.tx - o.x, dy = o.ty - o.y;
 			const d = Math.hypot(dx, dy);
 			if (d > 0.01) {
@@ -2974,13 +3026,20 @@ export class Room {
 			o.t -= dt;
 			if (o.t <= 0) {
 				o.t = o.tick;
-				let zaps = 0;
+				let zaps = 0, core = null, cd = Infinity;
 				for (const e of this.grid.query(o.x, o.y, o.r + MAX_ENEMY_R, this.q1)) {
 					const rr = o.r + e.r * 0.5;
-					if (e.dead || dist2(e.x, e.y, o.x, o.y) >= rr * rr) continue;
+					const d = dist2(e.x, e.y, o.x, o.y);
+					if (e.dead || d >= rr * rr) continue;
 					if (zaps++ < 3) this.fx.push(['zap', Math.round(o.x), Math.round(o.y), Math.round(e.x), Math.round(e.y)]);
 					this.hurtEnemy(e, o.dmg, o.owner, o.src);
+					if (!e.dead && d < cd) {
+						cd = d;
+						core = e;
+					}
 				}
+				// The core discharge: the nearest enemy takes a heavy bolt, so a lone boss still melts.
+				if (core && o.zap > 0) this.hurtEnemy(core, o.zap, o.owner, o.src);
 			}
 			o.life -= dt;
 			if (o.life <= 0) {
@@ -3524,6 +3583,17 @@ export class Hub {
 
 	addPlayer(pid, name) {
 		this.players.set(pid, { pid, name, room: null });
+	}
+
+	// Deploy check (/api/busy): rooms in a run and players in them, no names or codes.
+	busy() {
+		let playing = 0, players = 0;
+		for (const r of this.rooms.values()) {
+			if (r.state !== 'play') continue;
+			playing++;
+			players += r.heroes.size;
+		}
+		return { playing, players, online: this.players.size };
 	}
 
 	// Called on every (re)connection.

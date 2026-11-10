@@ -7,7 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
-import { TICK_HZ } from '../public/shared/content.js';
+import { TICK_HZ, GAME_VERSION } from '../public/shared/content.js';
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC_DIR = path.resolve(fileURLToPath(new URL('../public/', import.meta.url)));
@@ -268,6 +268,7 @@ const server = http.createServer((req, res) => {
 	if (p === '/api/events') return handleEvents(req, res, url);
 	if (p === '/api/send') return handleSend(req, res, url);
 	if (p === '/api/runs' || p.startsWith('/api/runs/')) return handleRuns(req, res, p);
+	if (p === '/api/busy') return sendJson(res, 200, { ...hub.busy(), v: GAME_VERSION });
 	if (p.startsWith('/api/')) return sendText(res, 404, 'not found');
 	serveStatic(req, res, p);
 });

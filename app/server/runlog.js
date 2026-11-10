@@ -10,6 +10,9 @@ export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_JSON = 28 * 1024;
 const KEEP_RUNS = 30;
+const LAST_HITS = 10; // seconds of hits kept to explain a down
+const CROWD_R = 300; // enemies within this radius are counted at a down
+const BOSS_NEAR = 400; // a boss is «near» while an alive player is this close
 
 const r1 = (v) => Math.round(v * 10) / 10;
 const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', other: 'Прочее' };
@@ -39,11 +42,26 @@ export class RunLog {
 			this.p.set(h.pid, {
 				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
 				minHp: h.maxHp, minHpT: 0, rar: newRar(),
+				// v15: per-minute hp [end, min, max] and weapon dps, recent hits, down details, declined new weapons.
+				hpMin: [], minuteMin: h.hp, dps: [], lastDmgBy: {}, hits: [], deaths: [], declinedW: 0, declinedLonely: 0,
 			});
 		}
 	}
 
 	tick(room) {
+		const dt = room.time - (this.lastT ?? room.time);
+		this.lastT = room.time;
+		if (dt > 0) for (const e of room.bosses ?? []) {
+			const b = this.bosses.find((x) => x.group === e.group);
+			if (!b || b.killedAt !== null || b.nearMark === room.time) continue;
+			for (const h of room.heroes.values()) {
+				if (h.st === 0 && (h.x - e.x) ** 2 + (h.y - e.y) ** 2 < BOSS_NEAR * BOSS_NEAR) {
+					b.near += dt;
+					b.nearMark = room.time; // twin halves count once per tick
+					break;
+				}
+			}
+		}
 		if (room.time < this.nextSample) return;
 		this.sample(room);
 		this.nextSample += 60;
@@ -60,6 +78,19 @@ export class RunLog {
 			dps: Math.round((dealt - this.acc.dealt) / 60), maxHp: Math.round(heroes.reduce((s, h) => s + h.maxHp, 0) / heroes.length),
 		});
 		this.acc = { taken: 0, downs: 0, kills: room.kills, dealt };
+		for (const h of heroes) {
+			const p = this.p.get(h.pid);
+			if (!p) continue;
+			p.hpMin.push([Math.round(h.hp), Math.round(Math.max(0, p.minuteMin)), h.maxHp]);
+			p.minuteMin = h.hp;
+			const row = {};
+			for (const [id, v] of Object.entries(h.dmgBy)) {
+				const d = Math.round((v - (p.lastDmgBy[id] ?? 0)) / 60);
+				if (d >= 1) row[id] = d;
+			}
+			p.dps.push(row);
+			p.lastDmgBy = { ...h.dmgBy };
+		}
 	}
 
 	// act: 'pick' | 'skip' | 'reroll'; offer: the cards that were on screen.
@@ -69,6 +100,11 @@ export class RunLog {
 		const of = (offer ?? []).map((c) => (c.level > 1 ? `${c.id}${c.level}` : c.id) + (c.rar > 0 ? `*${c.rar}` : '')).join(',');
 		for (const c of offer ?? []) if (c.rar !== undefined) p.rar.seen[c.rar]++;
 		if (card?.rar !== undefined) p.rar.took[card.rar]++;
+		const newW = (offer ?? []).some((c) => c.kind === 'weapon' && (c.from ?? c.level - 1) === 0);
+		if (newW && act !== 'reroll' && !(card?.kind === 'weapon' && (card.from ?? card.level - 1) === 0)) {
+			p.declinedW++;
+			if (h.weapons.size < 2) p.declinedLonely++;
+		}
 		const e = [r1(room.time), h.level, act];
 		if (card) e.push(card.id, card.kind, card.level, card.rar ?? null);
 		if (of) e.push(of);
@@ -84,6 +120,9 @@ export class RunLog {
 		if (!p || amount <= 0) return;
 		this.acc.taken += amount;
 		p.taken[from] = (p.taken[from] ?? 0) + amount;
+		p.hits.push([room.time, from, amount]);
+		while (p.hits.length && p.hits[0][0] < room.time - LAST_HITS) p.hits.shift();
+		if (h.hp < p.minuteMin) p.minuteMin = h.hp;
 		if (h.hp > 0 && h.hp < p.minHp) {
 			p.minHp = h.hp;
 			p.minHpT = room.time;
@@ -91,6 +130,15 @@ export class RunLog {
 		if (h.hp <= 0) {
 			this.acc.downs++;
 			p.downs.push([r1(room.time), from]);
+			const last = {};
+			for (const [, k, v] of p.hits) last[k] = (last[k] ?? 0) + v;
+			let crowd = 0;
+			for (const e of room.enemies) if (!e.dead && (e.x - h.x) ** 2 + (e.y - h.y) ** 2 < CROWD_R * CROWD_R) crowd++;
+			p.deaths.push({
+				t: r1(room.time), from, crowd, peak: room.peak?.name ?? null, lvl: h.level, maxHp: h.maxHp,
+				last10: Object.fromEntries(Object.entries(last).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v)])),
+				weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
+			});
 			const pk = this.peaks[this.peaks.length - 1];
 			if (pk && pk.end === null) pk.downs++;
 			const kind = from.split(':')[0];
@@ -103,7 +151,15 @@ export class RunLog {
 	}
 
 	bossSpawn(room, e) {
-		this.bosses.push({ type: enemyKey(e), name: e.def.name, group: e.group, at: r1(room.time), hp: Math.round(e.maxHp), killedAt: null, sec: null, downs: {}, downsByBoss: 0 });
+		this.bosses.push({ type: enemyKey(e), name: e.def.name, group: e.group, at: r1(room.time), hp: Math.round(e.maxHp), killedAt: null, sec: null, downs: {}, downsByBoss: 0, dmg: 0, near: 0, by: {} });
+	}
+
+	// Damage players dealt to a boss (both twin halves count to the same boss), per player name.
+	bossHit(room, e, dmg, h) {
+		const b = this.bosses.find((x) => x.group === e.group);
+		if (!b || b.killedAt !== null || dmg <= 0) return;
+		b.dmg += dmg;
+		if (h) b.by[h.name] = (b.by[h.name] ?? 0) + dmg;
 	}
 
 	bossKilled(room, e) {
@@ -145,6 +201,7 @@ export class RunLog {
 				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
 				duos: p.duos, evos: p.evos, rarity: p.rar, ach: room.runAchievements?.(h, win),
+				hpByMin: p.hpMin, dpsByMin: p.dps, deaths: p.deaths, declinedNewWeapon: p.declinedW, declinedNewWeaponLonely: p.declinedLonely,
 				build: {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
 					passives: [...h.passives].map(([id, l]) => `${id}${l}`),
@@ -157,7 +214,12 @@ export class RunLog {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
 			mode: room.mode ?? 'night', runLength: room.runLength, win, time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common',
-			summary: [], minutes: this.minutes, bosses: this.bosses.map(({ group, ...b }) => b), peaks: this.peaks, team: players,
+			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
+			summary: [], minutes: this.minutes, peaks: this.peaks, team: players,
+			bosses: this.bosses.map(({ group, nearMark, ...b }) => ({
+				...b, dmg: Math.round(b.dmg), near: r1(b.near), dps: b.near > 0 ? r1(b.dmg / b.near) : 0,
+				by: Object.fromEntries(Object.entries(b.by).map(([k, v]) => [k, Math.round(v)])),
+			})),
 			reactions: { ...(room.reactN ?? {}) },
 		};
 		log.rarity = { seen: [0, 0, 0, 0], took: [0, 0, 0, 0] };
@@ -166,6 +228,7 @@ export class RunLog {
 		// Keep the copyable log small: offered-card lists go first, then pick history.
 		if (JSON.stringify(log).length > MAX_JSON) for (const p of log.team) for (const e of p.picks) if (typeof e[e.length - 1] === 'string' && e.length > 3 && e[e.length - 1].includes(',')) e.pop();
 		if (JSON.stringify(log).length > MAX_JSON) for (const p of log.team) p.picks = p.picks.filter((e) => e[2] !== 'pick' || e[4] !== 'passive');
+		if (JSON.stringify(log).length > MAX_JSON) for (const p of log.team) p.dpsByMin = p.dpsByMin.filter((_, i) => i % 3 === 2 || i === p.dpsByMin.length - 1);
 		return log;
 	}
 }
@@ -195,8 +258,9 @@ export function summarize(log) {
 	if (log.bosses?.length) {
 		out.push('Боссы: ' + log.bosses.map((b) => {
 			const dn = Object.values(b.downs).reduce((s, v) => s + v, 0);
-			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : 'не убит';
-			return `${b.name} (${mmss(b.at)}) — ${res}${dn ? `, падений ${dn}` : ''}`;
+			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : `не убит (снято ${Math.round(((b.dmg ?? 0) / (b.hp || 1)) * 100)}% из ${b.hp})`;
+			const near = b.near ? `, рядом ${Math.round(b.near)} с, урон по нему ${b.dps}/с` : '';
+			return `${b.name} (${mmss(b.at)}) — ${res}${near}${dn ? `, падений ${dn}` : ''}`;
 		}).join('; '));
 	}
 	if (log.rarity) {
@@ -220,7 +284,32 @@ export function summarize(log) {
 		const fav = p.dmgBy.slice(0, 2).map((d) => `${d.name} ${Math.round(d.pct)}%`).join(', ');
 		const hit = Object.keys(p.taken)[0];
 		out.push(`${p.name} — ${p.heroName}, ур. ${p.level}, урон ${p.dmg}${fav ? ` (${fav})` : ''}, падений ${p.downs.length}, мин. здоровье ${p.minHp}/${p.maxHp}${hit ? `, больше всего бьёт: ${enemyName(hit)}` : ''}`);
+		out.push(...playerLines(p));
 	}
+	return out;
+}
+
+// Why the player fell and what the build did: downs with the last 10 s, dps per weapon by minute, hp curve, declined weapons.
+function playerLines(p) {
+	const out = [];
+	const pre = `  ${p.name}:`;
+	for (const d of p.deaths ?? []) {
+		const hits = Object.entries(d.last10).slice(0, 3).map(([k, v]) => `${enemyName(k)} ${v}`).join(', ');
+		out.push(`${pre} падение ${mmss(d.t)}${d.peak ? ` (пик «${d.peak}»)` : ''}: за 10 с били ${hits || '—'}; врагов в 300 px: ${d.crowd}; оружие ${d.weapons.join(' ')}`);
+	}
+	const rows = p.dpsByMin ?? [];
+	if (rows.length) {
+		const ids = [...new Set(rows.flatMap((r) => Object.keys(r)))].filter((id) => !id.startsWith('r_') && id !== 'other');
+		const total = rows.map((r) => Object.values(r).reduce((a, b) => a + b, 0));
+		out.push(`${pre} урон в секунду по минутам: всего ${total.join(' ')}`);
+		const per = ids.map((id) => `${srcName(id)} ${rows.map((r) => r[id] ?? 0).join(' ')}`);
+		if (per.length) out.push(`${pre} по оружию: ${per.join('; ')}`);
+		const dips = [];
+		for (let i = 1; i < total.length; i++) if (total[i] < total[i - 1] * 0.75) dips.push(i + 1);
+		if (dips.length) out.push(`${pre} провал урона на минутах: ${dips.join(', ')} (−25% и больше к прошлой минуте)`);
+	}
+	if (p.hpByMin?.length) out.push(`${pre} здоровье по минутам (мин. за минуту): ${p.hpByMin.map((x) => x[1]).join(' ')} из ${p.maxHp}`);
+	if (p.declinedNewWeapon) out.push(`${pre} отказался от нового оружия ${p.declinedNewWeapon} раз${p.declinedNewWeaponLonely ? ` (из них ${p.declinedNewWeaponLonely} — с одним оружием)` : ''}`);
 	return out;
 }
 

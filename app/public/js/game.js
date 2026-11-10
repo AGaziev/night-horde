@@ -469,7 +469,9 @@ export class Game {
 				this.lobs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], fuse: +ev[6] || 0.6, st: +ev[7] || 0, kind: ev[8] | 0 });
 				break;
 			case 'orb':
-				this.orbs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], speed: +ev[6] || 120, life: +ev[7] || 4, st: +ev[8] || 0, r: +ev[9] || 90, x: +ev[2], y: +ev[3], show: false });
+			case 'orbm':
+				// 'orbm': a homing orb turned; the new leg starts where it is now with the life it has left.
+				this.orbs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], speed: +ev[6] || 120, life: +ev[7] || 4, st: +ev[8] || 0, r: +ev[9] || 90, x: +ev[2], y: +ev[3], show: ev[0] === 'orbm' });
 				break;
 			case 'zk':
 				this.zk.set(ev[1], ev[2] | 0);

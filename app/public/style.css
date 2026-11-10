@@ -291,6 +291,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 .hud-syn { font-size: 0.72rem; color: #ffe082; text-shadow: 0 1px 3px #000; margin-top: 2px; }
 .card-hint { font-size: 0.72rem; color: #ffe082; line-height: 1.25; }
 .card-hint-react { color: #81d4fa; }
+.card-hint-rec { color: #a5d6a7; font-weight: 600; }
 .card-warn { font-size: 0.68rem; color: #ffab91; line-height: 1.25; }
 .card-duo { border-color: #ffd54f; background: linear-gradient(160deg, rgba(255, 213, 79, 0.18), rgba(64, 196, 255, 0.12)), var(--panel, #161a24); box-shadow: 0 0 22px rgba(255, 213, 79, 0.35); }
 .card-duo .card-name { color: #ffe082; }
@@ -511,6 +512,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 	.room-code { font-size: 1.6rem; }
 	.hud-time { font-size: 1.25rem; }
 	.hud-top { top: 18px; }
+	/* v15: 6 weapon slots stay on one row on phones */
+	#hud-weapons .hud-icon { width: 26px; height: 26px; font-size: 14px; }
 	.hud-boss { top: 76px; }
 	.levelup-cards { gap: 6px; }
 	.card { padding: 18px 4px 8px; }

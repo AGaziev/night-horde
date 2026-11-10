@@ -63,9 +63,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -222,7 +222,17 @@ assert.equal(stats.over.stats.length, 3);
 		assert.ok(p.downs.length >= 1, 'final down logged');
 		assert.ok(p.build.weapons.length >= 1);
 		assert.ok(p.takenTotal > 0 && Object.keys(p.taken).length > 0, 'damage taken by source');
+		// v15: why they fell and how the build did, minute by minute.
+		assert.equal(p.hpByMin.length, log.minutes.length, 'hp per minute');
+		assert.ok(p.hpByMin.every(([end, min, max]) => isInt(end) && isInt(min) && min <= end && end <= max), 'hp rows [end, min, max]');
+		assert.equal(p.dpsByMin.length, log.minutes.length, 'weapon dps per minute');
+		assert.ok(p.dpsByMin.some((row) => Object.values(row).some((v) => v > 0)), 'some weapon dps');
+		assert.ok(p.deaths.length === p.downs.length && p.deaths.every((d) => isInt(d.crowd) && typeof d.last10 === 'object' && d.weapons.length >= 1), 'down details');
+		assert.ok(p.deaths.some((d) => Object.keys(d.last10).length > 0), 'who hit in the last 10 s');
+		assert.ok(isInt(p.declinedNewWeapon) && isInt(p.declinedNewWeaponLonely));
 	}
+	assert.ok(log.summary.some((l) => /падение \d+:\d\d: за 10 с били .*врагов в 300 px/.test(l)), 'down line in the summary');
+	assert.ok(log.summary.some((l) => /урон в секунду по минутам/.test(l)) && log.summary.some((l) => /здоровье по минутам/.test(l)), 'dps and hp lines');
 	assert.ok(log.team.some((p) => p.ups.length >= 1), 'revive logged');
 	assert.ok(log.summary.length >= 4 && /Топ-3 оружия/.test(log.summary[1]), 'summary');
 	assert.ok(log.summary.some((l) => /легко/i.test(l)) && log.summary.some((l) => /яжел|яжёл/.test(l)), 'easy/hard lines');
@@ -478,17 +488,32 @@ console.log('over/again/leave: ok');
 	{
 		const r = mkRoom();
 		const h = r.heroes.get(1);
+		h.weapons.set('bolt', { lvl: 1, t: 0 });
 		let prevNew = false, newInRow = 0;
 		for (let k = 0; k < 200; k++) {
 			const c = r.makeChoices(h);
 			assert.equal(c[0].kind, 'weapon', 'slot 1 upgrades the owned weapon');
-			assert.equal(c[0].id, 'whip');
+			assert.ok(h.weapons.has(c[0].id));
+			assert.ok(!c.some((x) => x.rec), 'two weapons: no «recommended» mark');
 			const hasNew = c.some((x) => x.kind === 'weapon' && x.level === 1);
 			assert.ok(c.filter((x) => x.kind === 'weapon' && x.level === 1).length <= 1, 'one new weapon per offer');
 			if (hasNew && prevNew) newInRow++;
 			prevNew = hasNew;
 		}
 		assert.equal(newInRow, 0, 'new weapon at most every other offer');
+		// One weapon: the pacing rule is lifted and new weapon cards are «recommended».
+		h.weapons.delete('bolt');
+		let lonelyRow = 0, recs = 0;
+		prevNew = false;
+		for (let k = 0; k < 200; k++) {
+			const c = r.makeChoices(h);
+			for (const x of c) assert.equal(!!x.rec, x.kind === 'weapon' && (x.from ?? 0) === 0, 'rec marks exactly the new weapons');
+			const hasNew = c.some((x) => x.rec);
+			recs += hasNew;
+			if (hasNew && prevNew) lonelyRow++;
+			prevNew = hasNew;
+		}
+		assert.ok(lonelyRow > 10 && recs > 100, `one weapon: new weapons offered often (${recs}/200, ${lonelyRow} in a row)`);
 		for (let k = 0; k < 300; k++) assert.ok(!r.makeChoices(h).some((c) => c.kind === 'heal'), 'no healing at full hp with free slots');
 		h.hp = h.maxHp * 0.3;
 		const low = r.makeChoices(h);
@@ -509,13 +534,13 @@ console.log('over/again/leave: ok');
 		console.log('G4 weighted offers + rare: ok');
 	}
 
-	// Slots: 4 weapons + 4 artifacts; once full only upgrades of what is owned are offered.
+	// Slots: 6 weapons (v15, was 4) + 4 artifacts; once full only upgrades of what is owned are offered.
 	{
-		assert.equal(MAX_WEAPONS, 4);
+		assert.equal(MAX_WEAPONS, 6);
 		assert.equal(MAX_PASSIVES, 4);
 		const r = mkRoom();
 		const h = r.heroes.get(1);
-		h.weapons = new Map(['whip', 'bolt', 'knives', 'frost'].map((id) => [id, { lvl: 2, t: 0 }])); // no duo pairs
+		h.weapons = new Map(['whip', 'bolt', 'knives', 'ward', 'lantern', 'frost'].map((id) => [id, { lvl: 2, t: 0 }])); // no duo pairs
 		h.passives = new Map(['crit', 'mail', 'area', 'regen'].map((id) => [id, 1])); // no evolution pairs
 		r.recalcMods(h);
 		for (let k = 0; k < 100; k++) {
@@ -526,13 +551,27 @@ console.log('over/again/leave: ok');
 		h.weapons.delete('frost');
 		sent.length = 0;
 		r.grantOffer(h);
-		assert.deepEqual(lastOffer().slots, [3, 4, 4, 4], 'slots in the offer');
+		assert.deepEqual(lastOffer().slots, [5, 6, 4, 4], 'slots in the offer');
 		for (const w of h.weapons.values()) w.lvl = MAX_LEVEL;
 		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0 });
 		for (const id of h.passives.keys()) h.passives.set(id, MAX_LEVEL);
 		h.offer = null;
 		assert.deepEqual(r.makeChoices(h).map((c) => c.kind), ['ember', 'ember', 'ember'], 'all maxed: embers instead of healing');
-		console.log('slots 4+4: ok');
+		// Screenshot 9:50: everything owned is maxed, but a weapon slot is free — new weapons, never embers.
+		h.weapons.delete('frost');
+		for (let k = 0; k < 50; k++) {
+			h.lastOfferNewW = k % 2 === 0;
+			const c = r.makeChoices(h);
+			assert.ok(c.every((x) => x.kind === 'weapon' && (x.from ?? 0) === 0), `free weapon slot: new weapons, not ${c.map((x) => x.kind)}`);
+			assert.equal(c.length, 3);
+		}
+		// Same with a free artifact slot: artifacts fill the offer, embers stay out.
+		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0 });
+		h.passives.delete('regen');
+		r.recalcMods(h);
+		for (let k = 0; k < 30; k++) assert.ok(!r.makeChoices(h).some((x) => x.kind === 'ember'), 'free artifact slot: no embers');
+		h.passives.set('regen', MAX_LEVEL);
+		console.log('slots 6+4: ok');
 	}
 
 	// Pressure: invasions ring every player from 3:30 (not solo), enemy hp and damage grow after 3:00.
@@ -739,7 +778,7 @@ console.log('over/again/leave: ok');
 		r.fx = [];
 		for (let i = 0; i < TICK_HZ; i++) r.tick(dtt);
 		assert.ok(b.dead, 'bloater blew up');
-		assert.ok(hp - h.hp >= ENEMIES.bloater.blastDmg - 0.01, 'player hurt by the blast');
+		assert.ok(hp - h.hp >= ENEMIES.bloater.blastDmg * b.dmgMul - 0.01, 'player hurt by the blast');
 		assert.equal(other.hp, 1000 - ENEMIES.bloater.blastEnemyDmg, 'enemies hurt by the blast');
 		const b2 = put(r, 'bloater', 300, 0, 10);
 		r.fx = [];
@@ -838,6 +877,22 @@ console.log('over/again/leave: ok');
 			Math.random = rnd;
 		}
 		assert.ok(r.gems.some((g) => g.gold) && r.snapshot().g.includes(3), 'otherwise a gold gem (tier 3)');
+		// A gold gem from a regular kill is worth GOLD_GEM_MUL times its xp (it used to drop with plain xp).
+		{
+			const rg = mkRoom();
+			const hg = rg.heroes.get(1);
+			rg.gems = [];
+			const orig = Math.random;
+			Math.random = () => 0;
+			try {
+				const e = rg.spawnEnemy('ghoul', [hg], 1);
+				rg.killEnemy(e, hg);
+				const gem = rg.gems.find((g) => g.gold);
+				assert.ok(gem && gem.xp === ENEMIES.ghoul.xp * C.GOLD_GEM_MUL, `gold gem xp ×${C.GOLD_GEM_MUL}: ${gem?.xp}`);
+			} finally {
+				Math.random = orig;
+			}
+		}
 		// Elites start at 4:00.
 		const r2 = mkRoom();
 		r2.time = 230;
@@ -1269,6 +1324,44 @@ console.log('over/again/leave: ok');
 		console.log('embers: ok');
 	}
 
+	// v15: luck artifacts have a combat side, ember without fire burns on every hit, ball lightning homes in.
+	{
+		const r = mkRoom();
+		const h = r.heroes.get(1);
+		h.passives = new Map([['luck', 2], ['clover', 3]]);
+		r.recalcMods(h);
+		assert.ok(Math.abs(h.mods.critChance - 0.08) < 1e-9, 'Подкова 2: +8% crit');
+		assert.ok(Math.abs(h.mods.dmgMul - 1.15) < 1e-9, 'Клевер 3: +15% damage');
+		h.passives = new Map([['ember', 1]]);
+		r.recalcMods(h);
+		r.spawn = () => {};
+		const burnOf = (fire) => {
+			h.weapons = new Map([[fire ? 'bomb' : 'whip', { lvl: 1, t: 9 }]]);
+			r.updateCombos(h);
+			let n = 0;
+			for (let k = 0; k < 200; k++) {
+				const e = r.spawnEnemy('brute', [h], 100);
+				r.hurtEnemy(e, 1, h, { weapon: 'whip', tags: ['phys'] });
+				if (e.burnT > r.time) n++;
+			}
+			return n;
+		};
+		assert.equal(burnOf(false), 200, 'no fire weapon: every hit burns');
+		const withFire = burnOf(true);
+		assert.ok(withFire > 0 && withFire < 60, `fire weapon: the usual 8% chance (${withFire}/200)`);
+		r.enemies.length = 0;
+		// Homing: the orb turns toward the pack and tells clients with 'orbm'.
+		h.x = h.y = 0;
+		for (let i = 0; i < 6; i++) { const e = r.spawnEnemy('brute', [h], 100); e.x = 300 + i * 5; e.y = 0; e.speed = 0; }
+		r.rebuildGrid();
+		r.orbs = [{ id: 999, owner: h, x: 0, y: 0, tx: 0, ty: -300, speed: 200, life: 4, r: 70, dmg: 1, zap: 1, tick: 0.4, t: 0.4, boom: 0, boomR: 1, src: { weapon: 'orb', tags: ['shock', 'aoe'] }, aimT: 0 }];
+		r.fx.length = 0;
+		r.updateOrbs(1 / 30);
+		assert.ok(r.orbs[0].tx > 250 && Math.abs(r.orbs[0].ty) < 20, 'orb re-aims at the pack');
+		assert.ok(r.fx.some((f) => f[0] === 'orbm' && f[1] === 999), 'orbm fx sent');
+		console.log('v15 artifacts + orb homing: ok');
+	}
+
 	// Every evolution works in place of its weapon.
 	const evoHits = {
 		swarm: (r) => take('shot').length > 6,
@@ -1397,6 +1490,16 @@ console.log('over/again/leave: ok');
 		assert.ok(r.bosses[4].maxHp > r.bosses[0].maxHp * 4, 'final is the strongest');
 		assert.ok(bossHpScale(540, 4) > bossHpScale(540, 2) * 1.5 && bossHpScale(540, 2) > bossHpScale(540, 1) * 1.5, 'hp by players');
 		assert.ok(r.runLog.bosses.length === 5 && r.runLog.bosses.every((b) => b.killedAt === null));
+		assert.ok(r.bosses[4].maxHp > Math.max(...r.bosses.slice(0, 4).map((b) => b.maxHp)), 'final is tougher than every regular boss');
+		// v15 log: damage dealt to a boss and seconds an alive player spent within 400 px of it.
+		const h = alive[0], boss = r.bosses[0];
+		boss.x = h.x + 100; boss.y = h.y;
+		r.hurtEnemy(boss, 50, h, { weapon: 'whip', tags: [] });
+		const t0 = r.time;
+		for (let i = 1; i <= 30; i++) { r.time = t0 + i / 30; r.runLog.tick(r); }
+		const lb = r.runLog.bosses[0];
+		assert.ok(lb.dmg >= 50 && lb.by[h.name] >= 50, 'boss damage by player');
+		assert.ok(Math.abs(lb.near - 1) < 0.05, `boss near seconds ${lb.near}`);
 	}
 	// Ram: a lane telegraph ≥ 0.6 s while standing still, then a fast dash.
 	{
@@ -1556,8 +1659,12 @@ console.log('over/again/leave: ok');
 	};
 	const base = spawnedIn(tide.at - 15, 5);
 	r.peakIdx = r.peaks.indexOf(tide); r.peakWarned = r.peakIdx; r.peak = null;
-	const peakN = spawnedIn(tide.at + 0.01, 5);
-	assert.ok(peakN > base * (tide.spawnMul - 0.6), `tide spawns ×${tide.spawnMul}: ${base} -> ${peakN}`);
+	const rampN = spawnedIn(tide.at + 0.01, 2);
+	r.peakIdx = r.peaks.indexOf(tide); r.peakWarned = r.peakIdx; r.peak = null;
+	const peakN = spawnedIn(tide.at + tide.ramp, 5);
+	assert.equal(tide.spawnMul, 2, 'v15: tide ×2');
+	assert.ok(peakN > base * (tide.spawnMul - 0.4) && peakN < base * (tide.spawnMul + 0.4), `tide spawns ×${tide.spawnMul} after the ramp: ${base} -> ${peakN}`);
+	assert.ok(rampN < base * 0.4 * 1.5, `tide ramps up smoothly: first 2 s ${rampN} vs ${base} per 5 s`);
 	r.time = tide.at + 1;
 	r.nextInvasionT = r.time;
 	const invBefore = fx.filter(([, f]) => f[0] === 'inv').length;
@@ -1626,11 +1733,13 @@ console.log('over/again/leave: ok');
 	runStore.dir = null;
 	for (let i = 0; i < 35; i++) runStore.add({ ...log, id: 'Z' + String(i).padStart(5, '0') });
 	assert.equal(runStore.runs.length, 30, 'keeps last 30 in memory');
-	// Soft start is unchanged: solo and groups share the same curve before 3:00; groups get harder after it, solo does not.
-	for (const n of [1, 2, 4]) assert.equal(enemyHpScale(170, n), enemyHpScale(170, n) && (1 + 0.12 * 2) * (1 + 0.55 * (n - 1) + 0.05 * (n - 1) ** 2), 'pre-3:00 hp curve');
-	assert.ok(enemyHpScale(600, 2) / enemyHpScale(180, 2) > 2 * (enemyHpScale(600, 1) / enemyHpScale(180, 1)), 'groups ramp after 3:00');
-	assert.ok(enemyHpScale(600, 1) <= (1 + 0.12 * 10 + 0.02 * 49), 'solo not harder');
+	// Soft start: solo and groups share the same curve before 3:00 (v15: early grace on top); groups get harder after it.
+	const grace = (t, E) => (t >= E.until ? 1 : E.from + (1 - E.from) * t / E.until);
+	for (const n of [1, 2, 4]) assert.ok(Math.abs(enemyHpScale(170, n) - grace(170, C.EARLY_HP) * (1 + 0.12 * 2) * (1 + 0.55 * (n - 1) + 0.05 * (n - 1) ** 2)) < 1e-9, 'pre-3:00 hp curve');
+	assert.ok(enemyHpScale(600, 2) / enemyHpScale(180, 2) > 1.6 * (enemyHpScale(600, 1) / enemyHpScale(180, 1)), 'groups ramp after 3:00');
+	assert.ok(Math.abs(enemyHpScale(600, 1) - (1 + 0.12 * 10 + 0.02 * 49) * (1 + 0.08 * 0.4) * (1 + 0.035 * 7)) < 1e-9, 'solo: +3.5%/min after 3:00 (v15)');
 	assert.equal(enemyDmgScale(600, 1), 1 + 0.06 * 7);
+	assert.ok(enemyDmgScale(0, 1) === C.EARLY_DMG.from && enemyDmgScale(C.EARLY_DMG.until / 2, 1) < 1, 'early hits are softer');
 	assert.ok(enemyDmgScale(600, 4) > enemyDmgScale(600, 2));
 
 	// HTTP: a fresh server loads the stored runs from disk.
@@ -1652,11 +1761,23 @@ console.log('over/again/leave: ok');
 		assert.ok(txt.startsWith('Ночная орда') && txt.includes(`"id":"${log.id}"`));
 		assert.equal((await get('/api/runs/NOPE00')).status, 404);
 		assert.equal((await get('/api/runs/../../etc')).status, 404);
+		const busy = await (await get('/api/busy')).json();
+		assert.deepEqual(busy, { playing: 0, players: 0, online: 0, v: GAME_VERSION }, '/api/busy: idle server');
 	} finally {
 		srv.kill();
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
-	console.log('run log store + /api/runs: ok');
+	{
+		const hub = new Hub(() => {});
+		hub.addPlayer(1, 'A'); hub.addPlayer(2, 'B'); hub.addPlayer(3, 'C');
+		const room = new Room('BUSY', () => {});
+		room.addPlayer(1, 'A', 'knight'); room.addPlayer(2, 'B', 'witch');
+		hub.rooms.set('BUSY', room);
+		assert.deepEqual(hub.busy(), { playing: 0, players: 0, online: 3 }, 'lobby is not busy');
+		room.start();
+		assert.deepEqual(hub.busy(), { playing: 1, players: 2, online: 3 }, 'a run in progress');
+	}
+	console.log('run log store + /api/runs + /api/busy: ok');
 }
 
 // Card rarity: table distribution, final numbers, weapon levels, chest floors, fortune, rerolls, run log.

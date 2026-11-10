@@ -1,6 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
-export const GAME_VERSION = 'v8';
+// The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
+export const GAME_VERSION = 'v15';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -19,7 +20,7 @@ export const OLD_GEM_SHARE = 0.3;
 export const teamXpMul = (players) => Math.max(1, players) / (1 + OLD_GEM_SHARE * (Math.max(1, players) - 1));
 export const MAX_LEVEL = 5; // max level of every weapon and passive
 // Slots are scarce on purpose: a full build is 4 weapons + 4 artifacts, so choices differ between players.
-export const MAX_WEAPONS = 4;
+export const MAX_WEAPONS = 6;
 export const MAX_PASSIVES = 4;
 // Bosses (v8): regular ones at BOSS_SCHEDULE in a random order without repeats, the final one is always the Lord.
 export const BOSS_SCHEDULE = [180, 360, 540, 720];
@@ -27,8 +28,11 @@ export const BOSS_POOL = ['brood', 'ram', 'gunner', 'twin'];
 export const FINAL_BOSS = { at: 870, type: 'boss' };
 export const BOSS_TIMES = [...BOSS_SCHEDULE, FINAL_BOSS.at];
 // Boss hp = def.hp × this: follows the regular enemy curve (players included) at a gentler slope.
-export const BOSS_HP = { k: 0.38, pow: 0.9, solo: 0.75 };
-export const bossHpScale = (seconds, players) => BOSS_HP.k * enemyHpScale(seconds, players) ** BOSS_HP.pow * (players > 1 ? 1 : BOSS_HP.solo);
+// slot: extra hp per boss in spawn order, the last one is the final boss (player damage outgrows enemy hp; v15 live
+// logs: a usual build should need ~40–60 s next to a boss; the final boss stays the toughest).
+export const BOSS_HP = { k: 0.38, pow: 0.9, solo: 0.75, slot: [1.2, 3.1, 4.2, 3.4, 2] };
+export const bossHpScale = (seconds, players, slot = -1) => BOSS_HP.k * enemyHpScale(seconds, players) ** BOSS_HP.pow * (players > 1 ? 1 : BOSS_HP.solo)
+	* (BOSS_HP.slot[slot] ?? 1);
 
 export const xpForNext = (level, players = 1) => Math.round((5 + (level - 1) * 8) * teamXpMul(players));
 
@@ -284,9 +288,10 @@ export const WEAPONS = {
 	},
 };
 
-// Passive multipliers are applied per level (value * level).
 // Passive multipliers are applied per level (value * level). `tpl` shows the value one card adds ({v}, see passiveDesc);
 // `noRarity` passives (integer steps) keep their level table and get no card rarity.
+// `bonus`: a fixed side effect per level, untouched by card rarity (luck artifacts get a combat use).
+// Ember without a fire weapon: every hit burns for EMBER_WEAK.dur s at EMBER_WEAK.frac of the ember burn.
 export const PASSIVES = {
 	might: { name: 'Сила', icon: '💪', desc: '+10% урона', tpl: '+{v}% урона', stat: 'dmgMul', perLevel: 0.10 },
 	haste: { name: 'Спешка', icon: '⏱', desc: '−8% перезарядки', tpl: '−{v}% перезарядки', stat: 'cdMul', perLevel: -0.08 },
@@ -299,10 +304,10 @@ export const PASSIVES = {
 	echo: { name: 'Эхо', icon: '≋', desc: '+1 снаряд, лужа, удар или клинок (+2 с 4 ур.)', stat: 'amount', values: [1, 1, 1, 2, 2], noRarity: true },
 	hourglass: { name: 'Песочные часы', icon: '⧗', desc: '+12% длительности луж, холода и заморозки', tpl: '+{v}% длительности луж, холода и заморозки', stat: 'durMul', perLevel: 0.12 },
 	mail: { name: 'Кольчуга', icon: '⛨', desc: '−1 к каждому полученному удару', tpl: '−{v} к каждому полученному удару', stat: 'armor', perLevel: 1 },
-	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень', tpl: 'Удары поджигают: +{v}% шанса', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
+	ember: { name: 'Уголёк', icon: '♨', desc: 'Удары поджигают: шанс 8% за уровень; без огненного оружия любой удар слабо поджигает', tpl: 'Удары поджигают: +{v}% шанса; без огненного оружия любой удар слабо поджигает', stat: 'burnChance', perLevel: 0.08, extra: { burnDps: [3, 4, 5, 6, 8] } },
 	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', tpl: '+{v}% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
-	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы', tpl: '+{v}% удачи: сундуки, редкие карточки, золотые кристаллы', stat: 'luck', perLevel: 0.10 },
-	clover: { name: 'Клевер', icon: '🍀', desc: '+15% к шансу редких карточек; эпических — вдвое больше, легендарных — втрое', tpl: '+{v}% к шансу редких карточек; эпических — вдвое больше, легендарных — втрое', stat: 'fortune', perLevel: 0.15 },
+	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', tpl: '+{v}% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', stat: 'luck', perLevel: 0.10, bonus: { critChance: 0.04 } },
+	clover: { name: 'Клевер', icon: '🍀', desc: '+15% к шансу редких карточек; +5% урона за уровень', tpl: '+{v}% к шансу редких карточек; +5% урона за уровень', stat: 'fortune', perLevel: 0.15, bonus: { dmgMul: 0.05 } },
 	// coop: offered only when the room has 2+ players.
 	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', tpl: '+{v}% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
@@ -421,6 +426,7 @@ export function passiveDesc(id, v) {
 	return P.tpl.replace('{v}', txt);
 }
 
+export const EMBER_WEAK = { frac: 0.6, dur: 3 };
 export const BASE_MAGNET = 60;
 export const GEM_PULL_SPEED = 420;
 
@@ -499,16 +505,24 @@ export const PRESSURE = { hpLin: 0.12, hpQuad: 0.02, dmgPerMin: 0.06, endFrom: 5
 const lateMin = (seconds) => Math.max(0, seconds - PRESSURE_FROM) / 60;
 // Groups (2+) out-level solo through team XP and stacked duos, so after PRESSURE_FROM they get extra hp and damage
 // per minute (index = players - 1, 4+ use the last value). Solo gets a small hp relief that offsets the v8 evolution nerfs.
-export const GROUP_LATE = { hpPerMin: [-0.008, 0.16, 0.21, 0.32], dmgPerMin: [0, 0.06, 0.07, 0.1] };
+export const GROUP_LATE = { hpPerMin: [0.035, 0.16, 0.21, 0.32], dmgPerMin: [0, 0.06, 0.07, 0.1] };
 const groupLate = (key, players) => GROUP_LATE[key][Math.min(Math.max(1, players), GROUP_LATE[key].length) - 1];
-export const enemyHpScale = (seconds, players) => {
+// Early grace for hp too: enemies born before EARLY_HP.until night seconds are tougher step by step (v15).
+export const EARLY_HP = { from: 0.75, until: 480 };
+const earlyHp = (seconds) => (seconds >= EARLY_HP.until ? 1 : EARLY_HP.from + (1 - EARLY_HP.from) * Math.max(0, seconds) / EARLY_HP.until);
+export const enemyHpScale = (seconds, players) => earlyHp(seconds) * baseHpScale(seconds, players);
+const baseHpScale = (seconds, players) => {
 	const m = Math.floor(seconds / 60), late = Math.floor(lateMin(seconds));
 	const end = Math.max(0, Math.floor((seconds - PRESSURE.endFrom) / 60));
 	const endQuad = PRESSURE.endQuad * (PRESSURE.endGroupMul[players - 1] ?? 1);
 	return (1 + PRESSURE.hpLin * m + PRESSURE.hpQuad * late * late) * (1 + endQuad * end * end) * (1 + PRESSURE.perPlayer * (players - 1) + PRESSURE.perPlayerSq * (players - 1) ** 2)
 		* (1 + groupLate('hpPerMin', players) * late);
 };
-export const enemyDmgScale = (seconds, players = 1) => 1 + (PRESSURE.dmgPerMin + groupLate('dmgPerMin', players)) * Math.floor(lateMin(seconds));
+// Early grace (v15): enemy hits start at EARLY_DMG.from and reach full strength by EARLY_DMG.until (night seconds);
+// live players died at 3–6 min long before their builds came together.
+export const EARLY_DMG = { from: 0.6, until: 480 };
+const earlyDmg = (seconds) => (seconds >= EARLY_DMG.until ? 1 : EARLY_DMG.from + (1 - EARLY_DMG.from) * Math.max(0, seconds) / EARLY_DMG.until);
+export const enemyDmgScale = (seconds, players = 1) => earlyDmg(seconds) * (1 + (PRESSURE.dmgPerMin + groupLate('dmgPerMin', players)) * Math.floor(lateMin(seconds)));
 // Invasions: from INVASION.from every INVASION.every seconds a ring of enemies closes in around every alive player.
 // Small groups get smaller rings: none solo, duo ×0.75 (fewer weapons on screen per enemy).
 // Big groups (4+) clear the middle too fast with duos and «Слаженность»: from 6:00 their rings are 25% larger.
@@ -519,15 +533,15 @@ export const invasionCount = (seconds, players = 1) =>
 // Peaks on top of WAVES, timed by run length (frac of it, or the `last` seconds of it) so shorter modes reuse them.
 // Announced PEAK_WARN s ahead; peakSchedule moves a peak past a boss rather than the boss (bosses stay absolute).
 // ring: a closing circle around every cluster of players; spawnMul/speedMul: regular spawn and enemy speed;
-// xpMul: xp of enemies born during the peak (pressure, not a free level); spawnDist: spawn ring radius multiplier;
+// ramp: seconds over which spawnMul grows from ×1; xpMul: xp of enemies born during the peak (pressure, not a free level); spawnDist: spawn ring radius multiplier;
 // sight: client view radius multiplier; burn: at the end every enemy burns and the run is won.
 export const PEAK_WARN = 4;
 export const PEAK_BOSS_GAP = 8;
 export const PEAKS = [
 	{ id: 'ring', name: 'Кольцо', hint: 'Тени смыкаются вокруг вас — держитесь вместе', frac: 1 / 6, dur: 8, ring: { type: 'bat', count: 60, r: 420, cluster: 320 }, speedMul: 1.25, xpMul: 0.3 },
-	{ id: 'tide', name: 'Прилив', hint: 'Орда втрое гуще 20 секунд', frac: 1 / 2, dur: 20, spawnMul: 3, capAdd: 80, xpMul: 0.2 },
+	{ id: 'tide', name: 'Прилив', hint: 'Орда вдвое гуще 20 секунд', frac: 1 / 2, dur: 20, spawnMul: 2, ramp: 6, capAdd: 60, xpMul: 0.2 },
 	{ id: 'eclipse', name: 'Затмение', hint: 'Тьма сужает обзор на 30 секунд, враги выходят из неё совсем близко', frac: 5 / 6, dur: 30, sight: 0.7, spawnMul: 1.3, spawnDist: 0.65, capAdd: 40, xpMul: 0.5 },
-	{ id: 'dawn', name: 'Рассвет', hint: 'Последний натиск: продержитесь до рассвета', last: 30, spawnMul: 2, speedMul: 1.2, capAdd: 60, xpMul: 0.5, burn: true },
+	{ id: 'dawn', name: 'Рассвет', hint: 'Последний натиск: продержитесь до рассвета', last: 30, spawnMul: 2.2, speedMul: 1.25, capAdd: 70, xpMul: 0.5, burn: true },
 ];
 // Absolute schedule for a run: [{...peak, i, at, dur}]. In 15:00 the final boss (14:30) pushes «Рассвет» to 14:42.
 export function peakSchedule(runLength = RUN_SECONDS, bossTimes = BOSS_TIMES) {
@@ -564,25 +578,25 @@ export const DUOS = {
 		name: 'Громовой разрез', icon: '⚡', parts: ['whip', 'lightning'], tags: ['phys', 'shock'],
 		desc: 'Удар в обе стороны; задетых через миг бьёт молния с цепью, каждый 3-й удар — веер молний',
 		levels: [
-			{ dmg: 30, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 40, fan: 5 },
-			{ dmg: 40, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 55, fan: 5 },
-			{ dmg: 55, cd: 0.8, range: 180, width: 70, rodFrac: 0.45, chain: 4, fanDmg: 75, fan: 5 },
+			{ dmg: 26, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 35, fan: 5 },
+			{ dmg: 32, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 44, fan: 5 },
+			{ dmg: 37, cd: 0.8, range: 180, width: 70, rodFrac: 0.45, chain: 4, fanDmg: 51, fan: 5 },
 		],
 	},
 	orb: {
 		name: 'Шаровая молния', icon: '◉', parts: ['bolt', 'lightning'], tags: ['shock', 'aoe'],
-		desc: 'Медленный шар разрядами бьёт всех рядом и взрывается',
+		desc: 'Шар летит к самой плотной группе врагов, разрядами бьёт всех рядом и взрывается',
 		levels: [
-			{ dmg: 5, cd: 3.0, count: 1, radius: 70, tick: 0.5, speed: 120, life: 3.5, boom: 32, boomR: 100 },
-			{ dmg: 6, cd: 2.7, count: 1, radius: 80, tick: 0.5, speed: 120, life: 3.5, boom: 44, boomR: 100 },
-			{ dmg: 8, cd: 2.4, count: 2, radius: 88, tick: 0.5, speed: 120, life: 3.5, boom: 58, boomR: 100 },
+			{ dmg: 5, zap: 14, cd: 2.6, count: 1, radius: 75, tick: 0.4, speed: 200, life: 4, boom: 35, boomR: 100 },
+			{ dmg: 7, zap: 21, cd: 2.4, count: 1, radius: 82, tick: 0.4, speed: 210, life: 4, boom: 52, boomR: 105 },
+			{ dmg: 8, zap: 22, cd: 2.2, count: 2, radius: 90, tick: 0.4, speed: 220, life: 4, boom: 60, boomR: 110 },
 		],
 	},
 	orrery: {
 		name: 'Планетарий', icon: '✺', parts: ['bolt', 'orbit'], tags: ['proj'],
 		desc: 'Искры кружат вокруг и срываются в подошедших врагов',
 		levels: [
-			{ dmg: 34, count: 4, radius: 90, rps: 0.5, trigger: 220, respawn: 0.6, pierce: 3, speed: 460 },
+			{ dmg: 24, count: 4, radius: 90, rps: 0.5, trigger: 220, respawn: 0.6, pierce: 3, speed: 460 },
 			{ dmg: 42, count: 5, radius: 90, rps: 0.5, trigger: 220, respawn: 0.6, pierce: 3, speed: 480 },
 			{ dmg: 56, count: 6, radius: 90, rps: 0.5, trigger: 220, respawn: 0.6, pierce: 3, speed: 500 },
 		],
@@ -591,7 +605,7 @@ export const DUOS = {
 		name: 'Мельница', icon: '✢', parts: ['orbit', 'whip'], tags: ['phys'],
 		desc: 'Длинные лопасти вращаются вокруг героя и откидывают врагов',
 		levels: [
-			{ dmg: 15, count: 2, len: 170, width: 22, rps: 0.5, hitCd: 0.4, kb: 10 },
+			{ dmg: 16, count: 2, len: 170, width: 22, rps: 0.5, hitCd: 0.4, kb: 10 },
 			{ dmg: 20, count: 3, len: 185, width: 22, rps: 0.5, hitCd: 0.4, kb: 10 },
 			{ dmg: 27, count: 4, len: 200, width: 24, rps: 0.5, hitCd: 0.4, kb: 10 },
 		],
@@ -602,7 +616,7 @@ export const DUOS = {
 		levels: [
 			{ dmg: 11, cd: 0.55, count: 3, speed: 640, pierce: 2, spread: 0.12, max: 4, link: 220, wireDmg: 8, wireTick: 0.3, rearm: 2.5, trapDmg: 26, trapCd: 1.6, root: 1.2, radius: 28, spikeDmg: 6, spikeLife: 4, spikeRoot: 0.5 },
 			{ dmg: 13, cd: 0.5, count: 4, speed: 660, pierce: 2, spread: 0.1, max: 5, link: 220, wireDmg: 11, wireTick: 0.3, rearm: 2.5, trapDmg: 32, trapCd: 1.4, root: 1.4, radius: 30, spikeDmg: 8, spikeLife: 4, spikeRoot: 0.5 },
-			{ dmg: 16, cd: 0.45, count: 5, speed: 700, pierce: 3, spread: 0.1, max: 6, link: 220, wireDmg: 16, wireTick: 0.3, rearm: 2.5, trapDmg: 40, trapCd: 1.2, root: 1.6, radius: 32, spikeDmg: 11, spikeLife: 4, spikeRoot: 0.5 },
+			{ dmg: 17, cd: 0.45, count: 5, speed: 700, pierce: 3, spread: 0.1, max: 6, link: 220, wireDmg: 17, wireTick: 0.3, rearm: 2.5, trapDmg: 42, trapCd: 1.2, root: 1.6, radius: 32, spikeDmg: 12, spikeLife: 4, spikeRoot: 0.5 },
 		],
 	},
 	fanback: {
@@ -618,54 +632,54 @@ export const DUOS = {
 		name: 'Коктейль', icon: '♨', parts: ['bomb', 'flask'], tags: ['fire', 'aoe'],
 		desc: 'Взрыв оставляет горящую лужу',
 		levels: [
-			{ dmg: 26, cd: 2.3, count: 1, radius: 70, fuse: 0.6, pool: 2.5, poolDmg: 4, tick: 0.3 },
-			{ dmg: 34, cd: 2.1, count: 2, radius: 78, fuse: 0.6, pool: 3, poolDmg: 5, tick: 0.3 },
-			{ dmg: 45, cd: 1.9, count: 2, radius: 86, fuse: 0.6, pool: 3.5, poolDmg: 6, tick: 0.3 },
+			{ dmg: 81, cd: 2.3, count: 1, radius: 70, fuse: 0.6, pool: 2.5, poolDmg: 12, tick: 0.3 },
+			{ dmg: 82, cd: 2.1, count: 2, radius: 78, fuse: 0.6, pool: 3, poolDmg: 13, tick: 0.3 },
+			{ dmg: 124, cd: 1.9, count: 2, radius: 86, fuse: 0.6, pool: 3.5, poolDmg: 16, tick: 0.3 },
 		],
 	},
 	minefield: {
 		name: 'Минное поле', icon: '◈', parts: ['bomb', 'traps'], tags: ['fire', 'aoe', 'trap'],
 		desc: 'Капканы становятся минами, которые перезаряжаются',
 		levels: [
-			{ dmg: 45, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
-			{ dmg: 60, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
-			{ dmg: 80, cd: 1.2, max: 8, radius: 100, kb: 60, recharge: 6, trigger: 30 },
+			{ dmg: 90, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
+			{ dmg: 108, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
+			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 60, recharge: 6, trigger: 30 },
 		],
 	},
 	icebomb: {
 		name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Взрыв замораживает, замёрзшие раскалываются осколками',
 		levels: [
-			{ dmg: 25, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
-			{ dmg: 34, cd: 2.2, count: 2, radius: 90, fuse: 0.6, freeze: 1.2, shardR: 40, shardFrac: 0.5 },
-			{ dmg: 46, cd: 2.0, count: 2, radius: 100, fuse: 0.6, freeze: 1.5, shardR: 40, shardFrac: 0.5 },
+			{ dmg: 55, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
+			{ dmg: 56, cd: 2.2, count: 2, radius: 90, fuse: 0.6, freeze: 1.2, shardR: 40, shardFrac: 0.5 },
+			{ dmg: 78, cd: 2.0, count: 2, radius: 100, fuse: 0.6, freeze: 1.5, shardR: 40, shardFrac: 0.5 },
 		],
 	},
 	aurora: {
 		name: 'Полярное сияние', icon: '❋', parts: ['aura', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Холодный ореол; раз в 3 с волна замораживает',
 		levels: [
-			{ dmg: 6, tick: 0.4, radius: 110, slow: 0.3, pulse: 3, freeze: 0.8 },
-			{ dmg: 8, tick: 0.4, radius: 125, slow: 0.35, pulse: 3, freeze: 1.0 },
-			{ dmg: 11, tick: 0.4, radius: 140, slow: 0.4, pulse: 3, freeze: 1.2 },
+			{ dmg: 11, tick: 0.4, radius: 110, slow: 0.3, pulse: 3, freeze: 0.8 },
+			{ dmg: 16, tick: 0.4, radius: 125, slow: 0.35, pulse: 3, freeze: 1.0 },
+			{ dmg: 19, tick: 0.4, radius: 140, slow: 0.4, pulse: 3, freeze: 1.2 },
 		],
 	},
 	censer: {
 		name: 'Кадило', icon: '☁', parts: ['aura', 'flask'], tags: ['aoe'],
 		desc: 'Шлейф облаков: врагам урон, союзникам лечение',
 		levels: [
-			{ dmg: 5, every: 0.4, radius: 45, life: 3, tick: 0.4, heal: 2 },
-			{ dmg: 7, every: 0.4, radius: 50, life: 3, tick: 0.4, heal: 3 },
-			{ dmg: 9, every: 0.4, radius: 55, life: 3, tick: 0.4, heal: 4 },
+			{ dmg: 9, every: 0.4, radius: 45, life: 3, tick: 0.4, heal: 2 },
+			{ dmg: 16, every: 0.4, radius: 50, life: 3, tick: 0.4, heal: 3 },
+			{ dmg: 29, every: 0.4, radius: 55, life: 3, tick: 0.4, heal: 4 },
 		],
 	},
 	icedisc: {
 		name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
 		desc: 'Диск оставляет ледяной след и замораживает на обратном пути',
 		levels: [
-			{ dmg: 40, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
-			{ dmg: 50, cd: 1.2, count: 2, range: 320, speed: 540, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.8 },
-			{ dmg: 64, cd: 1.1, count: 2, range: 340, speed: 560, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 1.0 },
+			{ dmg: 68, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
+			{ dmg: 69, cd: 1.2, count: 2, range: 320, speed: 540, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.8 },
+			{ dmg: 96, cd: 1.1, count: 2, range: 340, speed: 560, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 1.0 },
 		],
 	},
 	stormlight: {
@@ -681,9 +695,9 @@ export const DUOS = {
 		name: 'Залп', icon: '⇶', parts: ['knives', 'spear'], tags: ['phys', 'proj'],
 		desc: 'Копьё в сильнейшего на лету роняет веер ножей в стороны',
 		levels: [
-			{ dmg: 44, cd: 1.9, count: 1, pierce: 8, width: 18, speed: 720, kb: 50, knifeDmg: 8, every: 65 },
-			{ dmg: 58, cd: 1.7, count: 1, pierce: 10, width: 20, speed: 740, kb: 60, knifeDmg: 10, every: 60 },
-			{ dmg: 76, cd: 1.5, count: 2, pierce: 99, width: 22, speed: 780, kb: 70, knifeDmg: 13, every: 60 },
+			{ dmg: 99, cd: 1.9, count: 1, pierce: 8, width: 18, speed: 720, kb: 50, knifeDmg: 18, every: 65 },
+			{ dmg: 133, cd: 1.7, count: 1, pierce: 10, width: 20, speed: 740, kb: 60, knifeDmg: 23, every: 60 },
+			{ dmg: 134, cd: 1.5, count: 2, pierce: 99, width: 22, speed: 780, kb: 70, knifeDmg: 24, every: 60 },
 		],
 	},
 	phalanx: {
@@ -692,16 +706,16 @@ export const DUOS = {
 		levels: [
 			{ charges: 2, cd: 9, dmg: 30, atkCd: 2.2, wall: 3, pierce: 6, width: 18, speed: 700, kb: 60, ring: 8 },
 			{ charges: 2, cd: 8, dmg: 40, atkCd: 2.0, wall: 3, pierce: 8, width: 20, speed: 720, kb: 70, ring: 10 },
-			{ charges: 3, cd: 7, dmg: 52, atkCd: 1.8, wall: 4, pierce: 99, width: 22, speed: 760, kb: 80, ring: 12 },
+			{ charges: 3, cd: 7, dmg: 41, atkCd: 1.8, wall: 4, pierce: 99, width: 22, speed: 760, kb: 80, ring: 12 },
 		],
 	},
 	firewheel: {
 		name: 'Огненное колесо', icon: '☸', parts: ['orbit', 'trail'], tags: ['fire', 'aoe'],
 		desc: 'Огненные колёса кружат, поджигают врагов и оставляют горящий круг',
 		levels: [
-			{ dmg: 10, count: 3, radius: 95, rps: 0.55, hitCd: 0.4, burn: 4, every: 0.25, patchR: 26, patchLife: 1.6, patchDmg: 3, tick: 0.3 },
-			{ dmg: 14, count: 4, radius: 100, rps: 0.55, hitCd: 0.4, burn: 6, every: 0.2, patchR: 28, patchLife: 1.8, patchDmg: 4, tick: 0.3 },
-			{ dmg: 19, count: 5, radius: 105, rps: 0.55, hitCd: 0.35, burn: 8, every: 0.18, patchR: 30, patchLife: 2.0, patchDmg: 5, tick: 0.3 },
+			{ dmg: 16, count: 3, radius: 95, rps: 0.55, hitCd: 0.4, burn: 7, every: 0.25, patchR: 26, patchLife: 1.6, patchDmg: 5, tick: 0.3 },
+			{ dmg: 24, count: 4, radius: 100, rps: 0.55, hitCd: 0.4, burn: 10, every: 0.2, patchR: 28, patchLife: 1.8, patchDmg: 7, tick: 0.3 },
+			{ dmg: 42, count: 5, radius: 105, rps: 0.55, hitCd: 0.35, burn: 18, every: 0.18, patchR: 30, patchLife: 2.0, patchDmg: 11, tick: 0.3 },
 		],
 	},
 };
@@ -796,7 +810,7 @@ export const REROLLS_START = 2;
 export const SKIP_XP = 10;
 export const RARE_CHANCE = 0.05; // chance that the 3rd card is rare, × (1 + luck)
 export const CHEST_RARE_CHANCE = 0.3;
-export const HEAL_OFFER_HP = 0.35; // below this hp fraction the 3rd card is always healing
+export const HEAL_OFFER_HP = 0.5; // below this hp fraction the 3rd card is always healing
 
 // Enemy state bits in snapshot `e` (6th field).
 export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256 };
@@ -834,6 +848,8 @@ export const ITEMS = {
 	chest: { name: 'Малый сундук', desc: 'Улучшение на выбор' },
 };
 export const ITEM_TYPES = Object.keys(ITEMS);
+// v15: kills sometimes drop «Чаша росы», far more often for a hero below lowHp of max (live runs died of slow bleeding).
+export const DEW_DROP = { chance: 0.001, lowHp: 0.45, lowMul: 60 };
 export const ITEM_LIFE = 90;
 export const MAGNET_ITEM_EVERY = 120; // a brute drops «Зов углей» at most this often
 
