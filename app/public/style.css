@@ -364,6 +364,11 @@ input[type="text"]:focus { border-color: var(--accent); }
 	text-shadow: 0 0 24px rgba(255, 82, 82, 0.9), 0 3px 6px #000;
 	animation: banner 2.6s ease forwards;
 }
+.banner-gold {
+	font-size: clamp(1.9rem, 9vw, 3.4rem); color: #ffe082;
+	text-shadow: 0 0 28px rgba(255, 193, 7, 0.95), 0 0 8px rgba(255, 236, 179, 0.9), 0 3px 6px #000;
+	animation-duration: 3.4s;
+}
 @keyframes banner {
 	0% { opacity: 0; transform: translate(-50%, -50%) scale(1.6); }
 	12% { opacity: 1; transform: translate(-50%, -50%) scale(1); }

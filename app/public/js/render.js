@@ -613,15 +613,53 @@ export class Renderer {
 		ctx.restore();
 	}
 
-	// Sniper: teal aura, brighter while aiming; golden shade: a gold glow so it reads as a reward.
-	drawSpecialGlow(ctx, ty, x, y, r, st, now, id) {
-		if (ty === GOLD_T) {
-			ctx.fillStyle = `rgba(255,213,79,${0.28 + Math.sin(now * 8 + id) * 0.1})`;
-			ctx.beginPath();
-			ctx.arc(x, y, r * 2.1, 0, TAU);
-			ctx.fill();
-			return;
+	// Golden shade (v18.1): a trail of fading gold sparks behind it, a bright pulsing halo and a light beam,
+	// so it stands out of the horde at once.
+	drawGoldShade(ctx, x, y, r, now, id) {
+		const trails = this.goldTrails ??= new Map();
+		let t = trails.get(id);
+		if (!t) trails.set(id, t = { pts: [], at: 0 });
+		if (now - t.at > 0.04) {
+			t.at = now;
+			t.pts.push(x, y, now);
+			if (t.pts.length > 3 * 18) t.pts.splice(0, 3);
 		}
+		t.seen = now;
+		for (let i = 0; i < t.pts.length; i += 3) {
+			const age = now - t.pts[i + 2];
+			if (age > 0.7) continue;
+			const k = 1 - age / 0.7;
+			const jx = Math.sin(t.pts[i + 2] * 37 + i) * 5, jy = Math.cos(t.pts[i + 2] * 29 + i) * 5;
+			ctx.fillStyle = `rgba(255,${200 + Math.round(55 * k)},${Math.round(120 * k)},${0.85 * k})`;
+			ctx.beginPath();
+			ctx.arc(t.pts[i] + jx, t.pts[i + 1] + jy, 1.5 + 3.5 * k, 0, TAU);
+			ctx.fill();
+		}
+		if (trails.size > 8) for (const [k2, v] of trails) if (now - v.seen > 2) trails.delete(k2);
+		const g = ctx.createLinearGradient(x, y - 140, x, y);
+		g.addColorStop(0, 'rgba(255,213,79,0)');
+		g.addColorStop(1, `rgba(255,213,79,${0.35 + Math.sin(now * 5) * 0.1})`);
+		ctx.fillStyle = g;
+		ctx.fillRect(x - 7, y - 140, 14, 140);
+		const p = 1 + Math.sin(now * 9 + id) * 0.12;
+		ctx.fillStyle = 'rgba(255,193,7,0.22)';
+		ctx.beginPath();
+		ctx.arc(x, y, r * 3.2 * p, 0, TAU);
+		ctx.fill();
+		ctx.fillStyle = 'rgba(255,236,179,0.45)';
+		ctx.beginPath();
+		ctx.arc(x, y, r * 1.8 * p, 0, TAU);
+		ctx.fill();
+		ctx.strokeStyle = '#ffd54f';
+		ctx.lineWidth = 2;
+		ctx.beginPath();
+		ctx.arc(x, y, r * 2.4 * p, 0, TAU);
+		ctx.stroke();
+	}
+
+	// Sniper: teal aura, brighter while aiming.
+	drawSpecialGlow(ctx, ty, x, y, r, st, now, id) {
+		if (ty === GOLD_T) return this.drawGoldShade(ctx, x, y, r, now, id);
 		const wind = (st & ST.windup) !== 0;
 		ctx.fillStyle = wind ? `rgba(100,255,218,${0.3 + Math.sin(now * 30) * 0.1})` : 'rgba(100,255,218,0.12)';
 		ctx.beginPath();
@@ -2957,7 +2995,7 @@ export class Renderer {
 			if (!(s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h)) {
 				const dx = s.x - cx, dy = s.y - cy;
 				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
-				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: ev.def.name, icon: '★' });
+				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ffd54f', name: ev.def.arrow ?? ev.def.name, icon: '★' });
 			}
 		}
 		return out;

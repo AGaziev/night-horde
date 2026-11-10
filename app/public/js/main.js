@@ -271,7 +271,7 @@ game.onEvent = (kind, arg, arg2) => {
 			break;
 		case 'evt': {
 			// Wave 4 event: banner with the name, the hint as a toast (the streak goal and the altar deal filled in).
-			ui.banner(arg.name);
+			ui.banner(arg.banner ?? arg.name, arg.id === 'gold' ? 'banner-gold' : '');
 			let hint = arg.hint.replace('{n}', String(arg2)).replace('{t}', String(arg.dur ?? ''));
 			const ev = game.event();
 			if (arg.id === 'altar' && ev && ALTAR_DEALS[ev.a]) hint += `. Сделка «${ALTAR_DEALS[ev.a].name}»: ${ALTAR_DEALS[ev.a].desc}`;

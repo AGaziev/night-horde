@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v18';
+export const GAME_VERSION = 'v18.1';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -72,7 +72,7 @@ export const HEROES = {
 // dmgMul (v18, same indexing): pairs fell to hits (Трубач shots first), not to enemy hp, so only their enemy damage is softer.
 export const MODES = {
 	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [1, 0.85, 1] },
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.7, 1] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [1, 0.75, 1] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -491,8 +491,13 @@ export const ENEMIES = {
 		name: 'Щитоносец', hp: 150, speed: 44, dmg: 16, r: 21, xp: 16, color: '#90a4ae', special: true,
 		ai: 'shield', front: 0.2, arc: 65, turn: 0.85, trigger: 230, dashWarn: 0.8, dashSpeed: 420, dashTime: 0.6, rest: 1.2, dashCd: 3,
 	},
-	// Event «Золотая тень»: runs from the nearest player, a kill drops a chest, escapes after `life` s.
-	goldshade: { name: 'Золотая тень', hp: 45, speed: 140, dmg: 0, r: 13, xp: 20, color: '#ffd54f', special: true, ai: 'flee', life: 20, escape: 1000 },
+	// Event «Золотая тень»: slower than every hero, runs loops around the nearest player (away when close, back when far),
+	// a kill drops a chest. Leaves after `life` s, or when farther than `escape` px from everyone after `grace` s (v18.1).
+	// The first `show` s it only circles around the hero at the spot it appeared (no running off), so it is seen on a phone too.
+	goldshade: {
+		name: 'Золотая тень', hp: 180, speed: 115, dmg: 0, r: 13, xp: 20, color: '#ffd54f', special: true, ai: 'flee', life: 20, escape: 1600, grace: 8,
+		near: 480, far: 780, turn: 3, show: 3, showSpeed: 1,
+	},
 };
 
 // Numeric ids used in snapshots (index into this array).
@@ -595,23 +600,23 @@ export const SHIELD_SHIFT = 9;
 export const EVENT_RULES = { from: 0.12, gap: [90, 120], peakGap: 8, bossGap: 12, retry: 10 };
 export const EVENTS = [
 	{
-		id: 'star', name: 'Падающая звезда', hint: 'Звезда упадёт в красный круг — выйдите из него. На месте удара останется осколок звезды',
+		id: 'star', name: 'Падающая звезда', arrow: 'Звезда', hint: 'Звезда упадёт в красный круг — выйдите из него. На месте удара останется осколок звезды',
 		warn: 3.5, r: 150, pdmg: 30, bigFrac: 0.25, done: ['Осколок звезды ждёт на месте удара', 'Осколок звезды забран: опыт и здоровье всем'],
 	},
 	{
-		id: 'gold', name: 'Золотая тень', hint: 'Догоните и убейте золотую тень, пока не сбежала: за неё сундук',
-		dist: 380, done: ['Золотая тень сбежала', 'Золотая тень поймана — сундук!'],
+		id: 'gold', name: 'Золотая тень', arrow: 'Тень', banner: 'Золотая тень! Догони за 20 с', hint: 'Догоните и убейте золотую тень, пока не сбежала: за неё сундук',
+		dist: 240, done: ['Золотая тень сбежала', 'Золотая тень поймана — сундук!'],
 	},
 	{
 		id: 'fog', name: 'Красный туман', hint: 'В тумане враги злее и быстрее, зато опыта с них вдвое больше',
 		dur: 30, r: 300, dmgMul: 1.3, speedMul: 1.15, xpMul: 2, done: ['Красный туман рассеялся'],
 	},
 	{
-		id: 'altar', name: 'Алтарь', hint: 'Встаньте на алтарь, чтобы принять сделку. Не хотите — пройдите мимо, штрафа нет',
+		id: 'altar', name: 'Алтарь', arrow: 'Алтарь', hint: 'Встаньте на алтарь, чтобы принять сделку. Не хотите — пройдите мимо, штрафа нет',
 		life: 30, r: 34, dist: 220, done: ['Алтарь угас', 'Сделка заключена'],
 	},
 	{
-		id: 'cursed', name: 'Проклятый сундук', hint: 'Откройте сундук — нахлынет волна. Продержитесь 20 с, и каждому выпадет эпическая награда',
+		id: 'cursed', name: 'Проклятый сундук', arrow: 'Сундук', hint: 'Откройте сундук — нахлынет волна. Продержитесь 20 с, и каждому выпадет эпическая награда',
 		life: 35, r: 28, dist: 230, hold: 20, ring: 380, base: 16, perMin: 1.6, done: ['Проклятый сундук остался закрыт', 'Волна пережита — эпическая награда!', 'Волна не пережита'],
 	},
 	{

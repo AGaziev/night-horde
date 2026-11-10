@@ -5,7 +5,7 @@ import { summarize } from './runlog.js';
 import { SnapshotDecoder } from '../public/js/snapshot-codec.js';
 import {
 	TICK_HZ, ENEMIES, ENEMY_TYPES, ST, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, EVENTS, EVENT_INDEX, EVENT_RULES,
-	ALTAR_DEALS, ITEM_TYPES, xpForNext, RARITIES, peakSchedule, bossTimes, modeDmgMul,
+	ALTAR_DEALS, ITEM_TYPES, xpForNext, RARITIES, peakSchedule, bossTimes, modeDmgMul, HEROES,
 } from '../public/shared/content.js';
 
 const dt = 1 / TICK_HZ;
@@ -194,6 +194,36 @@ for (const mode of ['night', 'lunch']) {
 }
 console.log('specials schedule: OK');
 {
+	// v18.1: a small chest is shared — every hero gets an offer (a downed one too), the opener also the boost.
+	const r = room(['knight', 'witch', 'alchemist']);
+	const [a, b, c] = [hero(r, 1), hero(r, 2), hero(r, 3)];
+	for (const h of [a, b, c]) {
+		h.offer = null;
+		h.queue = 0;
+		h.boostQueue = 0;
+		h.floors = [];
+	}
+	c.st = 1;
+	r.dropItem('chest', a.x, a.y);
+	r.updateItems(dt, alive(r));
+	assert.ok(a.offer && b.offer, 'both standing players get an offer');
+	assert.ok(c.offer, 'a downed player gets one too');
+	assert.ok([a, b, c].every((h) => h.offer.some((x) => (x.rar ?? -1) >= 1)), 'chest floor for all');
+	assert.ok(a.offerBoost && !b.offerBoost && !c.offerBoost, 'only the opener gets the boost');
+	// Boss chest: a downed pair member gets the offer as well.
+	const rb = room(['knight', 'witch']);
+	const [p, q] = [hero(rb, 1), hero(rb, 2)];
+	p.offer = q.offer = null;
+	q.st = 1;
+	const boss = foe(rb, 'ram', 300, 0);
+	rb.bosses.push(boss);
+	boss.group = boss.id;
+	rb.hurtEnemy(boss, boss.hp + 1, p, SRC);
+	assert.ok(p.offer && q.offer, 'boss chest: the downed one gets an offer');
+	assert.ok(q.offer.some((x) => (x.rar ?? -1) >= 2), 'boss chest: epic floor for the downed one');
+	console.log('shared chest: OK');
+}
+{
 	const r = room(['knight', 'witch'], 'lunch'), r1 = room(['knight'], 'lunch');
 	const e = foe(r, 'skel', 300, 0), e1 = foe(r1, 'skel', 300, 0);
 	assert.ok(Math.abs(e.dmg / e1.dmg - modeDmgMul('lunch', 2)) < 1e-9, 'lunch pair enemy damage softened');
@@ -239,10 +269,13 @@ const ends = (r) => r.runLog.events;
 	const shard = r.items.find((it) => ITEM_TYPES[it.type] === 'star');
 	assert.ok(shard, 'shard on the spot');
 	const xa = a.xp + a.level * 1000, xb = b.xp + b.level * 1000;
+	b.st = 1;
+	const hpB = b.hp;
 	a.x = shard.x;
 	a.y = shard.y;
 	evTick(r, 0.2);
-	assert.ok(a.xp + a.level * 1000 > xa && b.xp + b.level * 1000 > xb, 'shard: both players get xp');
+	assert.ok(a.xp + a.level * 1000 > xa && b.xp + b.level * 1000 > xb, 'shard: both players get xp, the downed one too');
+	assert.equal(b.hp, hpB, 'shard: no heal while downed');
 	assert.equal(r.events.active, null);
 	assert.equal(ends(r)[0].res, 1);
 	// Standing in the circle hurts.
@@ -269,6 +302,31 @@ const ends = (r) => r.runLog.events;
 	evTick(r, 0.1);
 	assert.ok(r.items.some((it) => ITEM_TYPES[it.type] === 'chest'), 'chest for the kill');
 	assert.equal(ends(r)[0].res, 1);
+	// v18.1: slower than every hero, no escape by distance during the grace time, then only past `escape` px.
+	const G = ENEMIES.goldshade;
+	assert.ok(Object.values(HEROES).every((H) => H.speed > G.speed), 'slower than the slowest hero');
+	const rg = evRoom('gold');
+	const sh = rg.events.active.shade, hg = hero(rg);
+	hg.x = sh.x + 1300;
+	hg.y = sh.y;
+	evTick(rg, 3);
+	assert.equal(rg.events.active?.id, 'gold', 'no early escape at 3 s even 1300 px away');
+	hg.x = sh.x + G.escape + 200;
+	evTick(rg, G.grace - 3 - 0.5);
+	assert.equal(rg.events.active?.id, 'gold', 'no escape before the grace time ends');
+	hg.x = sh.x + G.escape - 300;
+	evTick(rg, 1);
+	assert.equal(rg.events.active?.id, 'gold', 'inside the escape radius it stays');
+	hg.x = sh.x + G.escape + 200;
+	evTick(rg, 0.2);
+	assert.equal(ends(rg)[0].res, 0, 'escapes past the radius after the grace time');
+	assert.ok(ends(rg)[0].end - ends(rg)[0].at >= G.grace);
+	// It loops instead of running straight: over 6 s it stays within reach of a standing hero.
+	const rl = evRoom('gold');
+	const hl = hero(rl), sl = rl.events.active.shade;
+	let maxD = 0;
+	run(rl, 6, () => { maxD = Math.max(maxD, Math.hypot(sl.x - hl.x, sl.y - hl.y)); });
+	assert.ok(maxD < G.far + 150, `loops near the hero (max ${Math.round(maxD)} px)`);
 	const r2 = evRoom('gold');
 	evTick(r2, ENEMIES.goldshade.life + 0.5);
 	assert.equal(ends(r2)[0].res, 0, 'escaped');

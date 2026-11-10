@@ -156,7 +156,8 @@ export class Events {
 				if (e.dead) return this.finish(e.caught ? 1 : 0);
 				let near = Infinity;
 				for (const h of alive) near = Math.min(near, dist2(h.x, h.y, e.x, e.y));
-				if (t >= ev.end || near > ENEMIES.goldshade.escape ** 2) {
+				const G = ENEMIES.goldshade;
+				if (t >= ev.end || (t - ev.at >= G.grace && near > G.escape ** 2)) {
 					e.dead = true;
 					room.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
 					this.finish(0);
@@ -292,13 +293,12 @@ export class Events {
 		if (this.cur?.id === 'cursed' && this.cur.phase === 1) this.cur.downed.add(h.pid);
 	}
 
-	// The star shard is shared: every alive player gets half a level and some health.
+	// The star shard is shared: xp to every hero (downed too, like team xp), health to the standing ones.
 	starShard() {
 		const room = this.room;
 		for (const o of room.heroes.values()) {
-			if (o.st !== 0) continue;
 			room.addXp(o, xpForNext(o.level, room.heroes.size) * STAR_SHARD.lvlFrac);
-			o.hp = Math.min(o.maxHp, o.hp + STAR_SHARD.heal);
+			if (o.st === 0) o.hp = Math.min(o.maxHp, o.hp + STAR_SHARD.heal);
 		}
 	}
 

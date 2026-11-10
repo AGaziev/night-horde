@@ -91,14 +91,15 @@ export class UI {
 		setTimeout(() => n.remove(), 3300);
 	}
 
-	banner(text) {
+	banner(text, cls = '') {
 		const b = $('banner');
 		b.hidden = true;
 		b.textContent = text;
+		b.className = cls ? `banner ${cls}` : 'banner';
 		void b.offsetWidth; // restart the CSS animation
 		b.hidden = false;
 		clearTimeout(this.bannerTimer);
-		this.bannerTimer = setTimeout(() => { b.hidden = true; }, 2700);
+		this.bannerTimer = setTimeout(() => { b.hidden = true; }, cls ? 3500 : 2700);
 	}
 
 	setNet(transport, ping, connected) {

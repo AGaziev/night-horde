@@ -1135,8 +1135,14 @@ export class Room {
 				}
 				this.turnShield(e, dx, dy, dt);
 			} else if (e.ai === 'flee') {
-				const s = Math.sin(now * 3 + e.phase) * 0.7;
-				[dx, dy] = [-dx + dy * s, -dy - dx * s];
+				// Loops around the nearest player: mostly sideways (the side flips every `turn` s), away when close,
+				// back when far, so a hero cutting the circle catches up.
+				const F = e.def;
+				const side = Math.floor((now - e.born) / F.turn + e.phase) % 2 ? 1 : -1;
+				const showing = now - e.born < F.show;
+				const out = showing ? 0 : d < F.near ? 1.2 : d > F.far ? -0.8 : 0.2;
+				if (showing) speed *= F.showSpeed;
+				[dx, dy] = [-dy * side - dx * out, dx * side - dy * out];
 				const l = Math.hypot(dx, dy) || 1;
 				dx /= l;
 				dy /= l;
@@ -1762,7 +1768,8 @@ export class Room {
 				this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
 				this.runLog?.bossKilled(this, e);
 				this.bossKills++;
-				for (const p of this.heroes.values()) if (p.st === 0) this.grantOffer(p, false, CHEST_FLOOR.boss);
+				// Every hero, downed too: team xp keeps a downed ally level with the rest, chests do the same (v18.1).
+				for (const p of this.heroes.values()) this.grantOffer(p, false, CHEST_FLOOR.boss);
 			}
 		}
 	}
@@ -1934,8 +1941,10 @@ export class Room {
 				if (h.offer) this.sendOffer(h);
 				break;
 			case 'chest':
+				// Shared like a boss chest: elites do not multiply with players, so every hero (downed too) gets an offer,
+				// the one who opened it with the boost (v18.1).
 				this.fx.push(['open', h.pid, Math.round(it.x), Math.round(it.y)]);
-				this.grantOffer(h, true, CHEST_FLOOR.elite);
+				for (const o of this.heroes.values()) this.grantOffer(o, o === h, CHEST_FLOOR.elite);
 				break;
 			case 'star':
 				this.events.starShard();

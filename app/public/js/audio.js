@@ -1,5 +1,5 @@
 // Procedural sound: synthesized effects and adaptive music on the Web Audio API. No audio files.
-import { ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, breakableAt } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, breakableAt, EVENT_INDEX } from '/shared/content.js';
 
 const STORE_KEY = 'nh.audio';
 const DEFAULTS = { muted: false, music: 0.55, sfx: 0.8 };
@@ -26,6 +26,7 @@ const LIMITS = {
 const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend', 'evt', 'evte', 'altar']);
 
 const PENTA = [0, 3, 5, 7, 10]; // minor pentatonic steps
+const GOLD_EVENT = EVENT_INDEX.gold;
 const mtof = (m) => 440 * Math.pow(2, (m - 69) / 12);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const rnd = (a, b) => a + Math.random() * (b - a);
@@ -642,6 +643,8 @@ export class Sound {
 				if (!(v = this.voice('evt', 0.26, 0, 0, 2))) return;
 				this.bell(v.out, v.t, 69, 1.2, 0.45);
 				this.bell(v.out, v.t + 0.22, 76, 1.4, 0.45);
+				// Golden shade: a quick high sparkle run on top, so it is heard even when the banner is missed.
+				if (ev[1] === GOLD_EVENT) for (let i = 0; i < 6; i++) this.bell(v.out, v.t + 0.35 + i * 0.05, 84 + PENTA[i % 5], 0.5, 0.3);
 				this.send(v, 0.6);
 				break;
 			}
