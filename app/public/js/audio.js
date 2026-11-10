@@ -23,7 +23,7 @@ const LIMITS = {
 	gem: [0.045, 1], puddle: [0.12, 2], hurt: [0.14, 1], default: [0.05, 2],
 };
 // Sounds that must play even when the voice pool is full.
-const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend', 'evt', 'evte', 'altar']);
+const PRIORITY = new Set(['hurt', 'down', 'up', 'lvl', 'pick', 'boss', 'chest', 'duo', 'inv', 'item', 'open', 'elite', 'ui', 'sting', 'bigdie', 'peakw', 'peak', 'dawn', 'legend', 'evt', 'evte', 'altar', 'finw', 'absorb', 'lorddie']);
 
 const PENTA = [0, 3, 5, 7, 10]; // minor pentatonic steps
 const GOLD_EVENT = EVENT_INDEX.gold;
@@ -628,9 +628,10 @@ export class Sound {
 				this.music?.accent(0.8);
 				break;
 			}
+			case 'finw': // v21: the finale is announced with the same toll as a peak
 			case 'peakw': {
 				// Warning toll: three low bells over a rising drone, so the group has time to regroup.
-				if (!(v = this.voice('peakw', 0.32, 0, 0, 3.6))) return;
+				if (!(v = this.voice(ev[0], 0.32, 0, 0, 3.6))) return;
 				const o = v.out, t = v.t;
 				for (let i = 0; i < 3; i++) this.bell(o, t + i * 0.9, 45, 1.6, 0.5);
 				this.tone(o, t, 'sawtooth', mtof(33), mtof(40), 3.4, 0.08, 2.5);
@@ -656,8 +657,18 @@ export class Sound {
 				this.send(v, 0.4);
 				break;
 			}
+			case 'lorddie': {
+				// The Lord falls: a deep drum, then a bright rising run.
+				if (!(v = this.voice('lorddie', 0.42, 0, 0, 3))) return;
+				this.thump(v.out, v.t, 110, 28, 1.6, 1);
+				[72, 76, 79, 84, 88, 91].forEach((m, i) => this.bell(v.out, v.t + 0.5 + i * 0.07, m, 2.2, 0.35));
+				this.send(v, 0.9);
+				this.music?.accent(1);
+				break;
+			}
+			case 'absorb': // v21: the Lord absorbs the horde — the same heavy hit as a peak start
 			case 'peak': {
-				if (!(v = this.voice('peak', 0.38, 0, 0, 2.6))) return;
+				if (!(v = this.voice(ev[0], 0.38, 0, 0, 2.6))) return;
 				const o = v.out, t = v.t;
 				this.thump(o, t, 70, 28, 1.2, 1);
 				for (const m of [38, 41, 44]) this.tone(o, t, 'sawtooth', mtof(m + 12), mtof(m), 2.2, 0.1, 0.05);
@@ -737,7 +748,9 @@ export class Sound {
 			if (dx * dx + dy * dy < 450 * 450) near++;
 		}
 		const minute = snap.tm / 60;
-		this.target = clamp(0.12 + minute * 0.035 + near / 90 + (snap.boss ? 0.25 : 0), 0.08, 1);
+		// v21: the finale's rage and «Светает» push the music one step further each.
+		const finStep = snap.fin ? (snap.fin[0] >= 4 ? 0.3 : snap.fin[0] >= 3 ? 0.15 : 0) : 0;
+		this.target = clamp(0.12 + minute * 0.035 + near / 90 + (snap.boss ? 0.25 : 0) + finStep, 0.08, 1);
 		this.near = near;
 
 		if (!prev || !this.ready()) return;
@@ -786,7 +799,7 @@ export class Sound {
 	}
 
 	// menu | lobby | game | over
-	setMode(mode, win) {
+	setMode(mode, win, gold = false) {
 		const prev = this.mode;
 		this.mode = mode;
 		if (mode === 'game' && prev !== 'game') {
@@ -795,7 +808,7 @@ export class Sound {
 		}
 		if (!this.music) return;
 		this.music.setMode(mode);
-		if (mode === 'over' && prev === 'game') this.music.sting(!!win);
+		if (mode === 'over' && prev === 'game') this.music.sting(!!win, gold);
 	}
 
 	// Peak absolute sample on the master output right now (for diagnostics).
@@ -1025,10 +1038,12 @@ class Music {
 		}
 	}
 
-	sting(win) {
+	// gold: the Lord was slain — the win run an octave higher with a drum.
+	sting(win, gold = false) {
 		const t = this.ctx.currentTime + 0.05;
 		const d = this.bus.sting;
-		const seq = win ? [62, 66, 69, 74, 78, 81] : [74, 70, 67, 65, 62];
+		const seq = (win ? [62, 66, 69, 74, 78, 81] : [74, 70, 67, 65, 62]).map((m) => m + (win && gold ? 12 : 0));
+		if (win && gold) this.kick(d, t, 0.6);
 		seq.forEach((m, i) => {
 			this.note(d, t + i * 0.14, 'triangle', m, 0.9, 0.12, 0.01);
 			this.note(d, t + i * 0.14, 'sine', m + 12, 0.5, 0.04, 0.005);

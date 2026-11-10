@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS } from '/shared/content.js';
+import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -95,6 +95,11 @@ export class Game {
 		this.steams = []; // steam clouds {x, y, r, t, life}
 		this.banners = []; // planted banners {pid, x, y, r, t, life}
 		this.evoFlash = null; // own evolution: {color, t}
+		// v21 finale: threads of the absorbed horde {t, cx, cy, pts}, the Lord's death {t, x, y}, freeze-frame seconds left.
+		this.absorb = null;
+		this.lordDie = null;
+		this.hold = 0;
+		this.dawnPending = null;
 		this.onEvent = () => {};
 	}
 
@@ -115,6 +120,10 @@ export class Game {
 		this.hurtFlash = 0;
 		this.dawn = null;
 		this.dawnSeen = false;
+		this.absorb = null;
+		this.lordDie = null;
+		this.hold = 0;
+		this.dawnPending = null;
 		this.hostile.clear();
 		this.lobs.clear();
 		this.warns.length = 0;
@@ -282,6 +291,8 @@ export class Game {
 		}
 		const snap = {
 			tm,
+			at: now,
+			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
 			pMap: new Map(),
@@ -346,6 +357,16 @@ export class Game {
 		return v ? { def: EVENTS[v[0]], left: +v[1] || 0, phase: v[2] | 0, x: +v[3], y: +v[4], r: +v[5] || 0, a: +v[6] || 0, b: +v[7] || 0 } : null;
 	}
 
+	// v21 finale at this moment: {phase, left, cx, cy, r, r1} or null. The ring is run forward from the newest snapshot
+	// (the prelude shrinks it between snapshots), so the own hero's prediction and the drawn wall agree with the server.
+	finale() {
+		const s = this.latest();
+		const f = s && s.fin;
+		if (!f) return null;
+		const age = this.frozen || this.hold > 0 ? 0 : Math.max(0, Math.min(1, performance.now() / 1000 - s.at));
+		return { phase: f[0] | 0, left: Math.max(0, (+f[1] || 0) - age), cx: +f[2], cy: +f[3], r: Math.max(+f[5], +f[4] - FINALE.ring.shrink * age), r1: +f[5] };
+	}
+
 	myRow() {
 		const s = this.latest();
 		return s ? s.pMap.get(this.me) || null : null;
@@ -358,6 +379,13 @@ export class Game {
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
+		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
+		if (this.hold > 0) {
+			this.hold -= dt;
+			if (this.hold > 0) return;
+			if (this.dawnPending !== null) this.startDawn(this.dawnPending);
+			this.dawnPending = null;
+		}
 		this.updateView(now);
 		this.applyEffects();
 		this.advanceShots();
@@ -379,6 +407,9 @@ export class Game {
 					this.local.fx = v.x / len;
 					this.local.fy = v.y / len;
 				}
+				// The finale wall: the same projection the server applies (a standing hero is pushed by the closing ring too).
+				const fin = this.finale();
+				if (fin) [this.local.x, this.local.y] = clampToRing(this.local.x, this.local.y, fin.cx, fin.cy, fin.r - PLAYER_RADIUS);
 				this.posTimer -= dt;
 				if (this.posTimer <= 0 && this.me !== null) {
 					this.posTimer += 1 / POS_HZ;
@@ -837,17 +868,42 @@ export class Game {
 			case 'pring':
 				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 1.6, r0: +ev[3] || 420, r1: 90, color: '#b388ff' });
 				break;
-			case 'dawn': {
-				// Every enemy the client still shows goes up in golden fire.
-				this.dawn = { t: 0, n: ev[1] | 0 };
-				this.shake = 18;
-				for (let i = this.snaps.length - 1; i >= 0; i--) {
+			case 'dawn':
+				if (this.hold > 0) this.dawnPending = ev[1] | 0;
+				else this.startDawn(ev[1] | 0);
+				break;
+			case 'finw':
+				this.onEvent('finw');
+				break;
+			case 'fin':
+				if ((ev[1] | 0) !== 4) this.shake = Math.max(this.shake, (ev[1] | 0) === 3 ? 14 : 8);
+				this.onEvent('fin', ev[1] | 0, ev[2] | 0);
+				break;
+			case 'absorb': {
+				// Dark threads from the horde to the middle of the ring (a sample of the enemies the client still shows).
+				const pts = [];
+				// The snapshot that carries the event already holds the Lord alone: take the last one with the horde in it.
+				for (let i = this.snaps.length - 1; i >= 0 && !pts.length; i--) {
 					const e = this.snaps[i].e;
-					if (!e.length) continue;
-					for (let j = 0; j + E_STRIDE <= e.length; j += E_STRIDE) this.burst(+e[j + 2], +e[j + 3], j % 3 ? '#ffca28' : '#fff8e1', 3, 6);
-					break;
+					if (e.length <= E_STRIDE) continue;
+					const step = Math.max(1, Math.ceil(e.length / E_STRIDE / 60)) * E_STRIDE;
+					for (let j = 0; j + E_STRIDE <= e.length; j += step) pts.push(+e[j + 2], +e[j + 3]);
 				}
-				this.onEvent('dawn');
+				this.absorb = { t: 0, cx: +ev[2], cy: +ev[3], pts };
+				this.shake = 16;
+				this.onEvent('absorb', ev[1] | 0);
+				break;
+			}
+			case 'lorddie': {
+				const x = +ev[2], y = +ev[3];
+				this.lordDie = { t: 0, x, y };
+				this.hold = FINALE.killHold;
+				this.shake = 0;
+				this.evoFlash = { color: '#fff8e1', t: 0 };
+				this.burst(x, y, '#fff8e1', 60, 30);
+				this.burst(x, y, '#ffca28', 40, 22);
+				this.rings.push({ x, y, t: 0, life: 1.2, r0: 20, r1: 420, color: '#ffe082' });
+				this.onEvent('lorddie', ev[1]);
 				break;
 			}
 			case 'inv': {
@@ -857,6 +913,26 @@ export class Game {
 				break;
 			}
 		}
+	}
+
+	// Dawn: every enemy the client still shows goes up in golden fire. A Lord who lived to the dawn (no `lorddie`)
+	// is not killed: he pales and falls apart into shades.
+	startDawn(n) {
+		this.dawn = { t: 0, n };
+		this.shake = 18;
+		const lord = ENEMY_TYPES.indexOf('boss');
+		for (let i = this.snaps.length - 1; i >= 0; i--) {
+			const e = this.snaps[i].e;
+			if (!e.length) continue;
+			for (let j = 0; j + E_STRIDE <= e.length; j += E_STRIDE) {
+				if (e[j + 1] === lord && !this.lordDie) {
+					this.burst(+e[j + 2], +e[j + 3], '#4a148c', 40, 26);
+					this.burst(+e[j + 2], +e[j + 3], '#b39ddb', 20, 18);
+				} else this.burst(+e[j + 2], +e[j + 3], j % 3 ? '#ffca28' : '#fff8e1', 3, 6);
+			}
+			break;
+		}
+		this.onEvent('dawn', this.lordDie ? 2 : 1);
 	}
 
 	burst(x, y, color, n, spread) {
@@ -871,6 +947,8 @@ export class Game {
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
 		if (this.dawn) this.dawn.t += dt;
+		if (this.absorb && (this.absorb.t += dt) > 0.8) this.absorb = null;
+		if (this.lordDie) this.lordDie.t += dt;
 		compact(this.numbers, (n) => (n.t += dt) < 0.8);
 		compact(this.particles, (p) => {
 			p.t += dt;

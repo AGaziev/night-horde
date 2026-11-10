@@ -197,6 +197,7 @@ function takeAchievements(msg) {
 	ach.stats = mergeAchStats(ach.stats, mine.ach);
 	store.set('nh.ach', JSON.stringify(ach.stats));
 	ui.setUnlocks(unlocked(), ach.stats);
+	ui.setLords(ach.stats.lords);
 	net.send({ t: 'heroes', heroes: [...unlocked()] });
 	return unlockAll ? [] : [...unlocked()].filter((id) => !before.has(id));
 }
@@ -210,7 +211,7 @@ function showOver(msg) {
 	const stats = (Array.isArray(msg.stats) ? msg.stats : []).map((s) => ({ ...s, color: game.meta(s.pid).color }));
 	ui.renderOver({ ...msg, stats }, state.me, state.host === state.me);
 	ui.show('over');
-	sound.setMode('over', msg.win);
+	sound.setMode('over', msg.win, msg.grade === 2);
 }
 
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
@@ -283,7 +284,26 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 			ui.banner(`${arg.name}!`);
 			break;
 		case 'dawn':
-			ui.banner('Рассвет! Ночь отступила');
+			// After the Lord's death its own gold banner is already up.
+			if (arg !== 2) ui.banner('Рассвет! Ночь отступила');
+			break;
+		// v21 finale «Последний рубеж».
+		case 'finw':
+			ui.banner('Владыка ночи идёт — соберитесь вместе');
+			ui.toast('Тьма сомкнётся кольцом. Убьёте Владыку — рассвет наступит сразу', 'info');
+			break;
+		case 'fin':
+			if (arg === 1) ui.banner('Тьма смыкается!');
+			else if (arg === 3) {
+				ui.banner('Владыка в ярости!');
+				if (arg2 > 0) ui.toast('Луч рассвета поднял павших', 'info');
+			}
+			break;
+		case 'absorb':
+			if (arg > 0) ui.toast('Владыка поглотил орду', 'info');
+			break;
+		case 'lorddie':
+			ui.banner('Владыка повержен!', 'banner-gold');
 			break;
 		case 'evt': {
 			// Wave 4 event: banner with the name, the hint as a toast (the streak goal and the altar deal filled in).
@@ -363,6 +383,7 @@ ui.onHero = (id) => {
 ui.onMode = (id) => net.send({ t: 'mode', mode: id });
 ui.buildHeroCards(state.hero);
 ui.setUnlocks(unlocked(), ach.stats);
+ui.setLords(ach.stats?.lords);
 
 $('menu-name').addEventListener('change', (e) => {
 	const name = e.target.value.trim().slice(0, 20);

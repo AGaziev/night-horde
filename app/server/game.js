@@ -12,6 +12,7 @@ import {
 	SYNERGY_PER, SYNERGY_MAX, ROMAN, EVOS, EVO_IDS, EVO_BY_WEAPON, EMBERS,
 	BOSS_SCHEDULE, BOSS_POOL, FINAL_BOSS, bossHpScale, REACT, REACTION_IDS, REACTIONS, reactionHint, SYNERGIES,
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
+	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, clampToRing,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, overclockId, BANS_START,
 } from '../public/shared/content.js';
@@ -291,9 +292,11 @@ export class Room {
 		const hpK = (enemyHpScale(nt, to) / enemyHpScale(nt, from)) * (hpNew / hpOld);
 		const bossK = (bossHpScale(nt, to) / bossHpScale(nt, from)) * (hpNew / hpOld);
 		const dmgK = (enemyDmgScale(nt, to) / enemyDmgScale(nt, from)) * (dmgNew / dmgOld);
+		if (this.fin?.lord) this.finDmg = finaleDmgMul(to);
 		for (const e of this.enemies) {
 			if (e.dead) continue;
-			const k = e.boss ? bossK : hpK;
+			// The finale Lord also follows his own per-group multiplier; the arena keeps its size.
+			const k = e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
 			e.hp *= k;
 			e.maxHp *= k;
 			if (e.barMax) e.barMax *= k;
@@ -478,6 +481,13 @@ export class Room {
 		this.nextEliteT = ELITE_START / this.tscale;
 		this.nextInvasionT = INVASION.from / this.tscale;
 		this.peaks = peakSchedule(this.runLength, this.bossAt);
+		// v21 finale: plan (absolute times) or null for runs too short for it; this.fin lives from the prelude on.
+		const fight = finaleFight(this.runLength);
+		this.finPlan = fight ? { warn: this.runLength - fight - FINALE.prelude - FINALE.warn, pre: this.runLength - fight - FINALE.prelude, lord: this.runLength - fight, fight } : null;
+		this.fin = null;
+		this.finWarned = false;
+		this.finDmg = 1;
+		this.grade = 0;
 		this.peakIdx = 0;
 		this.peakWarned = 0;
 		this.peak = null;
@@ -569,6 +579,7 @@ export class Room {
 				h.x += (dx / d) * maxStep;
 				h.y += (dy / d) * maxStep;
 			}
+			if (this.fin) [h.x, h.y] = clampToRing(h.x, h.y, this.fin.cx, this.fin.cy, this.fin.r - PLAYER_RADIUS);
 			h.lastPosT = this.time;
 		}
 		const fx = num(msg.fx), fy = num(msg.fy);
@@ -1008,6 +1019,13 @@ export class Room {
 	// --- simulation ---
 
 	tick(dt) {
+		if (!this.fin?.lord || this.state !== 'play') return this.step(dt);
+		const t0 = performance.now();
+		this.step(dt);
+		if (this.state === 'play') this.runLog?.finTick(performance.now() - t0); // the last tick also builds the log
+	}
+
+	step(dt) {
 		if (this.state !== 'play') return;
 		if (this.frozen) {
 			this.updateFrozen();
@@ -1020,11 +1038,13 @@ export class Room {
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
 
 		this.updatePeaks(alive);
+		this.updateFinale(dt, alive);
 		this.events.tick(alive);
 		if (alive.length) {
 			this.spawn(dt, alive);
 			this.moveEnemies(dt, alive);
 		}
+		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
 		this.updatePlayers(dt, alive);
 		this.auraHeals(dt, alive);
@@ -1040,6 +1060,7 @@ export class Room {
 		this.updateItems(dt, alive);
 		this.updateRevive(dt);
 		if (alive.length) {
+			if (this.fin) this.nextEliteT = this.nextInvasionT = Infinity; // no elites or invasions from the prelude on
 			if (this.time >= this.nextEliteT) {
 				this.nextEliteT = this.time + (this.nt >= 600 ? ELITE_EVERY_LATE : ELITE_EVERY) / this.tscale;
 				this.makeElite(alive);
@@ -1055,10 +1076,16 @@ export class Room {
 		}
 
 		this.runLog?.tick(this);
+		// The Lord fell this tick: dawn comes at once, even if the last hero fell with him.
+		if (this.fin?.killed) {
+			this.burnAll();
+			this.finish(true, 2);
+			return;
+		}
 		if (this.checkAllDown()) return;
 		if (this.time >= this.runLength) {
 			if (this.peaks.some((p) => p.burn)) this.burnAll();
-			this.finish(true);
+			this.finish(true, 1);
 			return;
 		}
 		if (this.tickNo % SNAPSHOT_EVERY === 0) this.snapshot();
@@ -1078,7 +1105,7 @@ export class Room {
 		const hp = E.hp * hpMul * this.modeHp;
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
-			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg, dmgMul: enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg, r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
+			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg * this.finDmg, dmgMul: enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg * this.finDmg, r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
 			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
@@ -1099,8 +1126,10 @@ export class Room {
 			const slot = this.bossIdx;
 			const type = slot < BOSS_SCHEDULE.length ? this.bossPlan[slot % this.bossPlan.length] : FINAL_BOSS.type;
 			this.bossIdx++;
-			this.spawnBoss(type, alive, slot);
+			if (type === FINAL_BOSS.type && this.finPlan) this.finaleLord(alive, slot);
+			else this.spawnBoss(type, alive, slot);
 		}
+		if (this.fin) return; // v21: from the prelude on the horde comes only as the finale's packs
 		this.spawnSpecials(alive);
 		const wave = this.currentWave();
 		const pk = this.peak;
@@ -1208,6 +1237,156 @@ export class Room {
 			}
 		}
 		this.runLog?.peakNote(this, 'spawned', spawned);
+	}
+
+	// --- v21 finale «Последний рубеж» (FINALE): prelude → the Lord absorbs the horde → rage → «Светает».
+	// this.fin = {cx, cy, r, r1, lord, fightAt, nextAdd, rage, last, revived, killed}.
+	updateFinale(dt, alive) {
+		const P = this.finPlan;
+		if (!P) return;
+		if (!this.finWarned && this.time >= P.warn) {
+			this.finWarned = true;
+			if (this.time < P.pre) this.fx.push(['finw']);
+		}
+		if (!this.fin) {
+			if (this.time < P.pre) return;
+			this.startFinale(alive);
+		}
+		const f = this.fin;
+		if (f.r > f.r1) f.r = Math.max(f.r1, f.r - FINALE.ring.shrink * dt);
+		const lord = f.lord;
+		if (!lord || lord.dead) return;
+		if (!f.rage && this.time >= lord.immuneT && lord.hp <= lord.maxHp * lord.def.rage) {
+			f.rage = true;
+			f.rageT = this.time;
+			if (FINALE.rageRevive && this.heroes.size >= 2) f.revived = this.dawnRevive();
+			this.fx.push(['fin', 3, f.revived]);
+			this.runLog?.finRage(this, f.revived);
+		}
+		if (!f.last && this.peak?.id === 'dawn') {
+			f.last = true;
+			this.fx.push(['fin', 4]);
+		}
+		if (this.time >= f.nextAdd && alive.length) {
+			f.nextAdd += FINALE.adds.every;
+			this.finaleAdds(alive);
+		}
+	}
+
+	// The ring: centred on the alive hero closest to the middle of the group, starts wide enough for everyone.
+	startFinale(alive) {
+		const all = [...this.heroes.values()];
+		const pool = alive.length ? alive : all;
+		const mx = pool.reduce((s, h) => s + h.x, 0) / (pool.length || 1), my = pool.reduce((s, h) => s + h.y, 0) / (pool.length || 1);
+		let c = pool[0] ?? { x: 0, y: 0 };
+		for (const h of pool) if (dist2(h.x, h.y, mx, my) < dist2(c.x, c.y, mx, my)) c = h;
+		const r1 = finaleRingR(this.heroes.size);
+		const far = Math.max(0, ...all.map((h) => Math.hypot(h.x - c.x, h.y - c.y)));
+		this.fin = { cx: Math.round(c.x), cy: Math.round(c.y), r: Math.max(r1, far) + FINALE.ring.pad, r1, lord: null, fightAt: 0, nextAdd: Infinity, rage: false, rageT: 0, last: false, revived: 0, killed: null };
+		this.fx.push(['fin', 1]);
+		this.runLog?.finStart(this);
+	}
+
+	finPhase() {
+		const f = this.fin;
+		return !f ? 0 : f.last ? 4 : f.rage ? 3 : f.lord ? 2 : 1;
+	}
+
+	// The wall holds heroes (the downed and the dropped are dragged inside too) and the Lord; the horde walks through it.
+	finaleWall() {
+		const f = this.fin;
+		for (const h of this.heroes.values()) [h.x, h.y] = clampToRing(h.x, h.y, f.cx, f.cy, f.r - PLAYER_RADIUS);
+		const e = f.lord;
+		if (e && !e.dead) [e.x, e.y] = clampToRing(e.x, e.y, f.cx, f.cy, f.r - e.r);
+	}
+
+	// The Lord absorbs the whole horde (no xp, gems, chests or kills) and comes out in the middle of the ring.
+	finaleLord(alive, slot) {
+		if (!this.fin) this.startFinale(alive);
+		const f = this.fin;
+		let n = 0;
+		for (const e of this.enemies) if (!e.dead) {
+			e.dead = true;
+			n++;
+		}
+		for (const b of this.bosses) this.runLog?.bossAbsorbed(this, b);
+		this.bosses.length = 0;
+		this.hostile.length = 0;
+		this.blasts = this.blasts.filter((b) => b.kind === 0);
+		this.fx.push(['absorb', n, f.cx, f.cy]);
+		const players = this.heroes.size;
+		this.finDmg = finaleDmgMul(players);
+		let x = f.cx, y = f.cy;
+		if (alive.some((h) => dist2(h.x, h.y, x, y) < 150 * 150)) {
+			// Somebody stands in the middle: the spot inside half the arena that is farthest from the alive heroes.
+			let best = -1;
+			for (let i = 0; i < 16; i++) {
+				const a = (i / 16) * Math.PI * 2;
+				const px = f.cx + Math.cos(a) * f.r1 * 0.5, py = f.cy + Math.sin(a) * f.r1 * 0.5;
+				const d = Math.min(...alive.map((h) => dist2(h.x, h.y, px, py)));
+				if (d > best) [best, x, y] = [d, px, py];
+			}
+		}
+		const b = this.spawnEnemy(FINAL_BOSS.type, alive, bossHpScale(this.nt, players, slot) * finaleHpMul(this.mode, players));
+		b.x = x;
+		b.y = y;
+		b.group = b.id;
+		b.finLord = true;
+		b.by = new Map();
+		b.immuneT = this.time + FINALE.lordSpawnWarn;
+		this.bosses.push(b);
+		f.lord = b;
+		f.fightAt = this.time;
+		f.nextAdd = this.time + FINALE.adds.first;
+		this.fx.push(['warn', Math.round(x), Math.round(y), FINALE.lordSpawnR, round3(FINALE.lordSpawnWarn)]);
+		this.fx.push(['boss', b.def.name]);
+		this.runLog?.bossSpawn(this, b);
+		this.runLog?.finFight(this, b, n);
+		return b;
+	}
+
+	// A pack of the current wave steps out of the dark, evenly around the arena, while the field is under the cap.
+	finaleAddCount(alive) {
+		const A = FINALE.adds;
+		const spawnN = Math.max(alive.length, this.heroes.size - 1);
+		return Math.round(A.rate * this.currentWave().rate * spawnRateScale(spawnN) * A.every);
+	}
+
+	finaleAdds(alive) {
+		const f = this.fin, A = FINALE.adds;
+		let cur = 0;
+		for (const e of this.enemies) if (!e.dead && !e.boss) cur++;
+		const count = Math.max(0, Math.min(this.finaleAddCount(alive), A.cap - cur));
+		const wave = this.currentWave();
+		const hpMul = enemyHpScale(this.nt, this.heroes.size);
+		const a0 = Math.random() * Math.PI * 2, r = f.r1 + FINALE.ring.addsOut;
+		for (let i = 0; i < count; i++) {
+			const e = this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			const a = a0 + (i / count) * Math.PI * 2;
+			e.x = f.cx + Math.cos(a) * r;
+			e.y = f.cy + Math.sin(a) * r;
+			e.xp *= A.xpMul;
+			e.add = true;
+		}
+		this.runLog?.finAdds(count);
+		return count;
+	}
+
+	// The ray of dawn (groups only, once): every downed hero who is online gets up. Nobody is credited with a revive.
+	dawnRevive() {
+		let n = 0;
+		for (const h of this.heroes.values()) {
+			if (h.st !== 1 || h.offline) continue;
+			h.st = 0;
+			h.rev = 0;
+			h.hp = h.maxHp * REVIVE_HP_FRACTION;
+			h.iframes = REVIVE_IFRAMES;
+			h.lastPosT = this.time;
+			this.fx.push(['up', h.pid]);
+			this.runLog?.up(this, h);
+			n++;
+		}
+		return n;
 	}
 
 	// Dawn: at the end of the run every enemy and enemy shot burns away (no kills or xp).
@@ -1453,6 +1632,7 @@ export class Room {
 				return false;
 			}
 			case 'lord':
+				if (e.immuneT > this.time) return true; // coming out of the dark: stands still
 				return this.lordTick(e, t, d, dt, rage);
 		}
 		return false;
@@ -1513,9 +1693,14 @@ export class Room {
 			}
 			return true;
 		}
+		// v21: in rage the finale Lord also charges; his attack cooldown keeps running meanwhile.
+		if (e.finLord && (rage || e.bs) && this.dashTick(e, t, d, dt, rage)) {
+			e.bcd = Math.max(0.3, e.bcd - dt);
+			return true;
+		}
 		e.bcd -= dt;
 		if (e.bcd > 0 || d > 700) return false;
-		e.bcd = E.cd * (rage ? 0.65 : 1);
+		e.bcd = E.cd * (rage ? 0.65 : 1) * (e.finLord && this.fin?.last ? FINALE.lastCd : 1);
 		const move = e.bt2 = ((e.bt2 ?? -1) + 1) % 3;
 		if (move === 0) {
 			this.addBlast(e.x, e.y, E.wave.r, E.wave.dmg * e.dmgMul, 0, null, 9, E.wave.warn, SRC_NONE, 'boss:wave');
@@ -1537,7 +1722,9 @@ export class Room {
 		if (!alive.length) return;
 		const count = Math.round(call.count * (1 + 0.25 * (this.heroes.size - 1)));
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
-		for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 60; i++) {
+		// v21: in the arena the swarm stays near the packs' cap (weak devices, a crowded ring).
+		const cap = this.fin ? FINALE.adds.cap + FINALE.adds.callOver : MAX_ENEMIES + 60;
+		for (let i = 0; i < count && this.enemies.length < cap; i++) {
 			const m = this.spawnEnemy(call.type, alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
 			m.x = x + Math.cos(a) * call.ring;
@@ -1762,6 +1949,7 @@ export class Room {
 	hurtEnemy(e, dmg, h, src = SRC_NONE) {
 		if (e.dead || dmg <= 0) return 0;
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
+		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
 		const now = this.time;
 		let crit = false;
 		if (!src.raw && e.markT > now) dmg *= 1 + e.markMul;
@@ -1795,6 +1983,7 @@ export class Room {
 		}
 		e.hp -= dmg;
 		if (e.boss) this.runLog?.bossHit(this, e, dealt, h);
+		if (e.finLord && h) e.by.set(h.pid, (e.by.get(h.pid) ?? 0) + dealt);
 		this.lastCrit = crit;
 		if (crit && this.critFx < MAX_CRIT_FX) {
 			this.critFx++;
@@ -1913,6 +2102,7 @@ export class Room {
 		this.dropGem(e.x, e.y, gold ? xp * GOLD_GEM_MUL : xp, gold);
 		this.events.onKill(e, h);
 		if (e.def.special && e.ai !== 'flee') this.runLog?.special(this, e, 'killed');
+		if (e.add) this.runLog?.finAddKilled();
 		if (e.burnT > this.time && e.burnOwner?.weapons.has('firepath')) this.spreadFire(e);
 		if (h && src.weapon === 'fireworks') this.gems[this.gems.length - 1].pull = h;
 		if (e.ai === 'exploder' && !e.exploded) {
@@ -1934,7 +2124,13 @@ export class Room {
 		const bi = this.bosses.indexOf(e);
 		if (bi >= 0) {
 			this.bosses.splice(bi, 1);
-			if (!this.bosses.some((o) => o.group === e.group)) {
+			if (e.finLord) {
+				// The finale Lord leaves no chest: the run ends at the end of this tick (step()).
+				this.runLog?.bossKilled(this, e);
+				this.bossKills++;
+				this.fin.killed = { pid: h?.pid ?? null, name: h?.name ?? null, t: this.time };
+				this.fx.push(['lorddie', h?.pid ?? 0, Math.round(e.x), Math.round(e.y)]);
+			} else if (!this.bosses.some((o) => o.group === e.group)) {
 				this.fx.push(['chest', Math.round(e.x), Math.round(e.y)]);
 				this.runLog?.bossKilled(this, e);
 				this.bossKills++;
@@ -2189,9 +2385,9 @@ export class Room {
 					}
 					continue;
 				}
-				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now) continue;
+				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
-				this.hurtPlayer(h, cd, e.elite ? 'elite' : enemyKey(e));
+				this.hurtPlayer(h, cd, e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -3858,10 +4054,26 @@ export class Room {
 			revives: h.revives,
 			knifeKills: h.knifeKills,
 			bosses: this.bossKills ?? 0,
+			lords: this.grade === 2 ? 1 : 0,
 		};
 	}
 
-	finish(win) {
+	// What the finale came to, for `over` and the run log: null if the Lord never came out.
+	finaleResult() {
+		const f = this.fin, L = f?.lord;
+		if (!L) return null;
+		const total = [...L.by.values()].reduce((s, v) => s + v, 0) || 1;
+		const end = f.killed?.t ?? this.time;
+		return {
+			killedAt: f.killed ? Math.round(end * 10) / 10 : null, sec: Math.round((end - f.fightAt) * 10) / 10,
+			hpLeft: f.killed ? 0 : Math.max(0.001, round3(Math.max(0, L.hp) / L.maxHp)), lastHit: f.killed?.name ?? null,
+			by: [...L.by].map(([pid, d]) => ({ pid, share: Math.round((d / total) * 100) / 100 })),
+		};
+	}
+
+	// grade: 0 — the group fell, 1 — «Ночь пережита» (lived to the end), 2 — «Владыка повержен». `win` is true for both.
+	finish(win, grade = win ? 1 : 0) {
+		this.grade = grade;
 		this.snapshot();
 		this.state = 'over';
 		this.paused = false;
@@ -3874,7 +4086,7 @@ export class Room {
 		if (log) runStore.add(log);
 		this.lastLog = log;
 		this.overMsg = {
-			t: 'over', win, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
+			t: 'over', win, grade, fin: this.finaleResult(), time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
 			stats: [...this.heroes.values()].map((h) => ({
 				pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
 			})),
@@ -3951,6 +4163,11 @@ export class Room {
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
+		// v21 finale: [phase 1..4, seconds left (prelude: to the Lord, then to the end), ring centre x, y, radius now, final radius].
+		if (this.fin) {
+			const f = this.fin;
+			msg.fin = [this.finPhase(), Math.max(0, Math.round(((f.lord ? this.runLength : this.finPlan.lord) - this.time) * 10) / 10), f.cx, f.cy, Math.round(f.r), f.r1];
+		}
 		const ev = this.events?.snap();
 		if (ev) msg.ev = ev;
 		this.fx = [];

@@ -165,6 +165,16 @@ export class UI {
 	}
 
 	// Locked heroes: padlock, the condition and the progress towards it.
+	// v21: Lords slain so far (browser totals) — the crown next to the own name in the menu and the lobby.
+	setLords(n) {
+		this.lords = Math.max(0, n | 0);
+		const c = $('menu-crown');
+		c.hidden = !this.lords;
+		c.textContent = this.lords ? `👑 ${this.lords}` : '';
+		c.title = 'Владыка ночи повержен, раз: ' + this.lords;
+		if (this.lastLobby) this.renderLobby(...this.lastLobby);
+	}
+
 	setUnlocks(unlocked, stats) {
 		for (const [id, { card, lock, cond }] of this.heroCards) {
 			const open = unlocked.has(id);
@@ -234,6 +244,11 @@ export class UI {
 			if (hero) li.appendChild(el('span', 'tag', hero.name));
 			if (p.pid === lobby.host) li.appendChild(el('span', 'tag tag-host', 'хост'));
 			if (p.pid === me) li.appendChild(el('span', 'tag tag-me', 'вы'));
+			if (p.pid === me && this.lords > 0) {
+				const crown = el('span', 'tag tag-crown', `👑 ${this.lords}`);
+				crown.title = 'Владыка ночи повержен, раз: ' + this.lords;
+				li.appendChild(crown);
+			}
 			li.appendChild(el('span', p.ready ? 'tag tag-ready' : 'tag', p.ready ? '✓ готов' : 'не готов'));
 			list.appendChild(li);
 			if (p.pid === me) {
@@ -505,10 +520,20 @@ export class UI {
 	renderOver(msg, me, isHost) {
 		this.lastOver = [msg, me, isHost];
 		const title = $('over-title');
-		title.textContent = msg.win ? 'Победа!' : 'Орда победила';
-		title.className = 'over-title ' + (msg.win ? 'win' : 'lose');
+		// v21: grade 2 — the Lord is slain (gold), 1 — lived to the dawn, 0 — the group fell.
+		const grade = msg.grade ?? (msg.win ? 1 : 0);
+		const fin = msg.fin && typeof msg.fin === 'object' ? msg.fin : null;
+		title.textContent = grade === 2 ? 'Владыка повержен' : msg.win ? 'Ночь пережита' : 'Орда победила';
+		title.className = 'over-title ' + (grade === 2 ? 'gold' : msg.win ? 'win' : 'lose');
 		const len = msg.len || modeOf(msg.mode).seconds;
-		$('over-sub').textContent = `${modeOf(msg.mode).name} · ${msg.win ? 'Вы продержались' : 'Продержались'} ${fmtTime(msg.time)} из ${fmtTime(len)}`;
+		const left = fin && fin.hpLeft > 0 ? Math.max(1, Math.round(fin.hpLeft * 100)) : 0;
+		let sub = `${modeOf(msg.mode).name} · ${msg.win ? 'Вы продержались' : 'Продержались'} ${fmtTime(msg.time)} из ${fmtTime(len)}`;
+		if (grade === 2 && fin) sub = `${modeOf(msg.mode).name} · рассвет наступил на ${fmtTime(Math.max(0, len - msg.time))} раньше срока · бой ${Math.round(fin.sec)} с${fin.lastHit ? ` · последний удар: ${fin.lastHit}` : ''}`;
+		else if (grade === 1 && fin) sub = `${modeOf(msg.mode).name} · Владыка ушёл в тень — у него оставалось ${left}% здоровья`;
+		else if (fin) sub += ` · Владыке оставалось ${left}%`;
+		$('over-sub').textContent = sub;
+		const share = new Map((fin?.by ?? []).map((b) => [b.pid, b.share]));
+		$('over-lord-th').hidden = !fin;
 		const box = $('over-unlock');
 		const fresh = Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
 		box.hidden = !fresh.length;
@@ -537,6 +562,7 @@ export class UI {
 			tr.appendChild(el('td', 'num', String(s.level ?? '—')));
 			tr.appendChild(el('td', 'num', String(s.kills | 0)));
 			tr.appendChild(el('td', 'num', String(Math.round(s.dmg || 0))));
+			if (fin) tr.appendChild(el('td', 'num', `${Math.round((share.get(s.pid) ?? 0) * 100)}%`));
 			body.appendChild(tr);
 		}
 		$('over-again').hidden = !isHost;
@@ -556,6 +582,7 @@ export class UI {
 		if (prop === 'text') n.textContent = value;
 		else if (prop === 'width') n.style.width = value;
 		else if (prop === 'hidden') n.hidden = value;
+		else if (prop === 'class') n.className = value;
 	}
 
 	updateHud(game) {
@@ -564,8 +591,16 @@ export class UI {
 		this.set('hud-mode', 'text', this.modeText || '');
 		this.set('hud-pause', 'hidden', !game.solo());
 		const pk = game.peak();
-		this.set('hud-peak', 'hidden', !pk);
-		if (pk) this.set('hud-peak', 'text', `${pk.def.name} · ${Math.ceil(pk.left)} с`);
+		// v21 finale: its own line instead of the peak's — the closing ring, then the time left until the dawn.
+		const fin = game.finale();
+		this.set('hud-peak', 'hidden', !pk && !fin);
+		if (fin) {
+			this.set('hud-peak', 'text', fin.phase === 1 ? `Тьма смыкается · ${Math.ceil(fin.left)} с` : (fin.phase === 4 ? 'Светает · ' : 'До рассвета ') + fmtTime(Math.ceil(fin.left)));
+			this.set('hud-peak', 'class', 'hud-peak hud-fin' + (fin.phase >= 2 && fin.left <= 10 ? ' hud-last' : ''));
+		} else {
+			this.set('hud-peak', 'class', 'hud-peak');
+			if (pk) this.set('hud-peak', 'text', `${pk.def.name} · ${Math.ceil(pk.left)} с`);
+		}
 		const ev = game.event();
 		this.set('hud-event', 'hidden', !ev);
 		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
@@ -650,6 +685,8 @@ export class UI {
 		// Boss.
 		const boss = snap.boss;
 		this.set('hud-boss', 'hidden', !boss);
+		// The finale Lord: a mark at half hp (rage starts there), the bar turns red in rage.
+		this.set('hud-boss', 'class', 'hud-boss' + (boss && fin && fin.phase >= 2 ? ' fin' : '') + (boss && fin && boss[0] <= boss[1] / 2 ? ' rage' : ''));
 		if (boss && boss[2] !== undefined) this.set('hud-boss-name', 'text', ENEMIES[ENEMY_TYPES[boss[2]]]?.name || 'Босс');
 		if (boss) this.set('hud-boss-fill', 'width', `${Math.max(0, Math.min(100, (boss[0] / (boss[1] || 1)) * 100)).toFixed(1)}%`);
 	}

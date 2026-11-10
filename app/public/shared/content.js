@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v20';
+export const GAME_VERSION = 'v21';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -25,7 +25,8 @@ export const MAX_PASSIVES = 4;
 // Bosses (v8): regular ones at BOSS_SCHEDULE in a random order without repeats, the final one is always the Lord.
 export const BOSS_SCHEDULE = [180, 360, 540, 720];
 export const BOSS_POOL = ['brood', 'ram', 'gunner', 'twin'];
-export const FINAL_BOSS = { at: 870, type: 'boss' };
+// v21 «Последний рубеж»: the Lord comes FINALE.fight seconds before the end into a closed arena (see FINALE below).
+export const FINAL_BOSS = { at: RUN_SECONDS - 75, type: 'boss' };
 export const BOSS_TIMES = [...BOSS_SCHEDULE, FINAL_BOSS.at];
 // Boss hp = def.hp × this: follows the regular enemy curve (players included) at a gentler slope.
 // slot: extra hp per boss in spawn order, the last one is the final boss (player damage outgrows enemy hp; v15 live
@@ -93,8 +94,48 @@ export const timeScale = (runLength = RUN_SECONDS) => RUN_SECONDS / runLength;
 // Boss times for a run length: regular ones scale, the final boss keeps its distance from the end.
 export const bossTimes = (runLength = RUN_SECONDS) => {
 	const k = timeScale(runLength);
-	return [...BOSS_SCHEDULE.map((t) => Math.round(t / k)), runLength - (RUN_SECONDS - FINAL_BOSS.at)];
+	return [...BOSS_SCHEDULE.map((t) => Math.round(t / k)), runLength - (finaleFight(runLength) || FINALE.legacyLord)];
 };
+
+// v21 finale «Последний рубеж». Timeline from the end T of the run: T − fight − prelude − warn banner; T − fight − prelude
+// a ring of darkness closes on the group and regular spawn stops; T − fight the Lord absorbs the horde and comes out
+// in the middle; hp ≤ rageAt — rage (charges, one group revive); the last `last` s — the «Светает» peak.
+// Killing the Lord ends the run at once (grade 2), living to T is grade 1.
+export const FINALE = {
+	fight: { night: 75, lunch: 60 },   // seconds of the fight before the end of the run
+	minRun: 150,                        // shorter runs (sims, tests) have no finale: the Lord comes legacyLord s before the end
+	legacyLord: 30,
+	prelude: 10,                        // the ring closes, regular spawn is off
+	warn: 4,                            // banner before the prelude
+	ring: { r: 440, perPlayer: 25, shrink: 260, pad: 80, addsOut: 30 },
+	lordSpawnWarn: 1.5,                 // warn circle at the ring centre: the Lord stands still, harmless and immune
+	lordSpawnR: 120,
+	adds: { first: 3, every: 6, rate: 0.4, cap: 160, xpMul: 0.5, callOver: 40 },   // callOver: the Lord's swarm may exceed the cap by this much
+	// × the regular final-boss hp, index = players − 1 (the last one for bigger groups)
+	hpMul: { night: [2.5, 1.4, 1.4, 1.4], lunch: [2.5, 1, 1, 1] },
+	dmgMul: [1, 1.3, 1.1, 1],      // the Lord's hits and the adds' damage in the finale (lever)
+	rageRevive: true,                   // groups: every downed hero who is online rises once when rage starts
+	lastCd: 0.8,                        // the Lord's cooldown during «Светает»
+	killHold: 0.6,                      // client freeze frame on the last hit
+};
+const byPlayers = (arr, players) => arr[Math.min(Math.max(1, players), arr.length) - 1];
+export const finaleFight = (runLength = RUN_SECONDS) => {
+	if (runLength < FINALE.minRun) return 0;
+	const own = Object.values(MODES).find((m) => m.seconds === runLength);
+	return own ? FINALE.fight[own.id] : Math.min(FINALE.fight.night, Math.round(runLength * 0.1));
+};
+export const finaleRingR = (players) => FINALE.ring.r + FINALE.ring.perPlayer * (Math.max(1, players) - 1);
+export const finaleHpMul = (mode, players) => byPlayers(FINALE.hpMul[mode] ?? FINALE.hpMul.night, players);
+export const finaleDmgMul = (players) => byPlayers(FINALE.dmgMul, players);
+// Projects a point into the ring; shared by the server (heroes, the Lord) and the client's own-hero prediction.
+export function clampToRing(x, y, cx, cy, r) {
+	const dx = x - cx, dy = y - cy;
+	const d2 = dx * dx + dy * dy;
+	if (d2 <= r * r) return [x, y];
+	if (r <= 0) return [cx, cy];
+	const k = r / Math.sqrt(d2);
+	return [cx + dx * k, cy + dy * k];
+}
 
 // Hero unlocks (M2): one hero per role is open from the start, the rest open by achievements.
 // Progress lives in the browser; the server counts per-run stats (`runAchievements`) and sends them in `over`.
@@ -107,7 +148,7 @@ export const UNLOCKS = {
 	ranger: { stat: 'knifeKills', agg: 'sum', need: 600, text: 'Убейте врагов ножами' },
 	spearmaiden: { stat: 'bosses', agg: 'sum', need: 5, text: 'Одолейте боссов' },
 };
-export const ACH_STATS = ['wins', 'knightBest', 'revives', 'knifeKills', 'bosses'];
+export const ACH_STATS = ['wins', 'knightBest', 'revives', 'knifeKills', 'bosses', 'lords'];
 export const unlockAgg = (stat) => Object.values(UNLOCKS).find((u) => u.stat === stat)?.agg ?? 'sum';
 // Adds one run's stats to the stored totals (both plain objects); returns a new object.
 export function mergeAchStats(total, run) {
@@ -448,6 +489,8 @@ export const ENEMIES = {
 		name: 'Владыка ночи', hp: 5000, speed: 70, dmg: 30, r: 40, xp: 150, color: '#d32f2f', boss: true, bk: 'lord',
 		cd: 2.6, rage: 0.5, wave: { r: 190, warn: 1.2, dmg: 26 }, ring: { windup: 0.8, shots: 20, speed: 200, dmg: 12, life: 3 },
 		call: { warn: 1.0, type: 'bat', count: 12, ring: 160 },
+		// v21: charges in rage (the finale only), same fields as the Ram's.
+		trigger: 480, dashWarn: 1.2, dashSpeed: 520, dashTime: 0.6, rest: 1.2, dashCd: 6,
 	},
 	// Summons rings of bats around the nearest player; takes ×2 damage while calling. Charges below half hp.
 	brood: {
@@ -570,13 +613,15 @@ export const PEAKS = [
 	{ id: 'ring', name: 'Кольцо', hint: 'Тени смыкаются вокруг вас — держитесь вместе', frac: 1 / 6, dur: 8, ring: { type: 'bat', count: 60, r: 420, cluster: 320 }, speedMul: 1.25, xpMul: 0.3 },
 	{ id: 'tide', name: 'Прилив', hint: 'Орда вдвое гуще 20 секунд', frac: 1 / 2, dur: 20, spawnMul: 2, ramp: 6, capAdd: 60, xpMul: 0.2 },
 	{ id: 'eclipse', name: 'Затмение', hint: 'Тьма сужает обзор на 30 секунд, враги выходят из неё совсем близко', frac: 5 / 6, dur: 30, sight: 0.7, spawnMul: 1.3, spawnDist: 0.65, capAdd: 40, xpMul: 0.5 },
-	{ id: 'dawn', name: 'Рассвет', hint: 'Последний натиск: продержитесь до рассвета', last: 30, spawnMul: 2.2, speedMul: 1.25, capAdd: 70, xpMul: 0.5, burn: true },
+	// v21: the last seconds of the fight with the Lord — no extra horde, everything is faster.
+	{ id: 'dawn', name: 'Светает', hint: 'Рассвет близко: добейте Владыку или продержитесь', last: 15, speedMul: 1.25, burn: true },
 ];
-// Absolute schedule for a run: [{...peak, i, at, dur}]. In 15:00 the final boss (14:30) pushes «Рассвет» to 14:42.
+// Absolute schedule for a run: [{...peak, i, at, dur}].
 export function peakSchedule(runLength = RUN_SECONDS, bossTimes = BOSS_TIMES) {
 	return PEAKS.map((p, i) => {
 		let at = p.last ? runLength - p.last : Math.round(runLength * p.frac);
-		for (const b of bossTimes) {
+		// A peak tied to the end of the run (`last`) lies inside the fight with the Lord and never moves.
+		for (const b of p.last ? [] : bossTimes) {
 			if (Math.abs(at - b) < PEAK_BOSS_GAP || Math.abs(at - PEAK_WARN - b) < PEAK_BOSS_GAP) at = b + PEAK_BOSS_GAP + PEAK_WARN;
 		}
 		return { ...p, i, at, dur: p.last ? runLength - at : p.dur };

@@ -20,6 +20,7 @@
 				<span>Ваше имя</span>
 				<input id="menu-name" type="text" maxlength="20" autocomplete="off" spellcheck="false">
 			</label>
+			<p id="menu-crown" class="menu-crown" hidden></p>
 			<div class="menu-actions">
 				<button id="menu-create" class="btn btn-primary">Создать комнату</button>
 				<div class="join-row">
@@ -87,7 +88,7 @@
 		</div>
 		<div id="hud-boss" class="hud-boss" hidden>
 			<div class="hud-boss-name" id="hud-boss-name">Владыка ночи</div>
-			<div class="hud-boss-bar"><div id="hud-boss-fill"></div></div>
+			<div class="hud-boss-bar"><div id="hud-boss-fill"></div><i class="hud-boss-mark"></i></div>
 		</div>
 		<div id="hud-down" class="hud-down" hidden>Вы повержены — ждите, пока союзник поднимет вас</div>
 		<div id="banner" class="banner" hidden></div>
@@ -126,7 +127,7 @@
 			<div id="over-unlock" class="over-unlock" hidden></div>
 			<div class="table-wrap">
 				<table class="stats">
-					<thead><tr><th>Игрок</th><th>Герой</th><th>Ур.</th><th>Убийства</th><th>Урон</th></tr></thead>
+					<thead><tr><th>Игрок</th><th>Герой</th><th>Ур.</th><th>Убийства</th><th>Урон</th><th id="over-lord-th" hidden>По Владыке</th></tr></thead>
 					<tbody id="over-stats"></tbody>
 				</table>
 			</div>

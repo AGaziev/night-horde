@@ -1493,20 +1493,21 @@ console.log('over/again/leave: ok');
 		const r = mk(['knight', 'witch']);
 		const alive = [...r.heroes.values()];
 		const order = [];
-		for (const t of BOSS_TIMES) {
+		for (const t of BOSS_TIMES.slice(0, 4)) {
 			r.time = t;
 			const before = r.bosses.length;
 			r.spawn(0.001, alive);
 			assert.equal(r.bosses.length, before + 1, `boss at ${t}`);
 			order.push(ENEMY_TYPES[r.bosses.at(-1).type]);
 		}
-		assert.deepEqual([...order.slice(0, 4)].sort(), [...BOSS_POOL].sort(), 'no repeats');
-		assert.equal(order[4], FINAL_BOSS.type);
-		assert.deepEqual(BOSS_TIMES, [180, 360, 540, 720, 870]);
-		assert.ok(r.bosses[4].maxHp > r.bosses[0].maxHp * 4, 'final is the strongest');
+		assert.deepEqual([...order].sort(), [...BOSS_POOL].sort(), 'no repeats');
+		// v21: the Lord comes 75 s before the end; his hp is the regular final-boss hp × FINALE.hpMul (finale-test.js
+		// covers the finale itself: absorbing the bosses still alive, the arena, the win).
+		assert.deepEqual(BOSS_TIMES, [180, 360, 540, 720, 825]);
+		assert.equal(FINAL_BOSS.type, 'boss');
+		assert.ok(bossHpScale(825, 2, 4) > bossHpScale(180, 2, 0) * 4, 'final is the strongest by the curve');
 		assert.ok(bossHpScale(540, 4) > bossHpScale(540, 2) * 1.5 && bossHpScale(540, 2) > bossHpScale(540, 1) * 1.5, 'hp by players');
-		assert.ok(r.runLog.bosses.length === 5 && r.runLog.bosses.every((b) => b.killedAt === null));
-		assert.ok(r.bosses[4].maxHp > Math.max(...r.bosses.slice(0, 4).map((b) => b.maxHp)), 'final is tougher than every regular boss');
+		assert.ok(r.runLog.bosses.length === 4 && r.runLog.bosses.every((b) => b.killedAt === null));
 		// v15 log: damage dealt to a boss and seconds an alive player spent within 400 px of it.
 		const h = alive[0], boss = r.bosses[0];
 		boss.x = h.x + 100; boss.y = h.y;
@@ -1622,12 +1623,13 @@ console.log('over/again/leave: ok');
 			const p = S[i];
 			assert.ok(p.at - PEAK_WARN > (S[i - 1] ? S[i - 1].at + S[i - 1].dur : 0), `peak ${p.id} order (${len})`);
 			assert.ok(p.at + p.dur <= len && p.dur >= 8, `peak ${p.id} inside the run (${len})`);
-			for (const b of BOSS_TIMES) for (const t of [p.at - PEAK_WARN, p.at]) assert.ok(Math.abs(t - b) >= PEAK_BOSS_GAP, `peak ${p.id} vs boss at ${b} (${len})`);
+			// v21: «Светает» is the end of the fight with the Lord and is not moved away from him.
+			if (!p.last) for (const b of BOSS_TIMES) for (const t of [p.at - PEAK_WARN, p.at]) assert.ok(Math.abs(t - b) >= PEAK_BOSS_GAP, `peak ${p.id} vs boss at ${b} (${len})`);
 		}
 		assert.ok(S.at(-1).burn && S.at(-1).at + S.at(-1).dur === len, `dawn closes the run (${len})`);
 	}
-	assert.deepEqual(peakSchedule().map((p) => p.at), [150, 450, 750, 882], '15:00: dawn moved past the final boss');
-	assert.deepEqual(peakSchedule(600, []).map((p) => p.at), [100, 300, 500, 570], '10:00 by fractions');
+	assert.deepEqual(peakSchedule().map((p) => p.at), [150, 450, 750, 885], '15:00: «Светает» is the last 15 s');
+	assert.deepEqual(peakSchedule(600, []).map((p) => p.at), [100, 300, 500, 585], '10:00 by fractions');
 
 	const fx = [];
 	const r = new Room('PK', (pid, m) => { if (m.t === 's' && pid === 1) fx.push(...m.fx.map((f) => [m.tm, f])); });
@@ -1720,7 +1722,7 @@ console.log('over/again/leave: ok');
 	assert.ok(fx.some(([, f]) => f[0] === 'dawn' && f[1] >= 5), 'dawn fx before over');
 	const pk = r.lastLog.peaks.find((p) => p.id === 'dawn');
 	assert.ok(pk && pk.burned >= 5 && pk.end !== null, 'dawn in the log');
-	assert.ok(r.lastLog.summary.some((l) => l.startsWith('Пики: ') && l.includes('Рассвет')), 'summary line');
+	assert.ok(r.lastLog.summary.some((l) => l.startsWith('Пики: ') && l.includes('Светает')), 'summary line');
 	console.log('peaks (G5): schedule, ring, tide, eclipse, dawn, run log: ok');
 }
 
@@ -1953,12 +1955,12 @@ console.log('over/again/leave: ok');
 		r.start();
 		assert.equal(r.tscale, 1.5);
 		assert.equal(r.xpMul, C.MODES.lunch.xpMul);
-		assert.deepEqual(r.bossAt, [120, 240, 360, 480, 570]);
+		assert.deepEqual(r.bossAt, [120, 240, 360, 480, 540]); // v21: the Lord's fight is the last 60 s
 		const pk = Object.fromEntries(r.peaks.map((p) => [p.id, p]));
 		assert.equal(pk.ring.at, 100);
 		assert.equal(pk.tide.at, 300);
 		assert.ok(pk.eclipse.at >= 490 && pk.eclipse.at < 520);
-		assert.ok(pk.dawn.burn && pk.dawn.at > 570 && pk.dawn.at + pk.dawn.dur === 600, 'dawn ends the lunch');
+		assert.ok(pk.dawn.burn && pk.dawn.at === 585 && pk.dawn.at + pk.dawn.dur === 600, 'dawn ends the lunch');
 		assert.equal(r.nextEliteT, C.ELITE_START / 1.5);
 		assert.equal(r.nextInvasionT, C.INVASION.from / 1.5);
 		r.time = 400;
@@ -2073,7 +2075,7 @@ console.log('over/again/leave: ok');
 		let tot = {};
 		tot = C.mergeAchStats(tot, { wins: 0, knightBest: 200, revives: 3, knifeKills: 100 });
 		tot = C.mergeAchStats(tot, { wins: 1, knightBest: 120, revives: 4, knifeKills: 50 });
-		assert.deepEqual(tot, { wins: 1, knightBest: 200, revives: 7, knifeKills: 150, bosses: 0 });
+		assert.deepEqual(tot, { wins: 1, knightBest: 200, revives: 7, knifeKills: 150, bosses: 0, lords: 0 });
 		assert.ok(C.unlockedHeroes(tot).includes('stormcaller') && !C.unlockedHeroes(tot).includes('smith'));
 		assert.equal(C.unlockProgress('herald', tot), 'Поднимите союзников: 7/10');
 		assert.equal(C.unlockProgress('smith', tot), 'Продержитесь 5:00 Стражем: 3:20/5:00');
@@ -2111,8 +2113,8 @@ console.log('over/again/leave: ok');
 		r.finish(true);
 		const over = out.filter(([, m]) => m.t === 'over').pop()[1];
 		const a1 = over.stats.find((s) => s.pid === 1).ach, a2 = over.stats.find((s) => s.pid === 2).ach;
-		assert.deepEqual(a1, { wins: 1, knightBest: 320, revives: 1, knifeKills: 0, bosses: 0 });
-		assert.deepEqual(a2, { wins: 1, knightBest: 0, revives: 0, knifeKills: 1, bosses: 0 });
+		assert.deepEqual(a1, { wins: 1, knightBest: 320, revives: 1, knifeKills: 0, bosses: 0, lords: 0 });
+		assert.deepEqual(a2, { wins: 1, knightBest: 0, revives: 0, knifeKills: 1, bosses: 0, lords: 0 });
 		assert.ok(C.unlockedHeroes(C.mergeAchStats({}, a1)).includes('smith'), 'knight 5:20 opens the smith');
 		// Boss kills count for every player in the room (Копейщица).
 		const rb = new Room('BK', () => {});

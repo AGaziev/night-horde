@@ -164,6 +164,7 @@ export class Renderer {
 			this.drawEventSky(ctx, game, now);
 			this.drawEffects(ctx, game);
 			this.drawReactions(ctx, game);
+			this.drawFinale(ctx, game, now, vx0, vy0, vx1, vy1);
 		}
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -2994,6 +2995,48 @@ export class Renderer {
 		}
 	}
 
+	// v21 finale: darkness outside the ring (one even-odd fill, no blur or gradients), its edge, the absorbed horde.
+	drawFinale(ctx, game, now, x0, y0, x1, y1) {
+		const a = game.absorb;
+		if (a) {
+			// Threads shrink towards the middle of the ring within 0.8 s.
+			const k = Math.min(1, a.t / 0.8);
+			ctx.strokeStyle = `rgba(74, 20, 140, ${(0.75 * (1 - k)).toFixed(2)})`;
+			ctx.lineWidth = 3;
+			ctx.beginPath();
+			for (let i = 0; i + 2 <= a.pts.length; i += 2) {
+				ctx.moveTo(a.pts[i] + (a.cx - a.pts[i]) * k, a.pts[i + 1] + (a.cy - a.pts[i + 1]) * k);
+				ctx.lineTo(a.cx, a.cy);
+			}
+			ctx.stroke();
+		}
+		const f = game.finale();
+		if (!f || game.dawn) return;
+		// Nothing of the wall on screen: the whole view lies inside the ring.
+		const far = Math.max(Math.hypot(x0 - f.cx, y0 - f.cy), Math.hypot(x1 - f.cx, y0 - f.cy), Math.hypot(x0 - f.cx, y1 - f.cy), Math.hypot(x1 - f.cx, y1 - f.cy));
+		if (far < f.r - 8) return;
+		ctx.fillStyle = 'rgba(6, 3, 14, 0.86)';
+		ctx.beginPath();
+		ctx.rect(x0 - 40, y0 - 40, x1 - x0 + 80, y1 - y0 + 80);
+		ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+		ctx.fill('evenodd');
+		// The edge: a soft band and a running dashed line; it pulses while the ring is closing.
+		const pulse = f.phase === 1 ? 0.6 + 0.4 * Math.sin(now * 10) : 1;
+		ctx.lineWidth = 10;
+		ctx.strokeStyle = `rgba(126, 87, 194, ${(0.35 * pulse).toFixed(2)})`;
+		ctx.beginPath();
+		ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.lineWidth = 3;
+		ctx.strokeStyle = f.phase >= 3 ? `rgba(255, 138, 128, ${(0.9 * pulse).toFixed(2)})` : `rgba(209, 196, 233, ${(0.9 * pulse).toFixed(2)})`;
+		ctx.setLineDash([18, 14]);
+		ctx.lineDashOffset = -now * 40;
+		ctx.beginPath();
+		ctx.arc(f.cx, f.cy, f.r, 0, Math.PI * 2);
+		ctx.stroke();
+		ctx.setLineDash([]);
+	}
+
 	// Edge-of-screen arrows pointing to downed allies outside the view.
 	arrowList(game, now) {
 		const out = this.arrowBuf;
@@ -3011,6 +3054,34 @@ export class Renderer {
 			const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
 			const meta = game.meta(row[P.pid]);
 			out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: meta.color, name: meta.name });
+		}
+		// v21 finale: the Lord outside the view gets a red arrow (on a phone the arena is wider than the screen);
+		// during the prelude far allies get arrows too, not only the downed ones.
+		const fin = game.finale();
+		if (fin && fin.phase >= 2) {
+			const lord = ENEMY_TYPES.indexOf('boss');
+			const e = b.e;
+			for (let i = 0; i + E_STRIDE <= e.length; i += E_STRIDE) {
+				if (e[i + 1] !== lord) continue;
+				const s = this.toScreen(+e[i + 2], +e[i + 3], this.tmp);
+				if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) break;
+				const dx = s.x - cx, dy = s.y - cy;
+				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
+				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1 + Math.sin(now * 6) * 0.15, color: '#ff5252', name: 'Владыка', icon: '☠' });
+				break;
+			}
+		} else if (fin) {
+			for (const row of b.p) {
+				if (row[P.st] === 1 || row[P.pid] === game.me) continue;
+				const pos = game.playerPos(row[P.pid], this.tmp);
+				if (!pos) continue;
+				const s = this.toScreen(pos.x, pos.y, this.tmp);
+				if (s.x > 0 && s.x < this.w && s.y > 0 && s.y < this.h) continue;
+				const dx = s.x - cx, dy = s.y - cy;
+				const k = Math.min((cx - m) / Math.abs(dx || 1e-6), (cy - m) / Math.abs(dy || 1e-6));
+				const meta = game.meta(row[P.pid]);
+				out.push({ x: cx + dx * k, y: cy + dy * k, ang: Math.atan2(dy, dx), pulse: 1, color: meta.color, name: meta.name, icon: '●' });
+			}
 		}
 		// v19: chests and star shards lying off-screen get an arrow each (the nearest ITEM_ARROWS), as long as they lie.
 		const items = this.itemArrows;

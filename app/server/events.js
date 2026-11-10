@@ -50,7 +50,8 @@ export class Events {
 		const room = this.room, t = room.time;
 		if (room.peaks.some((p) => t >= p.at - EVENT_RULES.peakGap - 4 && t < p.at + p.dur + 2)) return true;
 		if (room.bossAt.some((b) => Math.abs(t - b) < EVENT_RULES.bossGap || (b > t && b - t < 30))) return true;
-		return t > room.runLength - 45;
+		// v21: an event must be over before the finale's prelude (the longest one lasts 55 s).
+		return t > (room.finPlan ? room.finPlan.pre - 60 : room.runLength - 45);
 	}
 
 	pick() {

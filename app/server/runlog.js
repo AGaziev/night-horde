@@ -26,13 +26,17 @@ const enemyName = (key) => {
 	const [type, how] = key.split(':');
 	if (type === 'event') return EVENTS[EVENT_INDEX[how]]?.name ?? how;
 	const base = type === 'elite' ? 'Элита' : ENEMIES[type]?.name ?? type;
-	return how === 'shot' ? `${base} (выстрел)` : how === 'blast' ? `${base} (взрыв)` : base;
+	return how === 'shot' ? `${base} (выстрел)` : how === 'blast' ? `${base} (взрыв)` : how === 'dash' ? `${base} (рывок)` : how === 'wave' ? `${base} (волна)` : base;
 };
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 export const newRunId = () => Array.from(crypto.randomBytes(6), (b) => ID_CHARS[b % ID_CHARS.length]).join('');
 export const enemyKey = (e) => ENEMY_TYPES[e.type] ?? 'enemy';
 // Card rarity counters per player: offered on screen and taken, index = rarity.
 const newRar = () => ({ seen: [0, 0, 0, 0], took: [0, 0, 0, 0] });
+// v21 finale: what hit a player during the fight with the Lord — his wave, shots, charge, touch, or the packs.
+const FIN_CLOSE = 250, FIN_WALL = 40;
+const finSrc = (from) => (from === 'boss:wave' ? 'wave' : from === 'boss:shot' ? 'shot' : from === 'boss:dash' ? 'dash' : from === 'boss' ? 'contact' : 'adds');
+const round = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v)]));
 
 export class RunLog {
 	constructor(room) {
@@ -46,6 +50,7 @@ export class RunLog {
 		this.peaks = [];
 		this.events = [];
 		this.left = []; // [time, players before, after]
+		this.fin = null; // v21 finale section, see finStart()
 		// v18 specials: spawned / killed / shots fired, damage blocked by the shield; damage to players comes from `taken`.
 		this.specials = Object.fromEntries(SPECIAL_IDS.map((id) => [id, { spawned: 0, killed: 0, shots: 0, blocked: 0, first: null }]));
 		for (const h of room.heroes.values()) {
@@ -72,6 +77,18 @@ export class RunLog {
 					b.nearMark = room.time; // twin halves count once per tick
 					break;
 				}
+			}
+		}
+		const F = this.fin;
+		if (F?.lord && dt > 0) {
+			const f = room.fin, L = f.lord;
+			let n = 0;
+			for (const e of room.enemies) if (!e.dead) n++;
+			if (n > F.load.enemiesMax) F.load.enemiesMax = n;
+			for (const h of room.heroes.values()) {
+				if (h.st !== 0) continue;
+				if (!L.dead && (h.x - L.x) ** 2 + (h.y - L.y) ** 2 < FIN_CLOSE * FIN_CLOSE) F.close[h.name] = (F.close[h.name] ?? 0) + dt;
+				if (Math.hypot(h.x - f.cx, h.y - f.cy) > f.r - FIN_WALL) F.wall[h.name] = (F.wall[h.name] ?? 0) + dt;
 			}
 		}
 		if (room.time < this.nextSample) return;
@@ -149,7 +166,57 @@ export class RunLog {
 			p.minHp = h.hp;
 			p.minHpT = room.time;
 		}
+		if (this.fin?.lord) this.fin.taken[finSrc(from)] += amount;
 		if (h.hp <= 0) this.down(room, h, from);
+	}
+
+	// --- v21 finale: prelude, the fight, rage, packs, tick time ---
+	finStart(room) {
+		this.fin = {
+			pre: r1(room.time), at: null, fight: room.finPlan?.fight ?? 0, ring: [room.fin.cx, room.fin.cy, room.fin.r1], players: room.heroes.size,
+			lord: null, lordHp: 0, absorbed: 0, rageAt: null, revived: 0, close: {}, wall: {},
+			taken: { wave: 0, shot: 0, dash: 0, contact: 0, adds: 0 }, downs: {}, downsBy: { wave: 0, shot: 0, dash: 0, contact: 0, adds: 0, offline: 0 },
+			adds: { pulses: 0, spawned: 0, killed: 0 }, load: { enemiesMax: 0, tickMs: 0, tickAvg: 0, ticks: 0 },
+		};
+	}
+
+	finFight(room, lord, absorbed) {
+		const F = this.fin;
+		if (!F) return;
+		F.at = r1(room.time);
+		F.lord = lord;
+		F.lordHp = Math.round(lord.maxHp);
+		F.absorbed = absorbed;
+		F.players = room.heroes.size;
+	}
+
+	finRage(room, revived) {
+		if (!this.fin?.lord) return;
+		this.fin.rageAt = r1(room.time - room.fin.fightAt);
+		this.fin.revived = revived;
+	}
+
+	finAdds(n) {
+		if (!this.fin) return;
+		this.fin.adds.pulses++;
+		this.fin.adds.spawned += n;
+	}
+
+	finAddKilled() {
+		if (this.fin) this.fin.adds.killed++;
+	}
+
+	finTick(ms) {
+		const L = this.fin?.load;
+		if (!L) return;
+		if (ms > L.tickMs) L.tickMs = ms;
+		L.tickAvg += ms;
+		L.ticks++;
+	}
+
+	bossAbsorbed(room, e) {
+		const b = this.bosses.find((x) => x.group === e.group);
+		if (b && b.killedAt === null) b.absorbed = true;
 	}
 
 	// A down: by a hit (from hurt) or without one (v19: dropped connection, from = 'offline').
@@ -175,8 +242,12 @@ export class RunLog {
 		const pk = this.peaks[this.peaks.length - 1];
 		if (pk && pk.end === null) pk.downs++;
 		const kind = from.split(':')[0];
+		if (this.fin?.lord) {
+			this.fin.downs[h.name] = (this.fin.downs[h.name] ?? 0) + 1;
+			this.fin.downsBy[from === 'offline' ? 'offline' : finSrc(from)]++;
+		}
 		for (const b of this.bosses) {
-			if (b.killedAt !== null) continue;
+			if (b.killedAt !== null || b.absorbed) continue;
 			b.downs[h.name] = (b.downs[h.name] ?? 0) + 1;
 			if (kind === b.type || (b.type === 'twin' && kind === 'twinhalf')) b.downsByBoss++;
 		}
@@ -278,9 +349,22 @@ export class RunLog {
 				picks: p.picks,
 			};
 		});
+		let finale = null;
+		if (this.fin) {
+			const { lord, load, pre, ...F } = this.fin;
+			const res = room.finaleResult?.() ?? null;
+			const names = new Map(players.map((p) => [p.pid, p.name]));
+			finale = {
+				pre, ...F, close: Object.fromEntries(Object.entries(F.close).map(([k, v]) => [k, r1(v)])), wall: Object.fromEntries(Object.entries(F.wall).map(([k, v]) => [k, r1(v)])),
+				taken: round(F.taken),
+				killedAt: res?.killedAt ?? null, sec: res?.sec ?? null, hpLeft: res?.hpLeft ?? null, grade: room.grade ?? 0, lastHit: res?.lastHit ?? null,
+				by: lord ? Object.fromEntries([...lord.by].map(([pid, d]) => [names.get(pid) ?? pid, Math.round(d)])) : {},
+				load: { enemiesMax: load.enemiesMax, tickMs: Math.round(load.tickMs * 100) / 100, tickAvg: load.ticks ? Math.round((load.tickAvg / load.ticks) * 100) / 100 : 0 },
+			};
+		}
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
-			mode: room.mode ?? 'night', runLength: room.runLength, win, time: r1(room.time), kills: room.kills,
+			mode: room.mode ?? 'night', runLength: room.runLength, win, grade: room.grade ?? (win ? 1 : 0), time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll|ban, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common; overclock: weapon~variant',
 			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
 			summary: [], minutes: this.minutes, peaks: this.peaks, team: players,
@@ -291,6 +375,7 @@ export class RunLog {
 			reactions: { ...(room.reactN ?? {}) },
 			events: this.events,
 			left: this.left,
+			finale,
 			specials: Object.fromEntries(Object.entries(this.specials).map(([id, S]) => {
 				const hit = {};
 				for (const p of players) for (const [k, v] of Object.entries(p.taken)) if (k.split(':')[0] === id) hit[k] = (hit[k] ?? 0) + v;
@@ -311,7 +396,7 @@ export class RunLog {
 // Short human summary in Russian on top of the log.
 export function summarize(log) {
 	const out = [];
-	const outcome = log.win ? `победа на ${mmss(log.time)}` : `группа пала на ${mmss(log.time)}`;
+	const outcome = log.grade === 2 ? `победа, Владыка повержен на ${mmss(log.time)}` : log.win ? `победа на ${mmss(log.time)}` : `группа пала на ${mmss(log.time)}`;
 	const len = log.runLength ?? modeOf(log.mode).seconds;
 	out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
 	const all = {};
@@ -333,7 +418,7 @@ export function summarize(log) {
 	if (log.bosses?.length) {
 		out.push('Боссы: ' + log.bosses.map((b) => {
 			const dn = Object.values(b.downs).reduce((s, v) => s + v, 0);
-			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : `не убит (снято ${Math.round(((b.dmg ?? 0) / (b.hp || 1)) * 100)}% из ${b.hp})`;
+			const res = b.sec !== null ? `убит за ${Math.round(b.sec)} с` : b.absorbed ? 'поглощён Владыкой' : `не убит (снято ${Math.round(((b.dmg ?? 0) / (b.hp || 1)) * 100)}% из ${b.hp})`;
 			const near = b.near ? `, рядом ${Math.round(b.near)} с, урон по нему ${b.dps}/с` : '';
 			return `${b.name} (${mmss(b.at)}) — ${res}${near}${dn ? `, падений ${dn}` : ''}`;
 		}).join('; '));
@@ -367,6 +452,26 @@ export function summarize(log) {
 			].filter(Boolean);
 			return `${D?.name ?? e.id} (${mmss(e.at)}) — ${D?.done[e.res] ?? e.res}${det.length ? ' (' + det.join('; ') + ')' : ''}`;
 		}).join('; '));
+	}
+	const F = log.finale;
+	if (F && F.at === null) out.push(`Финал: кольцо сомкнулось на ${mmss(F.pre)}, до Владыки не дожили.`);
+	else if (F) {
+		const tot = Object.values(F.by).reduce((s, v) => s + v, 0) || 1;
+		const by = Object.entries(F.by).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${Math.round((v / tot) * 100)}%`).join(', ');
+		const close = Object.entries(F.close).map(([k, v]) => `${k} ${Math.round(v)} с`).join(', ');
+		const wall = Object.entries(F.wall).filter(([, v]) => v >= 5).map(([k, v]) => `${k} ${Math.round(v)} с`).join(', ');
+		const dn = Object.values(F.downs).reduce((s, v) => s + v, 0);
+		const head = F.grade === 2 ? `Владыка повержен за ${Math.round(F.sec)} с${F.lastHit ? `, последний удар — ${F.lastHit}` : ''}`
+			: F.grade === 1 ? `дожили, у Владыки осталось ${Math.round(F.hpLeft * 100)}%`
+			: `группа пала на ${Math.round(F.sec)}-й секунде боя, Владыке оставалось ${Math.round(F.hpLeft * 100)}%`;
+		const parts = [
+			F.rageAt !== null ? `ярость на ${Math.round(F.rageAt)}-й` : 'до ярости не дошло', `падений ${dn}`, F.revived ? `лучом поднято ${F.revived}` : '',
+			by ? `по Владыке: ${by}` : '', close ? `вплотную: ${close}` : '', wall ? `у стены: ${wall}` : '',
+			`урон по игрокам: волна ${F.taken.wave}, снаряды ${F.taken.shot}, рывок ${F.taken.dash}, касание ${F.taken.contact}, орда ${F.taken.adds}`,
+			`поглощено ${F.absorbed}, пачек ${F.adds.pulses} (${F.adds.spawned} врагов)`,
+		].filter(Boolean);
+		out.push(`Финал (${mmss(F.at)}, здоровье Владыки ${F.lordHp}): ${head}; ${parts.join('; ')}.`);
+		if (Object.values(F.taken).reduce((s, v) => s + v, 0) === 0 && F.grade > 0) out.push('Финал прошёл без урона по игрокам — слишком легко.');
 	}
 	const drops = log.team.filter((p) => p.drops?.length).map((p) => `${p.name} ${p.drops.map(([a, b]) => `${mmss(a)}–${b === null ? 'не вернулся' : mmss(b)}`).join(', ')}`);
 	if (drops.length) out.push(`Обрывы связи: ${drops.join('; ')}`);
@@ -449,7 +554,7 @@ export const runStore = {
 	},
 	list() {
 		return this.runs.slice().reverse().map((r) => ({
-			id: r.id, at: r.at, v: r.v, mode: r.mode ?? 'night', win: r.win, time: r.time, players: r.team.map((p) => ({ name: p.name, hero: p.hero, level: p.level })),
+			id: r.id, at: r.at, v: r.v, mode: r.mode ?? 'night', win: r.win, grade: r.grade ?? (r.win ? 1 : 0), time: r.time, players: r.team.map((p) => ({ name: p.name, hero: p.hero, level: p.level })),
 		}));
 	},
 	persist(dir) {
