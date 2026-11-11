@@ -171,3 +171,17 @@ test('4540714319: all blades of one ring still share a cooldown, independently f
 	}
 	assert.equal(e.maxHp - e.hp, 24, 'one player does not consume another player’s contact hit');
 });
+
+test('4540714342: a Coil target search cannot truncate the outer aura attack in either enemy order', () => {
+	for (const coil of [false, true]) for (const reverse of [false, true]) for (const killedX of [-200, 200]) {
+		const { r, h } = arena([['aura', 5]]);
+		if (coil) { h.passives.set('coil', 1); r.recalcMods(h); }
+		h.mods.areaMul = 2;
+		const positions = [killedX, -killedX];
+		const enemies = new Map((reverse ? positions.reverse() : positions).map((x) => [x, foe(r, x, 0, x === killedX ? 1 : 100)]));
+		r.updateWeapon(h, 'aura', h.weapons.get('aura'), dt);
+		assert.ok(enemies.get(killedX).dead, 'the real area attack kills the first victim');
+		assert.equal(enemies.get(-killedX).hp, 90, `the distant survivor still takes 10 damage: coil=${coil}, reverse=${reverse}, killedX=${killedX}`);
+		assert.ok(!r.fx.some(([fx]) => fx === 'zap'), 'the other target is outside Coil range');
+	}
+});

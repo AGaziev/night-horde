@@ -4490,7 +4490,8 @@ export class Room {
 	}
 
 	nearestFrom(from, exclude, range) {
-		const near = this.grid.query(from.x, from.y, range, this.q2);
+		// Kill-triggered chains can search while an area attack is iterating q2.
+		const near = this.grid.query(from.x, from.y, range, []);
 		let best = null, bd = range * range;
 		for (const e of near) {
 			if (e.dead || exclude.includes(e)) continue;
