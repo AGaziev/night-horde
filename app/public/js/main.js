@@ -86,8 +86,12 @@ function joinRoom(code) {
 
 function joinInvitedRoom(currentCode) {
 	const code = state.urlRoom;
+	if (!code) return;
 	state.urlRoom = '';
-	if (code && code !== currentCode) joinRoom(code);
+	const url = new URL(location.href);
+	url.searchParams.delete('room');
+	history.replaceState(history.state, '', url);
+	if (code !== currentCode) joinRoom(code);
 }
 
 // Network events
@@ -114,11 +118,7 @@ net.on('welcome', (msg) => {
 		ui.toast('Связь с комнатой потеряна', 'info');
 	}
 	goMenu();
-	if (state.urlRoom) {
-		joinRoom(state.urlRoom);
-		state.urlRoom = '';
-		history.replaceState(null, '', location.pathname);
-	}
+	joinInvitedRoom();
 });
 
 // v22: progress from the server. The first time the browser hands over its own totals once (the server keeps the
