@@ -86,9 +86,9 @@ export const MODES = {
 	// v23: three players fell mid-run (9–10 min, mostly to spit and Трубач shots; 17% wins at night, 7% at lunch) — ×0.9 / ×0.8.
 	// v28: v25–v26 (3 new weapons and 4 artifacts in the pool) thinned builds: from 6:00 the human bot took +30–50% damage,
 	// wins fell to 14% solo and 8% for pairs. Enemy damage for 1–2 players brings them back to 25–40% (pm/balance-v28.md).
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [0.75, 0.6, 0.49, 0.6] }, // v30: night trios, pm/balance-v30.md
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.5, 2, 2.4, 2.2], dmgMul: [0.75, 0.6, 0.49, 0.6] }, // Buildcraft HP: pm/balance-buildcraft.md; v30 damage unchanged.
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [0.75, 0.5, 0.5, 0.52] }, // v30: lunch 4+, pm/balance-v30.md
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 2, 2.2, 2.4], dmgMul: [0.75, 0.5, 0.5, 0.52] }, // Buildcraft HP: pm/balance-buildcraft.md; v30 damage unchanged.
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
