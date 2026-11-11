@@ -2261,7 +2261,7 @@ export class Room {
 		const near = this.grid.query(b.x, b.y, b.r + MAX_ENEMY_R, []);
 		for (const e of near) {
 			const rr = b.r + e.r * 0.5;
-			if (e.dead || dist2(e.x, e.y, b.x, b.y) >= rr * rr) continue;
+			if (e.dead || e === b.skip || dist2(e.x, e.y, b.x, b.y) >= rr * rr) continue;
 			this.hurtEnemy(e, b.edmg, b.owner, b.src);
 			if (b.burn && !e.dead) this.burn(e, b.owner, b.edmg * b.burn.frac, b.burn.dur);
 			if (b.kb && !e.dead && !e.boss) this.knock(e, b.x, b.y, b.kb);
@@ -2637,6 +2637,9 @@ export class Room {
 				w.a = (w.a ?? 0.3) - dt;
 				if (w.a <= 0) w.a = this.rodStrikes(h, L) ? L.atkCd * cdMul : 0.2;
 				return;
+			case 'whirlwind':
+				this.whirlwindTick(h, w, L, dt);
+				return;
 			case 'pitch':
 				w.t -= dt;
 				if (w.t <= 0) w.t = this.pitchTick(h, L) ? L.every : 0.05;
@@ -2863,6 +2866,55 @@ export class Room {
 				const base = Math.atan2(target.y - h.y, target.x - h.x);
 				for (let i = 0; i < count; i++) {
 					this.addProjectile(h, 'knife', base + (i - (count - 1) / 2) * L.spread, L.speed, dmg, Infinity, (range / L.speed) * 2 + 1.2, null, range / L.speed, { src });
+				}
+				w.t = L.cd * cdMul;
+				return;
+			}
+			case 'frostsnare':
+				this.layTrap(h, {
+					r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, max: L.max, src,
+					frost: { r: L.waveR * areaMul, dmg: L.waveDmg * dmgMul, slow: L.slow, dur: L.slowDur * durMul, freeze: L.freeze * h.mods.ctrlMul * durMul },
+				});
+				w.t = L.cd * cdMul;
+				return;
+			case 'abatis':
+				w.t = this.abatisSwing(h, L) ? L.cd * cdMul : 0.1;
+				return;
+			case 'harpoon': {
+				const t = this.toughest(h, L.range * areaMul + 60);
+				if (!t) {
+					w.t = 0.2;
+					return;
+				}
+				const a = Math.atan2(t.y - h.y, t.x - h.x), n = L.count + amount, range = L.range * areaMul;
+				for (let i = 0; i < n; i++) {
+					this.addProjectile(h, 'spear', a + (i - (n - 1) / 2) * 0.14, L.speed, dmg, L.pierce, (range / L.speed) * 2 + 1.2, null, range / L.speed, { src, kb: L.kb, r: L.width / 2 });
+				}
+				w.t = L.cd * cdMul;
+				return;
+			}
+			case 'rockets': {
+				const pts = this.densestPoints(h, L.count + amount, 420);
+				if (!pts.length) {
+					w.t = 0.2;
+					return;
+				}
+				for (const p of pts) {
+					const t = this.nearestEnemies(p.x, p.y, 1, 120)[0] ?? null;
+					this.addProjectile(h, 'bolt', Math.atan2(p.y - h.y, p.x - h.x), L.speed, dmg, 1, 2.5, t, 0, {
+						src, boom: { r: L.radius * areaMul, burn: L.burn },
+					});
+				}
+				w.t = L.cd * cdMul;
+				return;
+			}
+			case 'stingers': {
+				const count = L.count + amount;
+				const target = this.nearestEnemies(h.x, h.y, 1, KNIFE_AIM_RANGE)[0];
+				const base = target ? Math.atan2(target.y - h.y, target.x - h.x) : Math.atan2(h.fy, h.fx);
+				const drop = { r: L.dropR * areaMul, life: L.dropLife * durMul, dmg: L.dropDmg * dmgMul, tick: L.tick, max: L.max };
+				for (let i = 0; i < count; i++) {
+					this.addProjectile(h, 'knife', base + (i - (count - 1) / 2) * L.spread, L.speed, dmg, L.pierce, 1.1, null, 0, { src, drop });
 				}
 				w.t = L.cd * cdMul;
 				return;
@@ -3415,7 +3467,8 @@ export class Room {
 	addPatch(h, x, y, r, life, dmg, tick, src, burn, tag, max, extra = null) {
 		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src, burn, tag, ...extra };
 		this.puddles.push(z);
-		this.fx.push(['zk', z.id, extra?.mark ? 3 : 1]);
+		const zk = extra?.zk ?? (extra?.mark ? 3 : 1);
+		if (zk) this.fx.push(['zk', z.id, zk]);
 		let mine = 0;
 		for (const p of this.puddles) if (p.owner === h && p.tag === tag) mine++;
 		if (mine > max) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.tag === tag), 1);
@@ -3501,6 +3554,83 @@ export class Room {
 		// Not a cold slow: with its own fire a cold slow would make «Пар» on every tick and put the burn out.
 		z.drag = Math.max(L.slow, h.trait.puddleSlow);
 		return true;
+	}
+
+	// Ледяные силки: a trap that goes off bursts into a cold wave (slow, freeze) around it.
+	frostWave(t, src) {
+		const f = t.frost;
+		this.fx.push(['frost', t.owner.pid, Math.round(f.r), Math.round(t.x), Math.round(t.y)]);
+		for (const e of this.grid.query(t.x, t.y, f.r + MAX_ENEMY_R, this.q2)) {
+			const rr = f.r + e.r * 0.5;
+			if (e.dead || dist2(e.x, e.y, t.x, t.y) >= rr * rr) continue;
+			this.hurtEnemy(e, f.dmg, t.owner, src);
+			if (e.dead) continue;
+			this.slowEnemy(e, f.slow, f.dur);
+			if (!e.boss) this.freeze(e, f.freeze);
+		}
+	}
+
+	// Засека: a swing to both sides, rooted enemies take more; a trap at the end of each arc.
+	abatisSwing(h, L) {
+		const range = L.range * h.mods.areaMul, width = L.width * h.mods.areaMul;
+		const target = this.nearestEnemies(h.x, h.y, 1, range + width)[0];
+		if (!target) return false;
+		const dir = target.x >= h.x ? 1 : -1, now = this.time;
+		for (const d of [dir, -dir]) {
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			const cx = h.x + (d * range) / 2;
+			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
+			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
+				if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+				this.hurtEnemy(e, L.dmg * h.mods.dmgMul * (e.rootT > now ? L.rootMul : 1), h, SRC.abatis);
+			}
+			this.breakAround(cx, h.y, range / 2, h);
+		}
+		const n = L.traps;
+		for (let k = 0; k < n; k++) {
+			const d = k % 2 === 0 ? dir : -dir;
+			this.layTrap(h, {
+				x: h.x + d * range * 0.9, y: h.y + (Math.random() - 0.5) * width, r: L.radius * h.mods.areaMul, dmg: L.trapDmg * h.mods.dmgMul,
+				root: L.root * h.mods.ctrlMul * h.mods.durMul, max: L.max, src: SRC.abatis,
+			});
+		}
+		return true;
+	}
+
+	// Ядовитые жала: a knife breaks into a small wet poison puddle where it hits or falls (once per knife).
+	dropPoison(p, x, y) {
+		p.dropped = true;
+		const d = p.drop;
+		this.addPatch(p.owner, x, y, d.r, d.life, d.dmg, d.tick, p.src, 0, 'sting', d.max, { wet: true, zk: 0 });
+	}
+
+	// Смерч: the aura pulls enemies toward the ring of blades (bosses and elites stay, Щитоносец at half speed).
+	whirlwindTick(h, w, L, dt) {
+		const { dmgMul, areaMul, amount } = h.mods;
+		const R = L.radius * areaMul, ring = L.ring * areaMul;
+		for (const e of this.grid.query(h.x, h.y, R + MAX_ENEMY_R, this.q2)) {
+			if (e.dead || e.boss || e.elite) continue;
+			const dx = h.x - e.x, dy = h.y - e.y, d = Math.hypot(dx, dy) || 1;
+			if (d > R + e.r * 0.5 || d <= ring) continue;
+			const step = Math.min(d - ring, L.pull * (e.ai === 'shield' ? 0.5 : 1) * dt);
+			e.x += (dx / d) * step;
+			e.y += (dy / d) * step;
+		}
+		this.orbitHits(h, { count: L.count, radius: L.ring, rps: L.rps, hitCd: L.hitCd, dmg: L.bladeDmg }, dmgMul, areaMul, amount, SRC.whirlwind);
+		w.t -= dt;
+		if (w.t > 0) return;
+		w.t = L.tick;
+		for (const e of this.grid.query(h.x, h.y, R + MAX_ENEMY_R, this.q2)) {
+			const rr = R + e.r * 0.5;
+			if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
+			this.hurtEnemy(e, L.dmg * dmgMul, h, SRC.whirlwind);
+		}
+		if (h.trait.auraHeal > 0) {
+			for (const o of this.heroes.values()) {
+				if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < R * R) o.hp = Math.min(o.maxHp, o.hp + h.trait.auraHeal * L.tick);
+			}
+		}
+		this.breakAround(h.x, h.y, R, h);
 	}
 
 	// Огненная тропа: a burning enemy that dies sets its neighbours on fire.
@@ -3739,7 +3869,7 @@ export class Room {
 		const kind = o.kind ?? 0;
 		this.traps.push({
 			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src, shards: o.shards ?? false,
-			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM,
+			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM, frost: o.frost ?? null,
 		});
 		if (o.max) {
 			let mine = 0;
@@ -3950,7 +4080,7 @@ export class Room {
 		this.breakAround(cx, h.y, range / 2, h);
 	}
 
-	orbitHits(h, L, dmgMul, areaMul, amount) {
+	orbitHits(h, L, dmgMul, areaMul, amount, src = SRC.orbit) {
 		const R = L.radius * areaMul;
 		const bladeR = ORBIT_BLADE_R * areaMul;
 		const count = L.count + amount;
@@ -3970,7 +4100,7 @@ export class Room {
 			for (let i = 0; i < bx.length; i++) {
 				if (dist2(e.x, e.y, bx[i], by[i]) < rr) {
 					(e.oh ??= {})[h.pid] = this.time + L.hitCd;
-					this.hurtEnemy(e, L.dmg * dmgMul, h, SRC.orbit);
+					this.hurtEnemy(e, L.dmg * dmgMul, h, src);
 					if (h.mods.armor > 0) h.guard = Math.min(3, h.guard + 1); // Хоровод + Кольчуга
 					break;
 				}
@@ -3987,7 +4117,7 @@ export class Room {
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
 			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
 			seek: opts.seek ?? false, caltrop: opts.caltrop ?? null, lane: opts.lane ?? null, fire: opts.fire ?? null,
-			burnHit: opts.burnHit ?? 0, markExt: opts.markExt ?? 0,
+			burnHit: opts.burnHit ?? 0, markExt: opts.markExt ?? 0, boom: opts.boom ?? null, drop: opts.drop ?? null,
 		};
 		this.projectiles.push(p);
 		// Projectiles often live shorter than a snapshot interval, so clients simulate them from events.
@@ -4072,6 +4202,7 @@ export class Room {
 			if (p.life <= 0 || p.pierce <= 0) {
 				if (p.onEnd) p.onEnd(p);
 				if (p.spike && !p.anyHit) this.layTrap(p.owner, { kind: 3, x: p.x, y: p.y, r: 14, dmg: p.spike.dmg, root: p.spike.root, life: p.spike.life, src: p.src });
+				if (p.drop && !p.dropped) this.dropPoison(p, p.x, p.y);
 				this.endProjectile(p);
 				continue;
 			}
@@ -4139,6 +4270,10 @@ export class Room {
 				if (p.split) this.splitSpark(p, e);
 				if (p.burnHit && !e.dead) this.burn(e, p.owner, p.burnHit, 2);
 				if (p.markExt && !e.dead && e.markT > this.time) e.markT = Math.max(e.markT, this.time + p.markExt);
+				if (p.boom) {
+					this.explode({ x: e.x, y: e.y, r: p.boom.r, pdmg: 0, edmg: p.dmg, owner: p.owner, kind: 0, src: p.src, burn: { frac: p.boom.burn / Math.max(1, p.dmg), dur: 2 }, skip: e });
+				}
+				if (p.drop && !p.dropped) this.dropPoison(p, e.x, e.y);
 				if (--p.pierce <= 0) break;
 				if (p.seek) {
 					// Overclocks «Рикошет» and «Шаровая молния»: after a hit the projectile turns to a neighbour it has not hit yet.
@@ -4199,6 +4334,7 @@ export class Room {
 			this.fx.push(['snap', Math.round(t.x), Math.round(t.y)]);
 			this.root(victim, t.root);
 			this.hurtEnemy(victim, t.dmg, t.owner, src);
+			if (t.frost) this.frostWave(t, src);
 			if (stays) {
 				t.armT = this.time + t.rearm;
 				this.traps[j++] = t;

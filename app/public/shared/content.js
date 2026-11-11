@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v24';
+export const GAME_VERSION = 'v24.1';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -297,7 +297,7 @@ export const WEAPONS = {
 		levels: [
 			{ dmg: 20, cd: 2.0, max: 4, root: 1.0, radius: 26, splash: 0 },
 			{ dmg: 26, cd: 1.8, max: 5, root: 1.2, radius: 28, splash: 0 },
-			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, splash: 40 },
+			{ dmg: 40, cd: 1.6, max: 6, root: 1.4, radius: 30, splash: 40 },
 			{ dmg: 40, cd: 1.4, max: 7, root: 1.6, radius: 32, splash: 50 },
 			{ dmg: 50, cd: 1.2, max: 8, root: 2.0, radius: 34, splash: 60 },
 		],
@@ -393,11 +393,11 @@ export const REACTIONS = {
 export const REACTION_IDS = Object.keys(REACTIONS);
 // Which weapons leave a state, and which state + hit tag makes which reaction (for card hints; the server rules live in Room.react).
 export const STATE_SOURCES = {
-	wet: ['flask', 'molotov', 'censer', 'quagmire'],
-	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe'],
-	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
-	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
-	root: ['traps', 'pitfall', 'tripwire'],
+	wet: ['flask', 'molotov', 'censer', 'quagmire', 'stingers'],
+	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe', 'rockets'],
+	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	root: ['traps', 'pitfall', 'tripwire', 'frostsnare', 'abatis'],
 };
 export const REACTION_RULES = [
 	{ id: 'cond', state: 'wet', tags: ['shock'] },
@@ -925,6 +925,61 @@ export const DUOS = {
 			{ dmg: 30, cd: 1.3, count: 1, range: 300, speed: 520, patchR: 24, patchLife: 2, patchDmg: 7, tick: 0.3, burn: 5.5, every: 40 },
 			{ dmg: 36, cd: 1.2, count: 2, range: 320, speed: 540, patchR: 24, patchLife: 2, patchDmg: 6, tick: 0.3, burn: 5, every: 40 },
 			{ dmg: 46, cd: 1.1, count: 2, range: 340, speed: 560, patchR: 28, patchLife: 2.2, patchDmg: 10.5, tick: 0.3, burn: 9, every: 40 },
+		],
+	},
+	// v24.1 (связки v2, поставка Б).
+	frostsnare: {
+		name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
+		levels: [
+			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },
+			{ dmg: 50, cd: 1.4, max: 7, root: 1.5, radius: 31, waveR: 80, waveDmg: 52, slow: 0.4, slowDur: 2, freeze: 1.0 },
+			{ dmg: 62, cd: 1.2, max: 8, root: 1.7, radius: 32, waveR: 90, waveDmg: 57, slow: 0.45, slowDur: 2.2, freeze: 1.2 },
+		],
+	},
+	abatis: {
+		name: 'Засека', icon: '⚔', parts: ['whip', 'traps'], tags: ['phys', 'trap'],
+		desc: 'Удар клинка оставляет капкан на конце дуги; по врагу в корнях клинок бьёт в полтора раза сильнее',
+		levels: [
+			{ dmg: 29, cd: 1.1, range: 140, width: 50, traps: 1, max: 6, trapDmg: 36, root: 1.3, radius: 30, rootMul: 1.5 },
+			{ dmg: 36, cd: 1.0, range: 150, width: 52, traps: 1, max: 7, trapDmg: 46, root: 1.5, radius: 31, rootMul: 1.5 },
+			{ dmg: 47, cd: 0.9, range: 165, width: 56, traps: 2, max: 8, trapDmg: 59, root: 1.7, radius: 32, rootMul: 1.5 },
+		],
+	},
+	harpoon: {
+		name: 'Гарпун', icon: '⥉', parts: ['sickle', 'spear'], tags: ['phys', 'proj'],
+		desc: 'Копьё на цепи летит в сильнейшего, пробивает строй и возвращается, на обратном пути бьёт ещё раз',
+		levels: [
+			{ dmg: 92, cd: 1.8, count: 1, pierce: 8, range: 340, width: 18, speed: 720, kb: 50 },
+			{ dmg: 88, cd: 1.6, count: 1, pierce: 10, range: 360, width: 20, speed: 740, kb: 60 },
+			{ dmg: 84, cd: 1.5, count: 2, pierce: 99, range: 380, width: 22, speed: 760, kb: 70 },
+		],
+	},
+	rockets: {
+		name: 'Ракетница', icon: '➹', parts: ['bolt', 'bomb'], tags: ['proj', 'fire', 'aoe'],
+		desc: 'Искры-ракеты летят к самой плотной группе и взрываются при попадании, поджигая',
+		levels: [
+			{ dmg: 51, cd: 1.2, count: 2, speed: 440, radius: 55, burn: 3 },
+			{ dmg: 50, cd: 1.1, count: 3, speed: 450, radius: 60, burn: 4 },
+			{ dmg: 82, cd: 1.0, count: 4, speed: 460, radius: 66, burn: 5 },
+		],
+	},
+	stingers: {
+		name: 'Ядовитые жала', icon: '➶', parts: ['knives', 'flask'], tags: ['phys', 'proj', 'aoe'],
+		desc: 'Веер ножей; нож, попав или упав, разбивается каплей — малой лужей яда',
+		levels: [
+			{ dmg: 11, cd: 0.55, count: 3, speed: 640, pierce: 2, spread: 0.12, dropR: 32, dropLife: 1.8, dropDmg: 7, tick: 0.4, max: 12 },
+			{ dmg: 13, cd: 0.5, count: 4, speed: 660, pierce: 2, spread: 0.11, dropR: 36, dropLife: 1.8, dropDmg: 12, tick: 0.4, max: 12 },
+			{ dmg: 16, cd: 0.45, count: 5, speed: 700, pierce: 3, spread: 0.1, dropR: 40, dropLife: 2.2, dropDmg: 16, tick: 0.4, max: 12 },
+		],
+	},
+	whirlwind: {
+		name: 'Смерч', icon: '🌀', parts: ['orbit', 'aura'], tags: ['phys', 'aoe'],
+		desc: 'Ореол-вихрь медленно стягивает врагов к кольцу кружащих клинков',
+		levels: [
+			{ dmg: 5, tick: 0.45, radius: 110, count: 3, bladeDmg: 14, ring: 100, rps: 0.7, hitCd: 0.4, pull: 30 },
+			{ dmg: 6, tick: 0.45, radius: 120, count: 4, bladeDmg: 18, ring: 110, rps: 0.7, hitCd: 0.4, pull: 35 },
+			{ dmg: 8, tick: 0.4, radius: 130, count: 5, bladeDmg: 22, ring: 120, rps: 0.75, hitCd: 0.4, pull: 40 },
 		],
 	},
 };

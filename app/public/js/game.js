@@ -732,6 +732,11 @@ export class Game {
 				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
 				break;
 			case 'frost': {
+				// v24.1: a wave at a point (Ледяные силки: ['frost', pid, r, x, y]) instead of around the hero.
+				if (ev.length >= 5) {
+					this.rings.push({ x: +ev[3], y: +ev[4], t: 0, life: 0.45, r0: 10, r1: +ev[2] || 70, color: '#b3e5fc', frost: true });
+					break;
+				}
 				const pt = this.playerPos(ev[1], { x: 0, y: 0 });
 				if (pt) this.rings.push({ x: pt.x, y: pt.y, t: 0, life: 0.45, r0: 16, r1: +ev[2] || 110, color: '#b3e5fc', pid: ev[1], frost: true });
 				break;

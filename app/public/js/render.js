@@ -1279,6 +1279,15 @@ export class Renderer {
 					if (pos) this.drawBlizzard(ctx, pos.x, pos.y, EVOS.blizzard.levels[0].radius * (row[P.pid] === game.me ? game.areaMul() : 1), now);
 					continue;
 				}
+				if (wl[0] === 'whirlwind') {
+					// Смерч: a swirling aura (the blades are drawn with the orbits).
+					const pos = game.playerPos(row[P.pid], this.tmp);
+					if (!pos) continue;
+					const L = duoLevel('whirlwind', wl[1]);
+					const r = L.radius * (row[P.pid] === game.me ? game.areaMul() : 1);
+					this.drawWhirl(ctx, pos.x, pos.y, r, game.meta(row[P.pid]).color, now);
+					continue;
+				}
 				if (wl[0] === 'dome') {
 					// Купол: the aura is wider while the shield holds a charge (server domeTick).
 					const pos = game.playerPos(row[P.pid], this.tmp);
@@ -1311,6 +1320,24 @@ export class Renderer {
 				ctx.globalAlpha = 1;
 			}
 		}
+	}
+
+	drawWhirl(ctx, x, y, r, color, now) {
+		ctx.fillStyle = color;
+		ctx.globalAlpha = 0.07;
+		ctx.beginPath();
+		ctx.arc(x, y, r, 0, TAU);
+		ctx.fill();
+		ctx.globalAlpha = 0.35;
+		ctx.strokeStyle = color;
+		ctx.lineWidth = 2;
+		for (let k = 0; k < 3; k++) {
+			const a0 = -now * 2.2 + (k * TAU) / 3;
+			ctx.beginPath();
+			ctx.arc(x, y, r * (0.55 + k * 0.15), a0, a0 + 1.6);
+			ctx.stroke();
+		}
+		ctx.globalAlpha = 1;
 	}
 
 	drawDome(ctx, x, y, r, charged, color, now) {
@@ -1375,8 +1402,10 @@ export class Renderer {
 					ctx.lineWidth = 2;
 					continue;
 				}
-				if (wl[0] !== 'orbit') continue;
-				const lv = weaponLevel('orbit', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0); // v20: overclocks change radius and speed
+				if (wl[0] !== 'orbit' && wl[0] !== 'whirlwind') continue;
+				// v24.1: Смерч draws its blades on the ring like Хоровод.
+				const W = wl[0] === 'whirlwind' ? duoLevel('whirlwind', wl[1]) : null;
+				const lv = W ? { count: W.count, radius: W.ring, rps: W.rps } : weaponLevel('orbit', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0); // v20: overclocks change radius and speed
 				const def = { ...lv, count: lv.count + Math.max(0, wl[2] | 0) }; // + Echo blades
 				const pos = game.playerPos(row[P.pid], this.tmp);
 				if (!pos) continue;
