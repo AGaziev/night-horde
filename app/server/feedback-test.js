@@ -63,6 +63,6 @@ test('отзывы принимают короткую оценку или ко�
 		{ rating: null, comment: 'Дайте цвет стрелкам.', runId: null },
 		{ rating: 'hard', comment: '', runId: null },
 	]);
-	assert.ok(feedback.every((row) => row.v === 'v32' && Number.isFinite(Date.parse(row.at))));
+	assert.ok(feedback.every((row) => row.v === 'v33' && Number.isFinite(Date.parse(row.at))));
 	assert.ok(feedback.every((row) => !('sid' in row) && !('uid' in row)));
 });

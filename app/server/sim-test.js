@@ -1784,7 +1784,7 @@ console.log('over/again/leave: ok');
 		assert.equal((await get('/api/runs/NOPE00')).status, 404);
 		assert.equal((await get('/api/runs/../../etc')).status, 404);
 		const busy = await (await get('/api/busy')).json();
-		assert.deepEqual(busy, { playing: 0, players: 0, online: 0, v: GAME_VERSION, storage: false }, '/api/busy: idle server, no storage key');
+		assert.deepEqual(busy, { playing: 0, players: 0, online: 0, scheduled: 0, v: GAME_VERSION, storage: false }, '/api/busy: idle server, no storage key');
 	} finally {
 		srv.kill();
 		fs.rmSync(dir, { recursive: true, force: true });
@@ -1795,9 +1795,9 @@ console.log('over/again/leave: ok');
 		const room = new Room('BUSY', () => {});
 		room.addPlayer(1, 'A', 'knight'); room.addPlayer(2, 'B', 'witch');
 		hub.rooms.set('BUSY', room);
-		assert.deepEqual(hub.busy(), { playing: 0, players: 0, online: 3 }, 'lobby is not busy');
+		assert.deepEqual(hub.busy(), { playing: 0, players: 0, online: 3, scheduled: 0 }, 'lobby is not busy');
 		room.start();
-		assert.deepEqual(hub.busy(), { playing: 1, players: 2, online: 3 }, 'a run in progress');
+		assert.deepEqual(hub.busy(), { playing: 1, players: 2, online: 3, scheduled: 0 }, 'a run in progress');
 	}
 	console.log('run log store + /api/runs + /api/busy: ok');
 }

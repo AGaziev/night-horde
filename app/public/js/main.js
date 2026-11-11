@@ -8,6 +8,7 @@ import { Sound } from './audio.js';
 import { cardText, cardImage } from './results.js';
 import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
+import { setupLobbyInvites } from './lobby-invites.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -19,6 +20,7 @@ const net = new Net();
 const ui = new UI();
 const runHistory = setupRunHistory();
 const feedback = setupFeedback(() => net.sid);
+const lobbyInvites = setupLobbyInvites(net, (msg) => ui.toast(msg, 'info'));
 const game = new Game(net);
 const canvas = $('game');
 const renderer = new Renderer(canvas);
@@ -52,6 +54,7 @@ const state = {
 };
 
 function goMenu() {
+	lobbyInvites.update(null);
 	game.stop();
 	input.setEnabled(false);
 	state.lobby = null;
@@ -62,6 +65,7 @@ function goMenu() {
 }
 
 function goGame() {
+	lobbyInvites.update(null);
 	runHistory.close();
 	if (ui.screen !== 'game') {
 		ui.resetHud();
@@ -80,6 +84,12 @@ function joinRoom(code) {
 	net.send({ t: 'join', code, hero: state.hero, heroes: [...unlocked()] });
 }
 
+function joinInvitedRoom(currentCode) {
+	const code = state.urlRoom;
+	state.urlRoom = '';
+	if (code && code !== currentCode) joinRoom(code);
+}
+
 // Network events
 
 net.on('status', ({ connected, transport }) => {
@@ -90,6 +100,7 @@ net.on('ping', (ping) => ui.setNet(net.transport, ping, net.connected));
 
 net.on('welcome', (msg) => {
 	state.me = msg.pid;
+	state.resumeRoom = msg.room;
 	game.me = msg.pid;
 	state.name = msg.name || state.name;
 	const wanted = store.get('nh.name');
@@ -153,8 +164,10 @@ net.on('lobby', (msg) => {
 	if (ui.screen !== 'lobby') ui.show('lobby');
 	sound.setMode('lobby');
 	state.myReady = ui.renderLobby(msg, state.me);
+	lobbyInvites.update(msg, state.me);
 	const mine = (msg.players || []).find((p) => p.pid === state.me);
 	if (mine && HEROES[mine.hero]) state.hero = mine.hero;
+	joinInvitedRoom(msg.code);
 });
 
 // A win at dawn holds the field for the burn and the sunrise before the results screen.
@@ -162,12 +175,15 @@ const DAWN_HOLD_MS = 3200;
 let overTimer = 0;
 
 net.on('start', (msg) => {
+	const invitedElsewhere = state.urlRoom && state.urlRoom !== state.resumeRoom;
+	state.urlRoom = '';
 	clearTimeout(overTimer);
 	game.begin(msg);
 	const len = +msg.len || modeOf(msg.mode).seconds;
 	ui.modeText = `${modeOf(msg.mode).name} · до ${fmtTime(len)}`;
 	goGame();
 	ui.showPause(game.menuPause);
+	if (invitedElsewhere) ui.toast('Откройте приглашение после текущего забега.', 'info');
 });
 
 net.on('pause', (msg) => {
@@ -257,6 +273,7 @@ function showOver(msg) {
 	feedback.forRun(msg.runId);
 	ui.show('over');
 	sound.setMode('over', msg.win, msg.grade === 2);
+	joinInvitedRoom(state.resumeRoom);
 }
 
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));

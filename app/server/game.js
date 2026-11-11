@@ -250,6 +250,7 @@ export class Room {
 		this.paused = false; // solo pause from the menu
 		this.frozen = false; // pause or a solo level-up offer: the tick stands still
 		this.state = 'lobby';
+		this.startsAt = null;
 		this.members = new Map(); // pid -> {pid, name, hero, ready, color}
 		this.host = null;
 		this.heroes = new Map();
@@ -364,6 +365,7 @@ export class Room {
 	lobbyMsg() {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
+			startsAt: this.startsAt, serverNow: Date.now(),
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
 		};
 	}
@@ -441,7 +443,10 @@ export class Room {
 			case 'start':
 				if (this.state !== 'lobby') break;
 				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Начать игру может только хост' });
-				else this.start();
+				else if (this.startsAt === null) this.start();
+				break;
+			case 'cancel-start':
+				if (pid === this.host) this.cancelStart();
 				break;
 			case 'again':
 				if (this.state !== 'over') break;
@@ -542,7 +547,15 @@ export class Room {
 		this.events = new Events(this);
 	}
 
+	cancelStart(startsAt = this.startsAt) {
+		if (this.state !== 'lobby' || startsAt === null || this.startsAt !== startsAt) return false;
+		this.startsAt = null;
+		this.sendLobby();
+		return true;
+	}
+
 	start() {
+		this.startsAt = null;
 		this.resetSim();
 		this.state = 'play';
 		this.heroes.clear();
@@ -4977,6 +4990,7 @@ export class Hub {
 		this.send = send;
 		this.players = new Map(); // pid -> {pid, name, room}
 		this.rooms = new Map();
+		this.isConnected = () => true;
 		this.onRunEnd = null; // v22: (info) => Map pid -> totals, given to every room
 	}
 
@@ -4986,13 +5000,14 @@ export class Hub {
 
 	// Deploy check (/api/busy): rooms in a run and players in them, no names or codes.
 	busy() {
-		let playing = 0, players = 0;
+		let playing = 0, players = 0, scheduled = 0;
 		for (const r of this.rooms.values()) {
+			if (r.startsAt !== null) scheduled++;
 			if (r.state !== 'play') continue;
 			playing++;
 			players += r.heroes.size;
 		}
-		return { playing, players, online: this.players.size };
+		return { playing, players, online: this.players.size, scheduled };
 	}
 
 	// Called on every (re)connection.
@@ -5023,14 +5038,14 @@ export class Hub {
 		if (!room) return;
 		p.room = null;
 		room.removePlayer(pid);
-		if (room.size === 0) this.rooms.delete(room.code);
+		if (room.size === 0 && room.startsAt === null) this.rooms.delete(room.code);
 		this.pushRooms();
 	}
 
 	roomList() {
 		const out = [];
 		for (const r of this.rooms.values()) {
-			if (r.state !== 'lobby') continue;
+			if (r.state !== 'lobby' || r.size === 0) continue;
 			out.push({ code: r.code, host: r.members.get(r.host)?.name ?? '', players: r.size, state: r.state, mode: r.mode });
 		}
 		return out;
@@ -5111,7 +5126,33 @@ export class Hub {
 		}
 	}
 
-	tick(dt) {
-		for (const r of this.rooms.values()) r.tick(dt);
+	hostLobby(pid, code) {
+		const room = this.players.get(pid)?.room;
+		return room?.host === pid && room.code === code && room.state === 'lobby' ? room : null;
+	}
+
+	scheduleStart(room, pid, startsAt) {
+		if (this.hostLobby(pid, room.code) !== room || room.startsAt !== null) return false;
+		room.startsAt = startsAt;
+		room.sendLobby();
+		return true;
+	}
+
+	tick(dt, now = Date.now()) {
+		let started = false;
+		for (const room of this.rooms.values()) {
+			if (room.startsAt === null || room.startsAt > now) {
+				room.tick(dt);
+				continue;
+			}
+			for (const pid of room.members.keys()) if (!this.isConnected(pid)) this.leaveRoom(pid);
+			if (room.size > 0) {
+				room.start();
+				started = true;
+			} else {
+				this.rooms.delete(room.code);
+			}
+		}
+		if (started) this.pushRooms();
 	}
 }

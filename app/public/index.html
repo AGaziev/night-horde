@@ -65,7 +65,12 @@
 			<div class="lobby-actions">
 				<button id="lobby-ready" class="btn">Готов</button>
 				<button id="lobby-start" class="btn btn-primary" hidden>Начать</button>
+				<button id="lobby-invite" class="btn" hidden>Позвать на игру</button>
 				<button class="btn btn-ghost" data-open-run-history>История забегов</button>
+			</div>
+			<div id="lobby-countdown" class="lobby-countdown" hidden>
+				<span>До старта <strong id="lobby-countdown-time" role="timer"></strong></span>
+				<button id="lobby-cancel-start" class="btn btn-small btn-ghost" hidden>Остановить отсчёт</button>
 			</div>
 			<p id="lobby-hint" class="muted small center"></p>
 			<details id="duo-book" class="duo-book">
@@ -78,6 +83,37 @@
 			</details>
 		</div>
 	</section>
+
+	<dialog id="lobby-invite-dialog" class="panel game-dialog" aria-labelledby="lobby-invite-title">
+		<header class="game-dialog-head">
+			<h2 id="lobby-invite-title">Позвать на игру</h2>
+			<form method="dialog"><button class="btn btn-ghost btn-small" autofocus>Закрыть</button></form>
+		</header>
+		<form id="lobby-invite-form">
+			<fieldset id="lobby-invite-fields" disabled>
+				<label class="field">
+					<span>Начать через</span>
+					<select name="minutes">
+						<option value="1">1 минуту</option>
+						<option value="3">3 минуты</option>
+						<option value="5" selected>5 минут</option>
+						<option value="10">10 минут</option>
+						<option value="15">15 минут</option>
+						<option value="30">30 минут</option>
+					</select>
+				</label>
+				<h3 id="lobby-invite-employees">Кого позвать</h3>
+				<label class="field" id="lobby-invite-search-field" hidden>
+					<span>Найти сотрудника</span>
+					<input id="lobby-invite-search" type="text" autocomplete="off">
+				</label>
+				<div id="lobby-invite-list" class="lobby-invite-list" role="group" aria-labelledby="lobby-invite-employees"></div>
+				<p id="lobby-invite-count" class="muted small" role="status"></p>
+				<button class="btn btn-primary" type="submit">Запустить отсчёт</button>
+			</fieldset>
+		</form>
+		<p id="lobby-invite-status" class="muted small" role="status"></p>
+	</dialog>
 
 	<dialog id="run-history" class="panel game-dialog" aria-labelledby="run-history-title">
 		<header class="game-dialog-head">

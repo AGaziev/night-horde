@@ -834,3 +834,38 @@ input[type="text"]:focus { border-color: var(--accent); }
 	color: var(--text);
 	font: inherit;
 }
+
+.lobby-countdown {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 14px;
+}
+.lobby-countdown strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+#lobby-invite-fields { padding: 0; border: 0; min-width: 0; margin: 0; }
+#lobby-invite-fields h3 { margin: 16px 0 8px; font-size: 1rem; }
+#lobby-invite-fields select {
+	padding: 8px 10px;
+	border: 1px solid var(--panel-border);
+	border-radius: 10px;
+	background: var(--bg);
+	color: var(--text);
+	font: inherit;
+}
+.lobby-invite-list {
+	display: grid;
+	gap: 4px;
+	max-height: 240px;
+	overflow-y: auto;
+}
+.lobby-invite-list label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.04);
+}
+.lobby-invite-list input { accent-color: var(--accent); }

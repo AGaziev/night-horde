@@ -7,8 +7,9 @@ import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
 import { readFeedback, saveFeedback } from './feedback.js';
+import { createLobbyInvites } from './lobby-invites.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
-import { TICK_HZ, GAME_VERSION } from '../public/shared/content.js';
+import { TICK_HZ, GAME_VERSION, MAX_PLAYERS } from '../public/shared/content.js';
 import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -30,7 +31,7 @@ const RUNS_DIR = process.env.HORDE_RUNS_DIR || (persistentRuns ? '/opt/data/runs
 runStore.persist(RUNS_DIR, persistentRuns ? TEMP_RUNS_DIR : null);
 
 const FEEDBACK_FILE = path.join(RUNS_DIR, 'feedback.json');
-const FEEDBACK_MAX_BYTES = 8 * 1024;
+const MAX_FORM_BYTES = 8 * 1024;
 const FEEDBACK_MAX_COMMENT = 1000;
 const FEEDBACK_INTERVAL_MS = 10_000;
 const FEEDBACK_RATINGS = new Set(['easy', 'right', 'hard']);
@@ -38,6 +39,12 @@ const FEEDBACK_RATINGS = new Set(['easy', 'right', 'hard']);
 // v22: player progress in the Vibecode app storage; without the key everything stays in the browser.
 const STORAGE_TICK_MS = 2_000;
 const APP_KEY = process.env.VIBE_APP_KEY || '';
+const lobbyInvites = createLobbyInvites({
+	key: APP_KEY, serverId: process.env.HORDE_VIBE_SERVER_ID, origin: process.env.HORDE_APP_ORIGIN,
+});
+const inviteTimes = new Map();
+const INVITE_COOLDOWN = 15_000;
+const START_DELAYS = new Set([1, 3, 5, 10, 15, 30]);
 // Only for local test runs: a key prefix such as «selftest/» (letters, digits, - _ /), empty on production.
 const STORAGE_PREFIX = /^[A-Za-z0-9_-]+\/$/.test(process.env.HORDE_STORAGE_PREFIX ?? '') ? process.env.HORDE_STORAGE_PREFIX : '';
 const store = new ProgressStore({
@@ -75,6 +82,7 @@ const hub = new Hub((pid, msg, json) => {
 	const s = byPid.get(pid);
 	if (s?.conn) s.conn.send(json ?? JSON.stringify(msg), msg.t === 's');
 });
+hub.isConnected = (pid) => !!byPid.get(pid)?.conn;
 
 function headerName(req) {
 	const raw = req.headers['x-vibe-user-name-encoded'];
@@ -273,7 +281,7 @@ function serveStatic(req, res, pathname) {
 function handleSession(req, res, url) {
 	const existing = getSession(url.searchParams.get('sid'));
 	const s = existing ?? createSession(req);
-	sendJson(res, 200, { sid: s.sid, name: hub.players.get(s.pid)?.name ?? '' });
+	sendJson(res, 200, { sid: s.sid, name: hub.players.get(s.pid)?.name ?? '', invites: !!lobbyInvites });
 }
 
 function handleEvents(req, res, url) {
@@ -342,6 +350,24 @@ function handleSend(req, res, url) {
 	});
 }
 
+async function readSmallJson(req, res) {
+	if (req.headers['content-type']?.split(';')[0] !== 'application/json') {
+		req.resume();
+		return sendJson(res, 415, { err: 'expected JSON' });
+	}
+	let size = 0;
+	const chunks = [];
+	for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+		size += chunk.length;
+		if (size > MAX_FORM_BYTES) {
+			req.resume();
+			return sendJson(res, 413, { err: 'body too large' });
+		}
+		chunks.push(chunk);
+	}
+	return parseJson(Buffer.concat(chunks).toString('utf8'));
+}
+
 async function handleFeedback(req, res) {
 	try {
 		if (req.method === 'GET') {
@@ -352,21 +378,8 @@ async function handleFeedback(req, res) {
 			return sendJson(res, 200, { feedback: readFeedback(FEEDBACK_FILE).reverse() });
 		}
 		if (req.method !== 'POST') return sendText(res, 405, 'method not allowed');
-		if (req.headers['content-type']?.split(';')[0] !== 'application/json') {
-			req.resume();
-			return sendJson(res, 415, { err: 'expected JSON' });
-		}
-		let size = 0;
-		const chunks = [];
-		for await (const chunk of req.iterator({ destroyOnReturn: false })) {
-			size += chunk.length;
-			if (size > FEEDBACK_MAX_BYTES) {
-				req.resume();
-				return sendJson(res, 413, { err: 'feedback too large' });
-			}
-			chunks.push(chunk);
-		}
-		const data = parseJson(Buffer.concat(chunks).toString('utf8'));
+		const data = await readSmallJson(req, res);
+		if (res.writableEnded) return;
 		if (!data || typeof data !== 'object' || Array.isArray(data)) return sendJson(res, 400, { err: 'invalid feedback' });
 		const session = getSession(data.sid);
 		if (!session) return sendJson(res, 401, { err: 'unknown sid' });
@@ -390,6 +403,63 @@ async function handleFeedback(req, res) {
 		if (res.destroyed) return;
 		console.error('feedback:', e.code ?? e.name);
 		return sendJson(res, 503, { err: 'feedback unavailable' });
+	}
+}
+
+async function handleLobbyInvites(req, res, url) {
+	if (req.method !== 'GET' && req.method !== 'POST') return sendText(res, 405, 'method not allowed');
+	const reject = (status, error) => { req.resume(); return sendJson(res, status, { error }); };
+	if (!lobbyInvites) return reject(503, 'Приглашения недоступны.');
+	const session = getSession(url.searchParams.get('sid'));
+	const uid = bitrixUid(req.headers['x-vibe-user-id']);
+	const authorization = req.headers['x-vibe-authorization'] ?? '';
+	if (!session?.conn || !uid || uid !== session.uid || !/^Bearer vibe_session_[A-Za-z0-9_-]+$/.test(authorization)) {
+		return reject(401, 'Откройте игру из Битрикс24, чтобы приглашать сотрудников.');
+	}
+	const code = url.searchParams.get('room');
+	const room = hub.hostLobby(session.pid, code);
+	if (!room) return reject(403, 'Приглашать сотрудников может только хост комнаты.');
+
+	try {
+		if (req.method === 'GET') {
+			const employees = await lobbyInvites.list();
+			if (hub.hostLobby(session.pid, code) !== room) return reject(409, 'Комната изменилась. Откройте форму ещё раз.');
+			const members = new Set([...room.members.values()].map((member) => member.uid));
+			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: MAX_PLAYERS - room.size });
+		}
+		const input = await readSmallJson(req, res);
+		if (res.writableEnded) return;
+		if (!START_DELAYS.has(input?.minutes) || !Array.isArray(input?.ids) || input.ids.length > MAX_PLAYERS - 1
+			|| input.ids.some((id) => !bitrixUid(id))) {
+			return reject(400, 'Проверьте время старта и список сотрудников.');
+		}
+		const ids = [...new Set(input.ids)];
+		if (room.startsAt !== null) return reject(409, 'Отсчёт уже идёт.');
+		const employees = await lobbyInvites.list(true);
+		const allowed = new Set(employees.map(({ id }) => id));
+		if (ids.some((id) => !allowed.has(id))) return reject(409, 'Список доступа изменился. Откройте форму ещё раз.');
+		const members = new Set([...room.members.values()].map((member) => member.uid));
+		if (ids.includes(uid) || ids.filter((id) => !members.has(id)).length > MAX_PLAYERS - room.size) {
+			return reject(409, 'В комнате изменилось число свободных мест. Откройте форму ещё раз.');
+		}
+		const now = Date.now();
+		if (ids.length && (inviteTimes.get(uid) ?? 0) > now) return reject(429, 'Подождите несколько секунд перед новой отправкой.');
+		const startsAt = now + input.minutes * 60_000;
+		if (!session.conn || !hub.scheduleStart(room, session.pid, startsAt)) {
+			return reject(409, 'Комната изменилась или отсчёт уже идёт.');
+		}
+		if (ids.length) {
+			for (const [id, until] of inviteTimes) if (until <= now) inviteTimes.delete(id);
+			inviteTimes.set(uid, now + INVITE_COOLDOWN);
+		}
+		const result = await lobbyInvites.send(ids, authorization, { code, startsAt, minutes: input.minutes, host: session.portalName || 'Хост' });
+		if (ids.length && result.sent === 0) {
+			if (room.cancelStart(startsAt) && room.size === 0) hub.rooms.delete(room.code);
+			return reject(502, 'Приглашения не доставлены. Отсчёт остановлен.');
+		}
+		return sendJson(res, 200, { active: room.startsAt === startsAt, ...result });
+	} catch {
+		if (!res.destroyed) return reject(503, 'Не удалось получить доступ к Битрикс24. Попробуйте ещё раз.');
 	}
 }
 
@@ -425,6 +495,7 @@ const server = http.createServer((req, res) => {
 	if (p === '/api/events') return handleEvents(req, res, url);
 	if (p === '/api/send') return handleSend(req, res, url);
 	if (p === '/api/feedback') return handleFeedback(req, res);
+	if (p === '/api/lobby/invites') return handleLobbyInvites(req, res, url);
 	if (p === '/api/runs' || p.startsWith('/api/runs/')) return handleRuns(req, res, p);
 	if (p === '/api/busy') return sendJson(res, 200, { ...hub.busy(), v: GAME_VERSION, storage: store.enabled });
 	if (p.startsWith('/api/')) return sendText(res, 404, 'not found');
