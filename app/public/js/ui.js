@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -347,7 +347,7 @@ export class UI {
 	// Returns true when a new set of cards was drawn (for the legendary sound).
 	showOffer(offer) {
 		const choices = Array.isArray(offer.choices) ? offer.choices : [];
-		const key = choices.map((c) => `${c.kind}:${c.id}:${c.level}:${c.rar ?? ''}`).join('|') + JSON.stringify(offer.slots);
+		const key = choices.map((c) => `${c.kind}:${c.id}:${c.level}:${c.rar ?? ''}:${c.donor ?? ''}:${c.draft ?? ''}`).join('|') + JSON.stringify(offer.slots);
 		const sl = Array.isArray(offer.slots) ? offer.slots : null;
 		const pending = offer.pending | 0;
 		$('levelup-pending').textContent = pending > 0 ? `(+${pending} в очереди)` : '';
@@ -370,9 +370,11 @@ export class UI {
 		for (const t of this.revealTimers ?? []) clearTimeout(t);
 		this.revealTimers = [];
 		const spin = !!offer.spin && choices.length > 0;
+		const swap = choices[0]?.kind === 'swap';
+		const forge = choices[0]?.kind === 'imprint';
 		const now = performance.now();
 		this.readyAt = choices.map((_, i) => (spin ? now + CHEST_REVEAL_MS * (i + 1) : 0));
-		$('levelup-title-text').textContent = spin ? 'Сундук босса!' : 'Новый уровень!';
+		$('levelup-title-text').textContent = swap ? 'Алтарь: замена артефакта' : forge ? 'Кузня свойств' : spin ? 'Сундук босса!' : 'Новый уровень!';
 		const known = knownDuos();
 		const add = (card, c, i) => {
 			const wrap = el('div', spin ? 'card-wrap card-veil' : 'card-wrap');
@@ -405,6 +407,38 @@ export class UI {
 			box.appendChild(wrap);
 		};
 		choices.forEach((c, i) => {
+			if (c.kind === 'swap') {
+				const card = el('div', 'card card-evo');
+				card.appendChild(el('div', 'card-icon', c.icon));
+				card.appendChild(el('div', 'card-name', c.name));
+				card.appendChild(el('div', 'card-desc', c.desc));
+				const select = el('select', 'card-swap-select');
+				select.setAttribute('aria-label', 'Какой артефакт отдать');
+				select.appendChild(new Option('Какой артефакт отдать?', ''));
+				for (const { id, name, level } of c.replace) select.appendChild(new Option(`${name} · ур. ${level}`, id));
+				const replace = el('button', 'btn card-swap-button', 'Заменить');
+				replace.type = 'button';
+				replace.disabled = true;
+				select.addEventListener('change', () => { replace.disabled = !select.value; });
+				replace.addEventListener('click', () => this.onPick?.(i, select.value));
+				card.append(select, replace);
+				add(card, c, i);
+				return;
+			}
+			if (c.kind === 'imprint') {
+				const card = el('button', 'card card-evo');
+				card.type = 'button';
+				card.appendChild(el('span', 'card-key', String(i + 1)));
+				card.appendChild(el('span', 'card-kind', 'кузня'));
+				card.appendChild(el('div', 'card-icon', c.icon));
+				card.appendChild(el('div', 'card-name', c.name));
+				card.appendChild(el('div', 'card-level', `Кузня: ${c.carrierName} принимает свойство «${c.donorName}»`));
+				card.appendChild(el('div', 'card-desc', c.desc));
+				card.appendChild(el('div', 'card-warn', `«${c.donorName}» освобождает слот. Носитель сохраняет уровень, но больше не эволюционирует и не входит в связку.`));
+				card.addEventListener('click', () => this.onPick?.(i));
+				add(card, c, i);
+				return;
+			}
 			if (c.kind === 'duo') {
 				add(this.duoCard(c, i), c, i);
 				return;
@@ -437,6 +471,7 @@ export class UI {
 			}
 			card.appendChild(el('div', 'card-desc', c.desc || def?.desc || ''));
 			if (c.kind === 'ember') card.appendChild(el('div', 'card-level', `×${c.level}`));
+			if (c.draft) card.appendChild(el('div', 'card-hint card-hint-rec', c.draft === 'fit' ? '★ Для текущей сборки' : '↗ Другое направление'));
 			if (c.rec) card.appendChild(el('div', 'card-hint card-hint-rec', '★ рекомендуем: одного оружия мало'));
 			if (c.rerolls > 0) card.appendChild(el('div', 'card-hint', `🎲 +${c.rerolls} «Перебросить»`));
 			// Weapons at 4–5 show what they evolve into.
@@ -446,12 +481,14 @@ export class UI {
 				const evo = Object.values(EVOS).find((E) => E.requires === c.id);
 				if (evo && c.level === 1) card.appendChild(el('div', 'card-hint', `⚡ эволюция: ${WEAPONS[evo.from].name} 5 ур.`));
 			}
+			if (c.forgeHint) card.appendChild(el('div', 'card-hint', `⚒ кузня с «${c.forgeHint.withName}» на ${c.forgeHint.need} + ${c.forgeHint.need} ур.`));
 			if (c.duoHint) {
 				const h = c.duoHint;
 				const name = known.has(h.id) ? h.name : '???';
 				card.appendChild(el('div', 'card-hint', `🔗 с «${h.withName}» → ${name} (нужно ${h.need} + ${h.need})`));
 			}
 			if (c.reactHint) card.appendChild(el('div', 'card-hint card-hint-react', `💥 реакция «${c.reactHint.name}» с «${c.reactHint.withName}»${c.reactHint.ally ? ' союзника' : ''}`));
+			if (c.pairHint) card.appendChild(el('div', 'card-hint card-hint-react', `✦ с «${c.pairHint.withName}»${c.pairHint.ally ? ' союзника' : ''}: ${c.pairHint.desc}`));
 			if (c.synHint) card.appendChild(el('div', 'card-hint', `✦ с «${c.synHint.withName}»: ${c.synHint.desc}`));
 			card.addEventListener('click', () => this.onPick && this.onPick(i));
 			add(card, c, i);
@@ -667,9 +704,12 @@ export class UI {
 				this.cache.weapons = wKey;
 				const box = $('hud-weapons');
 				// v20: an overclocked weapon (4th field of a plain weapon) gets a violet frame, a mark and the variant in the title.
-				fillIcons(box, w.map(([id, lvl, , oc]) => {
+				fillIcons(box, w.map(([id, lvl, , oc, donor]) => {
 					const O = WEAPONS[id] && oc ? OVERCLOCKS[id]?.[oc - 1] : null;
-					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), weaponTitle(id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : ''), EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
+					const F = donor ? forgeRecipe(id, donor) : null;
+					const title = weaponTitle(id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : '') + (F ? ` — кузня «${F.name}»: ${F.desc}` : '');
+					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (F ? '⚒' : O ? '⚙' : ''), title,
+						F || EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
 				}), `${w.length}/${MAX_WEAPONS}`, 'Слоты оружия');
 				drawDuoLinks(box, w);
 			}
@@ -803,7 +843,7 @@ function drawDuoLinks(box, w) {
 	const icons = [...box.querySelectorAll('.hud-icon')];
 	for (let i = 0; i < w.length; i++) {
 		for (let j = i + 1; j < w.length; j++) {
-			if (DUOS[w[i][0]] || DUOS[w[j][0]] || !DUO_BY_PAIR[duoKey(w[i][0], w[j][0])]) continue;
+			if (w[i][4] || w[j][4] || DUOS[w[i][0]] || DUOS[w[j][0]] || !DUO_BY_PAIR[duoKey(w[i][0], w[j][0])]) continue;
 			const a = icons[i], b = icons[j];
 			if (!a || !b) continue;
 			const ax = a.offsetLeft + a.offsetWidth / 2, ay = a.offsetTop + a.offsetHeight + 3;

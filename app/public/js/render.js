@@ -753,7 +753,7 @@ export class Renderer {
 			if (!n) continue;
 			const r = ENEMIES[ENEMY_TYPES[ty]].r;
 			const st = this.est[ty];
-			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark | ST.wet)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
+			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark | ST.wet | ST.resonance)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
 		}
 	}
 
@@ -807,6 +807,13 @@ export class Renderer {
 			ctx.lineTo(x - 4, my);
 			ctx.closePath();
 			ctx.fill();
+		}
+		if (st & ST.resonance) {
+			ctx.strokeStyle = '#ffd47e';
+			ctx.lineWidth = 1.5;
+			ctx.beginPath();
+			ctx.arc(x, y, r + 4, Math.PI * 0.14, Math.PI * 0.86);
+			ctx.stroke();
 		}
 		if (st & ST.wet) {
 			// Wet: two blue drops dripping down the sides.
@@ -2945,7 +2952,7 @@ export class Renderer {
 				ctx.beginPath();
 				ctx.moveTo(pts[0], pts[1]);
 				for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-				ctx.strokeStyle = 'rgba(129,212,250,0.45)';
+				ctx.strokeStyle = z.color ?? 'rgba(129,212,250,0.45)';
 				ctx.lineWidth = 9;
 				ctx.stroke();
 				ctx.strokeStyle = '#ffffff';

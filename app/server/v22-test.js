@@ -52,7 +52,7 @@ function makeStore(backend, t0 = Date.UTC(2026, 10, 10, 12)) {
 	return { st, clock };
 }
 
-assert.equal(GAME_VERSION, 'v23');
+assert.equal(GAME_VERSION, 'v25');
 assert.equal(PROTO, 20);
 
 // --- ids: only plain numbers are portal users ---

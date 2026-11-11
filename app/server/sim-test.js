@@ -34,12 +34,12 @@ function checkSnapshot(s) {
 		assert.ok(p[9] >= 0 && p[9] <= 100);
 		assert.equal(typeof p[10], 'number');
 		assert.equal(typeof p[11], 'number');
-		for (const [id, lvl, extra, mask] of p[12]) {
+		for (const [id, lvl, extra, mask, donor] of p[12]) {
 			assert.ok((WEAPON_IDS.includes(id) || (DUO_IDS.includes(id) && lvl <= 3) || (EVO_IDS.includes(id) && lvl === 1)) && isInt(lvl), `weapon ${id}`);
 			// v20: an overclocked plain weapon at level 5 carries [id, lvl, echo amount, variant 1|2].
 			const ovr = WEAPON_IDS.includes(id) && lvl === 5 && (mask === 1 || mask === 2);
-			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || ovr) && isInt(extra)));
-			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr);
+			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || ovr || donor) && isInt(extra)));
+			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr || (donor && mask === 0));
 		}
 	}
 	const flat = (arr, n) => {
@@ -57,8 +57,9 @@ function checkSnapshot(s) {
 	for (let i = 0; i < s.e.length; i += 6) {
 		assert.ok(s.e[i + 1] >= 0 && s.e[i + 1] < ENEMY_TYPES.length);
 		assert.ok(s.e[i + 4] >= 1 && s.e[i + 4] <= 100);
-		assert.ok(s.e[i + 5] >= 0 && s.e[i + 5] < (SHIELD_DIRS << SHIELD_SHIFT), 'state mask');
-		if (s.e[i + 5] >= 512) assert.ok(s.e[i + 5] & ST.shield, 'facing bits only with a shield');
+		const state = s.e[i + 5] & ~ST.resonance;
+		assert.ok(state >= 0 && state < (SHIELD_DIRS << SHIELD_SHIFT), 'state mask');
+		if (state >= 512) assert.ok(state & ST.shield, 'facing bits only with a shield');
 	}
 	for (let i = 0; i < s.it.length; i += 4) assert.ok(s.it[i + 1] >= 0 && s.it[i + 1] < ITEM_TYPES.length);
 	for (let i = 0; i < s.b.length; i += 5) assert.ok(s.b[i + 1] >= 0 && s.b[i + 1] < PROJECTILE_KINDS.length);
@@ -66,9 +67,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, frost: 3, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -543,14 +544,14 @@ console.log('over/again/leave: ok');
 		console.log('G4 weighted offers + rare: ok');
 	}
 
-	// Slots: 6 weapons (v15, was 4) + 4 artifacts; once full only upgrades of what is owned are offered.
+	// Slots: 6 weapons + 6 artifacts; once full only upgrades of what is owned are offered.
 	{
 		assert.equal(MAX_WEAPONS, 6);
-		assert.equal(MAX_PASSIVES, 4);
+		assert.equal(MAX_PASSIVES, 6);
 		const r = mkRoom();
 		const h = r.heroes.get(1);
 		h.weapons = new Map(['whip', 'bolt', 'knives', 'ward', 'lantern', 'frost'].map((id) => [id, { lvl: 2, t: 0 }])); // no duo pairs
-		h.passives = new Map(['crit', 'mail', 'area', 'regen'].map((id) => [id, 1])); // no evolution pairs
+		h.passives = new Map(['crit', 'mail', 'area', 'regen', 'magnet', 'swift'].map((id) => [id, 1])); // no evolution pairs
 		r.recalcMods(h);
 		for (let k = 0; k < 100; k++) {
 			for (const c of r.makeChoices(h)) {
@@ -560,7 +561,7 @@ console.log('over/again/leave: ok');
 		h.weapons.delete('frost');
 		sent.length = 0;
 		r.grantOffer(h);
-		assert.deepEqual(lastOffer().slots, [5, 6, 4, 4], 'slots in the offer');
+		assert.deepEqual(lastOffer().slots, [5, 6, 6, 6], 'slots in the offer');
 		for (const w of h.weapons.values()) w.lvl = MAX_LEVEL;
 		// v20: overclocks come before embers, so the weapons here are already overclocked.
 		for (const w of h.weapons.values()) w.oc = 1;
@@ -582,7 +583,7 @@ console.log('over/again/leave: ok');
 		r.recalcMods(h);
 		for (let k = 0; k < 30; k++) assert.ok(!r.makeChoices(h).some((x) => x.kind === 'ember'), 'free artifact slot: no embers');
 		h.passives.set('regen', MAX_LEVEL);
-		console.log('slots 6+4: ok');
+		console.log('slots 6+6: ok');
 	}
 
 	// Pressure: invasions ring every player from 3:30 (not solo), enemy hp and damage grow after 3:00.
