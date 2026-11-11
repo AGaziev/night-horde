@@ -382,7 +382,11 @@ export class UI {
 
 	// Returns true when a new set of cards was drawn (for the legendary sound).
 	showOffer(offer) {
-		const choices = Array.isArray(offer.choices) ? offer.choices : [];
+		if (offer?.closed || !Array.isArray(offer?.choices) || !offer.choices.length) {
+			this.hideOffer();
+			return false;
+		}
+		const choices = offer.choices;
 		const key = choices.map((c) => `${c.kind}:${c.id}:${c.level}:${c.rar ?? ''}:${c.donor ?? ''}:${c.draft ?? ''}`).join('|') + JSON.stringify(offer.slots);
 		const sl = Array.isArray(offer.slots) ? offer.slots : null;
 		const pending = offer.pending | 0;

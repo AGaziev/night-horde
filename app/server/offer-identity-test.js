@@ -107,3 +107,76 @@ try {
  }
  console.log('Offer protocol: actual welcome reloads PROTO23 browser and resumes current browser: OK');
 }
+
+// Real chronological Room -> actual main handlers -> Game -> UI.showOffer path.
+// Only DOM nodes and unused canvas imports are adapted; offer decisions/rendering remain production code.
+{
+ const gameUrl='data:text/javascript;base64,'+Buffer.from(source).toString('base64');
+ const uiSource=fs.readFileSync(new URL('../public/js/ui.js',import.meta.url),'utf8')
+  .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href))
+  .replace("import { drawHeroPreview } from './render.js';",'')
+  .replace("import { sprites } from './sprites.js';",'')
+  .replace("import { renderResults } from './results.js';",'')
+  .replace("'./game.js'",JSON.stringify(gameUrl));
+ const {UI}=await import('data:text/javascript;base64,'+Buffer.from(uiSource).toString('base64'));
+ class Node {
+  constructor(){this.children=[];this.style={};this.hidden=true;this.classList={toggle(){},add(){},remove(){},contains(){return false;}};}
+  set textContent(v){this.text=v;this.children=[];} get textContent(){return this.text??'';}
+  appendChild(child){this.children.push(child);return child;}
+  addEventListener(){} querySelectorAll(){return [];}
+ }
+ const nodes=new Map();const node=id=>{if(!nodes.has(id))nodes.set(id,new Node());return nodes.get(id);};
+ const previousDocument=Object.getOwnPropertyDescriptor(globalThis,'document');
+ Object.defineProperty(globalThis,'document',{configurable:true,value:{getElementById:node,createElement:()=>new Node(),querySelectorAll:()=>[]}});
+ const previousRandom=Math.random;Math.random=()=>0;
+ try {
+  const messages=[],r=new Room('CLOSED',(pid,msg)=>messages.push({pid,msg:structuredClone(msg)}));
+  r.addPlayer(1,'One','knight');r.addPlayer(2,'Two','witch');r.start();
+  const h=r.heroes.get(1);h.passives.set('might',1);r.recalcMods(h);
+  const outbox=[],g=new Game({send:msg=>outbox.push(msg)});g.me=1;g.begin(r.startMsg());
+  g.passives={might:1};g.pvals={might:passiveValue('might',1)};
+  const ui=Object.create(UI.prototype);ui.levelup=node('levelup');ui.offerKey='';ui.revealTimers=[];
+  const handlers=new Map(),net={on:(name,handler)=>handlers.set(name,handler)};
+  const main=fs.readFileSync(new URL('../public/js/main.js',import.meta.url),'utf8');
+  for(const name of ['lvl','ps']) {
+   const handler=main.match(new RegExp("net.on\\('"+name+"', \\(msg\\) => \\{[\\s\\S]*?\\n\\}\\);"))?.[0];
+   assert.ok(handler,`actual ${name} handler found`);
+   new Function('net','game','ui','sound',handler)(net,g,ui,{legendary(){}});
+  }
+  const deliver=msg=>handlers.get(msg.t)?.(msg);
+  r.grantOffer(h);deliver(messages.findLast(x=>x.pid===1&&x.msg.t==='lvl').msg);
+  const i=h.offer.findIndex(c=>c.kind==='passive'&&c.id==='might');assert.ok(i>=0);
+  assert.ok(g.pick(i));ui.hideOffer();const first=outbox.at(-1);
+  r.resync(1);const delayed=messages.findLast(x=>x.pid===1&&x.msg.t==='lvl').msg;
+  assert.equal(delayed.offerEpoch,first.offerEpoch,'unchanged resync reuses the queued pick epoch');
+  r.handle(1,first);assert.equal(h.offer,null,'first real pick consumes the last offer');
+  deliver(delayed);assert.equal(ui.levelup.hidden,false,'late real resync packet makes the old card visible again');
+  assert.ok(g.pick(i));ui.hideOffer();const offset=messages.length;
+  const before={rerolls:h.rerolls,bans:h.bans,xp:h.xp,passives:[...h.passives],pval:{...h.pval}};
+  r.handle(1,outbox.at(-1));
+  const replies=messages.slice(offset).filter(x=>x.pid===1).map(x=>x.msg);
+  assert.ok(replies.some(m=>m.t==='ps'),'cancelled offer still corrects optimistic passives');
+  assert.ok(replies.some(m=>m.t==='lvl'&&m.closed===true&&m.choices===null),'server explicitly closes an already-consumed offer');
+  for(const msg of replies)deliver(msg);
+  assert.equal(g.offer,null,'closed authoritative offer clears client state');
+  assert.equal(ui.levelup.hidden,true,'closed authoritative offer cannot open an empty level-up panel');
+  assert.deepEqual(g.pvals,h.pval,'optimistic duplicate passive increment is corrected');
+  assert.deepEqual({rerolls:h.rerolls,bans:h.bans,xp:h.xp,passives:[...h.passives],pval:{...h.pval}},before,'rejection has no reward or charge effects');
+  assert.equal(g.skip(),false);assert.equal(g.reroll(),false);
+  for(const choices of [null,[],undefined]) {
+   ui.levelup.hidden=false;assert.equal(ui.showOffer({choices}),false,'UI defensively handles absent choices');
+   assert.equal(ui.levelup.hidden,true);
+  }
+  assert.equal(ui.showOffer(null),false);
+  r.grantOffer(h);const next=h.offer;const newOffset=messages.length;
+  r.handle(1,first); // Old epoch with a genuinely active new offer must reopen that choice.
+  for(const {pid,msg} of messages.slice(newOffset))if(pid===1)deliver(msg);
+  assert.equal(h.offer,next);assert.ok(g.offer?.choices.length>0);
+  assert.equal(ui.levelup.hidden,false,'stale action with an active replacement still displays its current cards');
+  assert.ok(node('levelup-cards').children.length>0);
+ } finally {
+  Math.random=previousRandom;
+  if(previousDocument)Object.defineProperty(globalThis,'document',previousDocument);else delete globalThis.document;
+ }
+ console.log('Closed offer: delayed real resync/click, actual handlers/UI, passive correction and no empty panel: OK');
+}

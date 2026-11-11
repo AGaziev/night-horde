@@ -225,6 +225,11 @@ net.on('s', (msg) => {
 
 net.on('lvl', (msg) => {
 	if (!game.running) return;
+	if (msg.closed || !Array.isArray(msg.choices) || !msg.choices.length) {
+		game.offer = null;
+		ui.hideOffer();
+		return;
+	}
 	game.offer = msg;
 	if (ui.showOffer(msg) && msg.choices?.some((c) => c.rar === 3)) sound.legendary();
 });

@@ -684,8 +684,9 @@ export class Room {
 			h.offerSignature = signature;
 		}
 		const swap = h.offer?.[0]?.kind === 'swap';
+		const closed = !h.offer?.length;
 		this.send(h.pid, {
-			t: 'lvl', choices: h.offer, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			t: 'lvl', choices: closed ? null : h.offer, closed: closed || undefined, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
 	}
