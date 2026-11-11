@@ -274,7 +274,7 @@ if (NEW_B.length) {
 		h.weapons.set('harpoon', { lvl: 1, t: 0 });
 		const e = foe(r, 200, 0, 1e7, 'brute');
 		h.movedT = -10;
-		for (let i = 0; i < 1.4 * TICK_HZ; i++) r.tick(dt);
+		for (let i = 0; i < 1.4 * TICK_HZ; i++) { r.time += dt; r.rebuildGrid(); r.castWeapon(h, 'harpoon', h.weapons.get('harpoon'), dt); r.updateProjectiles(dt); }
 		assert.ok(e.maxHp - e.hp >= DUOS.harpoon.levels[0].dmg * 2 * 0.99, `hit there and back: ${e.maxHp - e.hp}`);
 		console.log('harpoon: OK');
 	}

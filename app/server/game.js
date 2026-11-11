@@ -16,6 +16,7 @@ import {
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, attackLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
+	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -1020,7 +1021,8 @@ export class Room {
 		if (!h.weapons.has(a) || !h.weapons.has(b) || this.duoCount(h) >= MAX_DUOS) return false;
 		const next = new Map();
 		for (const [id, w] of h.weapons) {
-			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3 });
+			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3,
+				parts: [a, b].map((part) => ({ id: part, lvl: h.weapons.get(part).lvl, t: 0.3 })) });
 			else if (id !== b) next.set(id, w);
 		}
 		h.weapons = next;
@@ -2125,6 +2127,8 @@ export class Room {
 		if (e.dead || dmg <= 0) return 0;
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
+		src = this.weaponSource(h, src);
+		if (!src.raw && !src.react) dmg *= src.scale ?? 1;
 		const now = this.time;
 		const weaponDamage = dmg;
 		let crit = false;
@@ -2783,7 +2787,29 @@ export class Room {
 		return out;
 	}
 
+	weaponSource(h, src) {
+		const context = this.weaponContext;
+		if (!context || context.h !== h || src.weapon !== context.part || src.lineage || src.react || src.raw) return src;
+		return { ...src, weapon: context.weapon, component: context.part, scale: context.scale, lineage: true };
+	}
+
 	updateWeapon(h, id, w, dt) {
+		if (DUOS[id]) {
+			w.parts ??= DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl), t: 0.2 }));
+			const previous = this.weaponContext;
+			try {
+				for (const part of w.parts) {
+					part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
+					this.weaponContext = { h, weapon: id, part: part.id, scale: DUO_INHERIT_POWER };
+					if (part.id === 'ward') this.wardBash(h, part, attackLevel('ward', part.lvl, 0, h.mods), dt);
+					else if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && part.t <= dt && canRepeatCast(part.id)) repeatCast(this, h, part.id, part, dt);
+					else this.castWeapon(h, part.id, part, dt);
+				}
+				this.weaponContext = { h, weapon: id, part: id, scale: DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER };
+				this.castWeapon(h, id, w, dt);
+			} finally { this.weaponContext = previous; }
+			return;
+		}
 		if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && w.t <= dt && canRepeatCast(id)) {
 			repeatCast(this, h, id, w, dt);
 			return;
@@ -2796,7 +2822,7 @@ export class Room {
 		const oc = overclockId(id, w.oc);
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
-		const src = SRC[id];
+		const src = this.weaponSource(h, SRC[id]);
 		switch (id) {
 			case 'orbit':
 				this.orbitHits(h, L, dmgMul, areaMul, amount);
@@ -3522,6 +3548,22 @@ export class Room {
 		return true;
 	}
 
+	wardBash(h, w, L, dt, src = SRC.ward) {
+		// Independent offensive clock: it never grants extra charges or changes the knight's passive.
+		if (h.ward > 0 && L.burstDmg) {
+			w.bashT = (w.bashT ?? 0) - dt;
+			if (w.bashT <= 0) {
+				w.bashT = 3 * h.mods.cdMul;
+				const e = this.nearestEnemies(h.x, h.y, 1, 180 * h.mods.areaMul)[0];
+				if (e) {
+					this.hurtEnemy(e, L.burstDmg * 0.7 * h.mods.dmgMul, h, src);
+					if (!e.dead && !e.boss) this.knock(e, h.x, h.y, 20);
+					this.fx.push(['buildbeam', Math.round(h.x), Math.round(h.y), Math.round(e.x), Math.round(e.y)]);
+				}
+			}
+		}
+	}
+
 	// Ward / Bastion: charges refill one per cd; a full shield starts the run full.
 	wardTick(h, w, L, dt) {
 		h.wardMax = L.charges + h.mods.amount;
@@ -3531,19 +3573,7 @@ export class Room {
 			h.ward = h.wardMax;
 			w.t = L.cd * h.mods.cdMul;
 		}
-		// Independent offensive clock: it never grants extra charges or changes the knight's passive.
-		if (h.ward > 0 && L.burstDmg) {
-			w.bashT = (w.bashT ?? 0) - dt;
-			if (w.bashT <= 0) {
-				w.bashT = 3 * h.mods.cdMul;
-				const e = this.nearestEnemies(h.x, h.y, 1, 180 * h.mods.areaMul)[0];
-				if (e) {
-					this.hurtEnemy(e, L.burstDmg * 0.7 * h.mods.dmgMul, h, SRC.ward);
-					if (!e.dead && !e.boss) this.knock(e, h.x, h.y, 20);
-					this.fx.push(['buildbeam', Math.round(h.x), Math.round(h.y), Math.round(e.x), Math.round(e.y)]);
-				}
-			}
-		}
+		if (!DUOS[this.weaponContext?.weapon]) this.wardBash(h, w, L, dt, h.weapons.has('bastion') ? SRC.bastion : SRC.ward);
 		if (h.ward >= h.wardMax) {
 			w.t = L.cd * h.mods.cdMul;
 			return;
@@ -3824,7 +3854,7 @@ export class Room {
 
 	// A burning patch of a duo (zk 1); at most `max` of this `tag` per player, the oldest goes.
 	addPatch(h, x, y, r, life, dmg, tick, src, burn, tag, max, extra = null) {
-		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src, burn, tag, ...extra };
+		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src: this.weaponSource(h, src), burn, tag, ...extra };
 		this.puddles.push(z);
 		const zk = extra?.zk ?? (extra?.mark ? 3 : 1);
 		if (zk) this.fx.push(['zk', z.id, zk]);
@@ -4217,7 +4247,7 @@ export class Room {
 		}
 		const kind = o.kind ?? 0;
 		this.traps.push({
-			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src, shards: o.shards ?? false,
+			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src ? this.weaponSource(h, o.src) : o.src, shards: o.shards ?? false,
 			uses: o.uses, rootTargets: o.rootTargets ?? 1, blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM, frost: o.frost ?? null,
 		});
 		if (o.max) {
@@ -4461,7 +4491,7 @@ export class Room {
 	// opts: x, y (start), src, spike (knife becomes a spike on a miss), trail (ice trail), freezeBack (freeze on the way back).
 	addProjectile(h, kind, ang, speed, dmg, pierce, life, target, outT = 0, opts = {}) {
 		const p = {
-			id: this.nextId++, kind: KIND_INDEX[kind], src: opts.src ?? SRC[kind === 'knife' ? 'knives' : kind], owner: h,
+			id: this.nextId++, kind: KIND_INDEX[kind], src: this.weaponSource(h, opts.src ?? SRC[kind === 'knife' ? 'knives' : kind]), owner: h,
 			x: opts.x ?? h.x, y: opts.y ?? h.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, speed, dmg, pierce, life, target,
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
 			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
@@ -4969,7 +4999,8 @@ export class Room {
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
 			// v20: an overclocked weapon gets a 4th field with the variant (1 or 2).
-			[...h.weapons].map(([id, w]) => (id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
+			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
+				: id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),

@@ -780,6 +780,10 @@ export const orbitAngle = (gameTime, rps, index, count) => gameTime * rps * Math
 // attack. The duo takes the first weapon's slot, the second slot frees up. Levels I–III; at most MAX_DUOS per player.
 // Pairs are matched in one place on the server (Room.updateCombos).
 export const MAX_DUOS = 2;
+// Fusion retains both attacks, then adds the signature interaction. These are combat multipliers, not offer odds.
+export const DUO_INHERIT_POWER = 1.2;
+export const DUO_SIGNATURE_POWER = 0.35;
+export const duoPartLevel = (level) => Math.min(5, level + 2);
 export const DUO_MIN_LEVEL = 3;
 export const DUO_MAX_LEVEL = 3;
 export const DUO_DEFER_OFFERS = 2; // a declined duo card comes back after this many offers
@@ -1006,7 +1010,7 @@ export const DUOS = {
 	},
 	// v28 (связки v2, поставка Б).
 	frostsnare: {
-		name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
 		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
 		levels: [
 			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },
@@ -1280,7 +1284,11 @@ export function weaponLevel(id, lvl, oc = 0) {
 // Attack clocks which previously ignored haste (auras, beams, traps, burning paths and orbit contact).
 // Regular cast cooldowns already use cdMul at their call sites; durations and shield cooldowns stay unchanged here.
 export function attackLevel(id, lvl, oc = 0, mods = {}) {
-	const base = weaponLevel(id, lvl, oc);
+	let base = weaponLevel(id, lvl, oc);
+	if (DUOS[id]?.parts.includes('ward')) {
+		const shield = weaponLevel('ward', duoPartLevel(lvl));
+		base = { ...base, charges: Math.max(base.charges ?? 0, shield.charges), cd: Math.min(base.cd ?? Infinity, shield.cd) };
+	}
 	const speed = mods.cdMul ?? 1;
 	if (speed === 1) return base;
 	const out = { ...base };
