@@ -119,7 +119,7 @@ const SHIELD_COS = Math.cos((ENEMIES.shield.arc * Math.PI) / 180);
 const WEAPON_SHORT = { count: 3, frac: 0.4 }; // v29: see makeChoices
 const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
 const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
-const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
+const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: 'Случайный предмет: +1 уровень с легендарным бонусом', level: 0 };
 const fieldSource = (src) => (src?.weapon ?? 'other') + ':' + (src?.component ?? 'signature');
 function trimOwned(list, owner, max, match) {
 	let excess = list.filter(item => item.owner === owner && match(item)).length - max;
@@ -408,6 +408,7 @@ export class Room {
 			if (h) {
 				this.sendEmbers(h);
 				this.sendPassives(h);
+				if (h.lastReforge) this.send(pid, h.lastReforge);
 			}
 			if (h?.offer) this.sendOffer(h);
 		} else if (this.state === 'over' && this.overMsg) {
@@ -810,7 +811,7 @@ export class Room {
 			out[slot3] = { ...heal, desc: `+${HEAL_AMOUNT} здоровья (здоровья меньше ${Math.round(HEAL_OFFER_HP * 100)}%)` };
 		} else {
 			const rare = (boost ? CHEST_RARE_CHANCE : RARE_CHANCE) * (1 + h.mods.luck);
-			if (Math.random() < rare && [...h.weapons].some(([id, w]) => w.lvl < weaponMaxLevel(id))) out[slot3] = { ...FORGE_CARD };
+			if (Math.random() < rare && this.reforgePool(h).length) out[slot3] = { ...FORGE_CARD };
 		}
 		this.rollRarities(h, out, h.offerFloor);
 		return out;
@@ -842,6 +843,55 @@ export class Room {
 			c.val = passiveStep(c.id, rar);
 			c.desc = passiveDesc(c.id, c.val);
 		}
+	}
+
+	// One entry per owned item: slots and item kinds do not bias the random choice.
+	reforgePool(h) {
+		return [...[...h.weapons].filter(([id, w]) => w.lvl < weaponMaxLevel(id)).map(([id]) => ({ id, kind: 'weapon' })),
+			...[...h.passives].filter(([id, lvl]) => lvl < MAX_LEVEL && !PASSIVES[id].noRarity).map(([id]) => ({ id, kind: 'passive' }))];
+	}
+
+	legendaryReforge(h, source = 'forge') {
+		const pool = this.reforgePool(h);
+		const item = pool[Math.floor(Math.random() * pool.length)];
+		if (!item) {
+			this.send(h.pid, { t: 'reforge', source, result: null });
+			return null;
+		}
+		const { id, kind } = item;
+		const from = kind === 'weapon' ? h.weapons.get(id).lvl : h.passives.get(id);
+		const def = kind === 'weapon' ? weaponDef(id) : PASSIVES[id];
+		const result = { id, kind, name: def.name, from, to: from + 1, rar: 3 };
+		if (kind === 'weapon') {
+			h.weapons.get(id).lvl++;
+			h.rerolls++;
+			result.bonus = '+1 переброс';
+			this.updateCombos(h);
+		} else {
+			const val = passiveStep(id, 3);
+			h.pval[id] = (h.pval[id] ?? passiveValue(id, from)) + val;
+			h.passives.set(id, from + 1);
+			const before = h.maxHp;
+			this.recalcMods(h);
+			if (h.st === 0) h.hp += Math.max(0, h.maxHp - before);
+			result.val = val;
+			result.bonus = passiveDesc(id, val);
+			this.sendPassives(h);
+		}
+		h.lastReforge = { t: 'reforge', source, result };
+		this.send(h.pid, h.lastReforge);
+		this.runLog?.reforged(this, h, source, result);
+		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
+		if (source !== 'forge' && h.offer?.some(c => c.kind === kind && c.id === id)) {
+			if (result.to === (kind === 'weapon' ? weaponMaxLevel(id) : MAX_LEVEL)) h.offer = this.makeChoices(h, true);
+			else for (const c of h.offer) if (c.kind === kind && c.id === id) {
+				c.level = result.to + 1;
+				if (c.rar !== undefined) this.setRarity(h, c, c.rar);
+				else if (kind === 'weapon') c.desc = upgradeDesc(id, c.level);
+			}
+			this.sendOffer(h);
+		}
+		return result;
 	}
 
 	fitsBuild(h, card) {
@@ -1103,12 +1153,14 @@ export class Room {
 			if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + (h.maxHp - before) + (EMBERS[c.id].heal ?? 0));
 		} else if (c.kind === 'weapon') {
 			const w = h.weapons.get(c.id);
+			if (w?.lvl >= weaponMaxLevel(c.id)) { this.nextOffer(h); return; }
 			const add = c.add ?? 1;
 			if (w) w.lvl = Math.min(weaponMaxLevel(c.id), w.lvl + add);
 			else h.weapons.set(c.id, { lvl: Math.min(weaponMaxLevel(c.id), add), t: 0.2 });
 			if (c.rerolls) h.rerolls += c.rerolls;
 		} else if (c.kind === 'passive') {
 			const lvl = h.passives.get(c.id) ?? 0;
+			if (lvl >= MAX_LEVEL) { this.nextOffer(h); return; }
 			if (c.val !== undefined) h.pval[c.id] = (h.pval[c.id] ?? passiveValue(c.id, lvl)) + c.val;
 			h.passives.set(c.id, Math.min(MAX_LEVEL, lvl + 1));
 			const before = h.maxHp;
@@ -1116,8 +1168,7 @@ export class Room {
 			if (h.maxHp > before && h.st === 0) h.hp += h.maxHp - before;
 			this.sendPassives(h);
 		} else if (c.kind === 'rare') {
-			const list = shuffle([...h.weapons].filter(([id, w]) => w.lvl < weaponMaxLevel(id)));
-			for (const [, w] of list.slice(0, 2)) w.lvl++;
+			this.legendaryReforge(h);
 		} else if (c.kind === 'heal' && h.st === 0) {
 			h.hp = Math.min(h.maxHp, h.hp + HEAL_AMOUNT);
 		}

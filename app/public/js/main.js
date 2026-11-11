@@ -278,6 +278,13 @@ function showOver(msg) {
 	joinInvitedRoom(state.resumeRoom);
 }
 
+net.on('reforge', (msg) => {
+	if (!game.running) return;
+	const r = msg.result;
+	ui.toast(r ? `⚒ Легендарная перековка: ${r.name} ${r.from} → ${r.to} ур. · ${r.bonus}` : '⚒ Перековка: все подходящие предметы уже максимального уровня', 'info');
+	if (r) sound.legendary();
+});
+
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
 // v24: the first trigger of an affinity kind in this run.
 net.on('aff', (msg) => {

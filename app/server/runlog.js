@@ -60,7 +60,7 @@ export class RunLog {
 		this.specials = Object.fromEntries(SPECIAL_IDS.map((id) => [id, { spawned: 0, killed: 0, shots: 0, blocked: 0, first: null }]));
 		for (const h of room.heroes.values()) {
 			this.p.set(h.pid, {
-				pid: h.pid, name: h.name, hero: h.hero, picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
+				pid: h.pid, name: h.name, hero: h.hero, picks: [], reforges: [], duos: [], evos: [], taken: {}, downs: [], ups: [],
 				minHp: h.maxHp, minHpT: 0, rar: newRar(),
 				// v15: per-minute hp [end, min, max] and weapon dps, recent hits, down details, declined new weapons.
 				hpMin: [], minuteMin: h.hp, dps: [], lastDmgBy: {}, hits: [], deaths: [], declinedW: 0, declinedLonely: 0, drops: [],
@@ -153,6 +153,10 @@ export class RunLog {
 	picked(room, h) {
 		const p = this.p.get(h.pid);
 		if (p && p.slotsFullT === null && h.weapons.size >= MAX_WEAPONS && h.passives.size >= MAX_PASSIVES) p.slotsFullT = r1(room.time);
+	}
+
+	reforged(room, h, source, result) {
+		this.p.get(h.pid)?.reforges.push({ at: r1(room.time), source, ...result });
 	}
 
 	fused(room, h, kind, id) {
@@ -338,7 +342,7 @@ export class RunLog {
 	build(room, win) {
 		if (room.time - (this.nextSample - 60) >= 5) this.sample(room);
 		const players = [...room.heroes.values()].map((h) => {
-			const p = this.p.get(h.pid) ?? { picks: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar(), ovr: { seen: 0, took: [] }, bans: [], slotsFullT: null };
+			const p = this.p.get(h.pid) ?? { picks: [], reforges: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar(), ovr: { seen: 0, took: [] }, bans: [], slotsFullT: null };
 			// Share of embers among the cards taken in the last third of the run.
 			const late = p.picks.filter((e) => e[2] === 'pick' && e[0] >= room.runLength * (2 / 3));
 			const lateEmb = late.filter((e) => e[4] === 'ember').length;
@@ -360,7 +364,7 @@ export class RunLog {
 				},
 				ovr: { seen: p.ovr.seen, took: p.ovr.took }, bans: p.bans, slotsFullAt: p.slotsFullT,
 				late: { picks: late.length, embers: lateEmb, emberShare: late.length ? Math.round((lateEmb / late.length) * 100) : null },
-				picks: p.picks,
+				picks: p.picks, reforges: p.reforges ?? [],
 			};
 		});
 		let finale = null;

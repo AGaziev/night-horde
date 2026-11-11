@@ -509,7 +509,7 @@ console.log('over/again/leave: ok');
 		const low = r.makeChoices(h);
 		assert.equal(low[2].kind, 'heal', 'heal in slot 3 at low hp');
 		h.hp = h.maxHp;
-		// Rare card from a chest-boosted offer, applied: +1 to two weapons.
+		// Rare card from a chest-boosted offer, applied: +1 to one weapon, plus a reroll.
 		h.weapons = new Map([['whip', { lvl: 1, t: 0 }], ['bolt', { lvl: 2, t: 0 }], ['aura', { lvl: 5, t: 0 }]]);
 		let rare = null;
 		for (let k = 0; k < 400 && !rare; k++) {
@@ -519,7 +519,7 @@ console.log('over/again/leave: ok');
 		assert.ok(rare, 'rare card shows up');
 		h.offer = [rare];
 		r.handle(1, { t: 'pick', i: 0 });
-		assert.equal(h.weapons.get('whip').lvl + h.weapons.get('bolt').lvl, 5, 'rare: two weapons +1');
+		assert.equal(h.weapons.get('whip').lvl + h.weapons.get('bolt').lvl, 4, 'rare: one weapon +1');
 		assert.equal(h.weapons.get('aura').lvl, 5);
 		console.log('G4 weighted offers + rare: ok');
 	}
