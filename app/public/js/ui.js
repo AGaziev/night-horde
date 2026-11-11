@@ -751,7 +751,7 @@ export class UI {
 			const killed = op.posts.reduce((sum, post) => sum + post[3], 0);
 			this.set('hud-outposts', 'text', op.status === 'closed' ? '⚑ Аванпосты закрыты · награда упущена'
 				: op.status === 'won' ? `⚑ Аванпосты: ${op.cleared}/${op.total} · победа`
-				: `⚑ Аванпосты: ${op.cleared}/${op.total} · охрана ${killed}/${op.total * 20}`);
+				: `⚑ Аванпосты: ${op.cleared}/${op.total} · охрана ${killed}/${op.guards}`);
 		}
 		this.set('hud-trophy', 'hidden', !game.hasVictoryBanner());
 

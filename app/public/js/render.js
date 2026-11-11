@@ -495,9 +495,9 @@ export class Renderer {
 	drawOutposts(ctx, game, now) {
 		const op = game.view.b?.op;
 		if (!op) return;
-		for (const [id, x, y, killed, spawned, chest] of op.posts) {
+		for (const [id, x, y, killed, spawned, chest, total] of op.posts) {
 			if (x + 280 < this.vx0 || x - 280 > this.vx1 || y + 280 < this.vy0 || y - 280 > this.vy1) continue;
-			const closed = chest === 3, cleared = killed === 20;
+			const closed = chest === 3, cleared = killed === total;
 			ctx.save();
 			ctx.translate(x, y);
 			ctx.fillStyle = closed ? 'rgba(50,55,60,.25)' : cleared ? 'rgba(42,106,78,.2)' : 'rgba(119,48,36,.22)';
@@ -538,7 +538,7 @@ export class Renderer {
 			const name = `⚑ Аванпост ${id}`;
 			ctx.strokeText(name, 0, -170); ctx.fillStyle = closed ? '#9eabb4' : '#ffdb9b'; ctx.fillText(name, 0, -170);
 			ctx.font = '13px system-ui';
-			const status = closed ? (op.status === 'won' ? 'Сундук закрыт финалом' : 'Закрыт · награда упущена') : chest === 2 ? 'Сундук открыт' : chest === 1 ? 'Сундук: опыт и лечение' : `Повержено ${killed}/20 · сундук заперт`;
+			const status = closed ? (op.status === 'won' ? 'Сундук закрыт финалом' : 'Закрыт · награда упущена') : chest === 2 ? 'Сундук открыт' : chest === 1 ? 'Сундук: опыт и лечение' : `Повержено ${killed}/${total} · сундук заперт`;
 			ctx.strokeText(status, 0, 52); ctx.fillStyle = cleared ? '#a5d6a7' : '#eee0c9'; ctx.fillText(status, 0, 52);
 			ctx.restore();
 		}
@@ -563,7 +563,13 @@ export class Renderer {
 				continue;
 			}
 			const n = cnt[type];
-			if (n >= CAP) continue;
+			// Event packs and outpost garrisons have independent budgets; retain every visible enemy.
+			if (n >= this.ex[type].length) {
+				for (const buffers of [this.ex, this.ey, this.eh, this.eid, this.edx, this.est]) {
+					const old = buffers[type], grown = new old.constructor(Math.max(n + 1, old.length * 2));
+					grown.set(old); buffers[type] = grown;
+				}
+			}
 			this.ex[type][n] = p.x;
 			this.ey[type][n] = p.y;
 			this.eh[type][n] = e[i + 4];
@@ -3358,9 +3364,9 @@ export class Renderer {
 			at(it[i + 2], it[i + 3], p);
 			ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
 		}
-		for (const [id, x, y, killed, spawned, chest] of b.op?.posts ?? []) {
+		for (const [id, x, y, killed, spawned, chest, total] of b.op?.posts ?? []) {
 			at(x, y, p);
-			ctx.fillStyle = chest === 3 ? '#68757e' : killed === 20 ? '#a5d6a7' : '#ffab70';
+			ctx.fillStyle = chest === 3 ? '#68757e' : killed === total ? '#a5d6a7' : '#ffab70';
 			ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
 			ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
 			ctx.fillText(String(id), p.x, p.y - 6);
