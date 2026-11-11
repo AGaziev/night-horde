@@ -56,8 +56,8 @@ function toFight(r) {
 }
 const close = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps * Math.max(1, Math.abs(b));
 
-assert.equal(GAME_VERSION, 'v27');
-assert.equal(PROTO, 22);
+assert.equal(GAME_VERSION, 'v28');
+assert.equal(PROTO, 23);
 
 // --- 1. schedule ---
 {
@@ -169,6 +169,11 @@ assert.equal(PROTO, 22);
 	run(r, 6 + FINALE.prelude - 0.3);
 	const ram = r.spawnBoss('ram', alive(r), 3);
 	r.hostile.push({ id: r.nextId++, x: 0, y: 0, vx: 0, vy: 0, life: 9, dmg: 1, from: 'x' });
+	// v28: the heroes' weapons used to finish an enemy in the last 0.3 s before the absorption now and then (flaky since v23):
+	// disarm them and drop whatever still flies, burns or waits, so only the absorption itself is measured.
+	for (const h of r.heroes.values()) h.weapons.clear();
+	r.projectiles.length = r.puddles.length = r.traps.length = r.blasts.length = 0;
+	for (const e of r.enemies) e.burnT = 0;
 	const before = { enemies: r.enemies.filter((e) => !e.dead).length, kills: r.kills, gems: r.gems.length, bossKills: r.bossKills, lvl: alive(r).map((h) => h.level) };
 	assert.ok(before.enemies > 20);
 	run(r, 1, () => r.fin.lord);

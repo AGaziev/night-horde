@@ -225,3 +225,54 @@ const weaponHit = (room, h, e, id, dmg = 20) => room.hurtEnemy(e, dmg, h, { weap
 	assert.equal(behind.maxHp - behind.hp, 10, 'only one line strike in six seconds');
 }
 console.log('Offensive passives: all six, solo and ally triggers, forge echo and cooldowns');
+
+// v27 review: a downed or disconnected hero wakes no perk; the bell picks the most wounded ally in range and skips
+// downed and disconnected ones; the knight's shield does not block for a downed or disconnected knight.
+{
+	const { room, heroes: [h] } = encounter(['spearmaiden']);
+	const boss = foe(room, 110, 0, 'boss');
+	const behind = foe(room, 190, 0);
+	room.time = 8;
+	const ready = h.perk.readyAt;
+	h.st = 1;
+	weaponHit(room, h, boss, 'spear');
+	assert.equal(behind.hp, behind.maxHp, 'a downed hero: no line strike');
+	assert.equal(h.perk.readyAt, ready, 'a downed hero spends no cooldown');
+	h.st = 0;
+	h.offline = true;
+	weaponHit(room, h, boss, 'spear');
+	assert.equal(behind.hp, behind.maxHp, 'a disconnected hero: no line strike');
+	h.offline = false;
+	weaponHit(room, h, boss, 'spear');
+	assert.ok(behind.hp < behind.maxHp, 'back on his feet and online: the strike works');
+}
+{
+	const { room, heroes: [herald, near, wounded, down, away] } = encounter(['herald', 'knight', 'witch', 'alchemist', 'ranger']);
+	near.hp = near.maxHp - 10; // the nearest, hardly hurt
+	wounded.x = 100;
+	wounded.hp = Math.round(wounded.maxHp * 0.3); // farther, but the most wounded
+	down.hp = 0;
+	down.st = 1; // downed: never healed
+	away.hp = 1;
+	away.offline = true; // disconnected: never healed
+	const e = foe(room, 30, 0);
+	room.time = 30;
+	const hp = [near.hp, wounded.hp, down.hp, away.hp];
+	room.hurtEnemy(e, 20, herald, { weapon: 'aura', tags: WEAPONS.aura.tags });
+	assert.deepEqual([near.hp, wounded.hp, down.hp, away.hp], [hp[0], hp[1] + 12, 0, 1], 'the bell heals the most wounded ally in range');
+	room.time = 50;
+	herald.st = 1;
+	wounded.hp = 5;
+	room.hurtEnemy(e, 20, herald, { weapon: 'aura', tags: WEAPONS.aura.tags });
+	assert.equal(wounded.hp, 5, 'a downed herald rings no bell');
+}
+{
+	const { room, heroes: [k] } = encounter(['knight']);
+	room.time = 30;
+	const hp = k.hp;
+	k.offline = true;
+	k.iframes = 0;
+	room.hurtPlayer(k, 10, 'test');
+	assert.ok(k.hp < hp, 'a disconnected knight is not shielded');
+}
+console.log('Perks of downed and disconnected heroes; the bell picks the most wounded ally');

@@ -58,6 +58,7 @@ const crowd = (r, n = 30) => {
 
 // --- content: 4 duos per weapon at most, ids unique, every new duo has 3 levels; roles and the affinity table ---
 const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', 'firescythe'];
+const NEW_B = ['frostsnare', 'abatis', 'harpoon', 'rockets', 'stingers', 'whirlwind'].filter((id) => DUOS[id]);
 {
 	const per = {};
 	for (const D of Object.values(DUOS)) for (const p of D.parts) per[p] = (per[p] ?? 0) + 1;
@@ -66,6 +67,16 @@ const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', '
 	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 1 && per[id] <= 4, `${id}: ${per[id]} duos`);
 	for (const id of V26) assert.equal(per[id] ?? 0, 0, `${id}: no duos yet`);
 	for (const id of ['lantern', 'trail', 'ward']) assert.ok(per[id] >= 4, `${id} gets its new duos (${per[id]})`);
+	if (DUOS.whirlwind) {
+		// Delivery B: 30 duos, exactly 4 per weapon; affinity on the other 75 pairs as in pm/DUOS-v2-design.md.
+		assert.equal(Object.keys(DUOS).length, 30);
+		for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.equal(per[id], 4, id);
+		// The design's 75 affinities are among the 15 weapons of v24; the v26 weapons add their own pairs on top.
+		const n = {};
+		const ids = Object.keys(WEAPONS).filter((id) => !V26.includes(id));
+		for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) { const a = affinityOf(ids[i], ids[j]); if (a) n[a] = (n[a] ?? 0) + 1; }
+		assert.deepEqual(n, { recoil: 20, drag: 20, aim: 18, soak: 6, crossfire: 6, vise: 5 });
+	}
 	for (const id of NEW_A) {
 		assert.ok(DUOS[id], id);
 		assert.equal(DUOS[id].levels.length, 3, id);
@@ -87,6 +98,7 @@ const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', '
 	}
 	assert.equal(affinityOf('whip', 'whip'), null);
 	assert.equal(affinityOf('whip', 'lightning'), null, 'a duo pair has no affinity');
+	if (DUOS.whirlwind) for (const [a, b] of [['frost', 'traps'], ['whip', 'traps'], ['sickle', 'spear'], ['bolt', 'bomb'], ['knives', 'flask'], ['orbit', 'aura']]) assert.equal(affinityOf(a, b), null, `${a}+${b} is a duo now`);
 	assert.equal(affinityOf('whip', 'frost'), 'vise');
 	assert.equal(affinityOf('bolt', 'knives'), 'crossfire');
 	assert.equal(affinityOf('flask', 'traps'), 'soak');
@@ -97,7 +109,7 @@ const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', '
 }
 
 // --- every new duo fights alone at every level ---
-for (const id of NEW_A) {
+for (const id of [...NEW_A, ...NEW_B]) {
 	for (let lvl = 1; lvl <= 3; lvl++) {
 		const { r, h } = room();
 		h.weapons.set(id, { lvl, t: 0.1 });
@@ -222,6 +234,87 @@ console.log('every new duo deals damage: OK');
 	assert.ok(r.puddles.some((z) => z.tag === 'scythe' && z.burn > 0), 'burning strip');
 	assert.ok(e.burnT > r.time, 'the hit ignites');
 	console.log('firescythe: OK');
+}
+
+if (NEW_B.length) {
+	{
+		// Ледяные силки: a trap that goes off freezes and slows everyone around it.
+		const { r, h } = room();
+		h.weapons.set('frostsnare', { lvl: 1, t: 0 });
+		h.movedT = -10;
+		run(r, h, 0.2);
+		h.movedT = -10;
+		const t = r.traps.find((x) => x.frost);
+		assert.ok(t, 'a frost trap is laid');
+		r.time = t.armT + 0.01;
+		const near = [foe(r, t.x, t.y), foe(r, t.x + 40, t.y)];
+		r.rebuildGrid();
+		r.updateTraps(dt);
+		assert.ok(near[0].rootT > r.time, 'the victim is rooted');
+		assert.ok(near[1].frozenT > r.time && near[1].slowT > r.time, 'the neighbour is frozen and slowed');
+		assert.ok(r.fx.some((f) => f[0] === 'frost' && f.length >= 5), 'a wave at the trap');
+		console.log('frostsnare: OK');
+	}
+	{
+		// Засека: rooted enemies take ×1.5 from the swing; each swing lays a trap at the end of the arc.
+		const { r, h } = room();
+		h.weapons.set('abatis', { lvl: 1, t: 0 });
+		h.movedT = -10;
+		const a = foe(r, 60, 0), b = foe(r, -60, 0);
+		b.rootT = r.time + 10;
+		r.rebuildGrid();
+		r.abatisSwing(h, DUOS.abatis.levels[0]);
+		assert.ok(Math.abs((b.maxHp - b.hp) / (a.maxHp - a.hp) - DUOS.abatis.levels[0].rootMul) < 1e-6, 'rooted ×1.5');
+		assert.equal(r.traps.filter((t) => t.src.weapon === 'abatis').length, 1, 'one trap per swing at I');
+		console.log('abatis: OK');
+	}
+	{
+		// Гарпун: out and back, the target is hit twice by one throw.
+		const { r, h } = room();
+		h.weapons.set('harpoon', { lvl: 1, t: 0 });
+		const e = foe(r, 200, 0, 1e7, 'brute');
+		h.movedT = -10;
+		for (let i = 0; i < 1.4 * TICK_HZ; i++) r.tick(dt);
+		assert.ok(e.maxHp - e.hp >= DUOS.harpoon.levels[0].dmg * 2 * 0.99, `hit there and back: ${e.maxHp - e.hp}`);
+		console.log('harpoon: OK');
+	}
+	{
+		// Ракетница: the rocket bursts on the first hit and sets the group on fire.
+		const { r, h } = room();
+		h.weapons.set('rockets', { lvl: 1, t: 0 });
+		const es = [foe(r, 200, 0), foe(r, 215, 10), foe(r, 210, -15)];
+		h.movedT = -10;
+		for (let i = 0; i < 1.2 * TICK_HZ; i++) r.tick(dt);
+		assert.ok(es.filter((e) => e.hp < e.maxHp).length >= 2, 'the burst hits the group');
+		assert.ok(es.some((e) => e.burnT > r.time), 'burning');
+		console.log('rockets: OK');
+	}
+	{
+		// Ядовитые жала: knives leave wet poison drops, at most `max` per player.
+		const { r, h } = room();
+		h.weapons.set('stingers', { lvl: 3, t: 0 });
+		const e = foe(r, 120, 0);
+		run(r, h, 3);
+		const drops = r.puddles.filter((z) => z.tag === 'sting');
+		assert.ok(drops.length > 0 && drops.length <= DUOS.stingers.levels[2].max, `drops: ${drops.length}`);
+		assert.ok(drops.every((z) => z.wet));
+		assert.ok(e.wetT > r.time - 1, 'the target got wet');
+		console.log('stingers: OK');
+	}
+	{
+		// Смерч: pulls a plain enemy toward the ring, not a boss.
+		const { r, h } = room();
+		h.weapons.set('whirlwind', { lvl: 1, t: 0 });
+		h.movedT = -10;
+		const e = foe(r, 105, 0), boss = foe(r, -105, 0, 1e7, 'brute');
+		boss.boss = true;
+		for (let i = 0; i < TICK_HZ / 2; i++) r.tick(dt);
+		assert.ok(Math.hypot(e.x, e.y) < 104.5, `pulled: ${Math.hypot(e.x, e.y)}`);
+		assert.ok(Math.hypot(e.x, e.y) >= DUOS.whirlwind.levels[0].ring - 0.01, 'not inside the ring');
+		assert.equal(Math.hypot(boss.x, boss.y), 105, 'a boss is not pulled');
+		assert.ok((h.dmgBy.whirlwind ?? 0) > 0);
+		console.log('whirlwind: OK');
+	}
 }
 
 // --- affinity ---

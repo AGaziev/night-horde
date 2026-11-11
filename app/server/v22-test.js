@@ -52,8 +52,8 @@ function makeStore(backend, t0 = Date.UTC(2026, 10, 10, 12)) {
 	return { st, clock };
 }
 
-assert.equal(GAME_VERSION, 'v27');
-assert.equal(PROTO, 22);
+assert.equal(GAME_VERSION, 'v28');
+assert.equal(PROTO, 23);
 
 // --- ids: only plain numbers are portal users ---
 assert.equal(bitrixUid('42'), '42');

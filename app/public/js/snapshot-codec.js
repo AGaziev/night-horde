@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 22; // v27: merge of v24 (aff, zk 3) and v25–v26 (perks, forge, buildring)
+export const PROTO = 23; // v28: fx frost may carry a point (x, y); v27: merge of v24 (aff, zk 3) and v25–v26 (perks, forge, buildring)
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.
@@ -22,6 +22,7 @@ export const FX_NAMES = [
 	'orb', 'tfan', 'crescent', 'bell', 'frost', 'ward', 'warn', 'bline', 'brk', 'inv', 'elite', 'boss', 'slash', 'down',
 	'up', 'lvl', 'chest', 'slowz', 'duo', 'evo', 'cone', 'item', 'open', 'blink', 'react', 'banner',
 	'eorb', 'evt', 'evte', 'altar', 'apulse', 'ovr', 'finw', 'fin', 'absorb', 'lorddie', 'ray',
+	'buildring', 'buildbeam', // v27 (v25–v26 perks and forge)
 ];
 
 // 64 symbols; '.', '*', '!', '~', '^' stay free as markers.

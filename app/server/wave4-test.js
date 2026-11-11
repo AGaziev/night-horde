@@ -56,10 +56,10 @@ const fxOf = (r, name) => r.fx.filter((f) => f[0] === name);
 	assert.equal(specialCap(SPECIALS.sniper, 0.39, 1), 0);
 	assert.ok(specialCap(SPECIALS.sniper, 0.4, 1) >= 1 && specialCap(SPECIALS.sniper, 0.8, 4) > specialCap(SPECIALS.sniper, 0.4, 1));
 	assert.equal(SHIELD_DIRS << SHIELD_SHIFT, 8192);
-	// v18: pairs get softer enemy hits; v23: three players too; solo and 4+ stay at ×1.
+	// v18: pairs get softer enemy hits; v23: three players too; v28: solo too (×0.75); 4+ stay at ×1.
 	for (const m of ['lunch', 'night']) {
-		assert.ok(modeDmgMul(m, 2) < 1 && modeDmgMul(m, 3) < 1, `${m}: pairs and three players`);
-		assert.ok(modeDmgMul(m, 1) === 1 && modeDmgMul(m, 4) === 1 && modeDmgMul(m, 8) === 1, `${m}: solo and 4+ untouched`);
+		assert.ok(modeDmgMul(m, 1) < 1 && modeDmgMul(m, 2) < 1 && modeDmgMul(m, 3) < 1, `${m}: solo, pairs and three players`);
+		assert.ok(modeDmgMul(m, 4) === 1 && modeDmgMul(m, 8) === 1, `${m}: 4+ untouched`);
 	}
 	console.log('content: OK');
 }
@@ -235,7 +235,7 @@ console.log('specials schedule: OK');
 {
 	const r = room(['knight', 'witch'], 'lunch'), r1 = room(['knight'], 'lunch');
 	const e = foe(r, 'skel', 300, 0), e1 = foe(r1, 'skel', 300, 0);
-	assert.ok(Math.abs(e.dmg / e1.dmg - modeDmgMul('lunch', 2)) < 1e-9, 'lunch pair enemy damage softened');
+	assert.ok(Math.abs(e.dmg / e1.dmg - modeDmgMul('lunch', 2) / modeDmgMul('lunch', 1)) < 1e-9, 'lunch pair enemy damage softened (v28: relative to solo, which is softened too)');
 	console.log('lunch pair damage: OK');
 }
 

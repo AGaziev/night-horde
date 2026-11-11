@@ -19,12 +19,14 @@ export function blockHeroHit(room, h) {
 function healOnHit(room, h) {
 	if (room.time < h.perk.readyAt) return;
 	const { cooldown, self, ally, range } = HERO_PERKS.herald;
-	let target = null, nearest = range ** 2;
+	// v27 review: the most wounded ally in range (largest missing share of hp), not the nearest one.
+	let target = null, worst = 0;
 	for (const o of room.heroes.values()) {
 		if (o === h || o.st !== 0 || o.offline || o.hp >= o.maxHp || room.time < o.perk.receivedBellAt + cooldown) continue;
-		const d2 = (o.x - h.x) ** 2 + (o.y - h.y) ** 2;
-		if (d2 < nearest) {
-			nearest = d2;
+		if ((o.x - h.x) ** 2 + (o.y - h.y) ** 2 > range ** 2) continue;
+		const missing = 1 - o.hp / o.maxHp;
+		if (missing > worst) {
+			worst = missing;
 			target = o;
 		}
 	}
