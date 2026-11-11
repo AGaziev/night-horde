@@ -344,6 +344,7 @@ export class RunLog {
 			return {
 				pid: t.pid, name: t.name, hero: t.hero, heroName: t.heroName, level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
 				weapons: t.dmgBy.slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
+				supportDamage: Math.round(h?.supportDamage ?? 0),
 				taken: t.takenTotal, takenTop, revives: t.ach?.revives ?? 0,
 				// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
 				downs: t.downs.filter((d) => d[1] !== 'offline').length, downsAt: t.downs.filter((d) => d[1] !== 'offline').map((d) => Math.round(d[0])),

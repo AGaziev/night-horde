@@ -244,7 +244,7 @@ export const WEAPONS = {
 		],
 	},
 	aura: {
-		name: 'Ореол', icon: '◌', desc: 'Постоянный урон врагам рядом', tags: ['aoe'], role: 'ring',
+		name: 'Ореол', icon: '◌', desc: 'Жжёт врагов рядом. За 2 с непрерывного контакта урон по цели вырастает до ×1,5', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ dmg: 4, radius: 70, tick: 0.5 },
 			{ dmg: 5, radius: 80, tick: 0.5 },
@@ -294,44 +294,44 @@ export const WEAPONS = {
 		],
 	},
 	frost: {
-		name: 'Иней', icon: '❄', desc: 'Волна холода ранит и замедляет врагов вокруг', tags: ['cold', 'aoe'], role: 'ring',
+		name: 'Иней', icon: '❄', desc: 'Ледяная волна летит сквозь толпу и ненадолго замораживает с первого уровня', tags: ['cold', 'aoe'], role: 'ring',
 		levels: [
-			{ dmg: 8, cd: 3.0, radius: 110, slow: 0.30, dur: 1.5, freeze: 0 },
-			{ dmg: 10, cd: 2.8, radius: 125, slow: 0.35, dur: 1.6, freeze: 0 },
-			{ dmg: 13, cd: 2.6, radius: 140, slow: 0.40, dur: 1.8, freeze: 0 },
-			{ dmg: 16, cd: 2.3, radius: 155, slow: 0.45, dur: 2.0, freeze: 0 },
-			{ dmg: 20, cd: 2.0, radius: 170, slow: 0.50, dur: 2.2, freeze: 0.6 },
+			{ dmg: 12, cd: 2.8, radius: 230, width: 55, slow: 0.30, dur: 1.5, freeze: 0.25 },
+			{ dmg: 15, cd: 2.6, radius: 255, width: 60, slow: 0.35, dur: 1.7, freeze: 0.35 },
+			{ dmg: 19, cd: 2.4, radius: 280, width: 68, slow: 0.40, dur: 1.9, freeze: 0.45 },
+			{ dmg: 24, cd: 2.1, radius: 310, width: 76, slow: 0.45, dur: 2.1, freeze: 0.55 },
+			{ dmg: 30, cd: 1.8, radius: 340, width: 85, slow: 0.50, dur: 2.3, freeze: 0.65 },
 		],
 	},
 	traps: {
-		name: 'Капканы', icon: '⊓', desc: 'Капканы на пути отступления держат врагов', tags: ['phys', 'trap'], role: 'trace',
+		name: 'Капканы', icon: '⊓', desc: 'Ставит капкан навстречу врагам: задевает группу, удерживает и срабатывает дважды', tags: ['phys', 'trap'], role: 'trace',
 		levels: [
-			{ dmg: 20, cd: 2.0, max: 4, root: 1.0, radius: 26, splash: 0 },
-			{ dmg: 26, cd: 1.8, max: 5, root: 1.2, radius: 28, splash: 0 },
-			{ dmg: 40, cd: 1.6, max: 6, root: 1.4, radius: 30, splash: 40 },
-			{ dmg: 40, cd: 1.4, max: 7, root: 1.6, radius: 32, splash: 50 },
-			{ dmg: 50, cd: 1.2, max: 8, root: 2.0, radius: 34, splash: 60 },
+			{ dmg: 24, cd: 2, max: 4, root: 1, radius: 30, splash: 46 },
+			{ dmg: 30, cd: 1.8, max: 5, root: 1.2, radius: 32, splash: 54 },
+			{ dmg: 40, cd: 1.6, max: 6, root: 1.4, radius: 34, splash: 62 },
+			{ dmg: 50, cd: 1.4, max: 7, root: 1.6, radius: 36, splash: 72 },
+			{ dmg: 64, cd: 1.2, max: 8, root: 1.8, radius: 38, splash: 82 },
 		],
 	},
 	// Wave 3 weapons that need no wave-2 states (mark and burn already exist in hurtEnemy).
 	lantern: {
-		name: 'Фонарь', icon: '🏮', desc: 'Свет помечает врагов: они получают больше урона от всех', tags: ['aoe'], role: 'trace',
+		name: 'Фонарь', icon: '🏮', desc: 'Выделяет сильнейшего врага: метка на 3 с усиливает весь урон по нему на 25–40%', tags: ['aoe'], role: 'trace',
 		levels: [
-			{ dmg: 3, tick: 0.5, range: 200, angle: 50, mark: 0.15 },
-			{ dmg: 4, tick: 0.5, range: 220, angle: 55, mark: 0.18 },
-			{ dmg: 5, tick: 0.45, range: 240, angle: 60, mark: 0.21 },
-			{ dmg: 6, tick: 0.45, range: 260, angle: 65, mark: 0.25 },
-			{ dmg: 8, tick: 0.4, range: 300, angle: 75, mark: 0.30 },
+			{ dmg: 6, tick: 0.5, range: 200, angle: 50, mark: 0.25 },
+			{ dmg: 7, tick: 0.5, range: 220, angle: 55, mark: 0.28 },
+			{ dmg: 9, tick: 0.45, range: 240, angle: 60, mark: 0.32 },
+			{ dmg: 11, tick: 0.45, range: 260, angle: 65, mark: 0.36 },
+			{ dmg: 14, tick: 0.4, range: 300, angle: 75, mark: 0.40 },
 		],
 	},
 	trail: {
-		name: 'Пламенный след', icon: '🔥', desc: 'Огонь на пройденном пути поджигает врагов', tags: ['fire', 'aoe'], role: 'trace',
+		name: 'Пламенный след', icon: '🔥', desc: 'Широкая огненная дорожка обжигает при входе и продолжает жечь после выхода', tags: ['fire', 'aoe'], role: 'trace',
 		levels: [
-			{ dmg: 3, every: 0.25, radius: 22, dur: 2.0, tick: 0.3, burn: 2 },
-			{ dmg: 4, every: 0.25, radius: 24, dur: 2.2, tick: 0.3, burn: 3 },
-			{ dmg: 5, every: 0.22, radius: 26, dur: 2.5, tick: 0.3, burn: 3 },
-			{ dmg: 6, every: 0.2, radius: 28, dur: 2.8, tick: 0.25, burn: 4 },
-			{ dmg: 8, every: 0.18, radius: 32, dur: 3.0, tick: 0.25, burn: 5 },
+			{ dmg: 4, every: 0.25, radius: 34, dur: 3, tick: 0.3, burn: 4 },
+			{ dmg: 5, every: 0.25, radius: 37, dur: 3.2, tick: 0.3, burn: 6 },
+			{ dmg: 6, every: 0.22, radius: 40, dur: 3.5, tick: 0.3, burn: 8 },
+			{ dmg: 8, every: 0.2, radius: 44, dur: 3.8, tick: 0.25, burn: 10 },
+			{ dmg: 10, every: 0.18, radius: 48, dur: 4, tick: 0.25, burn: 12 },
 		],
 	},
 	spear: {
@@ -345,7 +345,7 @@ export const WEAPONS = {
 		],
 	},
 	ward: {
-		name: 'Оберег', icon: '⛉', desc: 'Оружие: бьёт и блокирует удары — щит гасит удар врага и взрывается, когда ломается', tags: ['aoe'], role: 'ring',
+		name: 'Оберег', icon: '⛉', desc: 'Оружие: блокирует удары, отвечает вспышкой на каждый блок и бьёт щитом раз в 3 с, пока есть заряд', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ charges: 1, cd: 12, burstDmg: 15, burstR: 90, kb: 60 },
 			{ charges: 1, cd: 10, burstDmg: 20, burstR: 100, kb: 70 },
@@ -1259,7 +1259,7 @@ export const OVERCLOCKS = {
 		{ id: 'collapse', name: 'Схлопывание', desc: 'Больше урона в меньшей зоне', mul: { radius: 0.8, dmg: 1.8 } },
 	],
 	ward: [
-		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато вспышка на каждом поглощённом ударе', add: { charges: -1 } },
+		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато ответная вспышка вдвое сильнее', add: { charges: -1 }, mul: { burstDmg: 2 } },
 		{ id: 'quick', name: 'Быстрый щит', desc: 'Один заряд, но восстанавливается на треть быстрее; вспышка шире и слабее', set: { charges: 1 }, mul: { cd: 0.7, burstR: 1.3, burstDmg: 0.5 } },
 	],
 };

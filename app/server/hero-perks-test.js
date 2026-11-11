@@ -117,7 +117,9 @@ const weaponHit = (room, h, e, id, dmg = 20) => room.hurtEnemy(e, dmg, h, { weap
 	room.updateWeapon(h, 'frost', w, dt);
 	assert.equal(room.projectiles.length, 6, 'both waves inherit returning sickles');
 	assert.ok(Math.abs(room.projectiles[3].dmg / room.projectiles[0].dmg - 0.6) < 1e-10);
-	assert.ok(Math.abs(e.maxHp - e.hp - 13 * 1.6) < 1e-8, 'the wave and its 60% repeat both hit the boss');
+	assert.equal(e.hp, e.maxHp, 'cold waves travel before hitting');
+	room.updateColdWaves(0.2);
+	assert.ok(Math.abs(e.maxHp - e.hp - weaponLevel('frost', 3).dmg * 1.6) < 1e-8, 'the wave and its 60% repeat both hit the boss');
 	assert.equal(w.t, weaponLevel('frost', 3).cd, 'repeat does not reset the real weapon');
 	room.time += 1;
 	w.t = 0;

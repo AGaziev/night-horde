@@ -166,6 +166,7 @@ export class Renderer {
 			this.drawOrbs(ctx, game, now);
 			this.drawThunder(ctx, game, now);
 			this.drawCones(ctx, game);
+			this.drawColdWaves(ctx, game);
 			this.drawCrescents(ctx, game);
 			this.drawLobs(ctx, game, now);
 			this.drawHostile(ctx, game, now);
@@ -2400,6 +2401,20 @@ export class Renderer {
 	}
 
 	// Lantern: a warm cone of light toward the densest group.
+	drawColdWaves(ctx, game) {
+		for (const w of game.coldWaves) {
+			const d = w.t * w.speed;
+			ctx.save();
+			ctx.translate(w.x + Math.cos(w.angle) * d, w.y + Math.sin(w.angle) * d); ctx.rotate(w.angle);
+			ctx.globalAlpha = 0.85 * (1 - w.t / w.life * 0.6);
+			ctx.strokeStyle = '#b3e5fc'; ctx.lineWidth = 5;
+			ctx.beginPath(); ctx.moveTo(-16, -w.width); ctx.quadraticCurveTo(24, 0, -16, w.width); ctx.stroke();
+			ctx.strokeStyle = '#64b5f6'; ctx.lineWidth = 2;
+			for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(-26, i * w.width / 3); ctx.lineTo(-3, i * w.width / 3); ctx.stroke(); }
+			ctx.restore();
+		}
+	}
+
 	drawCones(ctx, game) {
 		for (const c of game.cones) {
 			const p = game.playerPos(c.pid, this.tmp);

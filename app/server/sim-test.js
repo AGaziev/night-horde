@@ -68,9 +68,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'coldwave'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5, coldwave: 7,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -651,7 +651,7 @@ console.log('over/again/leave: ok');
 		only(h, 'frost', 5);
 		const e = put(r, 'ghoul', 60, 0);
 		e.speed = 60;
-		r.tick(dtt);
+		for (let i = 0; i < 5; i++) r.tick(dtt);
 		assert.ok(e.hp < 1000 && e.slowT > r.time && e.frozenT > r.time, 'frost hits, slows, freezes');
 		assert.equal(r.enemyState(e) & (ST.chill | ST.frozen), ST.chill | ST.frozen);
 		e.x = 20; // touching the hero while frozen
@@ -679,7 +679,7 @@ console.log('over/again/leave: ok');
 		r.time += 0.5;
 		r.fx = [];
 		r.tick(dtt);
-		assert.equal(r.traps.length, 0, 'trap used');
+		assert.equal(r.traps.length, 1, 'trap keeps its second activation');
 		assert.ok(e.hp < 1000 && e.rootT > r.time, 'damage + root');
 		assert.ok(r.enemyState(e) & ST.root);
 		assert.ok(r.snapshot().fx.some((f) => f[0] === 'snap'));
@@ -1829,8 +1829,8 @@ console.log('over/again/leave: ok');
 	}
 	assert.equal(passiveDesc('might', 0.17), '+17% урона');
 	assert.equal(passiveDesc('haste', -0.09), '−9% перезарядки');
-	assert.equal(passiveDesc('regen', 0.4), '+0,4 здоровья в секунду');
-	assert.equal(passiveDesc('vigor', 23), '+23 к макс. здоровью');
+	assert.equal(passiveDesc('regen', 0.4), '+0,4 здоровья в секунду; +2,5% урона оружия за уровень');
+	assert.equal(passiveDesc('vigor', 23), '+23 к макс. здоровью; +2,5% урона оружия за уровень');
 	assert.ok(PASSIVES.clover && PASSIVES.clover.stat === 'fortune' && PASSIVES.luck.name === 'Подкова');
 
 	const sent = [];
