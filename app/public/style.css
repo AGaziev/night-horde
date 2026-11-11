@@ -812,6 +812,19 @@ input[type="text"]:focus { border-color: var(--accent); }
 }
 
 #menu-feedback { margin-top: 16px; }
+.combination-dialog { width: min(1100px, calc(100vw - 24px)); max-width: 1100px; }
+.matrix-scroll { overflow: auto; max-height: 55vh; margin: 12px 0; }
+.matrix-scroll table { border-collapse: separate; border-spacing: 2px; font-size: 12px; }
+.matrix-scroll th { font-weight: 500; text-align: left; white-space: nowrap; }
+.matrix-scroll th[scope="row"] { position: sticky; left: 0; background: var(--bg); padding: 0 8px 0 0; z-index: 1; }
+.matrix-column { display: block; writing-mode: vertical-rl; transform: rotate(180deg); padding: 8px 0; }
+.matrix-cell { min-width: 36px; min-height: 36px; border: 1px solid var(--panel-border); border-radius: 5px; background: var(--bg); color: var(--muted); cursor: pointer; font: inherit; }
+.matrix-cell.matrix-duo { background: #203740; color: #b3e5fc; }
+.matrix-cell.matrix-new { background: #403321; color: #ffe082; }
+.matrix-cell[aria-pressed="true"] { outline: 2px solid var(--text); outline-offset: -2px; }
+.matrix-rules { min-height: 130px; }
+.matrix-rules p { margin: 4px 0; }
+@media (pointer: coarse) { .matrix-cell { min-width: 44px; min-height: 44px; } }
 .over-feedback {
 	margin-top: 16px;
 	padding: 12px;
@@ -834,3 +847,5 @@ input[type="text"]:focus { border-color: var(--accent); }
 	color: var(--text);
 	font: inherit;
 }
+
+.matrix-scroll thead th { position: sticky; top: 0; background: var(--bg); z-index: 2; }

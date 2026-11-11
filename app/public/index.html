@@ -24,6 +24,7 @@
 			<div class="menu-actions">
 				<button id="menu-create" class="btn btn-primary">Создать комнату</button>
 				<button class="btn btn-ghost" data-open-run-history>История забегов</button>
+				<button class="btn btn-ghost" data-open-combinations>Комбинации оружия</button>
 				<div class="join-row">
 					<input id="menu-code" type="text" maxlength="8" placeholder="Код комнаты" autocomplete="off" spellcheck="false">
 					<button id="menu-join" class="btn">Войти</button>
@@ -70,6 +71,7 @@
 			<p id="lobby-hint" class="muted small center"></p>
 			<details id="duo-book" class="duo-book">
 				<summary><span>Книга связок</span> <span id="duo-book-count" class="muted"></span></summary>
+				<button class="btn btn-ghost btn-small" data-open-combinations>Открыть матрицу комбинаций</button>
 				<p class="muted small">Связка — слияние двух оружий 3-го уровня в новое. Открытые вами показаны с именем.</p>
 				<div id="duo-book-grid" class="duo-book-grid"></div>
 				<h3>Сродство</h3>
@@ -78,6 +80,15 @@
 			</details>
 		</div>
 	</section>
+
+	<dialog id="combination-matrix" class="panel game-dialog combination-dialog" aria-labelledby="combination-title">
+		<header class="game-dialog-head"><h2 id="combination-title">Комбинации оружия</h2><form method="dialog"><button class="btn btn-ghost btn-small" autofocus>Закрыть</button></form></header>
+		<p data-matrix-count class="muted small"></p>
+		<h3 data-matrix-summary></h3>
+		<div data-matrix-rules class="matrix-rules" aria-live="polite"></div>
+		<div class="matrix-scroll"><table aria-label="Матрица комбинаций оружия"></table></div>
+		<p class="muted small">● Связка · ★ Новая связка · ⚒ Кузня · Т Тиски · П Перекрёстный огонь · ПР Пропитка · О Отдача · В Вязкость · Н Наводка</p>
+	</dialog>
 
 	<dialog id="run-history" class="panel game-dialog" aria-labelledby="run-history-title">
 		<header class="game-dialog-head">

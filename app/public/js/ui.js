@@ -744,8 +744,8 @@ export class UI {
 		this.set('hud-kills', 'text', String(snap.k));
 		const row = snap.pMap.get(game.me);
 		const support = snap.support?.find(([pid]) => pid === game.me)?.[1] ?? 0;
-		$('hud-support').hidden = support <= 0;
-		$('hud-support').textContent = `Метки: +${support.toLocaleString('ru-RU')} урона`;
+		this.set('hud-support', 'hidden', support <= 0);
+		this.set('hud-support', 'text', `Метки: +${support.toLocaleString('ru-RU')} урона`);
 		if (row) {
 			const xpNext = row[P.xpNext] || 1;
 			this.set('hud-xp-fill', 'width', `${Math.min(100, (row[P.xp] / xpNext) * 100).toFixed(1)}%`);

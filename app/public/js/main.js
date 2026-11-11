@@ -8,6 +8,7 @@ import { Sound } from './audio.js';
 import { cardText, cardImage } from './results.js';
 import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
+import { setupCombinations } from './combinations.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -19,6 +20,7 @@ const net = new Net();
 const ui = new UI();
 const runHistory = setupRunHistory();
 const feedback = setupFeedback(() => net.sid);
+setupCombinations();
 const game = new Game(net);
 const canvas = $('game');
 const renderer = new Renderer(canvas);
