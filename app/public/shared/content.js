@@ -415,6 +415,29 @@ export const PASSIVES = {
 	// coop: offered only when the room has 2+ players.
 	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', tpl: '+{v}% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
+// Every artifact has a combat use for every weapon, including a starting weapon on its own.
+// Defensive/utility artifacts retain their main purpose; their smaller combat side is independent of rarity.
+export const ARTIFACT_COMBAT = {
+	vigor: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	swift: { bonus: { cdMul: -0.015 }, text: 'оружие атакует на 1,5% чаще за уровень' },
+	magnet: { bonus: { areaMul: 0.035, dmgMul: 0.01 }, text: '+3,5% размера и +1% урона оружия за уровень' },
+	area: { bonus: { dmgMul: 0.015 }, text: '+1,5% урона за уровень, в том числе точечным атакам' },
+	regen: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	echo: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона всем атакам за уровень, включая волны и лучи' },
+	hourglass: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	mail: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	frostcore: { bonus: { dmgMul: 0.02 }, text: '+2% урона оружия за уровень' },
+	lens: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона первого попадания за уровень' },
+	counterweight: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень; заряд блока усиливает любую атаку' },
+};
+for (const [id, rule] of Object.entries(ARTIFACT_COMBAT)) {
+	const p = PASSIVES[id];
+	p.bonus = { ...p.bonus, ...rule.bonus };
+	p.desc += '; ' + rule.text;
+	if (p.tpl) p.tpl += '; ' + rule.text;
+}
+PASSIVES.coil.desc = 'Убийство любым оружием выпускает разряд; электрические и резонансные атаки передают более сильную молнию. До трёх прыжков.';
+PASSIVES.ashseal.desc = 'Любая атака оставляет тлеющую печать. Смерть горящего врага передаёт огонь соседям; число поколений ограничено уровнем.';
 // Direct weapon + artifact synergies (5.3): shown as hints on cards, applied on the server.
 export const SYNERGIES = [
 	{ weapon: 'knives', passive: 'crit', desc: 'крит-нож пробивает ещё одного врага' },
@@ -1252,6 +1275,19 @@ export function weaponLevel(id, lvl, oc = 0) {
 	for (const [k, v] of Object.entries(O.mul ?? {})) L[k] = Math.round(L[k] * v * 1000) / 1000;
 	for (const [k, v] of Object.entries(O.add ?? {})) L[k] = Math.round((L[k] + v) * 1000) / 1000;
 	return (ocCache[key] = L);
+}
+
+// Attack clocks which previously ignored haste (auras, beams, traps, burning paths and orbit contact).
+// Regular cast cooldowns already use cdMul at their call sites; durations and shield cooldowns stay unchanged here.
+export function attackLevel(id, lvl, oc = 0, mods = {}) {
+	const base = weaponLevel(id, lvl, oc);
+	const speed = mods.cdMul ?? 1;
+	if (speed === 1) return base;
+	const out = { ...base };
+	for (const field of ['tick', 'every', 'hitCd', 'recharge', 'rearm', 'wave']) {
+		if (out[field] > 0) out[field] *= speed;
+	}
+	return out;
 }
 export const overclockId = (id, oc) => (oc ? OVERCLOCKS[id]?.[oc - 1]?.id ?? null : null);
 

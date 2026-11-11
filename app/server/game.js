@@ -14,7 +14,7 @@ import {
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
 	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, finaleAddScale, finaleAddCap, clampToRing,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
-	OVERCLOCKS, weaponLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
+	OVERCLOCKS, weaponLevel, attackLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
@@ -2153,8 +2153,11 @@ export class Room {
 			}
 		}
 		const resonant = e.resonanceT > now;
+		if (h?.mods.ashHops > 0 && !src.raw && !src.react && !src.perk && src.coilJumps === undefined) {
+			this.burn(e, h, Math.max(1, weaponDamage * 0.08), 2.5, e.burnT > now ? e.ashHops : undefined);
+		}
 		const burning = e.burnT > now && e.burnOwner?.mods.ashHops > 0;
-		if (h && !src.react && !src.raw && src.tags.includes('shock') && h.blockCharge > 0) {
+		if (h && !src.react && !src.raw && h.blockCharge > 0) {
 			dmg *= 1 + 0.55 * h.blockCharge;
 			h.blockCharge = 0;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), 56, 2]);
@@ -2191,8 +2194,8 @@ export class Room {
 		if (e.hp <= 0) {
 			this.killEnemy(e, h, src);
 			if (burning) this.spreadAsh(e);
-			if (h?.mods.coil > 0 && !src.react && !src.raw
-				&& (src.tags.includes('shock') || resonant)) this.coilJump(e, h, src, dmg);
+			if (h?.mods.coil > 0 && !src.react && !src.raw) this.coilJump(e, h,
+				{ ...src, coilPower: src.coilPower ?? (src.tags.includes('shock') || resonant ? 0.66 : 0.38) }, dmg);
 		} else if (h && h.mods.burnChance > 0 && !src.react) {
 			if (h.fireW) {
 				if (Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
@@ -2254,7 +2257,8 @@ export class Room {
 		const next = this.nearestFrom(e, [e], 115 + 10 * h.passives.get('coil'));
 		if (!next) return;
 		this.fx.push(['zap', Math.round(e.x), Math.round(e.y), Math.round(next.x), Math.round(next.y)]);
-		this.hurtEnemy(next, Math.min(260, dmg * 0.66), h, { weapon: src.weapon, tags: ['shock'], coilJumps: jumps - 1 });
+		this.hurtEnemy(next, Math.min(260, dmg * (src.coilPower ?? 0.66)), h,
+			{ weapon: src.weapon, tags: ['shock'], coilJumps: jumps - 1, coilPower: src.coilPower ?? 0.66 });
 	}
 
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
@@ -2783,7 +2787,7 @@ export class Room {
 	}
 
 	castWeapon(h, id, w, dt, damageScale = 1) {
-		const L = weaponLevel(id, w.lvl, w.oc);
+		const L = attackLevel(id, w.lvl, w.oc, h.mods);
 		const oc = overclockId(id, w.oc);
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
@@ -3505,7 +3509,7 @@ export class Room {
 	wardAbsorb(h) {
 		const id = ['bastion', 'phalanx', 'dome', 'riposte', 'rod'].find((k) => h.weapons.has(k)) ?? 'ward';
 		const w = h.weapons.get(id);
-		const L = weaponLevel(id, w?.lvl ?? 1, w?.oc);
+		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
@@ -3747,7 +3751,7 @@ export class Room {
 		if (!this.heroes.has(h.pid)) return;
 		const gw = h.weapons.get('guide');
 		if (gw && this.lightBudget > 0) {
-			const L = weaponLevel('guide', gw.lvl);
+			const L = attackLevel('guide', gw.lvl, gw.oc, h.mods);
 			const exclude = [e];
 			for (let i = 0; i < L.deathSparks && this.lightBudget > 0; i++, this.lightBudget--) {
 				const t = this.nearestFrom(e, exclude, 260);
@@ -3759,7 +3763,7 @@ export class Room {
 		const lw = h.weapons.get('glow');
 		if (lw && e.burnT > this.time && this.lightBudget > 0) {
 			this.lightBudget--;
-			const L = weaponLevel('glow', lw.lvl);
+			const L = attackLevel('glow', lw.lvl, lw.oc, h.mods);
 			this.addPatch(h, e.x, e.y, L.patchR * h.mods.areaMul, L.patchLife * h.mods.durMul, L.patchDmg * h.mods.dmgMul, L.patchTick, SRC.glow, 0, 'glowp', 12);
 		}
 	}
