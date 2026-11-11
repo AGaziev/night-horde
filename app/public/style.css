@@ -151,6 +151,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 
 .btn {
 	appearance: none;
+	color: inherit;
+	text-decoration: none;
 	border: 1px solid var(--panel-border);
 	background: rgba(255, 255, 255, 0.06);
 	border-radius: 10px;
@@ -807,7 +809,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 #run-history-card { min-width: 0; }
 .run-history-result { margin: 16px 0 0; }
 #run-history-date { margin: 4px 0 0; }
-#run-history-download { display: inline-flex; margin-top: 16px; text-decoration: none; }
+#run-history-download { display: inline-flex; margin-top: 16px; }
 
 #menu-feedback { margin-top: 16px; }
 .over-feedback {
