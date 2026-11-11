@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Room } from './game.js';
 import { GAME_VERSION } from '../public/shared/content.js';
 
-assert.equal(GAME_VERSION, 'v33');
+assert.equal(GAME_VERSION, 'v34');
 
 function room(mode = 'night') {
 	const r = new Room('V29', () => {});
