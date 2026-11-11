@@ -26,17 +26,21 @@ function place(room) {
 		};
 		if (valid(p, heroes, net.posts)) net.posts.push(p);
 	}
-	// Random retries can miss a narrow corner pocket forever. Scan a finite grid in
-	// the allowed fallback annulus, retaining every camp already shown to players.
-	for (const h of heroes) {
-		for (let dx = -4000; dx <= 4000 && net.posts.length < net.target; dx += 100) {
-			for (let dy = -4000; dy <= 4000 && net.posts.length < net.target; dy += 100) {
-				const distance2 = dx * dx + dy * dy;
-				if (distance2 < 2800 ** 2 || distance2 > 4000 ** 2) continue;
-				const p = { id: net.posts.length + 1, x: Math.round(h.x + dx), y: Math.round(h.y + dy),
-					spawned: 0, killed: 0, chest: 0, activated: false };
-				if (valid(p, heroes, net.posts)) net.posts.push(p);
+	// A coarse deterministic scan finds corner pockets random retries can miss.
+	// Only a crowded edge fallback extends to 6000; never move an existing camp.
+	const margin = OUTPOST.world - OUTPOST.leash;
+	for (const range of [4000, 6000]) {
+		for (const h of heroes) {
+			for (let dx = Math.max(-range, -margin - h.x); dx <= Math.min(range, margin - h.x) && net.posts.length < net.target; dx += 100) {
+				for (let dy = Math.max(-range, -margin - h.y); dy <= Math.min(range, margin - h.y) && net.posts.length < net.target; dy += 100) {
+					const distance2 = dx * dx + dy * dy;
+					if (distance2 < (range === 4000 ? 2800 : 4000) ** 2 || distance2 > range ** 2) continue;
+					const p = { id: net.posts.length + 1, x: Math.round(h.x + dx), y: Math.round(h.y + dy),
+						spawned: 0, killed: 0, chest: 0, activated: false };
+					if (valid(p, heroes, net.posts)) net.posts.push(p);
+				}
 			}
+			if (net.posts.length === net.target) break;
 		}
 		if (net.posts.length === net.target) break;
 	}

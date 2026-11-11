@@ -131,15 +131,17 @@ for(const [x,y] of [[99990,99990],[-99990,99990],[99990,-99990],[-99990,-99990]]
  const fresh=new SnapshotDecoder();assert.equal(fresh.decode(packet).op.status,'closed');
 }
 
-{
- const old=Math.random;let seed=19;
+for(const [initialSeed,sx] of [[19,1],[101,-1]]) {
+ const old=Math.random;let seed=initialSeed;
  Math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
  try {
   const {r,hs}=setup(8);
-  hs.forEach((h,i)=>{h.x=100000-i*20;h.y=-100000+i*30;if(i===7){h.st=1;h.hp=0;}});
-  spawnNetwork(r,hs);
-  for(let i=0;i<8&&r.outposts.posts.length<9;i++){r.time++;r.updateOutposts(hs.filter(h=>!h.st));}
-  assert.equal(r.outposts.posts.length,9,'narrow valid corner slots are found by bounded fallback');
+  r.peaks=[];r.bossAt=[];r.nextEliteT=r.nextInvasionT=Infinity;r.events.next=Infinity;
+  hs.forEach((h,i)=>{h.x=sx*(100000-i*20);h.y=-100000+i*30;h.perk.readyAt=Infinity;if(i===7){h.st=1;h.hp=0;}});
+  r.time=r.runLength*2/3-.02;r.tick(.01);r.tick(.02);
+  for(let i=0;i<8&&r.outposts.posts.length<9;i++)r.tick(1);
+  assert.equal(r.outposts.posts.length,9,'crowded corner fallback finds all finite targets');
  }finally{Math.random=old;}
 }
+
 console.log('Outposts: timing, placement, finite guards, safe/fair cap, leash, chests, trophy, finale/reset and wire: OK');
