@@ -18,6 +18,7 @@ import {
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
+import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -520,6 +521,7 @@ export class Room {
 		this.bossIdx = 0;
 		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
+		this.outposts = null;
 		this.blasts = [];
 		this.traps = [];
 		this.items = [];
@@ -1252,9 +1254,16 @@ export class Room {
 		m.cdMul = Math.max(0.3, m.cdMul);
 		h.maxHp = h.baseHp + m.maxHp;
 		delete m.maxHp;
+		if (h.victoryBanner) { m.dmgMul *= 1.25; m.areaMul *= 1.15; }
 		h.mods = m;
 		if (!m.brace) h.blockCharge = 0;
 	}
+
+	updateOutposts(alive) { updateOutposts(this, alive); }
+	guardKilled(e) { guardKilled(this, e); }
+	openOutpostChest(p) { return openOutpostChest(this, p); }
+	closeOutposts() { closeOutposts(this); }
+	confineGuard(e) { confineGuard(e); }
 
 	// --- simulation ---
 
@@ -1296,6 +1305,7 @@ export class Room {
 		this.updateTimers();
 		this.updateTraps(dt);
 		this.updatePuddles(dt);
+		for (const e of this.enemies) if (e.outpost) confineGuard(e);
 		this.compactEnemies();
 		this.updateGems(dt, alive);
 		this.updateItems(dt, alive);
@@ -1361,6 +1371,7 @@ export class Room {
 	}
 
 	spawn(dt, alive) {
+		this.updateOutposts(alive);
 		const n = this.heroes.size;
 		// v19: downed (and dropped) players do not thin the spawn for the rest, but one lying ally cuts it by one at most.
 		const spawnN = Math.max(alive.length, n - 1);
@@ -1394,6 +1405,7 @@ export class Room {
 	spawnSpecials(alive) {
 		const frac = this.time / this.runLength;
 		for (const id of SPECIAL_IDS) {
+			if (this.enemies.length >= MAX_ENEMIES) break;
 			const S = SPECIALS[id];
 			const cap = specialCap(S, frac, this.heroes.size);
 			if (!cap || this.time < this.specialT[id]) continue;
@@ -1527,6 +1539,7 @@ export class Room {
 
 	// The ring: centred on the alive hero closest to the middle of the group, starts wide enough for everyone.
 	startFinale(alive) {
+		this.closeOutposts();
 		const all = [...this.heroes.values()];
 		const pool = alive.length ? alive : all;
 		const mx = pool.reduce((s, h) => s + h.x, 0) / (pool.length || 1), my = pool.reduce((s, h) => s + h.y, 0) / (pool.length || 1);
@@ -1685,115 +1698,128 @@ export class Room {
 		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
-			if (e.burnT > now) this.burnTick(e, dt);
-			if (e.dead) continue;
-			let best = null, bd = Infinity;
-			for (const p of alive) {
-				const d = dist2(e.x, e.y, p.x, p.y);
-				if (d < bd) {
-					bd = d;
-					best = p;
+			try {
+				if (e.burnT > now) this.burnTick(e, dt);
+				if (e.dead) continue;
+				if (e.outpost && e.guardReadyAt > now) continue;
+				let best = null, bd = Infinity;
+				for (const p of alive) {
+					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+					const d = dist2(e.x, e.y, p.x, p.y);
+					if (d < bd) {
+						bd = d;
+						best = p;
+					}
 				}
-			}
-			if (bd > FAR_DIST2 && e.ai !== 'flee') {
-				[e.x, e.y] = this.randomRingPos(alive);
-				e.windT = 0;
-				e.bs = 0;
-				continue;
-			}
-			if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
-			if (e.elite) this.eliteTick(e, best, dt);
-			if (e.frozenT > now || e.rootT > now) continue;
-			let dx = best.x - e.x, dy = best.y - e.y;
-			const d = Math.sqrt(bd) || 1;
-			dx /= d;
-			dy /= d;
-			// Stop at contact distance so enemies don't stack on the player.
-			let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
-			if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
-			if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
-			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
-			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
-			if (e.ai === 'sniper') {
-				if (this.sniperTick(e, best, d, dt)) continue;
-				const [kmin, kmax] = e.def.keep;
-				if (d < kmin) {
-					dx = -dx;
-					dy = -dy;
-					maxStep = Infinity;
-				} else if (d <= kmax) {
-					const s = Math.sin(e.phase + now * 0.4) >= 0 ? 1 : -1;
-					[dx, dy] = [-dy * s, dx * s];
-					speed *= 0.4;
-				}
-			} else if (e.ai === 'shield') {
-				if (this.dashTick(e, best, d, dt, true)) {
-					if (e.bs === 'aim' || e.bs === 'dash') e.fa = Math.atan2(e.bvy, e.bvx);
+				if (!e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
+					[e.x, e.y] = this.randomRingPos(alive);
+					e.windT = 0;
+					e.bs = 0;
 					continue;
 				}
-				this.turnShield(e, dx, dy, dt);
-			} else if (e.ai === 'flee') {
-				// Loops around the nearest player: mostly sideways (the side flips every `turn` s), away when close,
-				// back when far, so a hero cutting the circle catches up.
-				const F = e.def;
-				const side = Math.floor((now - e.born) / F.turn + e.phase) % 2 ? 1 : -1;
-				const showing = now - e.born < F.show;
-				const out = showing ? 0 : d < F.near ? 1.2 : d > F.far ? -0.8 : 0.2;
-				if (showing) speed *= F.showSpeed;
-				[dx, dy] = [-dy * side - dx * out, dx * side - dy * out];
-				const l = Math.hypot(dx, dy) || 1;
-				dx /= l;
-				dy /= l;
-				maxStep = Infinity;
-			} else if (e.ai === 'ranged') {
-				if (this.rangedTick(e, best, d, dt)) continue;
-				const [kmin, kmax] = e.def.keep;
-				if (d < kmin) {
-					dx = -dx;
-					dy = -dy;
-					maxStep = Infinity;
-				} else if (d <= kmax) {
-					// Strafe around the target inside the keep ring.
-					const s = Math.sin(e.phase) >= 0 ? 1 : -1;
-					[dx, dy] = [-dy * s, dx * s];
-					speed *= 0.5;
+				if (!best && e.outpost) {
+					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
+					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
+					e.x += dx / d * step;
+					e.y += dy / d * step;
+					e.bs = 0;
+					e.windT = 0;
+					continue;
 				}
-			} else if (e.ai === 'exploder' && e.fuseT > 0) {
-				e.fuseT -= dt;
-				if (e.fuseT <= 0) this.killEnemy(e, e.fuseBy, SRC_BLAST);
-				continue;
-			}
-			if (e.zig) {
-				const s = Math.sin(now * 5 + e.phase) * 0.9;
-				const zx = dx - dy * s, zy = dy + dx * s;
-				const l = Math.hypot(zx, zy) || 1;
-				dx = zx / l;
-				dy = zy / l;
-			}
-			const step = Math.min(speed * dt, maxStep);
-			e.x += dx * step;
-			e.y += dy * step;
+				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
+				if (e.elite) this.eliteTick(e, best, dt);
+				if (e.frozenT > now || e.rootT > now) continue;
+				let dx = best.x - e.x, dy = best.y - e.y;
+				const d = Math.sqrt(bd) || 1;
+				dx /= d;
+				dy /= d;
+				// Stop at contact distance so enemies don't stack on the player.
+				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
+				if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
+				let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
+				if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
+				if (e.ai === 'sniper') {
+					if (this.sniperTick(e, best, d, dt)) continue;
+					const [kmin, kmax] = e.def.keep;
+					if (d < kmin) {
+						dx = -dx;
+						dy = -dy;
+						maxStep = Infinity;
+					} else if (d <= kmax) {
+						const s = Math.sin(e.phase + now * 0.4) >= 0 ? 1 : -1;
+						[dx, dy] = [-dy * s, dx * s];
+						speed *= 0.4;
+					}
+				} else if (e.ai === 'shield') {
+					if (this.dashTick(e, best, d, dt, true)) {
+						if (e.bs === 'aim' || e.bs === 'dash') e.fa = Math.atan2(e.bvy, e.bvx);
+						continue;
+					}
+					this.turnShield(e, dx, dy, dt);
+				} else if (e.ai === 'flee') {
+					// Loops around the nearest player: mostly sideways (the side flips every `turn` s), away when close,
+					// back when far, so a hero cutting the circle catches up.
+					const F = e.def;
+					const side = Math.floor((now - e.born) / F.turn + e.phase) % 2 ? 1 : -1;
+					const showing = now - e.born < F.show;
+					const out = showing ? 0 : d < F.near ? 1.2 : d > F.far ? -0.8 : 0.2;
+					if (showing) speed *= F.showSpeed;
+					[dx, dy] = [-dy * side - dx * out, dx * side - dy * out];
+					const l = Math.hypot(dx, dy) || 1;
+					dx /= l;
+					dy /= l;
+					maxStep = Infinity;
+				} else if (e.ai === 'ranged') {
+					if (this.rangedTick(e, best, d, dt)) continue;
+					const [kmin, kmax] = e.def.keep;
+					if (d < kmin) {
+						dx = -dx;
+						dy = -dy;
+						maxStep = Infinity;
+					} else if (d <= kmax) {
+						// Strafe around the target inside the keep ring.
+						const s = Math.sin(e.phase) >= 0 ? 1 : -1;
+						[dx, dy] = [-dy * s, dx * s];
+						speed *= 0.5;
+					}
+				} else if (e.ai === 'exploder' && e.fuseT > 0) {
+					e.fuseT -= dt;
+					if (e.fuseT <= 0) this.killEnemy(e, e.fuseBy, SRC_BLAST);
+					continue;
+				}
+				if (e.zig) {
+					const s = Math.sin(now * 5 + e.phase) * 0.9;
+					const zx = dx - dy * s, zy = dy + dx * s;
+					const l = Math.hypot(zx, zy) || 1;
+					dx = zx / l;
+					dy = zy / l;
+				}
+				const step = Math.min(speed * dt, maxStep);
+				e.x += dx * step;
+				e.y += dy * step;
 
-			this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
-			let checked = 0;
-			for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
-				const o = near[i];
-				if (o === e) continue;
-				const ox = e.x - o.x, oy = e.y - o.y;
-				const min = e.r + o.r;
-				const dd = ox * ox + oy * oy;
-				if (dd >= min * min) continue;
-				checked++;
-				if (dd < 0.0001) {
-					e.x += (Math.random() - 0.5) * 2;
-					continue;
+				this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
+				let checked = 0;
+				for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
+					const o = near[i];
+					if (o === e) continue;
+					const ox = e.x - o.x, oy = e.y - o.y;
+					const min = e.r + o.r;
+					const dd = ox * ox + oy * oy;
+					if (dd >= min * min) continue;
+					checked++;
+					if (dd < 0.0001) {
+						e.x += (Math.random() - 0.5) * 2;
+						continue;
+					}
+					const l = Math.sqrt(dd);
+					// Heavier enemies (boss) are pushed less.
+					const push = (min - l) * 0.5 * (o.r / (e.r + o.r)) * 2;
+					e.x += (ox / l) * push * 0.5;
+					e.y += (oy / l) * push * 0.5;
 				}
-				const l = Math.sqrt(dd);
-				// Heavier enemies (boss) are pushed less.
-				const push = (min - l) * 0.5 * (o.r / (e.r + o.r)) * 2;
-				e.x += (ox / l) * push * 0.5;
-				e.y += (oy / l) * push * 0.5;
-			}
+			} finally { confineGuard(e); }
 		}
 	}
 
@@ -1894,6 +1920,7 @@ export class Room {
 	bossStep(e, dx, dy, speed, dt) {
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
+		confineGuard(e);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -2044,6 +2071,7 @@ export class Room {
 			id: this.nextId++, x: e.x, y: e.y, vx: (dx / d) * E.shotSpeed, vy: (dy / d) * E.shotSpeed,
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
+		boundGuardShot(e, s);
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2063,6 +2091,7 @@ export class Room {
 						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
+					boundGuardShot(e, s);
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2115,7 +2144,7 @@ export class Room {
 			s.life -= dt;
 			s.x += s.vx * dt;
 			s.y += s.vy * dt;
-			let done = s.life <= 0;
+			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
@@ -2150,6 +2179,7 @@ export class Room {
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
+			confineGuard(e);
 		}
 	}
 
@@ -2157,7 +2187,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
+			if (e.dead || e.outpost || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -2175,6 +2205,7 @@ export class Room {
 	}
 
 	setElite(e, affix) {
+		if (e.outpost) return;
 		e.elite = affix;
 		e.hp *= ELITE_HP_MUL;
 		e.maxHp *= ELITE_HP_MUL;
@@ -2189,6 +2220,7 @@ export class Room {
 	tauntTarget(e, taunters, best, bd) {
 		let tb = null, td = Infinity;
 		for (const p of taunters) {
+			if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
 			const d = dist2(e.x, e.y, p.x, p.y);
 			if (d < p.trait.taunt * p.trait.taunt && d < td) {
 				td = d;
@@ -2452,7 +2484,9 @@ export class Room {
 	}
 
 	killEnemy(e, h, src = SRC_NONE) {
+		if (e.dead) return;
 		e.dead = true;
+		if (e.outpost) this.guardKilled(e);
 		this.kills++;
 		if (h) {
 			h.kills++;
@@ -2480,7 +2514,7 @@ export class Room {
 			// Killed by a player: short fuse at the spot; fuse burnt out: blows up right away.
 			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, E.blastEnemyDmg, h, 1, e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
 		}
-		if (e.elite) {
+		if (e.elite && !e.outpost) {
 			if (e.elite === 'volatile') this.addBlast(e.x, e.y, VOLATILE_R, ENEMIES.bloater.blastDmg, ENEMIES.bloater.blastEnemyDmg, h, 2, ENEMIES.bloater.fuse);
 			if (Math.random() < ELITE_CHEST_CHANCE * (1 + luck)) this.dropItem('chest', e.x, e.y);
 			else this.dropGem(e.x + 12, e.y, e.xp * GOLD_GEM_MUL, true);
@@ -2761,7 +2795,7 @@ export class Room {
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of near) {
-				if (e.dead) continue;
+				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
 				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
@@ -2774,7 +2808,7 @@ export class Room {
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -3544,6 +3578,7 @@ export class Room {
 				const force = Math.min(0.65, 52 / Math.max(1, Math.hypot(e.x - x, e.y - y)));
 				e.x += (x - e.x) * force;
 				e.y += (y - e.y) * force;
+				confineGuard(e);
 				pulled++;
 			}
 		}
@@ -4098,6 +4133,7 @@ export class Room {
 			const step = Math.min(d - ring, L.pull * (e.ai === 'shield' ? 0.5 : 1) * dt);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
+			confineGuard(e);
 		}
 		this.orbitHits(h, { count: L.count, radius: L.ring, rps: L.rps, hitCd: L.hitCd, dmg: L.bladeDmg }, dmgMul, areaMul, amount, SRC.whirlwind);
 		w.t -= dt;
@@ -4226,6 +4262,7 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
+		confineGuard(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
@@ -5069,7 +5106,7 @@ export class Room {
 
 	enemyState(en) {
 		const t = this.time;
-		let st = 0;
+		let st = en.outpost ? ST.guard : 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
 		if (stormMarked(en, t)) st |= ST.stormMarked;
@@ -5136,7 +5173,7 @@ export class Room {
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
-			fx: this.fx, boss: bossBar,
+			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
