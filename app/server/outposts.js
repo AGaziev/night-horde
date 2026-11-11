@@ -5,6 +5,7 @@ export const OUTPOST = Object.freeze({
 	activation: 900, pursuit: 650, leash: 520,
 	minDistance: 1800, spacing: 900, world: 100000, safeSpawn: 200,
 	preparation: 0.9, shotLife: 2.4, shotRange: 650,
+	sniperKeep: Object.freeze([180, 240]),
 });
 // Strong archetypes appear in the first 32 slots even when all nine posts share the live budget.
 // The final eight are finite reserves, not repetitions of a shorter type table.

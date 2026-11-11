@@ -1794,7 +1794,7 @@ export class Room {
 				if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
 				if (e.ai === 'sniper') {
 					if (this.sniperTick(e, best, d, dt)) continue;
-					const [kmin, kmax] = e.def.keep;
+					const [kmin, kmax] = e.outpost ? OUTPOST.sniperKeep : e.def.keep;
 					if (d < kmin) {
 						dx = -dx;
 						dy = -dy;
@@ -2155,7 +2155,8 @@ export class Room {
 			return true;
 		}
 		e.shotT -= dt;
-		if (e.shotT <= 0 && d < E.keep[1] + 150) {
+		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
+		if (e.shotT <= 0 && d < keep[1] + 150) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
