@@ -23,6 +23,7 @@
 			<p id="menu-crown" class="menu-crown" hidden></p>
 			<div class="menu-actions">
 				<button id="menu-create" class="btn btn-primary">Создать комнату</button>
+				<button class="btn btn-ghost" data-open-run-history>История забегов</button>
 				<div class="join-row">
 					<input id="menu-code" type="text" maxlength="8" placeholder="Код комнаты" autocomplete="off" spellcheck="false">
 					<button id="menu-join" class="btn">Войти</button>
@@ -37,6 +38,7 @@
 				<ol id="top-list" class="top-list"></ol>
 				<p id="top-note" class="muted small"></p>
 			</div>
+			<button id="menu-feedback" class="btn btn-ghost btn-small">Оставить отзыв</button>
 		</div>
 	</section>
 
@@ -63,6 +65,7 @@
 			<div class="lobby-actions">
 				<button id="lobby-ready" class="btn">Готов</button>
 				<button id="lobby-start" class="btn btn-primary" hidden>Начать</button>
+				<button class="btn btn-ghost" data-open-run-history>История забегов</button>
 			</div>
 			<p id="lobby-hint" class="muted small center"></p>
 			<details id="duo-book" class="duo-book">
@@ -75,6 +78,45 @@
 			</details>
 		</div>
 	</section>
+
+	<dialog id="run-history" class="panel game-dialog" aria-labelledby="run-history-title">
+		<header class="game-dialog-head">
+			<h2 id="run-history-title">История забегов</h2>
+			<form method="dialog"><button class="btn btn-ghost btn-small" autofocus>Закрыть</button></form>
+		</header>
+		<div id="run-history-index">
+			<div class="run-history-actions" role="group" aria-label="Список забегов">
+				<button id="run-history-mine" class="btn btn-small" aria-pressed="true">Мои</button>
+				<button id="run-history-recent" class="btn btn-small" aria-pressed="false">Общие</button>
+			</div>
+			<p id="run-history-status" class="muted small" role="status"></p>
+			<ul id="run-history-list" class="run-history-list"></ul>
+		</div>
+		<div id="run-history-details" hidden>
+			<button id="run-history-back" class="btn btn-ghost btn-small">К списку</button>
+			<p id="run-history-log-status" class="muted small" role="status"></p>
+			<pre id="run-history-summary" tabindex="0" aria-label="Сводка забега"></pre>
+		</div>
+	</dialog>
+
+	<dialog id="feedback-dialog" class="panel game-dialog" aria-labelledby="feedback-title">
+		<header class="game-dialog-head">
+			<h2 id="feedback-title">Отзыв об игре</h2>
+			<form method="dialog"><button id="feedback-close" class="btn btn-ghost btn-small">Закрыть</button></form>
+		</header>
+		<form id="feedback-form">
+			<fieldset id="feedback-ratings" class="feedback-ratings">
+				<legend>Как прошёл забег?</legend>
+				<label><input type="radio" name="rating" value="easy"> Легко</label>
+				<label><input type="radio" name="rating" value="right"> В самый раз</label>
+				<label><input type="radio" name="rating" value="hard"> Сложно</label>
+			</fieldset>
+			<label for="feedback-comment">Что понравилось или помешало?</label>
+			<textarea id="feedback-comment" name="comment" rows="4" maxlength="1000"></textarea>
+			<button id="feedback-submit" class="btn btn-primary" type="submit">Отправить</button>
+		</form>
+		<p id="feedback-status" class="muted small" role="status"></p>
+	</dialog>
 
 	<!-- HUD -->
 	<div id="hud" hidden>
@@ -149,6 +191,14 @@
 					<tbody id="over-stats"></tbody>
 				</table>
 			</div>
+			<section id="over-feedback" class="over-feedback" aria-labelledby="over-feedback-title" hidden>
+				<h2 id="over-feedback-title">Как прошёл забег?</h2>
+				<div class="feedback-options">
+					<button type="button" class="btn btn-small" data-feedback-rating="easy">Легко</button>
+					<button type="button" class="btn btn-small" data-feedback-rating="right">В самый раз</button>
+					<button type="button" class="btn btn-small" data-feedback-rating="hard">Сложно</button>
+				</div>
+			</section>
 			<div id="over-log" class="over-log" hidden>
 				<span id="over-runid" class="over-runid"></span>
 				<button id="over-copy" class="btn btn-small" type="button">Скопировать лог</button>

@@ -1,4 +1,4 @@
-// Run telemetry: compact per-run log for player feedback, plus an in-memory store of recent runs.
+// Run telemetry and a bounded archive of completed runs.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
@@ -11,6 +11,8 @@ export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const MAX_JSON = 28 * 1024;
 const KEEP_RUNS = 30;
+const ARCHIVE_LIMIT = 500;
+const HISTORY_LIMIT = 20;
 const LAST_HITS = 10; // seconds of hits kept to explain a down
 const CROWD_R = 300; // enemies within this radius are counted at a down
 const SHOOT_R = 600; // ranged enemies within this radius are counted at a down
@@ -634,55 +636,121 @@ function playerLines(p) {
 
 export const logText = (log) => `${log.summary.join('\n')}\n\n${JSON.stringify(log)}`;
 
-// Last KEEP_RUNS runs in memory; optional copy on disk (enabled by the server, not by tests or sims).
-export const runStore = {
-	runs: [],
-	dir: null,
-	add(log) {
-		this.runs.push(log);
-		if (this.runs.length > KEEP_RUNS) this.runs.splice(0, this.runs.length - KEEP_RUNS);
-		if (!this.dir) return;
-		fs.writeFile(path.join(this.dir, `${log.id}.json`), JSON.stringify(log), () => {});
-		this.prune();
-	},
+// Keep only recent full logs in memory. Participant IDs are archive metadata, separate from the public log.
+export class RunStore {
+	constructor() {
+		this.runs = [];
+		this.index = new Map();
+		this.dir = null;
+	}
+
+	remember(log, uids) {
+		this.runs = this.runs.filter((r) => r.id !== log.id);
+		this.runs.unshift(log);
+		this.runs.sort((a, b) => b.at.localeCompare(a.at));
+		if (this.runs.length > KEEP_RUNS) this.runs.pop();
+		const row = {
+			id: log.id, at: log.at, v: log.v, mode: log.mode ?? 'night', win: log.win,
+			grade: log.grade ?? (log.win ? 1 : 0), time: log.time,
+			players: log.team.map(({ name, hero, level }) => ({ name, hero, level })),
+		};
+		this.index.set(log.id, { row, uids });
+	}
+
+	add(log, uids = []) {
+		uids = [...new Set(uids)];
+		this.remember(log, uids);
+		try {
+			if (this.dir) this.write(log, uids);
+			this.prune();
+		} catch (e) {
+			console.error('run archive write:', e.code ?? e.message);
+		}
+	}
+
 	get(id) {
 		if (!RUN_ID_RE.test(id)) return null;
-		const mem = this.runs.find((r) => r.id === id);
-		if (mem || !this.dir) return mem ?? null;
+		return this.runs.find((r) => r.id === id) ?? (this.dir && this.read(this.dir, id)?.log) ?? null;
+	}
+
+	recent() {
+		return [...this.index.values()].reverse().sort((a, b) => b.row.at.localeCompare(a.row.at));
+	}
+
+	list() {
+		return this.recent().slice(0, KEEP_RUNS).map(({ row }) => row);
+	}
+
+	history(uid) {
+		const rows = this.recent();
+		return {
+			personal: !!uid,
+			mine: uid ? rows.filter(({ uids }) => uids.includes(uid)).slice(0, HISTORY_LIMIT).map(({ row }) => row) : [],
+			recent: rows.slice(0, HISTORY_LIMIT).map(({ row }) => row),
+		};
+	}
+
+	persist(dir, legacyDir) {
 		try {
-			return JSON.parse(fs.readFileSync(path.join(this.dir, `${id}.json`), 'utf8'));
+			const fresh = !fs.existsSync(dir);
+			fs.mkdirSync(dir, { recursive: true });
+			this.dir = dir;
+			this.runs = [];
+			this.index.clear();
+			if (fresh && legacyDir && fs.existsSync(legacyDir)) {
+				for (const id of this.files(legacyDir)) {
+					const record = this.read(legacyDir, id);
+					if (record) this.write(record.log, record.uids);
+				}
+			}
+			for (const id of this.files(dir)) {
+				const record = this.read(dir, id);
+				if (record) this.remember(record.log, record.uids);
+			}
+			this.prune();
+		} catch (e) {
+			console.error('run archive startup:', e.code ?? e.message);
+		}
+	}
+
+	files(dir) {
+		return fs.readdirSync(dir, { withFileTypes: true })
+			.filter((entry) => entry.isFile() && entry.name.endsWith('.json') && RUN_ID_RE.test(entry.name.slice(0, -5)))
+			.map((entry) => entry.name.slice(0, -5));
+	}
+
+	read(dir, id) {
+		try {
+			const record = JSON.parse(fs.readFileSync(path.join(dir, id + '.json'), 'utf8'));
+			const log = record?.log ?? record;
+			if (log?.id !== id || typeof log.at !== 'string' || !Array.isArray(log.team) || !Array.isArray(log.summary)) return null;
+			return { log, uids: Array.isArray(record.uids) ? record.uids : [] };
 		} catch {
 			return null;
 		}
-	},
-	list() {
-		return this.runs.slice().reverse().map((r) => ({
-			id: r.id, at: r.at, v: r.v, mode: r.mode ?? 'night', win: r.win, grade: r.grade ?? (r.win ? 1 : 0), time: r.time, players: r.team.map((p) => ({ name: p.name, hero: p.hero, level: p.level })),
-		}));
-	},
-	persist(dir) {
+	}
+
+	write(log, uids) {
+		const file = path.join(this.dir, log.id + '.json');
+		const tmp = file + '.tmp';
 		try {
-			fs.mkdirSync(dir, { recursive: true });
-			this.dir = dir;
-			const files = this.files();
-			for (const f of files.slice(-KEEP_RUNS)) {
-				try {
-					const log = JSON.parse(fs.readFileSync(path.join(dir, f.name), 'utf8'));
-					if (RUN_ID_RE.test(log.id) && !this.runs.some((r) => r.id === log.id)) this.runs.push(log);
-				} catch { /* skip broken file */ }
-			}
-		} catch {
-			this.dir = null;
+			fs.writeFileSync(tmp, JSON.stringify({ log, uids }), { mode: 0o600, flush: true });
+			fs.renameSync(tmp, file);
+		} finally {
+			fs.rmSync(tmp, { force: true });
 		}
-	},
-	files() {
-		return fs.readdirSync(this.dir).filter((n) => /^[A-Z0-9]{6}\.json$/.test(n))
-			.map((name) => ({ name, t: fs.statSync(path.join(this.dir, name)).mtimeMs })).sort((a, b) => a.t - b.t);
-	},
+	}
+
 	prune() {
-		try {
-			const files = this.files();
-			for (const f of files.slice(0, Math.max(0, files.length - 200))) fs.unlinkSync(path.join(this.dir, f.name));
-		} catch { /* best effort */ }
-	},
-};
+		if (this.index.size <= ARCHIVE_LIMIT) return;
+		const removed = new Set();
+		for (const { row } of this.recent().slice(ARCHIVE_LIMIT)) {
+			if (this.dir) fs.rmSync(path.join(this.dir, row.id + '.json'), { force: true });
+			this.index.delete(row.id);
+			removed.add(row.id);
+		}
+		this.runs = this.runs.filter((r) => !removed.has(r.id));
+	}
+}
+
+export const runStore = new RunStore();

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
+import { readFeedback, saveFeedback } from './feedback.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
 import { TICK_HZ, GAME_VERSION } from '../public/shared/content.js';
 import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
@@ -22,9 +23,17 @@ const WS_PING_MS = 20_000;
 const MAX_BUFFERED = 1 << 20;
 const MSG_RATE_PER_SEC = 120;
 const SID_RE = /^[A-Za-z0-9_-]{8,64}$/;
-const RUNS_DIR = process.env.HORDE_RUNS_DIR || '/tmp/horde-runs';
+const TEMP_RUNS_DIR = '/tmp/horde-runs';
+const persistentRuns = process.env.NODE_ENV === 'production' && !process.env.HORDE_RUNS_DIR;
+const RUNS_DIR = process.env.HORDE_RUNS_DIR || (persistentRuns ? '/opt/data/runs' : TEMP_RUNS_DIR);
 
-runStore.persist(RUNS_DIR);
+runStore.persist(RUNS_DIR, persistentRuns ? TEMP_RUNS_DIR : null);
+
+const FEEDBACK_FILE = path.join(RUNS_DIR, 'feedback.json');
+const FEEDBACK_MAX_BYTES = 8 * 1024;
+const FEEDBACK_MAX_COMMENT = 1000;
+const FEEDBACK_INTERVAL_MS = 10_000;
+const FEEDBACK_RATINGS = new Set(['easy', 'right', 'hard']);
 
 // v22: player progress in the Vibecode app storage; without the key everything stays in the browser.
 const STORAGE_TICK_MS = 2_000;
@@ -87,7 +96,7 @@ function createSession(req) {
 	const s = { sid, pid, uid, portalName, migSent: false, conn: null, timer: null, tokens: MSG_RATE_PER_SEC, tokensAt: Date.now() };
 	sessions.set(sid, s);
 	byPid.set(pid, s);
-	hub.addPlayer(pid, name);
+	hub.addPlayer(pid, name, uid);
 	scheduleRemoval(s, UNUSED_SESSION_MS);
 	if (uid && store.enabled) {
 		store.retain(uid).then((rec) => rec && sendProgress(uid));
@@ -333,13 +342,66 @@ function handleSend(req, res, url) {
 	});
 }
 
+async function handleFeedback(req, res) {
+	try {
+		if (req.method === 'GET') {
+			const portalSession = /^Bearer vibe_session_[A-Za-z0-9_-]+$/.test(req.headers['x-vibe-authorization'] ?? '');
+			if (!portalSession || req.headers['x-vibe-user-role'] !== 'ADMIN' || !bitrixUid(req.headers['x-vibe-user-id'])) {
+				return sendJson(res, 403, { err: 'forbidden' });
+			}
+			return sendJson(res, 200, { feedback: readFeedback(FEEDBACK_FILE).reverse() });
+		}
+		if (req.method !== 'POST') return sendText(res, 405, 'method not allowed');
+		if (req.headers['content-type']?.split(';')[0] !== 'application/json') {
+			req.resume();
+			return sendJson(res, 415, { err: 'expected JSON' });
+		}
+		let size = 0;
+		const chunks = [];
+		for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+			size += chunk.length;
+			if (size > FEEDBACK_MAX_BYTES) {
+				req.resume();
+				return sendJson(res, 413, { err: 'feedback too large' });
+			}
+			chunks.push(chunk);
+		}
+		const data = parseJson(Buffer.concat(chunks).toString('utf8'));
+		if (!data || typeof data !== 'object' || Array.isArray(data)) return sendJson(res, 400, { err: 'invalid feedback' });
+		const session = getSession(data.sid);
+		if (!session) return sendJson(res, 401, { err: 'unknown sid' });
+		const rating = data.rating ?? null;
+		const rawComment = data.comment ?? '';
+		if (typeof rawComment !== 'string' || rawComment.length > FEEDBACK_MAX_COMMENT || (rating !== null && !FEEDBACK_RATINGS.has(rating))) {
+			return sendJson(res, 400, { err: 'invalid feedback' });
+		}
+		const comment = rawComment.trim();
+		if (!rating && !comment) return sendJson(res, 400, { err: 'empty feedback' });
+		const now = Date.now();
+		if (now - (session.feedbackAt ?? 0) < FEEDBACK_INTERVAL_MS) {
+			res.setHeader('Retry-After', String(Math.ceil((FEEDBACK_INTERVAL_MS - (now - session.feedbackAt)) / 1000)));
+			return sendJson(res, 429, { err: 'too many requests' });
+		}
+		const runId = typeof data.runId === 'string' ? runStore.get(data.runId)?.id ?? null : null;
+		saveFeedback(FEEDBACK_FILE, { at: new Date(now).toISOString(), v: GAME_VERSION, runId, rating, comment });
+		session.feedbackAt = now;
+		return sendJson(res, 201, { ok: true });
+	} catch (e) {
+		if (res.destroyed) return;
+		console.error('feedback:', e.code ?? e.name);
+		return sendJson(res, 503, { err: 'feedback unavailable' });
+	}
+}
+
 // GET /api/runs — recent runs; /api/runs/:id — full log (JSON), /api/runs/:id.txt — summary + JSON.
 function handleRuns(req, res, p) {
 	if (req.method !== 'GET') return sendText(res, 405, 'method not allowed');
 	if (p === '/api/runs' || p === '/api/runs/') return sendJson(res, 200, { runs: runStore.list() });
-	const m = /^\/api\/runs\/([A-Za-z0-9]{6})(\.txt|\.json)?$/.exec(p);
+	if (p === '/api/runs/history') return sendJson(res, 200, runStore.history(bitrixUid(req.headers['x-vibe-user-id'])));
+	const m = /^\/api\/runs\/([A-Za-z0-9]{6})(\.txt|\.json|\.summary)?$/.exec(p);
 	const log = m && runStore.get(m[1].toUpperCase());
 	if (!log) return sendText(res, 404, 'not found');
+	if (m[2] === '.summary') return sendText(res, 200, log.summary.join('\n'));
 	if (m[2] === '.txt') return sendText(res, 200, logText(log));
 	sendJson(res, 200, log);
 }
@@ -356,6 +418,7 @@ const server = http.createServer((req, res) => {
 	if (p === '/api/session') return handleSession(req, res, url);
 	if (p === '/api/events') return handleEvents(req, res, url);
 	if (p === '/api/send') return handleSend(req, res, url);
+	if (p === '/api/feedback') return handleFeedback(req, res);
 	if (p === '/api/runs' || p.startsWith('/api/runs/')) return handleRuns(req, res, p);
 	if (p === '/api/busy') return sendJson(res, 200, { ...hub.busy(), v: GAME_VERSION, storage: store.enabled });
 	if (p.startsWith('/api/')) return sendText(res, 404, 'not found');

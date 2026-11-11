@@ -277,14 +277,14 @@ export class Room {
 		return true;
 	}
 
-	addPlayer(pid, name, hero, unlocked = null) {
+	addPlayer(pid, name, hero, unlocked = null, uid = null) {
 		if (this.state !== 'lobby') return 'Игра уже идёт';
 		if (this.members.size >= MAX_PLAYERS) return 'Комната заполнена';
 		const usedColors = new Set([...this.members.values()].map((m) => m.color));
 		const color = PLAYER_COLORS.find((c) => !usedColors.has(c)) ?? PLAYER_COLORS[0];
 		let pick = sanitizeHero(hero) ?? 'knight';
 		if (unlocked && !unlocked.has(pick)) pick = unlocked.has('knight') ? 'knight' : unlocked.values().next().value;
-		this.members.set(pid, { pid, name, hero: pick, ready: false, color, unlocked });
+		this.members.set(pid, { pid, name, hero: pick, ready: false, color, unlocked, uid });
 		if (this.host === null) this.host = pid;
 		this.sendLobby();
 		return null;
@@ -547,6 +547,7 @@ export class Room {
 		this.state = 'play';
 		this.heroes.clear();
 		const list = [...this.members.values()];
+		this.runUids = list.map((m) => m.uid).filter(Boolean);
 		list.forEach((m, i) => {
 			const a = (i / list.length) * Math.PI * 2;
 			const r = list.length > 1 ? 50 : 0;
@@ -4837,7 +4838,7 @@ export class Room {
 			h.queue = 0;
 		}
 		const log = this.runLog?.build(this, win) ?? null;
-		if (log) runStore.add(log);
+		if (log) runStore.add(log, this.runUids);
 		this.lastLog = log;
 		const stats = [...this.heroes.values()].map((h) => ({
 			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
@@ -4979,8 +4980,8 @@ export class Hub {
 		this.onRunEnd = null; // v22: (info) => Map pid -> totals, given to every room
 	}
 
-	addPlayer(pid, name) {
-		this.players.set(pid, { pid, name, room: null });
+	addPlayer(pid, name, uid = null) {
+		this.players.set(pid, { pid, name, uid, room: null });
 	}
 
 	// Deploy check (/api/busy): rooms in a run and players in them, no names or codes.
@@ -5076,7 +5077,7 @@ export class Hub {
 				room.onRunEnd = this.onRunEnd;
 				room.setMode(msg.mode);
 				this.rooms.set(room.code, room);
-				room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes));
+				room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes), p.uid);
 				p.room = room;
 				this.pushRooms();
 				return;
@@ -5092,7 +5093,7 @@ export class Hub {
 				if (room.state !== 'lobby') return err('Игра в этой комнате уже идёт');
 				if (room.size >= MAX_PLAYERS) return err('Комната заполнена');
 				this.leaveRoom(pid);
-				const e = room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes));
+				const e = room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes), p.uid);
 				if (e) return err(e);
 				p.room = room;
 				this.pushRooms();

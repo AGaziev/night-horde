@@ -770,3 +770,67 @@ input[type="text"]:focus { border-color: var(--accent); }
 .top-list .top-who small { color: var(--muted); margin-left: 6px; }
 .top-list .top-res { color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 #top-note:empty { display: none; }
+
+/* Lobby dialogs */
+.game-dialog {
+	width: calc(100% - 32px);
+	margin: auto;
+	max-height: calc(100% - 32px);
+	padding: clamp(14px, 4vw, 24px);
+	color: var(--text);
+	background: #141724;
+}
+.game-dialog::backdrop { background: rgba(5, 6, 10, 0.76); }
+.game-dialog-head, .run-history-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+.game-dialog-head { justify-content: space-between; }
+.game-dialog-head h2 { margin: 0; }
+.run-history-actions [aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.run-history-list { list-style: none; margin: 0; padding: 0; }
+.run-history-list li {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 0;
+	border-top: 1px solid var(--panel-border);
+	font-size: 14px;
+}
+.run-history-list time { display: block; margin: 2px 0; color: var(--muted); font-size: 12px; }
+.run-history-win { color: var(--ok); }
+.run-history-loss { color: var(--danger); }
+.game-dialog [role="status"]:empty { margin: 0; }
+#run-history-summary {
+	margin: 12px 0 0;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	font: 13px/1.55 var(--font);
+}
+
+#menu-feedback { margin-top: 16px; }
+.over-feedback {
+	margin-top: 16px;
+	padding: 12px;
+	border: 1px solid var(--panel-border);
+	border-radius: var(--radius);
+}
+.over-feedback h2 { margin: 0 0 8px; }
+.feedback-options, .feedback-ratings { display: flex; flex-wrap: wrap; gap: 8px 12px; }
+.feedback-ratings { margin: 0 0 12px; padding: 8px 0; border: 0; }
+.feedback-ratings label { cursor: pointer; }
+#feedback-form textarea {
+	display: block;
+	width: 100%;
+	margin: 6px 0 12px;
+	padding: 10px;
+	resize: vertical;
+	border: 1px solid var(--panel-border);
+	border-radius: 10px;
+	background: var(--bg);
+	color: var(--text);
+	font: inherit;
+}

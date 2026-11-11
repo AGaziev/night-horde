@@ -6,6 +6,8 @@ import { Renderer } from './render.js';
 import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
 import { Sound } from './audio.js';
 import { cardText, cardImage } from './results.js';
+import { setupRunHistory } from './run-history.js';
+import { setupFeedback } from './feedback.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -15,6 +17,8 @@ const store = {
 
 const net = new Net();
 const ui = new UI();
+const runHistory = setupRunHistory();
+const feedback = setupFeedback(() => net.sid);
 const game = new Game(net);
 const canvas = $('game');
 const renderer = new Renderer(canvas);
@@ -58,6 +62,7 @@ function goMenu() {
 }
 
 function goGame() {
+	runHistory.close();
 	if (ui.screen !== 'game') {
 		ui.resetHud();
 		ui.show('game');
@@ -249,6 +254,7 @@ function showOver(msg) {
 	if (msg.host !== undefined) state.host = msg.host;
 	const stats = (Array.isArray(msg.stats) ? msg.stats : []).map((s) => ({ ...s, color: game.meta(s.pid).color }));
 	ui.renderOver({ ...msg, stats }, state.me, state.host === state.me);
+	feedback.forRun(msg.runId);
 	ui.show('over');
 	sound.setMode('over', msg.win, msg.grade === 2);
 }
