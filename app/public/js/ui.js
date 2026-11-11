@@ -509,7 +509,7 @@ export class UI {
 			card.appendChild(el('div', 'card-desc', c.desc || def?.desc || ''));
 			if (c.kind === 'ember') card.appendChild(el('div', 'card-level', `×${c.level}`));
 			if (c.draft) card.appendChild(el('div', 'card-hint card-hint-rec', c.draft === 'fit' ? '★ Для текущей сборки' : '↗ Другое направление'));
-			if (c.rec) card.appendChild(el('div', 'card-hint card-hint-rec', '★ рекомендуем: одного оружия мало'));
+			if (c.rec) card.appendChild(el('div', 'card-hint card-hint-rec', c.rec === 2 ? '★ рекомендуем: оружия мало для середины забега' : '★ рекомендуем: одного оружия мало'));
 			if (c.rerolls > 0) card.appendChild(el('div', 'card-hint', `🎲 +${c.rerolls} «Перебросить»`));
 			// Weapons at 4–5 show what they evolve into.
 			const evoId = c.kind === 'weapon' && c.level >= 4 ? EVO_BY_WEAPON[c.id] : null;

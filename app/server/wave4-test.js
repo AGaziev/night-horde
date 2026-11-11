@@ -56,10 +56,10 @@ const fxOf = (r, name) => r.fx.filter((f) => f[0] === name);
 	assert.equal(specialCap(SPECIALS.sniper, 0.39, 1), 0);
 	assert.ok(specialCap(SPECIALS.sniper, 0.4, 1) >= 1 && specialCap(SPECIALS.sniper, 0.8, 4) > specialCap(SPECIALS.sniper, 0.4, 1));
 	assert.equal(SHIELD_DIRS << SHIELD_SHIFT, 8192);
-	// v18: pairs get softer enemy hits; v23: three players too; v28: solo too (×0.75); 4+ stay at ×1.
+	// v18: pairs get softer enemy hits; v23: three players too; v28: solo too; v29: 4+ too; 8 players use the 4+ value.
 	for (const m of ['lunch', 'night']) {
-		assert.ok(modeDmgMul(m, 1) < 1 && modeDmgMul(m, 2) < 1 && modeDmgMul(m, 3) < 1, `${m}: solo, pairs and three players`);
-		assert.ok(modeDmgMul(m, 4) === 1 && modeDmgMul(m, 8) === 1, `${m}: 4+ untouched`);
+		for (const n of [1, 2, 3, 4]) assert.ok(modeDmgMul(m, n) < 1, `${m}: ${n} players softened`);
+		assert.equal(modeDmgMul(m, 8), modeDmgMul(m, 4), `${m}: 8 players as 4+`);
 	}
 	console.log('content: OK');
 }

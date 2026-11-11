@@ -114,6 +114,7 @@ const SRC_CRACKER = { weapon: 'cracker', tags: ['aoe'], raw: true }; // raw: fix
 const SRC_STAR = { weapon: 'star', tags: ['aoe'], raw: true };
 const SPECIAL_IDS = Object.keys(SPECIALS);
 const SHIELD_COS = Math.cos((ENEMIES.shield.arc * Math.PI) / 180);
+const WEAPON_SHORT = { count: 3, frac: 0.4 }; // v29: see makeChoices
 const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
 const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
@@ -702,7 +703,10 @@ export class Room {
 		let newWTaken = false;
 		// A single weapon is a trap: new weapons are offered every time and marked as recommended.
 		const lonely = h.weapons.size < 2;
-		const allowNewW = lonely || !h.lastOfferNewW;
+		// v29: fewer than WEAPON_SHORT.count weapons by WEAPON_SHORT.frac of the run (live logs: two weapons and all picks in
+		// artifacts by 5:00) — new weapons every offer, ahead of new artifacts, marked as recommended.
+		const short = !lonely && h.weapons.size < WEAPON_SHORT.count && this.time >= WEAPON_SHORT.frac * this.runLength && newW.length > 0;
+		const allowNewW = lonely || short || !h.lastOfferNewW;
 		const take = (arr) => {
 			for (const c of arr) {
 				const key = c.kind + c.id;
@@ -716,7 +720,8 @@ export class Room {
 		};
 		const available = [...newW, ...newP];
 		const compatible = shuffle(available.filter((c) => this.fitsBuild(h, c)));
-		const fresh = () => Math.random() < 0.55 ? [...compatible, ...shuffle(available)] : shuffle(available);
+		const fresh = () => short ? [...shuffle([...newW]), ...shuffle([...newP])]
+			: Math.random() < 0.55 ? [...compatible, ...shuffle(available)] : shuffle(available);
 		// A ready duo goes to slot 1 (unless the player declined it recently).
 		// An evolution or a ready duo goes to slot 1 (unless the player declined it recently).
 		const forge = this.forgeCards(h);
@@ -727,7 +732,7 @@ export class Room {
 		// An overclock replaces embers, it does not compete with upgrades (with it mid-run the human bot fell 43% → 27%).
 		const regular = ups.length + (h.weapons.size < MAX_WEAPONS ? newW.length : 0) + newP.length;
 		const ovr = forge.length || evo || ready || regular >= OVR_REGULAR_MAX ? null : this.readyOvr(h);
-		const alternate = h.offerFloor > 0 && !h.buildChestDone && compatible.length
+		const alternate = !short && h.offerFloor > 0 && !h.buildChestDone && compatible.length
 			? shuffle(available.filter((c) => !this.fitsBuild(h, c) && c.kind === 'passive')) : [];
 		if (!forge.length && !evo && !ready && alternate.length && compatible.some((c) => c.kind === 'passive' || allowNewW)) {
 			take(compatible);
@@ -740,10 +745,13 @@ export class Room {
 		else if (ovr) out.push(...this.ovrCards(h, ovr));
 		else if (!take(ups)) take(fresh());
 		if (out.length < 2) {
-			if (Math.random() < 0.5) {
+			if (short) {
+				if (!take(fresh())) take(ups); // v29: short of weapons — slot 2 is a new pick, a new weapon first
+			} else if (Math.random() < 0.5) {
 				if (!take(ups)) take(fresh());
 			} else if (!take(fresh())) take(ups);
 		}
+		if (short && !newWTaken) take(newW); // v29: and a new weapon somewhere in every offer
 		take(shuffle([...ups, ...newW, ...newP]));
 		h.lastOfferNewW = newWTaken;
 		// Nothing left to upgrade: a free weapon slot beats embers, the new-weapon pacing rules give way.
@@ -765,7 +773,7 @@ export class Room {
 		// v20: embers are the fallback — only when there is nothing left to upgrade or overclock.
 		if (!out.length) out.push(...this.emberCards(h, 3));
 		for (const c of out) {
-			if (lonely && c.kind === 'weapon' && c.level === 1) c.rec = 1;
+			if ((lonely || short) && c.kind === 'weapon' && !h.weapons.has(c.id)) c.rec = lonely ? 1 : 2; // 2: «мало оружия» (v29)
 			this.duoHint(h, c);
 			this.waveHints(h, c);
 		}

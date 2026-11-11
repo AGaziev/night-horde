@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v28';
+export const GAME_VERSION = 'v29';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -85,9 +85,9 @@ export const MODES = {
 	// v23: three players fell mid-run (9–10 min, mostly to spit and Трубач shots; 17% wins at night, 7% at lunch) — ×0.9 / ×0.8.
 	// v28: v25–v26 (3 new weapons and 4 artifacts in the pool) thinned builds: from 6:00 the human bot took +30–50% damage,
 	// wins fell to 14% solo and 8% for pairs. Enemy damage for 1–2 players brings them back to 25–40% (pm/balance-v28.md).
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [0.75, 0.6, 0.9, 1] },
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [0.75, 0.6, 0.45, 0.6] }, // v29: 3 and 4+ fell to 0–8% (bots, live logs of trios), pm/balance-v29.md
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [0.75, 0.6, 0.8, 1] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [0.75, 0.5, 0.5, 0.55] }, // v29: pair, 3 and 4+, pm/balance-v29.md
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
