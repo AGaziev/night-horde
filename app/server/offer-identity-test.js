@@ -78,3 +78,32 @@ try {
  }
  console.log('Offer identity: real queued pick/ban/skip/reroll, authoritative correction, fresh acceptance and empty forge: OK');
 } finally {Math.random=random;}
+
+// A pre-epoch browser must reload on the actual server welcome instead of getting stuck rejecting every action.
+{
+ const netFile=new URL('../public/js/net.js',import.meta.url);
+ const codecUrl=new URL('../public/js/snapshot-codec.js',import.meta.url).href;
+ const netSource=fs.readFileSync(netFile,'utf8').replace("'./snapshot-codec.js'",JSON.stringify(codecUrl));
+ const oldSource="const PROTO = 23;\n"+netSource.replace('import { PROTO, SnapshotDecoder }','import { SnapshotDecoder }');
+ const {Net:OldNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource).toString('base64'));
+ const {Net}=await import('data:text/javascript;base64,'+Buffer.from(netSource).toString('base64'));
+ const {Hub}=await import('./game.js');
+ let welcome;const hub=new Hub((pid,msg)=>{if(msg.t==='welcome')welcome=msg;});hub.addPlayer(1,'One');hub.welcome(1);
+ const previousStorage=Object.getOwnPropertyDescriptor(globalThis,'sessionStorage');
+ const previousLocation=Object.getOwnPropertyDescriptor(globalThis,'location');
+ let reloads=0,emitted=0;const storage=new Map();
+ Object.defineProperty(globalThis,'sessionStorage',{configurable:true,value:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}});
+ Object.defineProperty(globalThis,'location',{configurable:true,value:{reload(){reloads++;}}});
+ try {
+  const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
+  assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
+  assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
+  assert.equal(welcome.v,24,'server and current browser announce the new offer-action protocol');
+  const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
+  assert.equal(reloads,1,'matching current browser is not reloaded');assert.equal(emitted,1);
+ } finally {
+  if(previousStorage)Object.defineProperty(globalThis,'sessionStorage',previousStorage);else delete globalThis.sessionStorage;
+  if(previousLocation)Object.defineProperty(globalThis,'location',previousLocation);else delete globalThis.location;
+ }
+ console.log('Offer protocol: actual welcome reloads PROTO23 browser and resumes current browser: OK');
+}

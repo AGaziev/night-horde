@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 23; // v28: fx frost may carry a point (x, y); v27: merge of v24 (aff, zk 3) and v25–v26 (perks, forge, buildring)
+export const PROTO = 24; // Offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.
