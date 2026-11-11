@@ -19,6 +19,7 @@ import {
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
+import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
@@ -2823,6 +2824,12 @@ export class Room {
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
 		const src = this.weaponSource(h, SRC[id]);
+		if (DUOS[id]?.effect) {
+			if (L.charges) this.wardTick(h, w, L, dt);
+			w.castT = (w.castT ?? 0) - dt;
+			if (w.castT <= 0) w.castT = castConfluence(this, h, L, src, DUOS[id].effect) ? L.castCd * cdMul : 0.15;
+			return;
+		}
 		switch (id) {
 			case 'orbit':
 				this.orbitHits(h, L, dmgMul, areaMul, amount);
@@ -3392,6 +3399,7 @@ export class Room {
 				if (e.dead) continue;
 				this.slowEnemy(e, wave.slow, wave.dur);
 				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze);
+				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; }
 			}
 			if (wave.distance < wave.range) this.coldWaves[n++] = wave;
 		}
@@ -3588,13 +3596,17 @@ export class Room {
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
-		const id = ['bastion', 'phalanx', 'dome', 'riposte', 'rod'].find((k) => h.weapons.has(k)) ?? 'ward';
+		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id);
 		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
+		if (DUOS[id]?.effect === 'sonicShield') {
+			this.tuningWave(h, L, L.dmg * 1.8 * h.mods.dmgMul, SRC[id]);
+			return;
+		}
 		if (w && h.ward < h.wardMax) w.t = Math.min(w.t, L.cd * h.mods.cdMul);
 		if (id === 'phalanx') {
 			this.spearRing(h, L);
@@ -4785,6 +4797,7 @@ export class Room {
 						}
 						this.hurtEnemy(e, z.dmg * (entry ? 2.5 : 1), z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
+						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; }
 						if (z.drag && !e.dead && !e.boss) {
 							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
 							e.dragT = this.time + z.tick + 0.1;

@@ -64,13 +64,13 @@ const NEW_B = ['frostsnare', 'abatis', 'harpoon', 'rockets', 'stingers', 'whirlw
 	for (const D of Object.values(DUOS)) for (const p of D.parts) per[p] = (per[p] ?? 0) + 1;
 	// v27: the v26 weapons (Призма, Камертон, Теневой якорь) have no duos yet; they meet everyone through affinity.
 	const V26 = ['prism', 'tuning', 'anchor'];
-	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 1 && per[id] <= 4, `${id}: ${per[id]} duos`);
-	for (const id of V26) assert.equal(per[id] ?? 0, 0, `${id}: no duos yet`);
+	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 4 && per[id] <= 5, `${id}: ${per[id]} duos`);
+	for (const id of V26) assert.equal(per[id], 4, `${id}: four fusion partners`);
 	for (const id of ['lantern', 'trail', 'ward']) assert.ok(per[id] >= 4, `${id} gets its new duos (${per[id]})`);
 	if (DUOS.whirlwind) {
 		// Delivery B: 30 duos, exactly 4 per weapon; affinity on the other 75 pairs as in pm/DUOS-v2-design.md.
-		assert.equal(Object.keys(DUOS).length, 30);
-		for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.equal(per[id], 4, id);
+		assert.equal(Object.keys(DUOS).length, 39);
+		for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.equal(Object.values(DUOS).filter(d => d.parts.includes(id) && !d.parts.some(p => V26.includes(p))).length, 4, id);
 		// The design's 75 affinities are among the 15 weapons of v24; the v26 weapons add their own pairs on top.
 		const n = {};
 		const ids = Object.keys(WEAPONS).filter((id) => !V26.includes(id));

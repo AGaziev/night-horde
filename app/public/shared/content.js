@@ -1,4 +1,5 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
+import { CONFLUENCES } from './confluences.js';
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
 export const GAME_VERSION = 'v30';
@@ -471,10 +472,10 @@ export const REACTION_IDS = Object.keys(REACTIONS);
 // Which weapons leave a state, and which state + hit tag makes which reaction (for card hints; the server rules live in Room.react).
 export const STATE_SOURCES = {
 	wet: ['flask', 'molotov', 'censer', 'quagmire', 'stingers'],
-	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe', 'rockets'],
-	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
-	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
-	root: ['traps', 'pitfall', 'tripwire', 'frostsnare', 'abatis'],
+	burn: ['inferno', 'trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe', 'rockets'],
+	frozen: ['crystalchoir', 'frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	chill: ['crystalchoir', 'frost', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	root: ['blacksnare', 'traps', 'pitfall', 'tripwire', 'frostsnare', 'abatis'],
 };
 export const REACTION_RULES = [
 	{ id: 'cond', state: 'wet', tags: ['shock'] },
@@ -1064,6 +1065,7 @@ export const DUOS = {
 		],
 	},
 };
+Object.assign(DUOS, CONFLUENCES);
 export const DUO_IDS = Object.keys(DUOS);
 export const duoKey = (a, b) => (a < b ? `${a}+${b}` : `${b}+${a}`);
 export const DUO_BY_PAIR = Object.fromEntries(DUO_IDS.map((id) => [duoKey(...DUOS[id].parts), id]));
