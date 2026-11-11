@@ -44,7 +44,7 @@ export function castConfluence(room, h, L, src, effect) {
       room.hurtEnemy(e,damage*0.55,h,src);
     }
   } else if(effect==='resonanceWell') {
-    room.addPatch(h,center.x,center.y,radius,L.dur*h.mods.durMul,damage*0.4,L.tick,src,0,'resonance-well',4,{resonance:1.3,zk:3});
+	room.addPatch(h,center.x,center.y,radius,L.dur*h.mods.durMul,damage*0.4,L.tick,{...src,tags:['aoe']},0,'resonance-well',4,{resonance:1.3,zk:3});
   } else if(effect==='trapWell') {
     room.layTrap(h,{x:center.x,y:center.y,r:radius,dmg:damage,root:L.root*h.mods.ctrlMul*h.mods.durMul,
       splash:radius,rootTargets:4+h.mods.amount,uses:3,rearm:1.2*h.mods.cdMul,max:6,src});

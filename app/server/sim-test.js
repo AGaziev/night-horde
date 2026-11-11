@@ -35,12 +35,13 @@ function checkSnapshot(s) {
 		assert.ok(p[9] >= 0 && p[9] <= 100);
 		assert.equal(typeof p[10], 'number');
 		assert.equal(typeof p[11], 'number');
-		for (const [id, lvl, extra, mask, donor] of p[12]) {
+		for (const [id, lvl, extra, mask, donor, parts] of p[12]) {
 			assert.ok((WEAPON_IDS.includes(id) || (DUO_IDS.includes(id) && lvl <= 3) || (EVO_IDS.includes(id) && lvl === 1)) && isInt(lvl), `weapon ${id}`);
 			// v20: an overclocked plain weapon at level 5 carries [id, lvl, echo amount, variant 1|2].
 			const ovr = WEAPON_IDS.includes(id) && lvl === 5 && (mask === 1 || mask === 2);
-			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || ovr || donor) && isInt(extra)));
-			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr || (donor && mask === 0));
+			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || DUOS[id] || ovr || donor) && isInt(extra)));
+			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr || ((donor || DUOS[id]) && mask === 0));
+			if (DUOS[id]) assert.ok(parts.length === 2 && parts.every(([part, level]) => DUOS[id].parts.includes(part) && level >= 3 && level <= 5), 'inherited attacks in snapshot');
 		}
 	}
 	const flat = (arr, n) => {
@@ -1152,11 +1153,11 @@ console.log('over/again/leave: ok');
 		const r = mkRoom();
 		duo(r, 'aurora');
 		const e = put(r, 'brute', 80, 0), far = put(r, 'brute', 200, 0);
-		let chilled = false, frozenFar = false;
+		let chilled = false, frozenNear = false;
 		fxAll.length = 0;
-		run(r, 3.5, () => { chilled ||= e.slowT > r.time; frozenFar ||= far.frozenT > r.time; });
+		run(r, 3.5, () => { chilled ||= e.slowT > r.time; frozenNear ||= e.frozenT > r.time; });
 		assert.ok(chilled && e.hp < 1e5, 'aura chills and hurts');
-		assert.ok(frozenFar && take('frost').some((f) => f[2] === 220), 'ring to 2r freezes');
+		assert.ok(frozenNear && take('frost').some((f) => f[2] === 90), 'the pulse holds enemies inside the inherited aura');
 		console.log('duo aurora: ok');
 	}
 	// 11. Кадило: clouds hurt enemies and heal allies (not the owner).

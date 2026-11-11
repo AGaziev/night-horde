@@ -461,7 +461,8 @@ function fight(id, oc, seconds = 12) {
 	plain.h.ward = 3;
 	plain.r.fx = [];
 	plain.r.wardAbsorb(plain.h);
-	assert.ok(!plain.r.fx.some((f) => f[0] === 'boom'), 'plain ward: no burst until the last charge');
+	assert.ok(plain.r.fx.some((f) => f[0] === 'boom'), 'plain ward answers every block');
+	assert.equal(weaponLevel('ward', 5, 1).burstDmg, weaponLevel('ward', 5).burstDmg * 2, 'thorns doubles the answer instead of unlocking the base behavior');
 	// Taking an overclock on a full ward trims the charges.
 	const w = fight('ward', 0, 2);
 	w.h.ward = 3;

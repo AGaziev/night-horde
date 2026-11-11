@@ -49,6 +49,8 @@ function arena(id, level = 1) {
   assert.equal(h.supportDamage-support,25,'support credits only added damage');
   assert.equal(h.dmg+ally.dmg-teamDamage,125,'support credit does not count damage twice');
   const snapshot=r.snapshot(); assert.ok(snapshot.support.some(([pid,n])=>pid===h.pid && n>0));
+  const beforeOverkill=h.supportDamage;e.hp=1;r.hurtEnemy(e,100,ally,{weapon:'whip',tags:['phys']});
+  assert.equal(h.supportDamage,beforeOverkill,'a mark gets no credit when the unmarked hit already kills');
 }
 {
   const {r,h,w,foe} = arena('trail'); const e=foe(0);
@@ -59,6 +61,8 @@ function arena(id, level = 1) {
   assert.ok(e.burnT>=r.time+3.5,'burn survives walking out of the path');
   h.x=150;r.time+=0.2;h.movedT=r.time;r.trailTick(h,WEAPONS.trail.levels[0],{weapon:'trail',tags:['fire','aoe']},w);
   assert.ok(r.puddles.some(z=>z.x>20&&z.x<140),'fast movement gets intermediate path segments');
+  for(let i=0;i<100;i++){h.x+=480;r.time+=0.1;h.movedT=r.time;r.trailTick(h,WEAPONS.trail.levels[0],{weapon:'trail',tags:['fire','aoe']},w);}
+  assert.ok(r.puddles.filter(z=>z.baseTrail).length<=24,'interpolation never bypasses the fire-segment ceiling');
 }
 {
   const {r,h,w,foe}=arena('ward',5); const e=foe(70);

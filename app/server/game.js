@@ -120,6 +120,17 @@ const WEAPON_SHORT = { count: 3, frac: 0.4 }; // v29: see makeChoices
 const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
 const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
+const fieldSource = (src) => (src?.weapon ?? 'other') + ':' + (src?.component ?? 'signature');
+function trimOwned(list, owner, max, match) {
+	let excess = list.filter(item => item.owner === owner && match(item)).length - max;
+	if (excess <= 0) return;
+	let kept = 0;
+	for (const item of list) {
+		if (excess > 0 && item.owner === owner && match(item)) { excess--; continue; }
+		list[kept++] = item;
+	}
+	list.length = kept;
+}
 const shuffle = (a) => {
 	for (let i = a.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
@@ -2160,9 +2171,7 @@ export class Room {
 			}
 		}
 		const resonant = e.resonanceT > now;
-		if (h?.mods.ashHops > 0 && !src.raw && !src.react && !src.perk && src.coilJumps === undefined) {
-			this.burn(e, h, Math.max(1, weaponDamage * 0.08), 2.5, e.burnT > now ? e.ashHops : undefined);
-		}
+		const canSeedAsh = h?.mods.ashHops > 0 && !src.raw && !src.react && !src.perk && src.coilJumps === undefined;
 		const burning = e.burnT > now && e.burnOwner?.mods.ashHops > 0;
 		if (h && !src.react && !src.raw && h.blockCharge > 0) {
 			dmg *= 1 + 0.55 * h.blockCharge;
@@ -2180,7 +2189,7 @@ export class Room {
 		}
 		const dealt = Math.min(dmg, e.hp);
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			e.markOwner.supportDamage += dealt - dealt / (1 + e.markMul);
+			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, dmg / (1 + e.markMul)));
 		}
 		const flashPart = Math.min(this.flashPart ?? 0, dealt);
 		this.flashPart = 0;
@@ -2204,6 +2213,7 @@ export class Room {
 		if (e.hp <= 0) {
 			this.killEnemy(e, h, src);
 			if (burning) this.spreadAsh(e);
+			else if (canSeedAsh && this.seedAsh(e, h, weaponDamage)) this.spreadAsh(e);
 			if (h?.mods.coil > 0 && !src.react && !src.raw) this.coilJump(e, h,
 				{ ...src, coilPower: src.coilPower ?? (src.tags.includes('shock') || resonant ? 0.66 : 0.38) }, dmg);
 		} else if (h && h.mods.burnChance > 0 && !src.react) {
@@ -2211,6 +2221,7 @@ export class Room {
 				if (Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
 			} else if (e.burnT <= this.time + 1) this.burn(e, h, h.mods.burnDps * EMBER_WEAK.frac, EMBER_WEAK.dur);
 		}
+		if (!e.dead && canSeedAsh) this.seedAsh(e, h, weaponDamage);
 		if (h?.st === 0 && !h.offline && dealt > 0 && !src.raw && !src.react && !src.perk
 			&& src.coilJumps === undefined && Object.hasOwn(SRC, src.weapon)) onWeaponHit(this, h, e, weaponDamage, src);
 		this.lastCrit = crit;
@@ -2247,6 +2258,15 @@ export class Room {
 			this.send(h.pid, { t: 'aff', id: a, a: prev, b: w });
 		}
 		return a;
+	}
+
+	seedAsh(e, h, damage) {
+		// A weapon can start a fire, but its own lightning cannot both ignite and detonate the same hit.
+		// Haste, Echo and overlapping zones cannot refresh this ignition more than once per 2.5 seconds.
+		if ((e.ashSeedAt?.[h.pid] ?? -Infinity) > this.time) return false;
+		(e.ashSeedAt ??= {})[h.pid] = this.time + 2.5;
+		this.burn(e, h, Math.max(1, damage * 0.08), 2.5, e.burnT > this.time ? e.ashHops : undefined);
+		return true;
 	}
 
 	spreadAsh(e) {
@@ -2801,7 +2821,7 @@ export class Room {
 			try {
 				for (const part of w.parts) {
 					part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
-					this.weaponContext = { h, weapon: id, part: part.id, scale: DUO_INHERIT_POWER };
+					this.weaponContext = { h, weapon: id, part: part.id, scale: DUOS[id].inheritPower ?? DUO_INHERIT_POWER };
 					if (part.id === 'ward') this.wardBash(h, part, attackLevel('ward', part.lvl, 0, h.mods), dt);
 					else if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && part.t <= dt && canRepeatCast(part.id)) repeatCast(this, h, part.id, part, dt);
 					else this.castWeapon(h, part.id, part, dt);
@@ -2904,7 +2924,7 @@ export class Room {
 				w.p = (w.p ?? L.pulse) - dt;
 				if (w.p <= 0) {
 					w.p = L.pulse * cdMul;
-					this.auroraPulse(h, L, id === 'blizzard' ? 1 : 2);
+					this.auroraPulse(h, id === 'aurora' ? { ...L, radius: WEAPONS.aura.levels[duoPartLevel(w.lvl) - 1].radius } : L, 1);
 				}
 				break;
 			case 'tocsin':
@@ -3550,9 +3570,7 @@ export class Room {
 			this.fx.push(['zk', z.id, 1]);
 		}
 		w.lastTrail = { x: h.x, y: h.y };
-		let mine = 0;
-		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
-		if (mine > (L.max ?? TRAIL_MAX)) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+		trimOwned(this.puddles, h, L.max ?? TRAIL_MAX, p => p.trail && fieldSource(p.src) === fieldSource(src));
 		return true;
 	}
 
@@ -3603,6 +3621,13 @@ export class Room {
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
+		if (DUOS[id]?.parts.includes('ward')) {
+			const inherited = w.parts?.find((part) => part.id === 'ward');
+			const base = attackLevel('ward', inherited?.lvl ?? duoPartLevel(w.lvl), 0, h.mods);
+			this.explode({ x: h.x, y: h.y, r: base.burstR * h.mods.areaMul, pdmg: 0,
+				edmg: base.burstDmg * h.mods.dmgMul, owner: h, kind: 7,
+				src: { weapon: id, component: 'ward', tags: ['aoe'], scale: DUO_INHERIT_POWER, lineage: true }, kb: base.kb });
+		}
 		if (DUOS[id]?.effect === 'sonicShield') {
 			this.tuningWave(h, L, L.dmg * 1.8 * h.mods.dmgMul, SRC[id]);
 			return;
@@ -3689,13 +3714,11 @@ export class Room {
 		w.k = ((w.k ?? 0) + 1) % count;
 		const z = {
 			id: this.nextId++, owner: h, x: xs[w.k], y: ys[w.k], r: L.patchR * areaMul, life: L.patchLife * durMul, dmg: L.patchDmg * dmgMul,
-			tick: L.tick, t: 0, src: SRC.firewheel, trail: true,
+			tick: L.tick, t: 0, src: this.weaponSource(h, SRC.firewheel), trail: true,
 		};
 		this.puddles.push(z);
 		this.fx.push(['zk', z.id, 1]);
-		let mine = 0;
-		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
-		if (mine > TRAIL_MAX) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+		trimOwned(this.puddles, h, TRAIL_MAX, p => p.trail && fieldSource(p.src) === fieldSource(z.src));
 	}
 
 	// Enemies inside a cone; marks them. Returns {dir, list} or null when no target.
@@ -4263,9 +4286,8 @@ export class Room {
 			uses: o.uses, rootTargets: o.rootTargets ?? 1, blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM, frost: o.frost ?? null,
 		});
 		if (o.max) {
-			let mine = 0;
-			for (const t of this.traps) if (t.owner === h && t.kind === kind) mine++;
-			if (mine > o.max) this.traps.splice(this.traps.findIndex((t) => t.owner === h && t.kind === kind), 1);
+			const source = fieldSource(this.traps.at(-1).src);
+			trimOwned(this.traps, h, o.max, t => t.kind === kind && fieldSource(t.src) === source);
 		}
 	}
 
@@ -4803,7 +4825,7 @@ export class Room {
 							e.dragT = this.time + z.tick + 0.1;
 						}
 						if (z.mark && !e.dead) {
-							if (e.markT <= this.time || z.mark > e.markMul) e.markMul = z.mark;
+							if (e.markT <= this.time || z.mark > e.markMul) { e.markMul = z.mark; e.markOwner = z.owner; }
 							e.markT = Math.max(e.markT, this.time + z.tick + 0.3);
 						}
 					}

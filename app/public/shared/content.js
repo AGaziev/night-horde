@@ -859,13 +859,13 @@ export const DUOS = {
 		name: 'Минное поле', icon: '◈', parts: ['bomb', 'traps'], tags: ['fire', 'aoe', 'trap'],
 		desc: 'Капканы становятся минами, которые перезаряжаются',
 		levels: [
-			{ dmg: 68, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
-			{ dmg: 92, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
-			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 60, recharge: 6, trigger: 30 },
+			{ dmg: 68, cd: 1.6, max: 5, radius: 80, kb: 0, recharge: 6, trigger: 26 },
+			{ dmg: 92, cd: 1.4, max: 6, radius: 90, kb: 0, recharge: 6, trigger: 28 },
+			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 0, recharge: 6, trigger: 30 },
 		],
 	},
 	icebomb: {
-		name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
+		signaturePower: 0.42, name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Взрыв замораживает, замёрзшие раскалываются осколками',
 		levels: [
 			{ dmg: 55, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
@@ -892,7 +892,7 @@ export const DUOS = {
 		],
 	},
 	icedisc: {
-		name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
+		inheritPower: 1.4, name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
 		desc: 'Диск оставляет ледяной след и замораживает на обратном пути',
 		levels: [
 			{ dmg: 68, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
@@ -901,7 +901,7 @@ export const DUOS = {
 		],
 	},
 	stormlight: {
-		name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
+		inheritPower: 1.5, name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Луч метит врагов, в луче бьют молнии; цепь только по помеченным',
 		levels: [
 			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 28, chain: 2 },
@@ -1011,7 +1011,7 @@ export const DUOS = {
 	},
 	// v28 (связки v2, поставка Б).
 	frostsnare: {
-		signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		inheritPower: 2, signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
 		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
 		levels: [
 			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },

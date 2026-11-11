@@ -57,3 +57,15 @@ try {
   }
 } finally { Math.random = originalRandom; }
 console.log(`artifact combat coverage: ${ids.length} weapons × ${Object.keys(PASSIVES).length} artifacts passed`);
+
+{
+  h.passives = new Map([['ashseal',1]]); room.recalcMods(h); room.enemies.length=0;
+  const e=room.spawnEnemy('brute',[h],1);Object.assign(e,{x:40,y:0,hp:10000,maxHp:10000});room.rebuildGrid();
+  const src={weapon:'lightning',tags:['shock']};
+  const before=h.dmgBy.r_flash??0;
+  room.hurtEnemy(e,10,h,src);
+  assert.equal(h.dmgBy.r_flash??0,before,'the first hit cannot ignite and detonate its own ash brand');
+  room.hurtEnemy(e,10,h,src);const after=h.dmgBy.r_flash??0;assert.ok(after>before);
+  for(let i=0;i<20;i++)room.hurtEnemy(e,10,h,src);
+  assert.equal(h.dmgBy.r_flash??0,after,'attack frequency does not bypass the ash ignition cooldown');
+}

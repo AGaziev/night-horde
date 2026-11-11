@@ -30,3 +30,5 @@ export const CONFLUENCES = {
     'Собирает врагов в огненную воронку; жжёт даже на месте и оставляет долгий поджог',
     levels({dmg:18,castCd:3.8,range:310,radius:115,dur:3,tick:0.35,burn:10}, {dmg:26,radius:140,burn:15}, {dmg:38,castCd:3,range:370,radius:165,dur:3.6,burn:22})),
 };
+
+CONFLUENCES.singularity.signaturePower = 1.1;
