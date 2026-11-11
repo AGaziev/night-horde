@@ -891,8 +891,8 @@ export class Room {
 				if (c.rar !== undefined) this.setRarity(h, c, c.rar);
 				else if (kind === 'weapon') c.desc = upgradeDesc(id, c.level);
 			}
-			this.sendOffer(h);
 		}
+		if (source !== 'forge' && h.offer) this.sendOffer(h);
 		return result;
 	}
 

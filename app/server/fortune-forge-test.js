@@ -56,4 +56,13 @@ for (const [id, value] of [['might', 0.26], ['vigor', 53]]) {
 	assert.equal(h.pval.might, before, 'stale capped cards never add value twice');
 	assert.ok([...h.weapons].every(([id, w]) => w.lvl <= weaponMaxLevel(id)));
 }
+
+{
+ const {r,h,sent}=setup([['whip',1]],[['might',1]]);
+ h.rerolls=0;
+ h.offer=[{id:'might',kind:'passive',rar:0,val:passiveStep('might'),level:2}];
+ rnd(0,()=>r.legendaryReforge(h,'outposts'));
+ assert.equal(sent.findLast(([,m])=>m.t==='lvl')?.[1].rerolls,1,'reward reroll appears even when the open offer upgraded another item');
+ assert.equal(h.offer[0].id,'might','unaffected cards stay available');
+}
 console.log('Fortune forge: one legendary item, rarity values, exclusions, stale offers and result: OK');

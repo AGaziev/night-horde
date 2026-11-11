@@ -144,4 +144,17 @@ for(const [initialSeed,sx] of [[19,1],[101,-1]]) {
  }finally{Math.random=old;}
 }
 
+
+{
+ const {r,hs}=setup(4,'lunch');spawnNetwork(r,hs);const p=r.outposts.posts[0];
+ hs[0].x=p.x;hs[0].y=p.y;r.updateOutposts(hs);
+ const e=r.enemies.find(e=>e.outpost===p);e.hp=e.maxHp*.5;
+ r.removePlayer(4);
+ const expected=ENEMIES.skel.hp*enemyHpScale(r.nt,3)*r.modeHp*1.4;
+ assert.ok(Math.abs(e.maxHp-expected)<1e-8,'leaving keeps the guard HP factor');
+ assert.equal(e.hp/e.maxHp,.5,'group rescale keeps damaged fraction');
+ const normal=r.spawnEnemy('skel',hs,enemyHpScale(r.nt,3));
+ assert.ok(Math.abs(e.dmg/normal.dmg-1.15)<1e-10,'leaving keeps the guard damage factor');
+ assert.equal(r.outposts.target,5,'objective target stays fixed after a participant leaves');
+}
 console.log('Outposts: timing, placement, finite guards, safe/fair cap, leash, chests, trophy, finale/reset and wire: OK');
