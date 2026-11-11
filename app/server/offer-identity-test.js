@@ -16,13 +16,16 @@ try {
   const hs=[...r.heroes.values()],h=hs[0];r.time=600;r.updateOutposts(hs);
   let last;
   for(const post of r.outposts.posts) {
-   h.x=post.x;h.y=post.y;r.updateOutposts(hs);
-   const guards=r.enemies.filter(e=>e.outpost===post&&!e.dead);
-   for(const e of guards) {
-    if(post===r.outposts.posts.at(-1)&&e===guards.at(-1))last=e;
-    else r.killEnemy(e,h);
+   h.x=post.x;h.y=post.y;
+   while(post.spawned<post.total||r.enemies.some(e=>e.outpost===post&&!e.dead&&e!==last)) {
+    r.updateOutposts(hs);
+    const guards=r.enemies.filter(e=>e.outpost===post&&!e.dead&&e!==last);
+    for(const e of guards) {
+     if(post===r.outposts.posts.at(-1)&&post.spawned===post.total&&e===guards.at(-1))last=e;
+     else r.killEnemy(e,h);
+    }
+    r.compactEnemies();
    }
-   r.compactEnemies();
   }
   assert.equal(r.outposts.status,'active');assert.ok(last&&!last.dead);
   h.weapons=new Map([['whip',{lvl:5,t:0}]]);h.passives=new Map([['might',4]]);h.pval={};r.recalcMods(h);

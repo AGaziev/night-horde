@@ -12,12 +12,12 @@ function setup(n = 1, mode = 'night') {
 function spawnNetwork(r,hs) { r.time=r.runLength*2/3; r.updateOutposts(hs.filter(h=>h.st===0)); return r.outposts; }
 function finishPost(r,hs,p) {
  hs[0].x=p.x;hs[0].y=p.y;
- for(let i=0;i<4 && p.killed<20;i++) {
+ for(let i=0;i<4 && p.killed<p.total;i++) {
   r.updateOutposts(hs.filter(h=>h.st===0));
   for(const e of r.enemies.filter(e=>e.outpost===p&&!e.dead)) r.killEnemy(e,hs[0]);
   r.compactEnemies();
  }
- assert.equal(p.killed,20);
+ assert.equal(p.killed,p.total);
 }
 for(const n of [1,2,4,8]) for(const mode of ['night','lunch']) {
  const {r,hs}=setup(n,mode);
@@ -33,7 +33,7 @@ for(const n of [1,2,4,8]) for(const mode of ['night','lunch']) {
 {
  const {r,hs}=setup(2);const net=spawnNetwork(r,hs),p=net.posts[0];
  hs[0].x=p.x;hs[0].y=p.y;r.updateOutposts(hs);
- assert.equal(p.spawned,20);assert.equal(p.killed,0);
+ assert.equal(p.spawned,40);assert.equal(p.killed,0);
  const guard=r.enemies.find(e=>e.outpost===p);assert.ok(guard);
  assert.ok(Math.abs(guard.maxHp-ENEMIES.skel.hp*enemyHpScale(r.nt,hs.length)*r.modeHp*1.4)<1e-8);
  assert.ok(r.enemies.every(e=>Math.hypot(e.x-hs[0].x,e.y-hs[0].y)>=200),'safe pending spawn');
@@ -48,15 +48,15 @@ for(const n of [1,2,4,8]) for(const mode of ['night','lunch']) {
  const {r,hs}=setup(8);spawnNetwork(r,hs);
  // Isolate scheduling fairness from world placement; nine simultaneously active camps.
  r.outposts.posts.forEach((p,i)=>{p.x=(i%3)*300;p.y=Math.floor(i/3)*300;});hs.forEach(h=>{h.x=300;h.y=300;});
- r.updateOutposts(hs);assert.equal(r.enemies.filter(e=>!e.dead&&e.outpost).length,72);
- assert.ok(r.outposts.posts.every(p=>p.spawned===8),'first eight per active camp before filling any camp');
+ r.updateOutposts(hs);assert.equal(r.enemies.filter(e=>!e.dead&&e.outpost).length,288);
+ assert.ok(r.outposts.posts.every(p=>p.spawned===32),'reserved share for every active camp');
 }
 {
  const {r,hs}=setup(2);spawnNetwork(r,hs);const p=r.outposts.posts[0];hs[0].x=p.x;hs[0].y=p.y;
  r.bossIdx=r.bossAt.length;
  while(r.enemies.length<MAX_ENEMIES) r.spawnEnemy('bat',hs,1);
- r.updateOutposts(hs);assert.equal(p.spawned,0);r.enemies[0].dead=true;r.compactEnemies();
- r.spawn(1,hs);assert.equal(r.enemies.length,MAX_ENEMIES);assert.equal(p.spawned,1,'pending guards take freed capacity before horde');
+ r.updateOutposts(hs);assert.equal(p.spawned,40);r.enemies.find(e=>!e.outpost).dead=true;r.compactEnemies();
+ r.spawn(1,hs);assert.equal(r.ordinaryEnemyCount(),MAX_ENEMIES);assert.equal(p.spawned,40,'guards and horde retain separate capacity');
 }
 {
  const {r,hs,sent}=setup(2);spawnNetwork(r,hs);const [first,...rest]=r.outposts.posts;

@@ -1,13 +1,16 @@
-import { MAX_ENEMIES, enemyHpScale, xpForNext } from '../public/shared/content.js';
+import { enemyHpScale, xpForNext } from '../public/shared/content.js';
 
 export const OUTPOST = Object.freeze({
-	guards: 20, aliveCap: 72, activation: 900, pursuit: 650, leash: 520,
+	baseGuards: 40, perHero: 5, aliveCap: 288, perPostCap: 40, rangedCap: 4, hp: 1.4, damage: 1.15,
+	activation: 900, pursuit: 650, leash: 520,
 	minDistance: 1800, spacing: 900, world: 100000, safeSpawn: 200,
 	preparation: 0.9, shotLife: 2.4, shotRange: 650,
 });
 const TYPES = ['skel', 'skel', 'brute', 'skel', 'shield', 'brute', 'skel', 'sniper', 'skel', 'brute',
 	'skel', 'skel', 'brute', 'shield', 'skel', 'sniper', 'brute', 'skel', 'brute', 'skel'];
 const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
+const garrison = net => ({ total: net.guardsPerPost, pending: Array.from({ length: net.guardsPerPost }, (_, i) => TYPES[i % TYPES.length]),
+	spawned: 0, killed: 0, chest: 0, activated: false });
 const valid = (p, heroes, posts) => Math.abs(p.x) <= OUTPOST.world - OUTPOST.leash
 	&& Math.abs(p.y) <= OUTPOST.world - OUTPOST.leash
 	&& heroes.every(h => d2(p, h) >= OUTPOST.minDistance ** 2)
@@ -22,9 +25,8 @@ function place(room) {
 		const distance = attempt < 128 ? 1800 + Math.random() * 600 : 2800 + Math.random() * 1200;
 		const p = {
 			id: net.posts.length + 1, x: Math.round(h.x + Math.cos(angle) * distance), y: Math.round(h.y + Math.sin(angle) * distance),
-			spawned: 0, killed: 0, chest: 0, activated: false,
 		};
-		if (valid(p, heroes, net.posts)) net.posts.push(p);
+		if (valid(p, heroes, net.posts)) net.posts.push(Object.assign(p, garrison(net)));
 	}
 	// A coarse deterministic scan finds corner pockets random retries can miss.
 	// Only a crowded edge fallback extends to 6000; never move an existing camp.
@@ -35,9 +37,8 @@ function place(room) {
 				for (let dy = Math.max(-range, -margin - h.y); dy <= Math.min(range, margin - h.y) && net.posts.length < net.target; dy += 100) {
 					const distance2 = dx * dx + dy * dy;
 					if (distance2 < (range === 4000 ? 2800 : 4000) ** 2 || distance2 > range ** 2) continue;
-					const p = { id: net.posts.length + 1, x: Math.round(h.x + dx), y: Math.round(h.y + dy),
-						spawned: 0, killed: 0, chest: 0, activated: false };
-					if (valid(p, heroes, net.posts)) net.posts.push(p);
+					const p = { id: net.posts.length + 1, x: Math.round(h.x + dx), y: Math.round(h.y + dy) };
+					if (valid(p, heroes, net.posts)) net.posts.push(Object.assign(p, garrison(net)));
 				}
 			}
 			if (net.posts.length === net.target) break;
@@ -61,7 +62,9 @@ function safePosition(post, alive) {
 export function updateOutposts(room, alive) {
 	if (room.fin || room.time < room.runLength * 2 / 3) return;
 	if (!room.outposts) {
-		room.outposts = { status: 'active', target: room.heroes.size + 1, posts: [], nextPlacement: 0, spawnCursor: 0 };
+		const target = room.heroes.size + 1;
+		room.outposts = { status: 'active', target, guardsPerPost: OUTPOST.baseGuards + OUTPOST.perHero * room.heroes.size,
+			liveLimit: Math.min(OUTPOST.perPostCap, Math.floor(OUTPOST.aliveCap / target)), posts: [], nextPlacement: 0, spawnCursor: 0 };
 		room.fx.push(['outposts', 'arrive', room.outposts.target]);
 	}
 	const net = room.outposts;
@@ -69,27 +72,38 @@ export function updateOutposts(room, alive) {
 	for (const p of net.posts) if (p.chest === 1 && alive.some(h => d2(h, p) < 70 ** 2)) openOutpostChest(room, p);
 	if (net.status !== 'active') return;
 	if (net.posts.length < net.target && room.time >= net.nextPlacement) place(room);
-	const active = net.posts.filter(p => p.killed < OUTPOST.guards && alive.some(h => d2(p, h) <= OUTPOST.activation ** 2));
+	const active = net.posts.filter(p => p.killed < p.total && alive.some(h => d2(p, h) <= OUTPOST.activation ** 2));
 	for (const p of active) p.activated = true;
-	let live = 0, guards = 0;
-	for (const e of room.enemies) if (!e.dead) { live++; if (e.outpost) guards++; }
+	let guards = 0;
+	const live = new Map(net.posts.map(p => [p, { total: 0, ranged: 0 }]));
+	for (const e of room.enemies) if (!e.dead && e.outpost) {
+		guards++;
+		const count = live.get(e.outpost);
+		if (count) { count.total++; if (e.ai === 'sniper') count.ranged++; }
+	}
 	const blocked = new Set();
-	// Lowest dispatched count first: every active camp gets eight before one gets a ninth.
-	while (live < MAX_ENEMIES && guards < OUTPOST.aliveCap) {
-		const eligible = active.filter(p => p.spawned < OUTPOST.guards && !blocked.has(p));
+	// Each camp owns its slots even while inactive: visiting old camps cannot starve the last one.
+	while (guards < OUTPOST.aliveCap) {
+		const eligible = active.filter(p => p.pending.length && live.get(p).total < net.liveLimit && !blocked.has(p));
 		if (!eligible.length) break;
 		eligible.sort((a, b) => a.spawned - b.spawned
 			|| ((a.id - net.spawnCursor + net.target) % net.target) - ((b.id - net.spawnCursor + net.target) % net.target));
-		const post = eligible[0], pos = safePosition(post, alive);
+		const post = eligible[0], count = live.get(post);
+		// Melee reserves may pass a blocked sniper; no reserve is discarded or regenerated.
+		const next = post.pending.findIndex(type => type !== 'sniper' || count.ranged < OUTPOST.rangedCap);
+		if (next < 0) { blocked.add(post); continue; }
+		const pos = safePosition(post, alive);
 		if (!pos) { blocked.add(post); continue; }
-		const e = room.spawnEnemy(TYPES[post.spawned], alive, enemyHpScale(room.nt, room.heroes.size) * 1.4);
+		const e = room.spawnEnemy(post.pending[next], alive, enemyHpScale(room.nt, room.heroes.size) * OUTPOST.hp);
 		Object.assign(e, pos, { outpost: post, guardReadyAt: room.time + OUTPOST.preparation });
-		e.dmg *= 1.15;
-		e.dmgMul *= 1.15;
+		e.dmg *= OUTPOST.damage;
+		e.dmgMul *= OUTPOST.damage;
 		room.fx.push(['warn', Math.round(e.x), Math.round(e.y), e.r + 14, OUTPOST.preparation]);
 		post.spawned++;
+		post.pending.splice(next, 1);
 		net.spawnCursor = post.id + 1;
-		live++;
+		count.total++;
+		if (e.ai === 'sniper') count.ranged++;
 		guards++;
 	}
 }
@@ -99,8 +113,8 @@ export function guardKilled(room, e) {
 	if (!net || net.status !== 'active' || !p || e.guardCounted || !net.posts.includes(p)) return;
 	e.guardCounted = true;
 	p.killed++;
-	if (p.killed === OUTPOST.guards) { p.chest = 1; room.fx.push(['outposts', 'clear', p.id]); }
-	if (net.posts.length !== net.target || !net.posts.every(p => p.killed === OUTPOST.guards)) return;
+	if (p.killed === p.total) { p.chest = 1; room.fx.push(['outposts', 'clear', p.id]); }
+	if (net.posts.length !== net.target || !net.posts.every(p => p.killed === p.total)) return;
 	net.status = 'won';
 	for (const h of room.heroes.values()) {
 		h.victoryBanner = true;
@@ -144,8 +158,9 @@ export function confineGuard(e) {
 export function outpostSnapshot(room) {
 	const net = room.outposts;
 	return net ? {
-		status: net.status, total: net.target, cleared: net.posts.filter(p => p.killed === OUTPOST.guards).length,
-		posts: net.posts.map(p => [p.id, p.x, p.y, p.killed, p.spawned, p.chest]),
+		status: net.status, total: net.target, guards: net.target * net.guardsPerPost,
+		cleared: net.posts.filter(p => p.killed === p.total).length,
+		posts: net.posts.map(p => [p.id, p.x, p.y, p.killed, p.spawned, p.chest, p.total]),
 	} : null;
 }
 
