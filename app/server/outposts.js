@@ -57,11 +57,14 @@ function place(room) {
 }
 
 function safePosition(post, alive) {
-	for (let i = 0; i < 32; i++) {
-		const angle = (i / 32) * Math.PI * 2 + post.spawned * 2.39996;
-		const radius = 240 + (post.spawned % 4) * 55;
-		const p = { x: post.x + Math.cos(angle) * radius, y: post.y + Math.sin(angle) * radius };
-		if (alive.every(h => d2(p, h) >= OUTPOST.safeSpawn ** 2)) return p;
+	// Preserve the preferred ring first; try all existing rings within a fixed 128-candidate bound.
+	for (let ring = 0; ring < 4; ring++) {
+		const radius = 240 + ((post.spawned + ring) % 4) * 55;
+		for (let i = 0; i < 32; i++) {
+			const angle = (i / 32) * Math.PI * 2 + post.spawned * 2.39996;
+			const p = { x: post.x + Math.cos(angle) * radius, y: post.y + Math.sin(angle) * radius };
+			if (alive.every(h => d2(p, h) >= OUTPOST.safeSpawn ** 2)) return p;
+		}
 	}
 	return null;
 }
