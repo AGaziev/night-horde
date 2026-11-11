@@ -113,3 +113,26 @@ test('4540714331: Icebomb retains its fire part for full Ember, with a non-fire 
 		}
 	} finally { Math.random = random; }
 });
+
+test('4540714302: mark support is the extra dealt damage after fixed flash damage, armor and HP caps', () => {
+	for (const [hp, armored] of [[10000, false], [17, false], [16, false], [1, false], [10000, true], [8.5, true]]) {
+		function hit(marked) {
+			const { r, h } = arena([['lantern', 1]], 2);
+			const e = foe(r, 40);
+			r.updateWeapon(h, 'lantern', h.weapons.get('lantern'), dt);
+			assert.equal(e.markMul, 0.25, 'the real Lantern cast supplies the mark');
+			if (!marked) r.time += 3.01;
+			e.hp = hp;
+			if (armored) e.elite = 'armored';
+			const ally = r.heroes.get(2);
+			r.burn(e, ally, 1, 3);
+			const support = h.supportDamage, damage = ally.dmg;
+			r.hurtEnemy(e, 5, ally, { weapon: 'lightning', tags: ['shock', 'proj'] });
+			return { damage: ally.dmg - damage, support: h.supportDamage - support };
+		}
+		const plain = hit(false), marked = hit(true), mitigation = armored ? 0.5 : 1;
+		assert.equal(plain.damage, Math.min(hp, 16.5 * mitigation));
+		assert.equal(marked.damage, Math.min(hp, 18.125 * mitigation));
+		assert.equal(marked.support, marked.damage - plain.damage, `support counts only the actual mark benefit at hp=${hp}, armored=${armored}`);
+	}
+});

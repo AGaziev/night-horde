@@ -2192,21 +2192,29 @@ export class Room {
 			h.blockCharge = 0;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), 56, 2]);
 		}
-		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src);
-		if (e.elite === 'armored' && src.tags.includes('proj')) dmg *= 0.5;
+		// Reaction additions belong to this hit, including when splash damage nests hurtEnemy calls.
+		const reaction = { fixed: 0, flash: 0 };
+		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src, reaction);
+		if (e.elite === 'armored' && src.tags.includes('proj')) {
+			dmg *= 0.5;
+			reaction.fixed *= 0.5;
+			reaction.flash *= 0.5;
+		}
 		if (e.ai === 'shield' && h && !src.raw && src !== SRC_BURN) {
 			const m = this.shieldMul(e, h);
 			if (m < 1) {
 				this.runLog?.special(this, e, 'blocked', dmg * (1 - m));
 				dmg *= m;
+				reaction.fixed *= m;
+				reaction.flash *= m;
 			}
 		}
 		const dealt = Math.min(dmg, e.hp);
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, dmg / (1 + e.markMul)));
+			const unmarked = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, unmarked));
 		}
-		const flashPart = Math.min(this.flashPart ?? 0, dealt);
-		this.flashPart = 0;
+		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
 			h.dmg += dealt;
 			h.dmgBy[src.weapon] = (h.dmgBy[src.weapon] ?? 0) + dealt - flashPart;
@@ -2306,7 +2314,7 @@ export class Room {
 	}
 
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
-	react(e, dmg, h, src) {
+	react(e, dmg, h, src, reaction = {}) {
 		const now = this.time, t = src.tags;
 		const fire = t.includes('fire'), cold = t.includes('cold'), shock = t.includes('shock');
 		if (t.includes('phys') && e.resonanceT > now) {
@@ -2329,10 +2337,12 @@ export class Room {
 		if (shock && e.burnT > now) {
 			e.burnT = 0;
 			this.reacted('flash', e.x, e.y, REACT.flashR);
-			const flash = REACT.flashBase * (h?.mods.dmgMul ?? 1) + dmg * REACT.flashFrac;
+			const fixed = REACT.flashBase * (h?.mods.dmgMul ?? 1);
+			const flash = fixed + dmg * REACT.flashFrac;
 			this.splash(e.x, e.y, REACT.flashR, flash, h, SRC_R.flash, e);
 			dmg += flash;
-			this.flashPart = flash; // v27 review: hurtEnemy books this part of the hit as r_flash, not as the weapon
+			reaction.fixed = fixed;
+			reaction.flash = flash; // hurtEnemy books this part as r_flash, rather than weapon damage
 		}
 		if (shock && e.wetT > now && e.wetZ && e.wetZ.life > 0 && !(e.wetZ.condT > now)) {
 			const z = e.wetZ;
