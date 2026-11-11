@@ -24,6 +24,12 @@ function room(heroes = ['knight'], mode = 'night') {
 }
 const lastOffer = (pid = 1) => sent.filter(([p, m]) => p === pid && m.t === 'lvl').at(-1)[1];
 const kinds = (cards) => cards.map((c) => c.kind);
+// Control the independent forge substitution only within a particular offer assertion.
+function withRandom(value, fn) {
+	const random = Math.random;
+	Math.random = () => value;
+	try { return fn(); } finally { Math.random = random; }
+}
 // A hero with full slots: `weapons` at level 5, six maxed artifacts that open no evolution of these weapons.
 function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen', 'magnet', 'echo'], lvl = MAX_LEVEL) {
 	h.weapons = new Map(weapons.map((id) => [id, { lvl, t: 0 }]));
@@ -76,14 +82,15 @@ assert.equal(PROTO, 24);
 	setBuild(r, h, NO_PAIRS);
 	for (const [id, w] of h.weapons) if (id !== 'orbit') w.oc = 1;
 	h.passives.set('crit', 4);
-	const random = Math.random;
-	Math.random = () => 0.99; // isolate offer ordering from the independent rare forge substitution
-	let c;
-	try { c = r.makeChoices(h); } finally { Math.random = random; }
+	let c = withRandom(0.99, () => r.makeChoices(h));
 	assert.deepEqual([c[0].kind, c[1].kind, c[0].id, c[1].id, c[0].v, c[1].v], ['ovr', 'ovr', 'orbit', 'orbit', 1, 2], 'both variants as two cards in slots 1–2');
 	assert.equal(c[0].name, OVERCLOCKS.orbit[0].name);
 	assert.equal(c[0].wName, WEAPONS.orbit.name);
-	assert.deepEqual(c.slice(2).map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'slot 3 is the last upgrade');
+	assert.deepEqual(c.slice(2).map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'normal branch: slot 3 is the last upgrade');
+	c = withRandom(0, () => r.makeChoices(h));
+	assert.deepEqual(c.map(x => `${x.kind}:${x.id}`), ['ovr:orbit', 'ovr:orbit', 'rare:forge'], 'rare forge replaces slot 3 while preserving the overclock pair');
+	assert.deepEqual(c.slice(0, 2).map(x => x.v), [1, 2]);
+	assert.ok(!kinds(c).includes('ember'), 'rare branch cannot introduce fallback embers');
 	// Two upgrades left: still waiting.
 	h.passives.set('might', 4);
 	assert.ok(!kinds(r.makeChoices(h)).includes('ovr'));
@@ -101,8 +108,11 @@ assert.equal(PROTO, 24);
 	assert.deepEqual(kinds(r.makeChoices(h)), ['ember', 'ember', 'ember'], 'nothing left: embers');
 	// One upgrade left: it comes alone, no embers next to it.
 	h.passives.set('crit', 4);
-	c = r.makeChoices(h);
-	assert.deepEqual(c.map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'one upgrade left: no embers next to it');
+	c = withRandom(0.99, () => r.makeChoices(h));
+	assert.deepEqual(c.map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'normal branch: one upgrade left, no embers next to it');
+	c = withRandom(0, () => r.makeChoices(h));
+	assert.deepEqual(c.map(x => `${x.kind}:${x.id}`), ['passive:crit', 'rare:forge'], 'rare branch: last upgradeable artifact keeps the forge eligible');
+	assert.ok(!kinds(c).includes('ember'), 'rare forge is not a reason to issue fallback embers');
 	// One overclock left: its two cards, no embers.
 	h.passives.set('crit', 5);
 	delete h.weapons.get('ward').oc;
