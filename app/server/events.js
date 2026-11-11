@@ -265,12 +265,14 @@ export class Events {
 		room.fx.push(['open', h.pid, Math.round(h.x), Math.round(h.y)]);
 		room.fx.push(['pring', Math.round(h.x), Math.round(h.y), CURSED.ring]);
 		let n = 0;
-		for (let i = 0; i < count && room.enemies.length < 420; i++) {
+		let ordinary = room.ordinaryEnemyCount();
+		for (let i = 0; i < count && ordinary < 420; i++) {
 			const e = room.spawnEnemy(room.waveType(wave), alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
 			e.x = h.x + Math.cos(a) * CURSED.ring;
 			e.y = h.y + Math.sin(a) * CURSED.ring;
 			n++;
+			ordinary++;
 			if (i === 0) room.setElite(e, ELITE_AFFIXES[Math.floor(Math.random() * ELITE_AFFIXES.length)].id);
 		}
 		Object.assign(ev.log, { opened: r1(room.time), by: h.name, wave: n });

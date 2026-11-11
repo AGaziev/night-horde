@@ -1404,6 +1404,13 @@ export class Room {
 		return e;
 	}
 
+	// Outpost guards own a separate, bounded budget and never thin ordinary encounters.
+	ordinaryEnemyCount() {
+		let n = 0;
+		for (const e of this.enemies) if (!e.dead && !e.outpost) n++;
+		return n;
+	}
+
 	spawn(dt, alive) {
 		this.updateOutposts(alive);
 		const n = this.heroes.size;
@@ -1425,29 +1432,33 @@ export class Room {
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
+		let count = this.ordinaryEnemyCount();
 		while (this.spawnAcc >= 1) {
 			this.spawnAcc -= 1;
-			if (this.enemies.length >= cap) {
+			if (count >= cap) {
 				this.spawnAcc = 0;
 				break;
 			}
 			this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			count++;
 		}
 	}
 
 	// v18: snipers and shieldbearers from the middle of the run, a few at a time (SPECIALS).
 	spawnSpecials(alive) {
 		const frac = this.time / this.runLength;
+		let count = this.ordinaryEnemyCount();
 		for (const id of SPECIAL_IDS) {
-			if (this.enemies.length >= MAX_ENEMIES) break;
+			if (count >= MAX_ENEMIES) break;
 			const S = SPECIALS[id];
 			const cap = specialCap(S, frac, this.heroes.size);
 			if (!cap || this.time < this.specialT[id]) continue;
 			this.specialT[id] = this.time + S.every / this.tscale;
 			let n = 0;
-			for (const e of this.enemies) if (!e.dead && e.def === ENEMIES[id]) n++;
+			for (const e of this.enemies) if (!e.dead && !e.outpost && e.def === ENEMIES[id]) n++;
 			if (n >= cap) continue;
 			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
+			count++;
 			this.runLog?.special(this, e, 'spawned');
 		}
 	}
@@ -1508,6 +1519,7 @@ export class Room {
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const left = new Set(alive);
 		let spawned = 0;
+		let ordinary = this.ordinaryEnemyCount();
 		for (const h of alive) {
 			if (!left.has(h)) continue;
 			const group = [...left].filter((o) => dist2(o.x, o.y, h.x, h.y) < R.cluster * R.cluster);
@@ -1516,12 +1528,13 @@ export class Room {
 			const r = R.r + Math.max(...group.map((o) => Math.hypot(o.x - cx, o.y - cy)));
 			const count = Math.round(R.count * spawnRateScale(group.length));
 			this.fx.push(['pring', Math.round(cx), Math.round(cy), Math.round(r)]);
-			for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 120; i++) {
+			for (let i = 0; i < count && ordinary < MAX_ENEMIES + 120; i++) {
 				const e = this.spawnEnemy(R.type ?? this.waveType(wave), alive, hpMul);
 				const a = (i / count) * Math.PI * 2;
 				e.x = cx + Math.cos(a) * r;
 				e.y = cy + Math.sin(a) * r;
 				spawned++;
+				ordinary++;
 			}
 		}
 		this.runLog?.peakNote(this, 'spawned', spawned);
@@ -1707,13 +1720,15 @@ export class Room {
 		if (count <= 0) return;
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const cap = MAX_ENEMIES + 60;
+		let ordinary = this.ordinaryEnemyCount();
 		for (const h of alive) {
 			this.fx.push(['inv', h.pid, INVASION.radius]);
-			for (let i = 0; i < count && this.enemies.length < cap; i++) {
+			for (let i = 0; i < count && ordinary < cap; i++) {
 				const e = this.spawnEnemy(this.waveType(wave), alive, hpMul);
 				const a = (i / count) * Math.PI * 2;
 				e.x = h.x + Math.cos(a) * INVASION.radius;
 				e.y = h.y + Math.sin(a) * INVASION.radius;
+				ordinary++;
 			}
 		}
 	}
@@ -2038,11 +2053,13 @@ export class Room {
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		// v21: in the arena the swarm stays near the packs' cap (weak devices, a crowded ring).
 		const cap = this.fin ? finaleAddCap(this.heroes.size) + FINALE.adds.callOver : MAX_ENEMIES + 60;
-		for (let i = 0; i < count && this.enemies.length < cap; i++) {
+		let ordinary = this.ordinaryEnemyCount();
+		for (let i = 0; i < count && ordinary < cap; i++) {
 			const m = this.spawnEnemy(call.type, alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
 			m.x = x + Math.cos(a) * call.ring;
 			m.y = y + Math.sin(a) * call.ring;
+			ordinary++;
 		}
 	}
 
