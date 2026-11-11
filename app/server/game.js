@@ -475,13 +475,13 @@ export class Room {
 				this.onPick(pid, msg);
 				break;
 			case 'reroll':
-				this.onReroll(pid);
+				this.onReroll(pid, msg);
 				break;
 			case 'ban':
 				this.onBan(pid, msg);
 				break;
 			case 'skip':
-				this.onSkip(pid);
+				this.onSkip(pid, msg);
 				break;
 			case 'kf':
 				this.needKey?.add(pid);
@@ -677,11 +677,34 @@ export class Room {
 	}
 
 	sendOffer(h) {
+		const signature = JSON.stringify(h.offer);
+		if (h.offer !== h.sentOffer || signature !== h.offerSignature) {
+			h.offerEpoch = this.offerSequence = (this.offerSequence ?? 0) + 1;
+			h.sentOffer = h.offer;
+			h.offerSignature = signature;
+		}
 		const swap = h.offer?.[0]?.kind === 'swap';
 		this.send(h.pid, {
-			t: 'lvl', choices: h.offer, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			t: 'lvl', choices: h.offer, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
+	}
+
+	// Untokened internal/legacy callers remain compatible until an asynchronous reward
+	// replaces their offer. Browser actions always echo the epoch sent with `lvl`.
+	acceptOfferAction(h, msg = {}) {
+		if (!h) return false;
+		const epoch = msg.offerEpoch;
+		if (h.offer && ((epoch === undefined && !h.offerEpochRequired)
+			|| (Number.isSafeInteger(epoch) && epoch === h.offerEpoch))) {
+			if (epoch !== undefined) h.offerEpochRequired = true;
+			return true;
+		}
+		// Game.pick updates passives optimistically. A stale pick must restore the
+		// authoritative inventory as well as reopening the current card array.
+		this.sendPassives(h);
+		this.sendOffer(h);
+		return false;
 	}
 
 	// Weighted offer (G4): slot 1 — upgrade of something owned, slot 2 — 50/50 upgrade or new, slot 3 — anything.
@@ -884,7 +907,9 @@ export class Room {
 		this.send(h.pid, h.lastReforge);
 		this.runLog?.reforged(this, h, source, result);
 		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
-		if (source !== 'forge' && h.offer?.some(c => c.kind === kind && c.id === id)) {
+		if (source !== 'forge' && h.offer && (h.offer.some(c => c.kind === kind && c.id === id)
+			|| (h.offer.some(c => c.kind === 'rare' && c.id === 'forge') && !this.reforgePool(h).length))) {
+			h.offerEpochRequired = true;
 			if (result.to === (kind === 'weapon' ? weaponMaxLevel(id) : MAX_LEVEL)) h.offer = this.makeChoices(h, true);
 			else for (const c of h.offer) if (c.kind === kind && c.id === id) {
 				c.level = result.to + 1;
@@ -1065,7 +1090,7 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		const i = num(msg.i);
-		if (!h?.offer || h.bans <= 0 || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
+		if (!this.acceptOfferAction(h, msg) || h.bans <= 0 || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
 		if (c.kind !== 'weapon' && c.kind !== 'passive' && c.kind !== 'ovr') return;
 		if (c.kind === 'weapon' && !WEAPONS[c.id]) return;
@@ -1123,8 +1148,15 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		const i = num(msg.i);
-		if (!h?.offer || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
+		if (!this.acceptOfferAction(h, msg) || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
+		if (c.kind === 'rare' && c.id === 'forge' && !this.reforgePool(h).length) {
+			h.offerEpochRequired = true;
+			h.offer = this.makeChoices(h, true);
+			this.sendPassives(h);
+			this.sendOffer(h);
+			return;
+		}
 		if (c.kind === 'imprint' && !this.imprint(h, c)) return;
 		if (c.kind === 'swap') {
 			if (h.swapUsed || !h.swapPending || !c.replace.some(({ id }) => id === msg.drop)
@@ -1219,10 +1251,10 @@ export class Room {
 		}
 	}
 
-	onReroll(pid) {
+	onReroll(pid, msg = {}) {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
-		if (!h?.offer || h.rerolls <= 0 || h.offer[0]?.kind === 'swap') return;
+		if (!this.acceptOfferAction(h, msg) || h.rerolls <= 0 || h.offer[0]?.kind === 'swap') return;
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h, true);
@@ -1230,10 +1262,10 @@ export class Room {
 	}
 
 	// Declining the whole offer gives SKIP_XP instead (no junk in slots).
-	onSkip(pid) {
+	onSkip(pid, msg = {}) {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
-		if (!h?.offer) return;
+		if (!this.acceptOfferAction(h, msg)) return;
 		this.runLog?.choice(this, h, 'skip', null, h.offer);
 		this.deferSkippedDuos(h, null);
 		const swap = h.offer[0]?.kind === 'swap';

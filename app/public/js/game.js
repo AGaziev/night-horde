@@ -244,7 +244,7 @@ export class Game {
 			if (typeof c.val === 'number') this.pvals[c.id] = this.passiveVal(c.id) + c.val;
 			this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
 		}
-		this.net.send({ t: 'pick', i, drop });
+		this.net.send({ t: 'pick', i, drop, offerEpoch: offer.offerEpoch });
 		this.offer = null;
 		return true;
 	}
@@ -253,19 +253,19 @@ export class Game {
 	ban(i) {
 		const c = this.offer?.choices[i];
 		if (!c || !(this.offer.bans > 0) || !canBan(c)) return false;
-		this.net.send({ t: 'ban', i });
+		this.net.send({ t: 'ban', i, offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	reroll() {
 		if (!this.offer || !(this.offer.rerolls > 0)) return false;
-		this.net.send({ t: 'reroll' });
+		this.net.send({ t: 'reroll', offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	skip() {
 		if (!this.offer) return false;
-		this.net.send({ t: 'skip' });
+		this.net.send({ t: 'skip', offerEpoch: this.offer.offerEpoch });
 		this.offer = null;
 		return true;
 	}
