@@ -76,7 +76,10 @@ assert.equal(PROTO, 23);
 	setBuild(r, h, NO_PAIRS);
 	for (const [id, w] of h.weapons) if (id !== 'orbit') w.oc = 1;
 	h.passives.set('crit', 4);
-	let c = r.makeChoices(h);
+	const random = Math.random;
+	Math.random = () => 0.99; // isolate offer ordering from the independent rare forge substitution
+	let c;
+	try { c = r.makeChoices(h); } finally { Math.random = random; }
 	assert.deepEqual([c[0].kind, c[1].kind, c[0].id, c[1].id, c[0].v, c[1].v], ['ovr', 'ovr', 'orbit', 'orbit', 1, 2], 'both variants as two cards in slots 1–2');
 	assert.equal(c[0].name, OVERCLOCKS.orbit[0].name);
 	assert.equal(c[0].wName, WEAPONS.orbit.name);
