@@ -1139,7 +1139,8 @@ export class Room {
 
 	// The single place where owned weapon pairs are matched against DUOS: h.combos = [{id, a, b, ready}].
 	updateCombos(h) {
-		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire'));
+		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire')
+			|| DUOS[id]?.parts.some((part) => WEAPONS[part].tags?.includes('fire')));
 		const own = [...h.weapons].filter(([id, w]) => !DUOS[id] && !w.imprint);
 		const out = [];
 		if (this.duoCount(h) < MAX_DUOS) {

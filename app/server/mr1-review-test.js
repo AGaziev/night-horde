@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room } from './game.js';
 import { SnapshotDecoder } from '../public/js/snapshot-codec.js';
-import { DUOS } from '../public/shared/content.js';
+import { DUOS, EMBER_WEAK } from '../public/shared/content.js';
 
 const dt = 1 / 30;
 function arena(weapons, players = 1) {
@@ -91,4 +91,25 @@ test('4540714284: an asymmetric fusion spends and refills the actual inherited W
 			assert.equal(h.wardMax, 3, 'upgrading the duo still raises a lower inherited Ward to V');
 		}
 	}
+});
+
+test('4540714331: Icebomb retains its fire part for full Ember, with a non-fire control', () => {
+	const random = Math.random;
+	try {
+		for (const fire of [true, false]) for (const roll of [0, 0.99]) {
+			const { r, h } = arena(fire ? [['bomb', 3], ['frost', 3], ['aura', 1]] : [['frost', 3], ['aura', 1]]);
+			h.passives.set('ember', 5); r.recalcMods(h);
+			if (fire) fuse(r, h, 'icebomb');
+			const e = foe(r, 40);
+			Math.random = () => roll;
+			r.updateWeapon(h, 'aura', h.weapons.get('aura'), dt);
+			if (fire && roll > h.mods.burnChance) {
+				assert.ok(e.burnT <= r.time, 'retained fire uses the full Ember chance, rather than guaranteed weak fire');
+			} else {
+				assert.ok(e.burnT > r.time, 'the real aura hit ignites');
+				assert.equal(e.burnDps, h.mods.burnDps * (fire ? 1 : EMBER_WEAK.frac), 'only a build with inherited fire gets full Ember damage');
+			}
+			assert.equal(h.fireW, fire, 'the ownership cache includes the fused bomb attack');
+		}
+	} finally { Math.random = random; }
 });
