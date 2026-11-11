@@ -1,0 +1,678 @@
+{
+  "revision": "bd7e5aed7e778e6ae5389bd6eaf65e63cb261312",
+  "node": "v24.22.2",
+  "sourceHashes": {
+    "app/server/game.js": "4b1c94cb0c02f18364bd3a5afca795aca0bb57ca14980228ab92d10e9aad757a",
+    "app/server/confluences.js": "19a858957d0129533d1dc6f9c549d8dd683be9ca6c2983d5399648b31236b8e2",
+    "app/server/hero-perks.js": "050a71a57a0b8c04dc22c3f0c45b484d66d096328c57b5b40361270a36a3248b",
+    "app/public/shared/content.js": "3608a25aeba8312cc3ba033a26fcc0411870bfbc608adf919d788c0c8702b27b",
+    "app/public/shared/confluences.js": "b2c387cc483b0408bc7baf99aa352e67e98471c67b54ed875b3a821989773fd3"
+  },
+  "seconds": 24,
+  "seeds": [
+    11,
+    29
+  ],
+  "groups": [
+    1,
+    4,
+    8
+  ],
+  "builds": {
+    "plain": [],
+    "rapid": [
+      "might",
+      "haste",
+      "echo",
+      "crit",
+      "area",
+      "hourglass"
+    ],
+    "elemental": [
+      "ember",
+      "frostcore",
+      "coil",
+      "ashseal",
+      "lens",
+      "counterweight"
+    ]
+  },
+  "minimumMeanRatio": 1.1,
+  "minimumSingleSeedRatio": 1,
+  "fights": 4680,
+  "cases": 1170,
+  "failed": 0,
+  "rows": [
+    {
+      "id": "thunderslash",
+      "name": "Громовой разрез",
+      "minRatio": 1.635,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 7538.5,
+        "parts": 4611.1,
+        "ratio": 1.635,
+        "minSeed": 1.603,
+        "pass": true
+      }
+    },
+    {
+      "id": "orb",
+      "name": "Шаровая молния",
+      "minRatio": 1.686,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "boss",
+        "level": 2,
+        "fused": 161,
+        "parts": 95.5,
+        "ratio": 1.686,
+        "minSeed": 1.686,
+        "pass": true
+      }
+    },
+    {
+      "id": "orrery",
+      "name": "Планетарий",
+      "minRatio": 1.678,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 2482.2,
+        "parts": 1479.6,
+        "ratio": 1.678,
+        "minSeed": 1.676,
+        "pass": true
+      }
+    },
+    {
+      "id": "windmill",
+      "name": "Мельница",
+      "minRatio": 1.506,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 1517.5,
+        "parts": 1007.6,
+        "ratio": 1.506,
+        "minSeed": 1.496,
+        "pass": true
+      }
+    },
+    {
+      "id": "tripwire",
+      "name": "Растяжка",
+      "minRatio": 1.53,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 1,
+        "fused": 538.7,
+        "parts": 352.1,
+        "ratio": 1.53,
+        "minSeed": 1.475,
+        "pass": true
+      }
+    },
+    {
+      "id": "fanback",
+      "name": "Возвратный веер",
+      "minRatio": 1.539,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 1,
+        "fused": 386.3,
+        "parts": 251.1,
+        "ratio": 1.539,
+        "minSeed": 1.51,
+        "pass": true
+      }
+    },
+    {
+      "id": "molotov",
+      "name": "Коктейль",
+      "minRatio": 1.64,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 5138.3,
+        "parts": 3133.9,
+        "ratio": 1.64,
+        "minSeed": 1.572,
+        "pass": true
+      }
+    },
+    {
+      "id": "minefield",
+      "name": "Минное поле",
+      "minRatio": 1.172,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 1,
+        "fused": 156.3,
+        "parts": 133.4,
+        "ratio": 1.172,
+        "minSeed": 1.125,
+        "pass": true
+      }
+    },
+    {
+      "id": "icebomb",
+      "name": "Ледяная граната",
+      "minRatio": 1.146,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 1,
+        "fused": 74.8,
+        "parts": 65.3,
+        "ratio": 1.146,
+        "minSeed": 1.139,
+        "pass": true
+      }
+    },
+    {
+      "id": "aurora",
+      "name": "Полярное сияние",
+      "minRatio": 1.175,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 1970,
+        "parts": 1676.4,
+        "ratio": 1.175,
+        "minSeed": 1.175,
+        "pass": true
+      }
+    },
+    {
+      "id": "censer",
+      "name": "Кадило",
+      "minRatio": 1.534,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 14801.6,
+        "parts": 9646.4,
+        "ratio": 1.534,
+        "minSeed": 1.497,
+        "pass": true
+      }
+    },
+    {
+      "id": "icedisc",
+      "name": "Ледяной диск",
+      "minRatio": 1.274,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 18320.6,
+        "parts": 14381.1,
+        "ratio": 1.274,
+        "minSeed": 1.126,
+        "pass": true
+      }
+    },
+    {
+      "id": "stormlight",
+      "name": "Прожектор бури",
+      "minRatio": 1.474,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 825.5,
+        "parts": 559.9,
+        "ratio": 1.474,
+        "minSeed": 1.062,
+        "pass": true
+      }
+    },
+    {
+      "id": "volley",
+      "name": "Залп",
+      "minRatio": 1.458,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 5917.4,
+        "parts": 4057.4,
+        "ratio": 1.458,
+        "minSeed": 1.405,
+        "pass": true
+      }
+    },
+    {
+      "id": "phalanx",
+      "name": "Фаланга",
+      "minRatio": 1.397,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 4159.3,
+        "parts": 2977.7,
+        "ratio": 1.397,
+        "minSeed": 1.371,
+        "pass": true
+      }
+    },
+    {
+      "id": "firewheel",
+      "name": "Огненное колесо",
+      "minRatio": 1.201,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 2,
+        "fused": 88.2,
+        "parts": 73.5,
+        "ratio": 1.201,
+        "minSeed": 1.2,
+        "pass": true
+      }
+    },
+    {
+      "id": "guide",
+      "name": "Путеводный огонь",
+      "minRatio": 1.465,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 1921,
+        "parts": 1311.4,
+        "ratio": 1.465,
+        "minSeed": 1.4,
+        "pass": true
+      }
+    },
+    {
+      "id": "sunspear",
+      "name": "Солнечное копьё",
+      "minRatio": 1.284,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 1244.2,
+        "parts": 968.9,
+        "ratio": 1.284,
+        "minSeed": 1.207,
+        "pass": true
+      }
+    },
+    {
+      "id": "glow",
+      "name": "Зарево",
+      "minRatio": 1.338,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 3722.4,
+        "parts": 2782,
+        "ratio": 1.338,
+        "minSeed": 1.295,
+        "pass": true
+      }
+    },
+    {
+      "id": "dome",
+      "name": "Купол",
+      "minRatio": 1.566,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 3,
+        "fused": 128.1,
+        "parts": 81.8,
+        "ratio": 1.566,
+        "minSeed": 1.566,
+        "pass": true
+      }
+    },
+    {
+      "id": "riposte",
+      "name": "Контрудар",
+      "minRatio": 1.642,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 2,
+        "fused": 96.1,
+        "parts": 58.6,
+        "ratio": 1.642,
+        "minSeed": 1.635,
+        "pass": true
+      }
+    },
+    {
+      "id": "rod",
+      "name": "Громоотвод",
+      "minRatio": 1.578,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 454.7,
+        "parts": 288.3,
+        "ratio": 1.578,
+        "minSeed": 1.567,
+        "pass": true
+      }
+    },
+    {
+      "id": "pitch",
+      "name": "Смола",
+      "minRatio": 1.757,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 32969.8,
+        "parts": 18760,
+        "ratio": 1.757,
+        "minSeed": 1.688,
+        "pass": true
+      }
+    },
+    {
+      "id": "firescythe",
+      "name": "Огненный серп",
+      "minRatio": 1.752,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 3314.4,
+        "parts": 1891.7,
+        "ratio": 1.752,
+        "minSeed": 1.744,
+        "pass": true
+      }
+    },
+    {
+      "id": "frostsnare",
+      "name": "Ледяные силки",
+      "minRatio": 1.399,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 8383.5,
+        "parts": 5993.5,
+        "ratio": 1.399,
+        "minSeed": 1.315,
+        "pass": true
+      }
+    },
+    {
+      "id": "abatis",
+      "name": "Засека",
+      "minRatio": 1.278,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 1,
+        "fused": 290.7,
+        "parts": 227.5,
+        "ratio": 1.278,
+        "minSeed": 1.277,
+        "pass": true
+      }
+    },
+    {
+      "id": "harpoon",
+      "name": "Гарпун",
+      "minRatio": 1.217,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 1678.5,
+        "parts": 1379.6,
+        "ratio": 1.217,
+        "minSeed": 1.205,
+        "pass": true
+      }
+    },
+    {
+      "id": "rockets",
+      "name": "Ракетница",
+      "minRatio": 1.372,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 3559.8,
+        "parts": 2594.7,
+        "ratio": 1.372,
+        "minSeed": 1.367,
+        "pass": true
+      }
+    },
+    {
+      "id": "stingers",
+      "name": "Ядовитые жала",
+      "minRatio": 1.577,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 14018.8,
+        "parts": 8886.7,
+        "ratio": 1.577,
+        "minSeed": 1.512,
+        "pass": true
+      }
+    },
+    {
+      "id": "whirlwind",
+      "name": "Смерч",
+      "minRatio": 1.315,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 2,
+        "fused": 86.4,
+        "parts": 65.7,
+        "ratio": 1.315,
+        "minSeed": 1.305,
+        "pass": true
+      }
+    },
+    {
+      "id": "spectral",
+      "name": "Спектральный резонатор",
+      "minRatio": 1.457,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 2,
+        "fused": 84,
+        "parts": 57.6,
+        "ratio": 1.457,
+        "minSeed": 1.457,
+        "pass": true
+      }
+    },
+    {
+      "id": "singularity",
+      "name": "Сингулярная линза",
+      "minRatio": 1.694,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 1,
+        "fused": 816.4,
+        "parts": 481.9,
+        "ratio": 1.694,
+        "minSeed": 1.144,
+        "pass": true
+      }
+    },
+    {
+      "id": "gravitybell",
+      "name": "Гравитационный звон",
+      "minRatio": 1.785,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 2,
+        "fused": 51.2,
+        "parts": 28.7,
+        "ratio": 1.785,
+        "minSeed": 1.785,
+        "pass": true
+      }
+    },
+    {
+      "id": "sunprism",
+      "name": "Солнечная призма",
+      "minRatio": 1.434,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 1,
+        "fused": 202.3,
+        "parts": 141,
+        "ratio": 1.434,
+        "minSeed": 1.388,
+        "pass": true
+      }
+    },
+    {
+      "id": "arclaser",
+      "name": "Дуговой лазер",
+      "minRatio": 1.472,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "boss",
+        "level": 2,
+        "fused": 84.5,
+        "parts": 57.4,
+        "ratio": 1.472,
+        "minSeed": 1.472,
+        "pass": true
+      }
+    },
+    {
+      "id": "resonantshield",
+      "name": "Звонкий бастион",
+      "minRatio": 1.924,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "boss",
+        "level": 1,
+        "fused": 35.8,
+        "parts": 18.6,
+        "ratio": 1.924,
+        "minSeed": 1.924,
+        "pass": true
+      }
+    },
+    {
+      "id": "crystalchoir",
+      "name": "Хрустальный хор",
+      "minRatio": 1.489,
+      "worst": {
+        "players": 8,
+        "build": "rapid",
+        "layout": "boss",
+        "level": 2,
+        "fused": 79.4,
+        "parts": 53.3,
+        "ratio": 1.489,
+        "minSeed": 1.452,
+        "pass": true
+      }
+    },
+    {
+      "id": "blacksnare",
+      "name": "Чёрная западня",
+      "minRatio": 1.463,
+      "worst": {
+        "players": 1,
+        "build": "plain",
+        "layout": "crowd",
+        "level": 3,
+        "fused": 3018.3,
+        "parts": 2063.6,
+        "ratio": 1.463,
+        "minSeed": 1.431,
+        "pass": true
+      }
+    },
+    {
+      "id": "inferno",
+      "name": "Пекло",
+      "minRatio": 1.368,
+      "worst": {
+        "players": 1,
+        "build": "elemental",
+        "layout": "crowd",
+        "level": 2,
+        "fused": 2562.9,
+        "parts": 1873.8,
+        "ratio": 1.368,
+        "minSeed": 1.235,
+        "pass": true
+      }
+    }
+  ],
+  "caseResults": "buildcraft-cases.csv",
+  "range": {
+    "minimumMean": 1.146,
+    "minimumSeed": 1.062,
+    "medianMean": 1.7265000000000001,
+    "maximumMean": 100.631
+  }
+}

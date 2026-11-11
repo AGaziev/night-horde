@@ -1,0 +1,101 @@
+{
+  "node": "v24.22.2",
+  "results": [
+    {
+      "suite": "artifacts-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "builds-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "codec-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "confluences-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "duos2-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "feedback-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "finale-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "fusion-inheritance-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "hero-perks-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "results-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "run-history-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "sim-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "v19-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "v20-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "v22-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "v29-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "wave2-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "wave4-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    },
+    {
+      "suite": "weapon-roles-test.js",
+      "status": "PASS",
+      "exitCode": 0
+    }
+  ],
+  "revision": "bd7e5aed7e778e6ae5389bd6eaf65e63cb261312"
+}
