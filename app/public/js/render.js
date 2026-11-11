@@ -538,7 +538,7 @@ export class Renderer {
 			const name = `⚑ Аванпост ${id}`;
 			ctx.strokeText(name, 0, -170); ctx.fillStyle = closed ? '#9eabb4' : '#ffdb9b'; ctx.fillText(name, 0, -170);
 			ctx.font = '13px system-ui';
-			const status = closed ? 'Закрыт · награда упущена' : chest === 2 ? 'Сундук открыт' : chest === 1 ? 'Сундук: опыт и лечение' : `Повержено ${killed}/20 · сундук заперт`;
+			const status = closed ? (op.status === 'won' ? 'Сундук закрыт финалом' : 'Закрыт · награда упущена') : chest === 2 ? 'Сундук открыт' : chest === 1 ? 'Сундук: опыт и лечение' : `Повержено ${killed}/20 · сундук заперт`;
 			ctx.strokeText(status, 0, 52); ctx.fillStyle = cleared ? '#a5d6a7' : '#eee0c9'; ctx.fillText(status, 0, 52);
 			ctx.restore();
 		}

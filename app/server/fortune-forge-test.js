@@ -65,4 +65,13 @@ for (const [id, value] of [['might', 0.26], ['vigor', 53]]) {
  assert.equal(sent.findLast(([,m])=>m.t==='lvl')?.[1].rerolls,1,'reward reroll appears even when the open offer upgraded another item');
  assert.equal(h.offer[0].id,'might','unaffected cards stay available');
 }
+
+{
+ const {r,h,sent}=setup([['whip',4]]);
+ r.legendaryReforge(h,'forge');assert.ok(h.lastReforge.result);
+ r.legendaryReforge(h,'outposts');assert.equal(h.lastReforge.result,null,'empty reward replaces an older successful receipt');
+ r.resync(h.pid);
+ const receipt=sent.findLast(([,m])=>m.t==='reforge')[1];
+ assert.equal(receipt.source,'outposts');assert.equal(receipt.result,null,'reconnect repeats the latest empty outcome');
+}
 console.log('Fortune forge: one legendary item, rarity values, exclusions, stale offers and result: OK');

@@ -880,7 +880,8 @@ export class Room {
 		const pool = this.reforgePool(h);
 		const item = pool[Math.floor(Math.random() * pool.length)];
 		if (!item) {
-			this.send(h.pid, { t: 'reforge', source, result: null });
+			h.lastReforge = { t: 'reforge', source, result: null };
+			this.send(h.pid, h.lastReforge);
 			return null;
 		}
 		const { id, kind } = item;

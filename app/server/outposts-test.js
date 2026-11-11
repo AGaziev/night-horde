@@ -73,6 +73,10 @@ for(const n of [1,2,4,8]) for(const mode of ['night','lunch']) {
  const snapshot=r.snapshot();const decoder=new SnapshotDecoder();const wire=sent.findLast(x=>x.m===snapshot).json;
  assert.deepEqual(decoder.decode(JSON.parse(wire)).op,snapshot.op);assert.deepEqual(snapshot.trophy,[1,2]);
  r.resync(2);assert.ok(sent.findLast(({pid,m})=>pid===2&&m.t==='reforge'));
+ r.startFinale(hs);
+ assert.equal(r.outposts.status,'won','finale retains completed objective and trophy');
+ assert.ok(r.outposts.posts.every(p=>p.chest===2||p.chest===3),'finale closes unclaimed victory chests too');
+ assert.ok(hs.every(h=>h.victoryBanner));
  r.start();assert.equal(r.outposts,null);assert.ok([...r.heroes.values()].every(h=>!h.victoryBanner));
 }
 {

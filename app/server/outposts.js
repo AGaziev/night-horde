@@ -123,12 +123,13 @@ export function openOutpostChest(room, p) {
 
 export function closeOutposts(room) {
 	const net = room.outposts;
-	if (!net || net.status !== 'active') return;
-	net.status = 'closed';
-	for (const p of net.posts) p.chest = 3;
+	if (!net || net.status === 'closed') return;
+	const won = net.status === 'won';
+	if (!won) net.status = 'closed';
+	for (const p of net.posts) if (p.chest !== 2) p.chest = 3;
 	for (const e of room.enemies) if (e.outpost) e.dead = true;
 	room.hostile = room.hostile.filter(s => !s.outpost);
-	room.fx.push(['outposts', 'closed']);
+	if (!won) room.fx.push(['outposts', 'closed']);
 }
 
 export function confineGuard(e) {
