@@ -6,10 +6,17 @@ export const OUTPOST = Object.freeze({
 	minDistance: 1800, spacing: 900, world: 100000, safeSpawn: 200,
 	preparation: 0.9, shotLife: 2.4, shotRange: 650,
 });
-const TYPES = ['skel', 'skel', 'brute', 'skel', 'shield', 'brute', 'skel', 'sniper', 'skel', 'brute',
-	'skel', 'skel', 'brute', 'shield', 'skel', 'sniper', 'brute', 'skel', 'brute', 'skel'];
+// Strong archetypes appear in the first 32 slots even when all nine posts share the live budget.
+// The final eight are finite reserves, not repetitions of a shorter type table.
+const ROSTER = Object.freeze([
+	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'brute',
+	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'shield',
+	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'brute',
+	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'sniper',
+	'skel', 'brute', 'skel', 'shield', 'skel', 'brute', 'skel', 'sniper',
+]);
 const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
-const garrison = net => ({ total: net.guardsPerPost, pending: Array.from({ length: net.guardsPerPost }, (_, i) => TYPES[i % TYPES.length]),
+const garrison = net => ({ total: net.guardsPerPost, pending: [...ROSTER],
 	spawned: 0, killed: 0, chest: 0, activated: false });
 const valid = (p, heroes, posts) => Math.abs(p.x) <= OUTPOST.world - OUTPOST.leash
 	&& Math.abs(p.y) <= OUTPOST.world - OUTPOST.leash
