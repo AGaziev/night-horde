@@ -2852,7 +2852,7 @@ export class Room {
 	}
 
 	castWeapon(h, id, w, dt, damageScale = 1) {
-		const L = attackLevel(id, w.lvl, w.oc, h.mods);
+		const L = attackLevel(id, w.lvl, w.oc, h.mods, w.parts);
 		const oc = overclockId(id, w.oc);
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
@@ -3629,7 +3629,7 @@ export class Room {
 	wardAbsorb(h) {
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id);
-		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods);
+		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;

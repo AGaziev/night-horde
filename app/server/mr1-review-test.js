@@ -62,3 +62,33 @@ test('4540714269: Orrery keeps its live mask and inherited levels through key, d
 	r.updateWeapon(h, 'orrery', w, dt);
 	read(full, false);
 });
+
+test('4540714284: an asymmetric fusion spends and refills the actual inherited Ward level', () => {
+	for (const [tuning, ward, charges, cooldown] of [[3, 5, 3, 7], [5, 3, 2, 8]]) {
+		for (const reverse of [false, true]) {
+			const parts = [['tuning', tuning], ['ward', ward]];
+			const { r, h } = arena(reverse ? parts.reverse() : parts);
+			const w = fuse(r, h, 'resonantshield');
+			assert.equal(w.lvl, 2);
+			r.updateWeapon(h, 'resonantshield', w, dt);
+			assert.equal(h.wardMax, charges, `Ward ${ward} retains its charges after fusion`);
+			assert.equal(h.ward, charges);
+			assert.equal(w.t, cooldown, `Ward ${ward} retains its refill clock`);
+			const hp = h.hp, ready = h.perk.readyAt;
+			for (let n = charges; n > 0; n--) {
+				r.hurtPlayer(h, 50, 'test');
+				assert.equal(h.ward, n - 1, 'one real incoming hit spends one inherited charge');
+				assert.equal(h.hp, hp);
+				assert.equal(h.perk.readyAt, ready, 'the inherited shield does not spend the hero shield');
+			}
+			r.updateWeapon(h, 'resonantshield', w, cooldown - 0.01);
+			assert.equal(h.ward, 0, 'a charge cannot refill early');
+			r.updateWeapon(h, 'resonantshield', w, 0.02);
+			assert.equal(h.ward, 1, 'the actual Ward cooldown refills one charge');
+			assert.equal(w.t, cooldown);
+			w.lvl = 3;
+			r.updateWeapon(h, 'resonantshield', w, dt);
+			assert.equal(h.wardMax, 3, 'upgrading the duo still raises a lower inherited Ward to V');
+		}
+	}
+});
