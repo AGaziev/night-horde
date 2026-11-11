@@ -1229,7 +1229,8 @@ export class Room {
 
 	// The single place where owned weapon pairs are matched against DUOS: h.combos = [{id, a, b, ready}].
 	updateCombos(h) {
-		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire'));
+		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire')
+			|| DUOS[id]?.parts.some((part) => WEAPONS[part].tags?.includes('fire')));
 		const own = [...h.weapons].filter(([id, w]) => !DUOS[id] && !w.imprint);
 		const out = [];
 		if (this.duoCount(h) < MAX_DUOS) {
@@ -2328,21 +2329,29 @@ export class Room {
 			h.blockCharge = 0;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), 56, 2]);
 		}
-		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src);
-		if (e.elite === 'armored' && src.tags.includes('proj')) dmg *= 0.5;
+		// Reaction additions belong to this hit, including when splash damage nests hurtEnemy calls.
+		const reaction = { fixed: 0, flash: 0 };
+		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src, reaction);
+		if (e.elite === 'armored' && src.tags.includes('proj')) {
+			dmg *= 0.5;
+			reaction.fixed *= 0.5;
+			reaction.flash *= 0.5;
+		}
 		if (e.ai === 'shield' && h && !src.raw && src !== SRC_BURN) {
 			const m = this.shieldMul(e, h);
 			if (m < 1) {
 				this.runLog?.special(this, e, 'blocked', dmg * (1 - m));
 				dmg *= m;
+				reaction.fixed *= m;
+				reaction.flash *= m;
 			}
 		}
 		const dealt = Math.min(dmg, e.hp);
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, dmg / (1 + e.markMul)));
+			const unmarked = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, unmarked));
 		}
-		const flashPart = Math.min(this.flashPart ?? 0, dealt);
-		this.flashPart = 0;
+		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
 			h.dmg += dealt;
 			h.dmgBy[src.weapon] = (h.dmgBy[src.weapon] ?? 0) + dealt - flashPart;
@@ -2442,7 +2451,7 @@ export class Room {
 	}
 
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
-	react(e, dmg, h, src) {
+	react(e, dmg, h, src, reaction = {}) {
 		const now = this.time, t = src.tags;
 		const fire = t.includes('fire'), cold = t.includes('cold'), shock = t.includes('shock');
 		if (t.includes('phys') && e.resonanceT > now) {
@@ -2465,10 +2474,12 @@ export class Room {
 		if (shock && e.burnT > now) {
 			e.burnT = 0;
 			this.reacted('flash', e.x, e.y, REACT.flashR);
-			const flash = REACT.flashBase * (h?.mods.dmgMul ?? 1) + dmg * REACT.flashFrac;
+			const fixed = REACT.flashBase * (h?.mods.dmgMul ?? 1);
+			const flash = fixed + dmg * REACT.flashFrac;
 			this.splash(e.x, e.y, REACT.flashR, flash, h, SRC_R.flash, e);
 			dmg += flash;
-			this.flashPart = flash; // v27 review: hurtEnemy books this part of the hit as r_flash, not as the weapon
+			reaction.fixed = fixed;
+			reaction.flash = flash; // hurtEnemy books this part as r_flash, rather than weapon damage
 		}
 		if (shock && e.wetT > now && e.wetZ && e.wetZ.life > 0 && !(e.wetZ.condT > now)) {
 			const z = e.wetZ;
@@ -2991,7 +3002,7 @@ export class Room {
 	}
 
 	castWeapon(h, id, w, dt, damageScale = 1) {
-		const L = attackLevel(id, w.lvl, w.oc, h.mods);
+		const L = attackLevel(id, w.lvl, w.oc, h.mods, w.parts);
 		const oc = overclockId(id, w.oc);
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
@@ -3769,7 +3780,7 @@ export class Room {
 	wardAbsorb(h) {
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id);
-		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods);
+		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
@@ -4621,7 +4632,8 @@ export class Room {
 	}
 
 	nearestFrom(from, exclude, range) {
-		const near = this.grid.query(from.x, from.y, range, this.q2);
+		// Kill-triggered chains can search while an area attack is iterating q2.
+		const near = this.grid.query(from.x, from.y, range, []);
 		let best = null, bd = range * range;
 		for (const e of near) {
 			if (e.dead || exclude.includes(e)) continue;
@@ -4649,6 +4661,9 @@ export class Room {
 	}
 
 	orbitHits(h, L, dmgMul, areaMul, amount, src = SRC.orbit) {
+		src = this.weaponSource(h, src);
+		// Inherited Orbit and the duo's signature ring each own one clock for all their blades.
+		const key = `${h.pid}:${src.weapon}:${src.component ?? src.weapon}`;
 		const R = L.radius * areaMul;
 		const bladeR = ORBIT_BLADE_R * areaMul;
 		const count = L.count + amount;
@@ -4663,11 +4678,11 @@ export class Room {
 		if (!near.length) return;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.oh && (e.oh[h.pid] ?? 0) > this.time) continue;
+			if (e.oh && (e.oh[key] ?? 0) > this.time) continue;
 			const rr = (bladeR + e.r) * (bladeR + e.r);
 			for (let i = 0; i < bx.length; i++) {
 				if (dist2(e.x, e.y, bx[i], by[i]) < rr) {
-					(e.oh ??= {})[h.pid] = this.time + L.hitCd;
+					(e.oh ??= {})[key] = this.time + L.hitCd;
 					this.hurtEnemy(e, L.dmg * dmgMul, h, src);
 					if (h.mods.armor > 0) h.guard = Math.min(3, h.guard + 1); // Хоровод + Кольчуга
 					break;
@@ -5189,8 +5204,7 @@ export class Room {
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
 			// v20: an overclocked weapon gets a 4th field with the variant (1 or 2).
-			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
-				: id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
+			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, id === 'orrery' ? this.orreryMask(h, w) : 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),

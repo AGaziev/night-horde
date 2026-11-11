@@ -1285,10 +1285,11 @@ export function weaponLevel(id, lvl, oc = 0) {
 
 // Attack clocks which previously ignored haste (auras, beams, traps, burning paths and orbit contact).
 // Regular cast cooldowns already use cdMul at their call sites; durations and shield cooldowns stay unchanged here.
-export function attackLevel(id, lvl, oc = 0, mods = {}) {
+export function attackLevel(id, lvl, oc = 0, mods = {}, parts = []) {
 	let base = weaponLevel(id, lvl, oc);
 	if (DUOS[id]?.parts.includes('ward')) {
-		const shield = weaponLevel('ward', duoPartLevel(lvl));
+		// Fusion can retain a Ward above the duo's default inherited level.
+		const shield = weaponLevel('ward', Math.max(duoPartLevel(lvl), parts.find((part) => part.id === 'ward')?.lvl ?? 0));
 		base = { ...base, charges: Math.max(base.charges ?? 0, shield.charges), cd: Math.min(base.cd ?? Infinity, shield.cd) };
 	}
 	const speed = mods.cdMul ?? 1;
