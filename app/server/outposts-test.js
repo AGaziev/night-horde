@@ -90,7 +90,7 @@ for(const [x,y] of [[99990,99990],[-99990,99990],[99990,-99990],[-99990,-99990]]
  }
 }
 {
- const {r,hs}=setup();hs[0].x=99990;hs[0].y=99990;
+ const {r,hs}=setup();hs[0].x=1e9;hs[0].y=1e9;
  const random=Math.random;Math.random=()=>0;
  try {spawnNetwork(r,hs);}finally{Math.random=random;}
  assert.equal(r.outposts.posts.length,0,'failed bounded search does not fall back underfoot');
@@ -129,5 +129,17 @@ for(const [x,y] of [[99990,99990],[-99990,99990],[99990,-99990],[-99990,-99990]]
  decode();spawnNetwork(r,hs);decode();r.closeOutposts();decode();
  r.resync(1);const packet=decode();assert.equal(packet.K,1,'reconnect forces key with closed objective');
  const fresh=new SnapshotDecoder();assert.equal(fresh.decode(packet).op.status,'closed');
+}
+
+{
+ const old=Math.random;let seed=19;
+ Math.random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+ try {
+  const {r,hs}=setup(8);
+  hs.forEach((h,i)=>{h.x=100000-i*20;h.y=-100000+i*30;if(i===7){h.st=1;h.hp=0;}});
+  spawnNetwork(r,hs);
+  for(let i=0;i<8&&r.outposts.posts.length<9;i++){r.time++;r.updateOutposts(hs.filter(h=>!h.st));}
+  assert.equal(r.outposts.posts.length,9,'narrow valid corner slots are found by bounded fallback');
+ }finally{Math.random=old;}
 }
 console.log('Outposts: timing, placement, finite guards, safe/fair cap, leash, chests, trophy, finale/reset and wire: OK');
