@@ -5047,8 +5047,7 @@ export class Room {
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
 			// v20: an overclocked weapon gets a 4th field with the variant (1 or 2).
-			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
-				: id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
+			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, id === 'orrery' ? this.orreryMask(h, w) : 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
