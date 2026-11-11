@@ -4518,6 +4518,9 @@ export class Room {
 	}
 
 	orbitHits(h, L, dmgMul, areaMul, amount, src = SRC.orbit) {
+		src = this.weaponSource(h, src);
+		// Inherited Orbit and the duo's signature ring each own one clock for all their blades.
+		const key = `${h.pid}:${src.weapon}:${src.component ?? src.weapon}`;
 		const R = L.radius * areaMul;
 		const bladeR = ORBIT_BLADE_R * areaMul;
 		const count = L.count + amount;
@@ -4532,11 +4535,11 @@ export class Room {
 		if (!near.length) return;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.oh && (e.oh[h.pid] ?? 0) > this.time) continue;
+			if (e.oh && (e.oh[key] ?? 0) > this.time) continue;
 			const rr = (bladeR + e.r) * (bladeR + e.r);
 			for (let i = 0; i < bx.length; i++) {
 				if (dist2(e.x, e.y, bx[i], by[i]) < rr) {
-					(e.oh ??= {})[h.pid] = this.time + L.hitCd;
+					(e.oh ??= {})[key] = this.time + L.hitCd;
 					this.hurtEnemy(e, L.dmg * dmgMul, h, src);
 					if (h.mods.armor > 0) h.guard = Math.min(3, h.guard + 1); // Хоровод + Кольчуга
 					break;

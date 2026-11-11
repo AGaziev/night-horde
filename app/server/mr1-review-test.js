@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room } from './game.js';
 import { SnapshotDecoder } from '../public/js/snapshot-codec.js';
-import { DUOS, EMBER_WEAK } from '../public/shared/content.js';
+import { DUOS, WEAPONS, DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, EMBER_WEAK, orbitAngle } from '../public/shared/content.js';
 
 const dt = 1 / 30;
 function arena(weapons, players = 1) {
@@ -135,4 +135,39 @@ test('4540714302: mark support is the extra dealt damage after fixed flash damag
 		assert.equal(marked.damage, Math.min(hp, 18.125 * mitigation));
 		assert.equal(marked.support, marked.damage - plain.damage, `support counts only the actual mark benefit at hp=${hp}, armored=${armored}`);
 	}
+});
+
+test('4540714319: inherited Orbit and Whirlwind contact both hit in one frame on independent clocks', () => {
+	const { r, h } = arena([['orbit', 3], ['aura', 3]]);
+	const w = fuse(r, h, 'whirlwind');
+	r.time = 1;
+	const angle = orbitAngle(r.time, WEAPONS.orbit.levels[2].rps, 0, WEAPONS.orbit.levels[2].count);
+	const e = foe(r, Math.cos(angle) * 92, Math.sin(angle) * 92);
+	e.r = 20;
+	const expected = (WEAPONS.orbit.levels[2].dmg * DUO_INHERIT_POWER
+		+ DUOS.whirlwind.levels[0].bladeDmg * DUO_SIGNATURE_POWER) * (1 + r.synergy);
+	r.updateWeapon(h, 'whirlwind', w, dt);
+	assert.ok(Math.abs(h.dmg - expected) < 1e-9, `both rings hit: expected ${expected}, got ${h.dmg}`);
+	const damage = h.dmg;
+	r.time += 0.1;
+	r.updateWeapon(h, 'whirlwind', w, dt);
+	assert.equal(h.dmg, damage, 'neither ring bypasses its own contact cooldown');
+	r.time = 1 + 1 / WEAPONS.orbit.levels[2].rps;
+	r.updateWeapon(h, 'whirlwind', w, dt);
+	assert.ok(Math.abs(h.dmg - 2 * expected) < 1e-9, 'both rings can hit again after their cooldowns');
+});
+
+test('4540714319: all blades of one ring still share a cooldown, independently for each player', () => {
+	const { r, h } = arena([['orbit', 3]], 2);
+	const ally = r.heroes.get(2);
+	ally.x = ally.y = 0; ally.perk.readyAt = Infinity;
+	ally.weapons = new Map([['orbit', { lvl: 3, t: 0 }]]);
+	const e = foe(r, 0); e.r = 120; // Every blade overlaps this one large target.
+	for (const owner of [h, ally]) {
+		r.updateWeapon(owner, 'orbit', owner.weapons.get('orbit'), dt);
+		assert.equal(owner.dmg, 12, 'overlapping blades produce only one contact hit per ring');
+		r.updateWeapon(owner, 'orbit', owner.weapons.get('orbit'), dt);
+		assert.equal(owner.dmg, 12, 'a second call cannot bypass the same ring cooldown');
+	}
+	assert.equal(e.maxHp - e.hp, 24, 'one player does not consume another player’s contact hit');
 });
