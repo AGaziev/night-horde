@@ -1,7 +1,7 @@
-import { enemyHpScale, xpForNext } from '../public/shared/content.js';
+import { enemyHpScale, enemyDmgScale, xpForNext } from '../public/shared/content.js';
 
 export const OUTPOST = Object.freeze({
-	baseGuards: 40, perHero: 5, aliveCap: 288, perPostCap: 40, rangedCap: 4, hp: 1.4, damage: 1.15,
+	guards: 40, aliveCap: 288, perPostCap: 40, rangedCap: 4, hp: 1.5, damage: 1.15,
 	activation: 900, pursuit: 650, leash: 520,
 	minDistance: 1800, spacing: 900, world: 100000, safeSpawn: 200,
 	preparation: 0.9, shotLife: 2.4, shotRange: 650,
@@ -63,7 +63,7 @@ export function updateOutposts(room, alive) {
 	if (room.fin || room.time < room.runLength * 2 / 3) return;
 	if (!room.outposts) {
 		const target = room.heroes.size + 1;
-		room.outposts = { status: 'active', target, guardsPerPost: OUTPOST.baseGuards + OUTPOST.perHero * room.heroes.size,
+		room.outposts = { status: 'active', target, creationNt: room.nt, guardsPerPost: OUTPOST.guards,
 			liveLimit: Math.min(OUTPOST.perPostCap, Math.floor(OUTPOST.aliveCap / target)), posts: [], nextPlacement: 0, spawnCursor: 0 };
 		room.fx.push(['outposts', 'arrive', room.outposts.target]);
 	}
@@ -94,10 +94,12 @@ export function updateOutposts(room, alive) {
 		if (next < 0) { blocked.add(post); continue; }
 		const pos = safePosition(post, alive);
 		if (!pos) { blocked.add(post); continue; }
-		const e = room.spawnEnemy(post.pending[next], alive, enemyHpScale(room.nt, room.heroes.size) * OUTPOST.hp);
+		const e = room.spawnEnemy(post.pending[next], alive, enemyHpScale(net.creationNt, room.heroes.size) * OUTPOST.hp);
 		Object.assign(e, pos, { outpost: post, guardReadyAt: room.time + OUTPOST.preparation });
-		e.dmg *= OUTPOST.damage;
-		e.dmgMul *= OUTPOST.damage;
+		// Reserves belong to the original cohort, including after a late first approach or player leave.
+		const damage = OUTPOST.damage * enemyDmgScale(net.creationNt, room.heroes.size) / enemyDmgScale(room.nt, room.heroes.size);
+		e.dmg *= damage;
+		e.dmgMul *= damage;
 		room.fx.push(['warn', Math.round(e.x), Math.round(e.y), e.r + 14, OUTPOST.preparation]);
 		post.spawned++;
 		post.pending.splice(next, 1);

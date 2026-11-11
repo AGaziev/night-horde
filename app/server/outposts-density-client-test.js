@@ -34,11 +34,11 @@ try {
 		ui.cache = { passives: '{}', embers: '{}', allies: '' };
 		ui.set = (id, prop, value) => written.set(`${id}.${prop}`, value);
 		ui.updateHud(g);
-		assert.equal(written.get('hud-outposts.text'), `⚑ Аванпосты: 0/${n + 1} · охрана 1/${(n + 1) * (40 + 5 * n)}`);
+		assert.equal(written.get('hud-outposts.text'), `⚑ Аванпосты: 0/${n + 1} · охрана 1/${(n + 1) * 40}`);
 		const renderer = Object.create(Renderer.prototype);
 		Object.assign(renderer, { vx0: -1e6, vx1: 1e6, vy0: -1e6, vy1: 1e6 });
 		text.length = 0; renderer.drawOutposts(ctx, { view: { b: { op } } }, 0);
-		assert.ok(text.includes(`Повержено 1/${40 + 5 * n} · сундук заперт`));
+		assert.ok(text.includes('Повержено 1/40 · сундук заперт'));
 	}
 	// A dense same-archetype frame exceeds the old per-type buffer (414) and must all render.
 	const renderer = Object.create(Renderer.prototype), type = ENEMY_TYPES.indexOf('skel'), count = 758;
@@ -61,13 +61,13 @@ try {
 		const radar = new Proxy({}, { set: (_, key, value) => { if (key === 'fillStyle') color = value; return true; },
 			get: (_, key) => key === 'fillRect' ? () => fills.push(color) : () => {} });
 		Object.assign(renderer, { overlay: { mm: { clientWidth: 140, style: {}, getContext: () => radar } }, camX: 0, camY: 0, w: 800, h: 600, zoom: 1, mmAt: 0 });
-		for (const [killed, expected] of [[20, '#ffab70'], [45, '#a5d6a7']]) {
+		for (const [killed, expected] of [[20, '#ffab70'], [40, '#a5d6a7']]) {
 			fills.length = 0; renderer.mmAt = 0;
-			renderer.updateMinimap({ view: { b: { it: [], e: [], p: [], op: { posts: [[1, 2000, 0, killed, 45, 0, 45]] } } }, finale: () => null, event: () => null }, 1, true);
+			renderer.updateMinimap({ view: { b: { it: [], e: [], p: [], op: { posts: [[1, 2000, 0, killed, 40, 0, 40]] } } }, finale: () => null, event: () => null }, 1, true);
 			assert.deepEqual(fills, [expected], 'radar clearance uses the actual post total');
 		}
 	} finally {
 		if (oldWindow) Object.defineProperty(globalThis, 'window', oldWindow); else delete globalThis.window;
 	}
-	console.log('Outpost client density: real HUD/canvas/radar totals 90/150/300/720 and 758 same-type render records: OK');
+	console.log('Outpost client density: real HUD/canvas/radar totals 80/120/200/360 and 758 same-type render records: OK');
 } finally { fs.rmSync(tmp, { recursive: true, force: true }); }

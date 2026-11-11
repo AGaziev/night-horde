@@ -24,7 +24,7 @@ function fillOrdinary(r, hs, n) { while (ordinary(r).length < n) r.spawnEnemy('b
 
 // Counts are fixed at network creation, including finite reserves, in both modes.
 for (const n of [1, 2, 4, 7, 8]) for (const mode of ['night', 'lunch']) {
-	const { r, hs, net } = setup(n, mode), total = 40 + 5 * n, p = net.posts[0];
+	const { r, hs, net } = setup(n, mode), total = 40, p = net.posts[0];
 	approach(r, hs, p);
 	assert.equal(p.spawned, Math.min(40, Math.floor(288 / (n + 1))), `${mode}/${n}: reserved live garrison`);
 	assert.equal(p.total, total);
@@ -60,10 +60,10 @@ for (const n of [1, 2, 4, 7, 8]) for (const mode of ['night', 'lunch']) {
 	assert.equal(liveGuards(r, p).length, 32, 'reinforcement uses its own reserved slot');
 	assert.equal(p.spawned, 33); assert.equal(ordinary(r).length, 350);
 	const snap = r.snapshot();
-	assert.equal(snap.op.guards, 720); assert.ok(snap.op.posts.every(p => p[6] === 80));
+	assert.equal(snap.op.guards, 360); assert.ok(snap.op.posts.every(p => p[6] === 40));
 	const before = net.guardsPerPost; r.removePlayer(8);
 	assert.equal(net.guardsPerPost, before); assert.equal(net.target, 9); assert.equal(net.liveLimit, 32);
-	r.resync(1); assert.equal(r.snapshot().op.guards, 720, 'reconnect never recalculates the roster');
+	r.resync(1); assert.equal(r.snapshot().op.guards, 360, 'reconnect never recalculates the roster');
 	console.log('density dispersed 8→9 posts: 32×9 guards + 350 ordinary; reinforcement/leave/reconnect: OK');
 }
 

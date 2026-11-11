@@ -331,16 +331,19 @@ export class Room {
 		const hpK = (enemyHpScale(nt, to) / enemyHpScale(nt, from)) * (hpNew / hpOld);
 		const bossK = (bossHpScale(nt, to) / bossHpScale(nt, from)) * (hpNew / hpOld);
 		const dmgK = (enemyDmgScale(nt, to) / enemyDmgScale(nt, from)) * (dmgNew / dmgOld);
+		const cohortNt = this.outposts?.creationNt ?? nt;
+		const guardHpK = (enemyHpScale(cohortNt, to) / enemyHpScale(cohortNt, from)) * (hpNew / hpOld);
+		const guardDmgK = (enemyDmgScale(cohortNt, to) / enemyDmgScale(cohortNt, from)) * (dmgNew / dmgOld);
 		if (this.fin?.lord) this.finDmg = finaleDmgMul(to);
 		for (const e of this.enemies) {
 			if (e.dead) continue;
 			// The finale Lord also follows his own per-group multiplier; the arena keeps its size.
-			const k = e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
+			const k = e.outpost ? guardHpK : e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
 			e.hp *= k;
 			e.maxHp *= k;
 			if (e.barMax) e.barMax *= k;
-			e.dmg *= dmgK;
-			e.dmgMul *= dmgK;
+			e.dmg *= e.outpost ? guardDmgK : dmgK;
+			e.dmgMul *= e.outpost ? guardDmgK : dmgK;
 		}
 		this.runLog?.groupChange(this, from, to);
 	}

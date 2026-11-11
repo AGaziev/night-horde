@@ -8,7 +8,7 @@ const { Game } = await import('data:text/javascript;base64,' + Buffer.from(sourc
 const g = new Game({ send() {} }); g.me = 1;
 g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: 0, y: 0 }] });
 g.pvals.area = .2;
-const op = { status: 'active', total: 2, guards: 90, cleared: 1, posts: [[1, 2000, 0, 45, 45, 1, 45], [2, -2000, 0, 4, 40, 0, 45]] };
+const op = { status: 'active', total: 2, guards: 80, cleared: 1, posts: [[1, 2000, 0, 40, 40, 1, 40], [2, -2000, 0, 4, 40, 0, 40]] };
 g.onSnapshot({ tm: 600, p: [], e: [], fx: [], op, trophy: [1, 2] });
 assert.ok(Math.abs(g.areaMul() - 1.2 * 1.15) < 1e-10, 'own visual area includes the multiplicative trophy');
 assert.equal(g.areaMul(2), 1.15, 'teammate persistent attack visuals receive their trophy too');

@@ -35,7 +35,7 @@ for(const n of [1,2,4,8]) for(const mode of ['night','lunch']) {
  hs[0].x=p.x;hs[0].y=p.y;r.updateOutposts(hs);
  assert.equal(p.spawned,40);assert.equal(p.killed,0);
  const guard=r.enemies.find(e=>e.outpost===p);assert.ok(guard);
- assert.ok(Math.abs(guard.maxHp-ENEMIES.skel.hp*enemyHpScale(r.nt,hs.length)*r.modeHp*1.4)<1e-8);
+ assert.ok(Math.abs(guard.maxHp-ENEMIES.skel.hp*enemyHpScale(r.nt,hs.length)*r.modeHp*1.5)<1e-8);
  assert.ok(r.enemies.every(e=>Math.hypot(e.x-hs[0].x,e.y-hs[0].y)>=200),'safe pending spawn');
  const hp=guard.hp;hs[0].x=p.x+4000;r.time+=1;r.moveEnemies(.5,hs);
  assert.ok(Math.hypot(guard.x-p.x,guard.y-p.y)<=520+1e-6,'no horde teleport');assert.equal(guard.hp,hp,'return never heals');
@@ -154,7 +154,7 @@ for(const [initialSeed,sx] of [[19,1],[101,-1]]) {
  hs[0].x=p.x;hs[0].y=p.y;r.updateOutposts(hs);
  const e=r.enemies.find(e=>e.outpost===p);e.hp=e.maxHp*.5;
  r.removePlayer(4);
- const expected=ENEMIES.skel.hp*enemyHpScale(r.nt,3)*r.modeHp*1.4;
+ const expected=ENEMIES.skel.hp*enemyHpScale(r.nt,3)*r.modeHp*1.5;
  assert.ok(Math.abs(e.maxHp-expected)<1e-8,'leaving keeps the guard HP factor');
  assert.equal(e.hp/e.maxHp,.5,'group rescale keeps damaged fraction');
  const normal=r.spawnEnemy('skel',hs,enemyHpScale(r.nt,3));
