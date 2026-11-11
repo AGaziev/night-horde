@@ -753,7 +753,7 @@ export class Renderer {
 			if (!n) continue;
 			const r = ENEMIES[ENEMY_TYPES[ty]].r;
 			const st = this.est[ty];
-			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark | ST.wet | ST.resonance)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
+			for (let k = 0; k < n; k++) if (st[k] & (ST.chill | ST.frozen | ST.root | ST.burn | ST.mark | ST.wet | ST.resonance | ST.stormMarked)) this.drawStateOne(ctx, this.ex[ty][k], this.ey[ty][k], r, st[k], now);
 		}
 	}
 
@@ -807,6 +807,13 @@ export class Renderer {
 			ctx.lineTo(x - 4, my);
 			ctx.closePath();
 			ctx.fill();
+		}
+		if (st & ST.stormMarked) {
+			ctx.strokeStyle = '#82e8ff';
+			ctx.lineWidth = 2;
+			ctx.beginPath();
+			ctx.arc(x, y, r + 5, Math.PI * 1.15, Math.PI * 1.85);
+			ctx.stroke();
 		}
 		if (st & ST.resonance) {
 			ctx.strokeStyle = '#ffd47e';
@@ -2710,16 +2717,12 @@ export class Renderer {
 		let mineDrawn = false;
 		ctx.textAlign = 'center';
 		ctx.textBaseline = 'middle';
-		const healers = this.healAuras(game);
 		for (const row of b.p) {
 			const pid = row[P.pid];
 			const pos = game.playerPos(pid, this.tmp);
 			if (!pos) continue;
 			const x = pos.x, y = pos.y;
 			if (!this.visible(x, y)) continue;
-			if (healers.length && row[P.st] !== 1 && healers.some((hz) => hz.pid !== pid && (x - hz.x) ** 2 + (y - hz.y) ** 2 < hz.r * hz.r)) {
-				this.drawHealGlow(ctx, x, y, now);
-			}
 			const meta = game.meta(pid);
 			const me = pid === game.me;
 			if (me) mineDrawn = true;
@@ -2741,6 +2744,13 @@ export class Renderer {
 				else drawHero(ctx, x, y, meta.hero, meta.color, fx || 1, fy || 0, now, me);
 				const wl = Array.isArray(row[P.w]) ? row[P.w] : [];
 				this.drawWard(ctx, x, y, row[P.ward] | 0, wl.some((w) => Array.isArray(w) && w[0] === 'bastion'), now);
+				if (row[P.heroShield]) {
+					ctx.strokeStyle = '#a5e5ff';
+					ctx.lineWidth = 1.7;
+					ctx.beginPath();
+					ctx.arc(x, y, 22, 0, TAU);
+					ctx.stroke();
+				}
 			}
 			// Name and hp.
 			ctx.font = '600 12px system-ui, sans-serif';
@@ -2808,44 +2818,6 @@ export class Renderer {
 		ctx.fill();
 		ctx.globalAlpha = 1;
 		blit(ctx, s, moving ? walkFrame(s, now, pid) : 0, x, y + HERO_FOOT, ART * r / (s.body || r), ux < -0.2);
-	}
-
-	// Auras of alive heroes whose trait heals allies inside them.
-	healAuras(game) {
-		const out = [];
-		for (const row of game.view.b.p) {
-			if (row[P.st] === 1 || !Array.isArray(row[P.w])) continue;
-			const pid = row[P.pid];
-			if (!(HEROES[game.meta(pid).hero]?.trait?.auraHeal > 0)) continue;
-			const wl = row[P.w].find((w) => Array.isArray(w) && (w[0] === 'aura' || w[0] === 'aurora' || w[0] === 'tocsin'));
-			if (!wl) continue;
-			const pos = game.playerPos(pid, this.tmp);
-			if (!pos) continue;
-			const def = wl[0] === 'aura' ? weaponLevel('aura', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0) : wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : duoLevel('aurora', wl[1]);
-			out.push({ pid, x: pos.x, y: pos.y, r: def.radius * (pid === game.me ? game.areaMul() : 1) });
-		}
-		return out;
-	}
-
-	drawHealGlow(ctx, x, y, now) {
-		const a = 0.45 + Math.sin(now * 5) * 0.12;
-		const g = ctx.createRadialGradient(x, y, 4, x, y, 30);
-		g.addColorStop(0, `rgba(255,224,130,${a})`);
-		g.addColorStop(1, 'rgba(255,224,130,0)');
-		ctx.fillStyle = g;
-		ctx.beginPath();
-		ctx.arc(x, y, 30, 0, TAU);
-		ctx.fill();
-		// Little rising sparks.
-		ctx.fillStyle = 'rgba(255,236,170,0.9)';
-		ctx.beginPath();
-		for (let k = 0; k < 3; k++) {
-			const ph = (now * 0.9 + k / 3) % 1;
-			const sx = x + Math.sin(k * 2.1 + now) * 13, sy = y + 6 - ph * 34;
-			ctx.moveTo(sx + 1.8, sy);
-			ctx.arc(sx, sy, 1.8 * (1 - ph * 0.6), 0, TAU);
-		}
-		ctx.fill();
 	}
 
 	drawDowned(ctx, x, y, meta, rev, now, sprite, fx) {

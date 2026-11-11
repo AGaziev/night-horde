@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -161,6 +161,8 @@ export class UI {
 			const w = WEAPONS[h.weapon];
 			card.appendChild(el('div', 'hero-weapon', w ? `${w.icon} ${w.name}` : ''));
 			card.appendChild(el('div', 'hero-stats', `❤ ${h.hp} · ➜ ${h.speed}`));
+			const perk = HERO_PERKS[id];
+			if (perk) card.appendChild(el('div', 'hero-trait', `★ ${perk.name}. ${perk.desc}`));
 			if (h.traitDesc) card.appendChild(el('div', 'hero-trait', `★ ${h.traitDesc}`));
 			const lock = el('span', 'hero-lock', '🔒');
 			const cond = el('div', 'hero-cond');

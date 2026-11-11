@@ -132,6 +132,7 @@ console.log('leave rescale: OK');
 	const k = hero(r, 1);
 	r.time = 70;
 	k.iframes = 0;
+	k.perk.readyAt = Infinity; // force a down to exercise the achievement
 	r.hurtPlayer(k, 1e6, 'test');
 	assert.equal(k.st, 1);
 	r.time = 305;

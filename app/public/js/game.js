@@ -34,7 +34,7 @@ export const ZK_FIRE = 1, ZK_CLOUD = 2;
 export const TR_STRIDE = 5;
 
 // Player row indexes in snapshot `p`.
-export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12, ward: 13 };
+export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12, ward: 13, heroShield: 14 };
 
 const EMPTY = [];
 
@@ -686,7 +686,7 @@ export class Game {
 				this.zaps.push({ pts: [+ev[1], +ev[2], +ev[3], +ev[4]], t: 0, color: '#d897ff' });
 				break;
 			case 'buildring': {
-				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55'][ev[4]] || '#d1a6ff';
+				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55', '#a5f0c6'][ev[4]] || '#d1a6ff';
 				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.33, r0: r * 0.25, r1: r, color, fill: true });
 				break;
 			}

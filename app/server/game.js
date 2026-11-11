@@ -1,7 +1,7 @@
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
 	REVIVE_RADIUS, REVIVE_SECONDS, REVIVE_HP_FRACTION, PLAYER_IFRAMES, MAX_LEVEL,
-	MAX_WEAPONS, MAX_PASSIVES, BOSS_TIMES, xpForNext, PLAYER_COLORS, HEROES, WEAPONS, PASSIVES,
+	MAX_WEAPONS, MAX_PASSIVES, BOSS_TIMES, xpForNext, PLAYER_COLORS, HEROES, HERO_PERKS, WEAPONS, PASSIVES,
 	BASE_MAGNET, GEM_PULL_SPEED, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, WEAPON_IDS, PASSIVE_IDS,
 	WAVES, enemyHpScale, spawnRateScale, SPAWN_DISTANCE, orbitAngle, heroTrait, enemyDmgScale, INVASION, invasionCount, ELITE_EVERY_LATE,
 	passiveValue, baseMods, REROLLS_START, SKIP_XP, RARE_CHANCE, CHEST_RARE_CHANCE, HEAL_OFFER_HP, ST,
@@ -17,6 +17,7 @@ import {
 	OVERCLOCKS, weaponLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
+import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
@@ -215,6 +216,7 @@ function makeHero(member, x, y) {
 		level: 1, xp: 0, st: 0, rev: 0, iframes: 0,
 		weapons: new Map([[h.weapon, { lvl: 1, t: 0.3 }]]),
 		trait: heroTrait(member.hero),
+		perk: { readyAt: HERO_PERKS[member.hero]?.cooldown ?? 0, receivedBellAt: -Infinity },
 		passives: new Map(),
 		mods: baseMods(),
 		kills: 0, dmg: 0, dmgBy: {}, revives: 0, knifeKills: 0,
@@ -1174,7 +1176,6 @@ export class Room {
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
 		this.updatePlayers(dt, alive);
-		this.auraHeals(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateHostile(dt);
 		this.updateBlasts();
@@ -2088,6 +2089,7 @@ export class Room {
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
 		const now = this.time;
+		const weaponDamage = dmg;
 		let crit = false;
 		if (!src.raw && e.markT > now) dmg *= 1 + e.markMul;
 		if (e.vulnT > now) dmg *= e.def.vuln ?? 1;
@@ -2147,6 +2149,8 @@ export class Room {
 				if (Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
 			} else if (e.burnT <= this.time + 1) this.burn(e, h, h.mods.burnDps * EMBER_WEAK.frac, EMBER_WEAK.dur);
 		}
+		if (h?.st === 0 && !h.offline && dealt > 0 && !src.raw && !src.react && !src.perk
+			&& src.coilJumps === undefined && Object.hasOwn(SRC, src.weapon)) onWeaponHit(this, h, e, weaponDamage, src);
 		this.lastCrit = crit;
 		return dmg;
 	}
@@ -2595,6 +2599,7 @@ export class Room {
 			if (h.st !== 0) continue;
 			this.breakAround(h.x, h.y, PLAYER_RADIUS, h);
 			for (const [id, w] of h.weapons) this.updateWeapon(h, id, w, dt);
+			if (h.hero === 'ranger' && !h.offline) scoutKnife(this, h);
 		}
 	}
 
@@ -2624,6 +2629,7 @@ export class Room {
 			this.wardAbsorb(h);
 			return;
 		}
+		if (blockHeroHit(this, h)) return;
 		const guard = h.guard;
 		h.guard = 0;
 		if (h.altarCurseT > this.time) dmg *= ALTAR_DEALS[1].takenMul;
@@ -2686,9 +2692,18 @@ export class Room {
 	}
 
 	updateWeapon(h, id, w, dt) {
+		if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && w.t <= dt && canRepeatCast(id)) {
+			repeatCast(this, h, id, w, dt);
+			return;
+		}
+		this.castWeapon(h, id, w, dt);
+	}
+
+	castWeapon(h, id, w, dt, damageScale = 1) {
 		const L = weaponLevel(id, w.lvl, w.oc);
 		const oc = overclockId(id, w.oc);
-		const { dmgMul, cdMul, areaMul, amount, durMul } = h.mods;
+		const { cdMul, areaMul, amount, durMul } = h.mods;
+		const dmgMul = h.mods.dmgMul * damageScale;
 		const src = SRC[id];
 		switch (id) {
 			case 'orbit':
@@ -2824,8 +2839,9 @@ export class Room {
 				this.slash(h, dir, range, width, dmg);
 				if (L.both) this.slash(h, -dir, range, width, dmg);
 				if (oc === 'twin') {
+					const equipped = h.weapons.get(id);
 					this.after(0.25, () => {
-						if (h.st !== 0 || h.weapons.get('whip') !== w) return;
+						if (h.st !== 0 || h.weapons.get('whip') !== equipped) return;
 						const t2 = this.nearestEnemies(h.x, h.y, 1, range + width)[0];
 						const d2 = t2 ? (t2.x >= h.x ? 1 : -1) : dir;
 						this.slash(h, d2, range, width, dmg);
@@ -2896,7 +2912,7 @@ export class Room {
 				const thrown = this.throwBombs(h, n, L.fuse, lobKind, (x, y) => ({
 					x, y, r: L.radius * areaMul * bigMul, pdmg: 0, edmg: dmg, owner: h, src, burn: id === 'bomb' ? BOMB_BURN : null,
 					kind: lobKind === 0 ? 0 : lobKind === 1 ? 6 : 4,
-					then: lobKind === 1 ? (b) => this.firePool(h, b, L) : lobKind === 2 ? (b) => this.iceBurst(h, b, L) : null,
+					then: lobKind === 1 ? (b) => this.firePool(h, b, L, damageScale) : lobKind === 2 ? (b) => this.iceBurst(h, b, L) : null,
 				}), cross);
 				w.t = thrown ? L.cd * cdMul : 0.2;
 				return;
@@ -2928,7 +2944,7 @@ export class Room {
 				const rods = hit.slice(0, 5);
 				const chain = L.chain + h.trait.chainBonus;
 				if (rods.length) this.after(0.3, () => { for (const e of rods) this.strikeAt(h, e, dmg * L.rodFrac, chain, src); });
-				if (big) this.thunderFan(h, L, range, src);
+				if (big) this.thunderFan(h, L, range, src, dmgMul);
 				w.t = L.cd * cdMul;
 				return;
 			}
@@ -3031,7 +3047,7 @@ export class Room {
 							dmg: dmg * 0.12, tick: 0.5, t: 0, wet: true, src: SRC.flask });
 					}
 					this.hurtEnemy(t, dmg, h, src);
-					if (!t.dead && h.mods.burnDps > 0) this.burn(t, h, h.mods.burnDps, LIGHTNING_EMBER_BURN); // Гроза + Уголёк
+					if (!t.dead && h.mods.burnDps > 0) this.burn(t, h, h.mods.burnDps * damageScale, LIGHTNING_EMBER_BURN); // Гроза + Уголёк
 					// Tempest: a critical strike jumps further along the chain.
 					const chain = L.chain + h.trait.chainBonus + (id === 'tempest' && this.lastCrit ? L.critChain : 0);
 					for (let c = 0; c < chain; c++) {
@@ -3619,13 +3635,13 @@ export class Room {
 	}
 
 	// Every 3rd Thunder Slash: a fan of bolts from the hero into enemies spread around the swing.
-	thunderFan(h, L, range, src) {
+	thunderFan(h, L, range, src, dmgMul) {
 		const R = range * 1.3;
 		this.fx.push(['tfan', h.pid, Math.round(R)]);
 		const cand = this.grid.query(h.x, h.y, R + MAX_ENEMY_R, this.q2).filter((e) => !e.dead && dist2(e.x, e.y, h.x, h.y) < R * R);
 		const ang = (e) => Math.atan2(e.y - h.y, e.x - h.x);
 		cand.sort((a, b) => ang(a) - ang(b));
-		const dmg = L.fanDmg * h.mods.dmgMul;
+		const dmg = L.fanDmg * dmgMul;
 		for (let i = 0; i < L.fan; i++) {
 			const e = cand.length ? cand[Math.floor(((i + 0.5) / L.fan) * cand.length)] : null;
 			const a = (i / L.fan) * Math.PI * 2;
@@ -3662,10 +3678,10 @@ export class Room {
 		return true;
 	}
 
-	firePool(h, b, L) {
+	firePool(h, b, L, damageScale) {
 		const z = {
-			id: this.nextId++, owner: h, x: b.x, y: b.y, r: b.r * 0.9, life: L.pool * h.mods.durMul, dmg: L.poolDmg * h.mods.dmgMul,
-			tick: L.tick, t: 0, slow: h.trait.puddleSlow, src: SRC.molotov, wet: true, burn: L.poolDmg * MOLOTOV_BURN, burnDur: 1.5,
+			id: this.nextId++, owner: h, x: b.x, y: b.y, r: b.r * 0.9, life: L.pool * h.mods.durMul, dmg: L.poolDmg * h.mods.dmgMul * damageScale,
+			tick: L.tick, t: 0, slow: h.trait.puddleSlow, src: SRC.molotov, wet: true, burn: L.poolDmg * MOLOTOV_BURN * damageScale, burnDur: 1.5,
 		};
 		this.puddles.push(z);
 		this.fx.push(['zk', z.id, 1]);
@@ -4253,20 +4269,6 @@ export class Room {
 		}
 	}
 
-	// Herald-like heroes heal other alive players standing inside their aura.
-	auraHeals(dt, alive) {
-		for (const h of alive) {
-			if (h.st !== 0 || h.trait.auraHeal <= 0) continue;
-			const auraId = ['aura', 'aurora', 'tocsin'].find((id) => h.weapons.has(id)) ?? null;
-			if (!auraId) continue;
-			const r = weaponDef(auraId).levels[h.weapons.get(auraId).lvl - 1].radius * h.mods.areaMul;
-			for (const o of alive) {
-				if (o === h || o.st !== 0 || dist2(o.x, o.y, h.x, h.y) >= r * r) continue;
-				o.hp = Math.min(o.maxHp, o.hp + h.trait.auraHeal * dt);
-			}
-		}
-	}
-
 	updateGems(dt, alive) {
 		if (!alive.length) return;
 		let j = 0;
@@ -4423,6 +4425,7 @@ export class Room {
 		let st = 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
+		if (stormMarked(en, t)) st |= ST.stormMarked;
 		if (en.slowT > t) st |= ST.chill;
 		if (en.frozenT > t) st |= ST.frozen;
 		if (en.wetT > t) st |= ST.wet;
@@ -4452,7 +4455,7 @@ export class Room {
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
-			h.ward,
+			h.ward, heroShieldReady(h, this.time) ? 1 : 0,
 		]);
 		const e = [];
 		for (const en of this.enemies) {

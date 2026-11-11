@@ -18,6 +18,8 @@ function room(heroes = ['knight'], mode = 'night') {
 	r.start();
 	r.enemies.length = 0;
 	r.time = 400;
+	// Preserve the baseline damage and targeting for the enemy and event fixtures.
+	for (const h of r.heroes.values()) h.perk.readyAt = Infinity;
 	return r;
 }
 const hero = (r, pid = 1) => r.heroes.get(pid);

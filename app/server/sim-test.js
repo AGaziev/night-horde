@@ -27,7 +27,8 @@ function checkSnapshot(s) {
 	assert.ok(isInt(s.k));
 	assert.ok(Array.isArray(s.p));
 	for (const p of s.p) {
-		assert.equal(p.length, 14);
+		assert.equal(p.length, 15);
+		assert.ok(p[14] === 0 || p[14] === 1, 'hero shield');
 		assert.ok(isInt(p[13]) && p[13] >= 0, 'ward charges');
 		for (let i = 0; i < 10; i++) assert.ok(isInt(p[i]), `p[${i}] int`);
 		assert.ok(p[8] === 0 || p[8] === 1);
@@ -57,7 +58,7 @@ function checkSnapshot(s) {
 	for (let i = 0; i < s.e.length; i += 6) {
 		assert.ok(s.e[i + 1] >= 0 && s.e[i + 1] < ENEMY_TYPES.length);
 		assert.ok(s.e[i + 4] >= 1 && s.e[i + 4] <= 100);
-		const state = s.e[i + 5] & ~ST.resonance;
+		const state = s.e[i + 5] & ~(ST.resonance | ST.stormMarked);
 		assert.ok(state >= 0 && state < (SHIELD_DIRS << SHIELD_SHIFT), 'state mask');
 		if (state >= 512) assert.ok(state & ST.shield, 'facing bits only with a shield');
 	}
@@ -200,6 +201,7 @@ assert.deepEqual(stats.errs, ['Начать игру может только х�
 // --- game over + again ---
 for (const h of room.heroes.values()) {
 	h.ward = 0;
+	h.perk.readyAt = Infinity; // test game over, independent of the hero shield
 	room.hurtPlayer(h, 1e9);
 }
 room.tick(dt);
@@ -339,30 +341,6 @@ console.log('over/again/leave: ok');
 	};
 	for (const id of ['knight', 'witch', 'ranger']) assert.deepEqual(heroTrait(id), { ...NO_TRAIT }, `${id} has no trait`);
 	for (const [id, h] of Object.entries(HEROES)) assert.ok(!h.trait || typeof h.traitDesc === 'string', `${id} traitDesc`);
-
-	// Herald: allies inside his aura heal 1 hp/s, himself and allies outside do not.
-	{
-		const r = traitRoom(['herald', 'knight', 'witch']);
-		const [hr, kn, wi] = [1, 2, 3].map((pid) => r.heroes.get(pid));
-		hr.x = 0; hr.y = 0;
-		kn.x = 30; kn.y = 0;
-		wi.x = 500; wi.y = 0;
-		hr.hp = kn.hp = wi.hp = 50;
-		for (let i = 0; i < 2 * TICK_HZ; i++) r.tick(dtt);
-		assert.ok(Math.abs(kn.hp - 52) < 0.05, `herald heals ally: ${kn.hp}`);
-		assert.equal(wi.hp, 50, 'ally outside aura is not healed');
-		assert.equal(hr.hp, 50, 'herald does not heal himself');
-		hr.weapons.get('aura').lvl = 5;
-		hr.mods.areaMul = 1.5;
-		kn.x = 160; kn.hp = 50; // 115 * 1.5 = 172.5 > 160
-		for (let i = 0; i < TICK_HZ; i++) r.tick(dtt);
-		assert.ok(kn.hp > 50.9, 'heal radius follows aura level and areaMul');
-		r.hurtPlayer(hr, 1e9);
-		kn.hp = 50;
-		for (let i = 0; i < TICK_HZ; i++) r.tick(dtt);
-		assert.equal(kn.hp, 50, 'downed herald does not heal');
-		console.log('trait herald heal: ok');
-	}
 
 	// Smith: takes 20% less damage and pulls enemies within 250 to himself.
 	{
@@ -1211,8 +1189,10 @@ console.log('over/again/leave: ok');
 		h.weapons = new Map([['aurora', { lvl: 1, t: 0 }]]);
 		ally.x = 40;
 		ally.hp = 100;
+		r.time = 20;
+		put(r, 'brute', 35, 0);
 		run(r, 1);
-		assert.ok(ally.hp > 100.9, 'herald trait works with Aurora');
+		assert.equal(ally.hp, 112, 'Aurora hits can trigger a single healing bell');
 		console.log('duo herald trait: ok');
 	}
 }

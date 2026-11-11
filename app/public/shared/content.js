@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v25';
+export const GAME_VERSION = 'v26';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -40,13 +40,23 @@ export const xpForNext = (level, players = 1) => Math.round((5 + (level - 1) * 8
 // Player colors by join order.
 export const PLAYER_COLORS = ['#4fc3f7', '#ff8a65', '#aed581', '#ba68c8', '#ffd54f', '#4db6ac', '#f06292', '#90a4ae'];
 
+export const HERO_PERKS = {
+	knight: { name: 'Щит', desc: 'Раз в 20 с щит поглощает один удар.', cooldown: 20 },
+	witch: { name: 'Эхо атаки', desc: 'Раз в 8 с повторяет атаку с 60% урона и её эффектами.', cooldown: 8, damage: 0.6 },
+	ranger: { name: 'Бросок на ходу', desc: 'На бегу раз в 3 с бросает клинок в преследователя или ближайшего врага.', cooldown: 3 },
+	smith: { name: 'Удар молота', desc: 'Серия попаданий вызывает удар молотом. Разное оружие набирает серию быстрее.', cooldown: 4 },
+	stormcaller: { name: 'Разряд', desc: 'Раз в 6 с отмечает врага. Следующее попадание выпускает молнию из цели.', cooldown: 6 },
+	alchemist: { name: 'Осадок', desc: 'Раз в 6 с попадание оставляет лужу сырости. Она перенимает холод или горение атаки.', cooldown: 6 },
+	spearmaiden: { name: 'Прокол', desc: 'Раз в 6 с попадание пробивает линию врагов через цель.', cooldown: 6 },
+	herald: { name: 'Целительный звон', desc: 'Попадание раз в 15 с лечит вас на 6 и одного союзника рядом на 12.', cooldown: 15, self: 6, ally: 12, range: 145 },
+};
+
 export const HEROES = {
 	knight: { name: 'Страж', desc: 'Крепкий воин с клинком', hp: 140, speed: 150, weapon: 'whip', color: '#90caf9' },
 	witch: { name: 'Ведьма', desc: 'Самонаводящиеся искры', hp: 100, speed: 160, weapon: 'bolt', color: '#ce93d8' },
 	ranger: { name: 'Следопыт', desc: 'Быстрый, метает ножи', hp: 110, speed: 175, weapon: 'knives', color: '#a5d6a7' },
 	herald: {
 		name: 'Звонарь', desc: 'Поддержка с ореолом', hp: 140, speed: 145, weapon: 'aura', color: '#ffe082',
-		trait: { auraHeal: 1 }, traitDesc: 'Союзники в его ореоле лечатся на 1\u00a0❤/\u2060с',
 	},
 	smith: {
 		name: 'Кузнец', desc: 'Танк с кружащими молотами', hp: 170, speed: 135, weapon: 'orbit', color: '#ffab91',
@@ -180,13 +190,12 @@ export function unlockProgress(id, stats) {
 }
 
 // Hero traits (all optional, read by the server from HEROES[id].trait):
-//   auraHeal   — hp/s healed to other alive players inside this hero's aura
 //   dmgTaken   — multiplier for damage taken
 //   taunt      — enemies within this distance target this hero instead of the nearest player
 //   chainBonus — extra lightning chain jumps
 //   puddleSlow — fraction of speed enemies lose while inside this hero's puddles
 //   spearRam   — spear damage bonus per enemy the spear has already pierced; spearKb — spear knockback multiplier
-export const NO_TRAIT = Object.freeze({ auraHeal: 0, dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0, spearRam: 0, spearKb: 1 });
+export const NO_TRAIT = Object.freeze({ dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0, spearRam: 0, spearKb: 1 });
 export const heroTrait = (heroId) => ({ ...NO_TRAIT, ...(HEROES[heroId]?.trait ?? {}) });
 
 // Weapon stats per level: index 0 = level 1. `cd` is cooldown in seconds.
@@ -1097,7 +1106,7 @@ export const CHEST_RARE_CHANCE = 0.3;
 export const HEAL_OFFER_HP = 0.5; // below this hp fraction the 3rd card is always healing
 
 // Enemy state bits in snapshot `e` (6th field).
-export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256, resonance: 8192 };
+export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256, resonance: 8192, stormMarked: 16384 };
 
 // Elites: from ELITE_START every ELITE_EVERY seconds one regular enemy becomes an elite.
 export const ELITE_START = 240;

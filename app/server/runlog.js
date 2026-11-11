@@ -18,7 +18,10 @@ const SHOOTERS = new Set(ENEMY_TYPES.flatMap((t, i) => (ENEMIES[t]?.shotDmg ? [i
 const BOSS_NEAR = 400; // a boss is «near» while an alive player is this close
 
 const r1 = (v) => Math.round(v * 10) / 10;
-const SRC_NAMES = { burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', star: 'Падающая звезда', other: 'Прочее' };
+const SRC_NAMES = {
+	perk_witch: 'Эхо атаки', perk_ranger: 'Бросок на ходу', perk_smith: 'Удар молота',
+	perk_stormcaller: 'Разряд', perk_alchemist: 'Осадок', perk_spearmaiden: 'Прокол',
+	burn: 'Поджог', blast: 'Взрывы', cracker: 'Хлопушки', star: 'Падающая звезда', other: 'Прочее' };
 const SPECIAL_IDS = Object.keys(SPECIALS);
 const PASSIVE_OR_WEAPON = (id) => weaponDef(id)?.name ?? PASSIVES[id]?.name ?? id;
 export const srcName = (id) => SRC_NAMES[id] ?? (id.startsWith('r_') && REACTIONS[id.slice(2)] ? `Реакция «${REACTIONS[id.slice(2)].name}»` : null) ?? weaponDef(id)?.name ?? id;

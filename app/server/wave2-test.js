@@ -16,6 +16,8 @@ function room(heroes = ['knight']) {
 	r.start();
 	r.enemies.length = 0;
 	r.time = 100;
+	// This suite isolates reactions from the hero passives.
+	for (const h of r.heroes.values()) h.perk.readyAt = Infinity;
 	return r;
 }
 function foe(r, x, y, type = 'brute') {
