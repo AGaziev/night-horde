@@ -487,12 +487,12 @@ export class UI {
 				add(this.ovrCard(c, i), c, i);
 				return;
 			}
-			const R = RARITIES[c.rar];
+			const R = RARITIES[c.kind === 'rare' && c.id === 'forge' ? 3 : c.rar];
 			const card = el('button', (c.kind === 'rare' ? 'card card-rare' : c.kind === 'ember' ? 'card card-ember' : DUOS[c.id] ? 'card card-duo-up' : 'card') + (R ? ` rar rar-${R.id}` : ''));
 			card.type = 'button';
 			card.appendChild(el('span', 'card-key', String(i + 1)));
 			const role = c.kind === 'weapon' ? ROLES[WEAPONS[c.id]?.role] : null; // v24: the role decides the affinity
-			card.appendChild(el('span', 'card-kind', c.kind === 'weapon' ? (DUOS[c.id] ? 'связка' : 'оружие' + (role ? ` · ${role.icon} ${role.name}` : '')) : c.kind === 'passive' ? 'артефакт' : c.kind === 'rare' ? 'редкое' : c.kind === 'ember' ? 'угли' : ''));
+			card.appendChild(el('span', 'card-kind', c.kind === 'weapon' ? (DUOS[c.id] ? 'связка' : 'оружие' + (role ? ` · ${role.icon} ${role.name}` : '')) : c.kind === 'passive' ? 'артефакт' : c.kind === 'rare' ? 'перековка' : c.kind === 'ember' ? 'угли' : ''));
 			const def = c.kind === 'weapon' ? weaponDef(c.id) : c.kind === 'passive' ? PASSIVES[c.id] : null;
 			card.appendChild(el('div', 'card-icon', c.icon || def?.icon || '?'));
 			card.appendChild(el('div', 'card-name', c.name || def?.name || c.id));
@@ -741,6 +741,16 @@ export class UI {
 		this.set('hud-event', 'hidden', !ev);
 		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
 		if (!snap) return;
+		const op = snap.op;
+		this.set('hud-outposts', 'hidden', !op);
+		if (op) {
+			const killed = op.posts.reduce((sum, post) => sum + post[3], 0);
+			this.set('hud-outposts', 'text', op.status === 'closed' ? '⚑ Аванпосты закрыты · награда упущена'
+				: op.status === 'won' ? `⚑ Аванпосты: ${op.cleared}/${op.total} · победа`
+				: `⚑ Аванпосты: ${op.cleared}/${op.total} · охрана ${killed}/${op.total * 20}`);
+		}
+		this.set('hud-trophy', 'hidden', !game.hasVictoryBanner());
+
 		this.set('hud-kills', 'text', String(snap.k));
 		const row = snap.pMap.get(game.me);
 		const support = snap.support?.find(([pid]) => pid === game.me)?.[1] ?? 0;
@@ -845,6 +855,8 @@ export class UI {
 		$('hud-embers').hidden = true;
 		$('hud-boss').hidden = true;
 		$('hud-down').hidden = true;
+		$('hud-outposts').hidden = true;
+		$('hud-trophy').hidden = true;
 		$('banner').hidden = true;
 	}
 

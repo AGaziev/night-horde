@@ -156,6 +156,7 @@ export class Renderer {
 			const tm = view.tm;
 			this.trackSlowPuddles(game);
 			this.drawProps(ctx, game, now);
+			this.drawOutposts(ctx, game, now);
 			this.drawIceTrail(ctx, game);
 			this.drawPuddles(ctx, view.b, now, game);
 			this.drawSteams(ctx, game, now);
@@ -491,6 +492,58 @@ export class Renderer {
 		return out;
 	}
 
+	drawOutposts(ctx, game, now) {
+		const op = game.view.b?.op;
+		if (!op) return;
+		for (const [id, x, y, killed, spawned, chest] of op.posts) {
+			if (x + 280 < this.vx0 || x - 280 > this.vx1 || y + 280 < this.vy0 || y - 280 > this.vy1) continue;
+			const closed = chest === 3, cleared = killed === 20;
+			ctx.save();
+			ctx.translate(x, y);
+			ctx.fillStyle = closed ? 'rgba(50,55,60,.25)' : cleared ? 'rgba(42,106,78,.2)' : 'rgba(119,48,36,.22)';
+			ctx.beginPath(); ctx.ellipse(0, 15, 220, 170, 0, 0, TAU); ctx.fill();
+			ctx.strokeStyle = closed ? '#54616b' : cleared ? '#6aae88' : '#9e6250';
+			ctx.lineWidth = 5;
+			// Broken palisade with a wide entrance toward the chest.
+			for (let i = 0; i < 15; i++) {
+				const a = i / 15 * TAU;
+				if (a > .5 && a < 2.3) continue;
+				const px = Math.cos(a) * 165, py = Math.sin(a) * 125;
+				ctx.beginPath(); ctx.moveTo(px, py + 12); ctx.lineTo(px, py - 17); ctx.stroke();
+			}
+			for (const side of [-1, 1]) {
+				ctx.strokeStyle = '#9b8970'; ctx.lineWidth = 3;
+				ctx.beginPath(); ctx.moveTo(side * 110, 20); ctx.lineTo(side * 110, -85); ctx.stroke();
+				ctx.fillStyle = closed ? '#54616b' : cleared ? '#81c784' : '#bd493f';
+				const wave = Math.sin(now * 3 + id) * 3;
+				ctx.beginPath(); ctx.moveTo(side * 110, -85); ctx.lineTo(side * 110 + 35, -76 + wave); ctx.lineTo(side * 110, -57); ctx.fill();
+			}
+			// Chest body and lid use separate silhouettes for locked, available and claimed states.
+			ctx.fillStyle = closed ? '#4c535a' : chest === 1 ? '#e3b74f' : chest === 2 ? '#806b3a' : '#705139';
+			ctx.fillRect(-24, -10, 48, 29);
+			ctx.strokeStyle = closed ? '#69727a' : '#f1d18b'; ctx.lineWidth = 2;
+			ctx.strokeRect(-24, -10, 48, 29);
+			ctx.fillStyle = chest === 2 ? '#b99b57' : '#957047';
+			ctx.fillRect(-25, chest === 2 ? -31 : -22, 50, 13);
+			if (chest === 0) {
+				ctx.strokeStyle = '#ffd180'; ctx.lineWidth = 3;
+				ctx.beginPath(); ctx.arc(0, -2, 6, Math.PI, TAU); ctx.stroke();
+				ctx.fillStyle = '#ffd180'; ctx.fillRect(-7, -2, 14, 12);
+			} else if (chest === 1) {
+				ctx.strokeStyle = '#ffe082'; ctx.lineWidth = 2;
+				ctx.beginPath(); ctx.arc(0, 0, 43 + Math.sin(now * 4) * 3, 0, TAU); ctx.stroke();
+			}
+			ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+			ctx.font = 'bold 18px system-ui'; ctx.lineWidth = 4; ctx.strokeStyle = '#15191f';
+			const name = `⚑ Аванпост ${id}`;
+			ctx.strokeText(name, 0, -170); ctx.fillStyle = closed ? '#9eabb4' : '#ffdb9b'; ctx.fillText(name, 0, -170);
+			ctx.font = '13px system-ui';
+			const status = closed ? 'Закрыт · награда упущена' : chest === 2 ? 'Сундук открыт' : chest === 1 ? 'Сундук: опыт и лечение' : `Повержено ${killed}/20 · сундук заперт`;
+			ctx.strokeText(status, 0, 52); ctx.fillStyle = cleared ? '#a5d6a7' : '#eee0c9'; ctx.fillText(status, 0, 52);
+			ctx.restore();
+		}
+	}
+
 	drawEnemies(ctx, view, now) {
 		const b = view.b;
 		const e = b.e;
@@ -546,6 +599,16 @@ export class Renderer {
 		}
 		for (const el of elites) this.drawElite(ctx, el, now);
 		this.drawStates(ctx, cnt, now);
+
+		ctx.strokeStyle = '#ffb36b'; ctx.lineWidth = 1.5;
+		ctx.beginPath();
+		for (let ty = 0; ty < TYPE_COUNT; ty++) for (let k = 0; k < cnt[ty]; k++) {
+			if (!(this.est[ty][k] & ST.guard)) continue;
+			const x = this.ex[ty][k], y = this.ey[ty][k], r = ENEMIES[ENEMY_TYPES[ty]].r + 4;
+			ctx.moveTo(x + r, y); ctx.arc(x, y, r, 0, TAU);
+			ctx.moveTo(x, y - r - 5); ctx.lineTo(x, y - r - 17); ctx.lineTo(x + 8, y - r - 13); ctx.lineTo(x, y - r - 10);
+		}
+		ctx.stroke();
 
 		// Health bars for wounded tougher enemies.
 		ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -1293,12 +1356,12 @@ export class Renderer {
 				if (!Array.isArray(wl)) continue;
 				if (wl[0] === 'aurora') {
 					const pos = game.playerPos(row[P.pid], this.tmp);
-					if (pos) this.drawAurora(ctx, pos.x, pos.y, duoLevel('aurora', wl[1]).radius * (row[P.pid] === game.me ? game.areaMul() : 1), now);
+					if (pos) this.drawAurora(ctx, pos.x, pos.y, duoLevel('aurora', wl[1]).radius * game.areaMul(row[P.pid]), now);
 					continue;
 				}
 				if (wl[0] === 'blizzard') {
 					const pos = game.playerPos(row[P.pid], this.tmp);
-					if (pos) this.drawBlizzard(ctx, pos.x, pos.y, EVOS.blizzard.levels[0].radius * (row[P.pid] === game.me ? game.areaMul() : 1), now);
+					if (pos) this.drawBlizzard(ctx, pos.x, pos.y, EVOS.blizzard.levels[0].radius * game.areaMul(row[P.pid]), now);
 					continue;
 				}
 				if (wl[0] === 'whirlwind') {
@@ -1306,7 +1369,7 @@ export class Renderer {
 					const pos = game.playerPos(row[P.pid], this.tmp);
 					if (!pos) continue;
 					const L = duoLevel('whirlwind', wl[1]);
-					const r = L.radius * (row[P.pid] === game.me ? game.areaMul() : 1);
+					const r = L.radius * game.areaMul(row[P.pid]);
 					this.drawWhirl(ctx, pos.x, pos.y, r, game.meta(row[P.pid]).color, now);
 					continue;
 				}
@@ -1316,7 +1379,7 @@ export class Renderer {
 					if (!pos) continue;
 					const L = duoLevel('dome', wl[1]);
 					const charged = (row[P.ward] | 0) > 0;
-					const r = L.radius * (charged ? L.chargeArea : 1) * (row[P.pid] === game.me ? game.areaMul() : 1);
+					const r = L.radius * (charged ? L.chargeArea : 1) * game.areaMul(row[P.pid]);
 					this.drawDome(ctx, pos.x, pos.y, r, charged, game.meta(row[P.pid]).color, now);
 					continue;
 				}
@@ -1325,7 +1388,7 @@ export class Renderer {
 				const def = wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : weaponLevel('aura', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0);
 				const pos = game.playerPos(row[P.pid], this.tmp);
 				if (!pos) continue;
-				const r = def.radius * (row[P.pid] === game.me ? game.areaMul() : 1);
+				const r = def.radius * game.areaMul(row[P.pid]);
 				const meta = game.meta(row[P.pid]);
 				ctx.fillStyle = meta.color;
 				ctx.globalAlpha = 0.08 + Math.sin(now * 3) * 0.03;
@@ -1390,7 +1453,7 @@ export class Renderer {
 				if (wl[0] === 'millstones' || wl[0] === 'moonblade') {
 					const pos = game.playerPos(row[P.pid], this.tmp);
 					if (!pos) continue;
-					const area = row[P.pid] === game.me ? game.areaMul() : 1;
+					const area = game.areaMul(row[P.pid]);
 					if (wl[0] === 'millstones') this.drawMillstones(ctx, pos.x, pos.y, EVOS.millstones.levels[0], area, tm);
 					else this.drawMoonblades(ctx, pos.x, pos.y, EVOS.moonblade.levels[0], area, tm, performance.now() / 1000);
 					ctx.fillStyle = '#e3f2fd';
@@ -1401,7 +1464,7 @@ export class Renderer {
 				if (wl[0] === 'firewheel' || wl[0] === 'beacon') {
 					const pos = game.playerPos(row[P.pid], this.tmp);
 					if (!pos) continue;
-					const area = row[P.pid] === game.me ? game.areaMul() : 1;
+					const area = game.areaMul(row[P.pid]);
 					if (wl[0] === 'firewheel') {
 						const L = duoLevel('firewheel', wl[1]);
 						this.drawFirewheels(ctx, pos.x, pos.y, L, L.count + Math.max(0, wl[2] | 0), area, tm);
@@ -1414,7 +1477,7 @@ export class Renderer {
 				if (wl[0] === 'windmill' || wl[0] === 'orrery') {
 					const pos = game.playerPos(row[P.pid], this.tmp);
 					if (!pos) continue;
-					const area = row[P.pid] === game.me ? game.areaMul() : 1;
+					const area = game.areaMul(row[P.pid]);
 					const L = duoLevel(wl[0], wl[1]);
 					const count = L.count + Math.max(0, wl[2] | 0);
 					if (wl[0] === 'windmill') this.drawWindmill(ctx, pos.x, pos.y, L, count, area, tm, game.meta(row[P.pid]).color);
@@ -1432,7 +1495,7 @@ export class Renderer {
 				const pos = game.playerPos(row[P.pid], this.tmp);
 				if (!pos) continue;
 				const px = pos.x, py = pos.y;
-				const r = def.radius * (row[P.pid] === game.me ? game.areaMul() : 1);
+				const r = def.radius * game.areaMul(row[P.pid]);
 				if (HEROES[game.meta(row[P.pid]).hero]?.orbitSkin === 'hammer') {
 					this.drawHammers(ctx, px, py, r, def, tm);
 					continue;
@@ -3172,6 +3235,17 @@ export class Renderer {
 			const s = this.toScreen(ev.x, ev.y, this.tmp);
 			if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse, color: '#ffd54f', name: ev.def.arrow ?? ev.def.name, icon: '★' }));
 		}
+		// Keep the nearest three destinations readable; the radar always includes the whole network.
+		const op = b.op;
+		if (op && op.status !== 'closed') {
+			const posts = op.posts.filter(p => p[5] < 2).map(p => ({ p, d: Math.hypot(p[1] - game.local.x, p[2] - game.local.y) })).sort((a, b) => a.d - b.d);
+			for (const { p, d } of posts.slice(0, 3)) {
+				const s = this.toScreen(p[1], p[2], this.tmp);
+				if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse: 0.9, color: p[5] === 1 ? '#ffe082' : '#ffab70',
+					name: `${p[5] === 1 ? 'Сундук' : 'Аванпост'} ${p[0]} · ${Math.round(d)} ед.`, icon: '⚑', kind: 'outpost' }));
+			}
+		}
+
 		// Downed allies last: drawn on top of everything else.
 		out.sort((p, q) => (p.kind === 'down') - (q.kind === 'down'));
 		return out;
@@ -3284,6 +3358,14 @@ export class Renderer {
 			at(it[i + 2], it[i + 3], p);
 			ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
 		}
+		for (const [id, x, y, killed, spawned, chest] of b.op?.posts ?? []) {
+			at(x, y, p);
+			ctx.fillStyle = chest === 3 ? '#68757e' : killed === 20 ? '#a5d6a7' : '#ffab70';
+			ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+			ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center';
+			ctx.fillText(String(id), p.x, p.y - 6);
+		}
+
 		const ev = game.event();
 		if (ev && ev.def.id !== 'fog' && ev.def.id !== 'streak') {
 			at(ev.x, ev.y, p);

@@ -232,7 +232,8 @@ export class Game {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
 	}
-	areaMul() { return 1 + this.passiveVal('area'); }
+	hasVictoryBanner(pid = this.me) { return this.latest()?.trophy?.includes(pid) ?? false; }
+	areaMul(pid = this.me) { return (pid === this.me ? 1 + this.passiveVal('area') : 1) * (this.hasVictoryBanner(pid) ? 1.15 : 1); }
 
 	pick(i, drop) {
 		const offer = this.offer;
@@ -297,6 +298,8 @@ export class Game {
 			at: now,
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
+			op: msg.op && Array.isArray(msg.op.posts) ? msg.op : null,
+			trophy: Array.isArray(msg.trophy) ? msg.trophy : EMPTY,
 			support: Array.isArray(msg.support) ? msg.support : EMPTY,
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
 			pMap: new Map(),
@@ -891,6 +894,9 @@ export class Game {
 			case 'dawn':
 				if (this.hold > 0) this.dawnPending = ev[1] | 0;
 				else this.startDawn(ev[1] | 0);
+				break;
+			case 'outposts':
+				this.onEvent('outposts', ev[1], ev[2]);
 				break;
 			case 'finw':
 				this.onEvent('finw');

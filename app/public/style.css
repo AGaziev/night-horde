@@ -884,3 +884,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 	background: rgba(255, 255, 255, 0.04);
 }
 .lobby-invite-list input { accent-color: var(--accent); }
+
+.hud-outposts { max-width: 250px; color: #ffcc80; font-size: 0.72rem; line-height: 1.35; text-shadow: 0 1px 4px #000; }
+.hud-trophy { color: #ffe082; font-size: 0.7rem; line-height: 1.4; text-shadow: 0 1px 4px #000; border-left: 2px solid #ffc107; padding-left: 6px; }
+@media (max-width: 600px) { .hud-outposts { max-width: 145px; font-size: 0.62rem; } .hud-trophy { font-size: 0.6rem; } }

@@ -30,7 +30,7 @@ export const srcName = (id) => SRC_NAMES[id] ?? (id.startsWith('r_') && REACTION
 const enemyName = (key) => {
 	const [type, how] = key.split(':');
 	if (type === 'event') return EVENTS[EVENT_INDEX[how]]?.name ?? how;
-	const base = type === 'elite' ? 'Элита' : ENEMIES[type]?.name ?? type;
+	const base = type === 'outpost' ? 'Охрана аванпоста' : type === 'elite' ? 'Элита' : ENEMIES[type]?.name ?? type;
 	return how === 'shot' ? `${base} (выстрел)` : how === 'blast' ? `${base} (взрыв)` : how === 'dash' ? `${base} (рывок)` : how === 'wave' ? `${base} (волна)` : base;
 };
 const mmss = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
@@ -644,6 +644,7 @@ function playerLines(p) {
 		out.push(`${pre} разгоны: предложено ${p.ovr.seen}, взято ${p.ovr.took.length}${p.ovr.took.length ? ` (${p.ovr.took.map(([t, s]) => `${ovrName(s)} на ${mmss(t)}`).join(', ')})` : ''}; изгнано ${p.bans.length}${p.bans.length ? ` (${p.bans.map(([t, s]) => `${ovrName(s)} на ${mmss(t)}`).join(', ')})` : ''}`);
 		out.push(`${pre} слоты 6 + 4 заполнены: ${p.slotsFullAt === null ? 'нет' : mmss(p.slotsFullAt)}; угли в последней трети забега: ${p.late.emberShare === null ? 'выборов не было' : `${p.late.embers} из ${p.late.picks} выборов (${p.late.emberShare}%)`}`);
 	}
+	if (p.reforges?.length) out.push(`${pre} легендарные перековки: ${p.reforges.map(r => `${r.name} ${r.from}→${r.to} (${r.bonus}) на ${mmss(r.at)}`).join('; ')}`);
 	if (p.declinedNewWeapon) out.push(`${pre} отказался от нового оружия ${p.declinedNewWeapon} раз${p.declinedNewWeaponLonely ? ` (из них ${p.declinedNewWeaponLonely} — с одним оружием)` : ''}`);
 	return out;
 }

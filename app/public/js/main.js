@@ -303,6 +303,18 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 		case 'chest':
 			ui.banner('Сундук! Всем — улучшение');
 			break;
+		case 'outposts':
+			if (arg === 'arrive') {
+				ui.banner('⚑ Аванпосты противника');
+				ui.toast(`Аванпостов на карте: ${arg2}. Все гарнизоны повержены — команда получит Знамя победителя и по легендарной перековке`, 'info');
+			} else if (arg === 'clear') ui.toast(`Аванпост ${arg2} зачищен. Сундук даст команде опыт и лечение`, 'info');
+			else if (arg === 'chest') ui.toast('Сундук аванпоста: +20% опыта до уровня и +20% здоровья живым союзникам', 'info');
+			else if (arg === 'won') {
+				ui.banner('⚑ Знамя победителя');
+				sound.legendary();
+			} else if (arg === 'closed') ui.toast('Начался финал. Незачищенные аванпосты закрыты, общая награда упущена', 'info');
+			break;
+
 		case 'down':
 			if (arg === state.me) ui.banner('Вы пали!');
 			else ui.toast(`${game.meta(arg).name} пал — поднимите его!`, 'info');
