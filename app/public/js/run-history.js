@@ -1,5 +1,6 @@
 import { HEROES, modeOf } from '/shared/content.js';
 import { fmtTime } from './ui.js';
+import { renderResults } from './results.js';
 
 const dateTime = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 const $ = (part) => document.getElementById(part ? `run-history-${part}` : 'run-history');
@@ -14,7 +15,10 @@ export function setupRunHistory() {
 	const details = $('details');
 	const back = $('back');
 	const logStatus = $('log-status');
-	const summary = $('summary');
+	const card = $('card');
+	const heading = $('result');
+	const date = $('date');
+	const download = $('download');
 	let data, failed, scope, load, openLog, lastRow;
 
 	function render() {
@@ -47,35 +51,40 @@ export function setupRunHistory() {
 			heroes.textContent = run.players.map(({ hero }) => HEROES[hero]?.name ?? hero).join(', ');
 			const button = document.createElement('button');
 			button.className = 'btn btn-ghost btn-small';
-			button.textContent = 'Сводка';
-			button.setAttribute('aria-label', 'Сводка забега ' + run.id);
-			button.addEventListener('click', () => showSummary(run, button));
+			button.textContent = 'Итоги';
+			button.setAttribute('aria-label', 'Итоги забега ' + run.id);
+			button.addEventListener('click', () => showResults(run, button));
 			info.append(result, time, date, heroes);
 			row.append(info, button);
 			list.append(row);
 		}
 	}
 
-	async function showSummary(run, button) {
+	async function showResults(run, button) {
 		lastRow = button;
 		index.hidden = true;
 		details.hidden = false;
-		summary.hidden = true;
-		summary.textContent = '';
-		logStatus.textContent = 'Загружаем сводку…';
+		renderResults(card, null);
+		heading.textContent = run.grade === 2 ? 'Владыка повержен' : run.win ? 'Ночь пережита' : 'Орда победила';
+		date.textContent = `${modeOf(run.mode).name} · ${dateTime.format(new Date(run.at))} · #${run.id}`;
+		const url = `/api/runs/${encodeURIComponent(run.id)}`;
+		download.href = `${url}.txt`;
+		download.download = `забег-${run.id}.txt`;
+		download.hidden = true;
+		logStatus.textContent = 'Загружаем итоги…';
 		back.focus();
 		openLog = new AbortController();
 		const { signal } = openLog;
 		try {
-			const response = await fetch(`/api/runs/${encodeURIComponent(run.id)}.summary`, { signal });
+			const response = await fetch(`${url}.card`, { signal });
 			if (!response.ok) throw new Error();
-			const text = await response.text();
+			const result = await response.json();
 			if (signal.aborted) return;
+			if (!renderResults(card, result)) throw new Error();
 			logStatus.textContent = '';
-			summary.textContent = text;
-			summary.hidden = false;
+			download.hidden = false;
 		} catch {
-			if (!signal.aborted) logStatus.textContent = 'Не удалось загрузить сводку забега.';
+			if (!signal.aborted) logStatus.textContent = 'Не удалось загрузить итоги забега.';
 		}
 	}
 
@@ -109,6 +118,7 @@ export function setupRunHistory() {
 	recent.addEventListener('click', () => { scope = 'recent'; render(); });
 	back.addEventListener('click', () => {
 		openLog?.abort();
+		renderResults(card, null);
 		details.hidden = true;
 		index.hidden = false;
 		lastRow?.focus();
@@ -116,6 +126,7 @@ export function setupRunHistory() {
 	dialog.addEventListener('close', () => {
 		load?.abort();
 		openLog?.abort();
+		renderResults(card, null);
 	});
 	return dialog;
 }

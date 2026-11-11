@@ -804,12 +804,10 @@ input[type="text"]:focus { border-color: var(--accent); }
 .run-history-win { color: var(--ok); }
 .run-history-loss { color: var(--danger); }
 .game-dialog [role="status"]:empty { margin: 0; }
-#run-history-summary {
-	margin: 12px 0 0;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	font: 13px/1.55 var(--font);
-}
+#run-history-card { min-width: 0; }
+.run-history-result { margin: 16px 0 0; }
+#run-history-date { margin: 4px 0 0; }
+#run-history-download { display: inline-flex; margin-top: 16px; text-decoration: none; }
 
 #menu-feedback { margin-top: 16px; }
 .over-feedback {

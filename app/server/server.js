@@ -398,8 +398,14 @@ function handleRuns(req, res, p) {
 	if (req.method !== 'GET') return sendText(res, 405, 'method not allowed');
 	if (p === '/api/runs' || p === '/api/runs/') return sendJson(res, 200, { runs: runStore.list() });
 	if (p === '/api/runs/history') return sendJson(res, 200, runStore.history(bitrixUid(req.headers['x-vibe-user-id'])));
-	const m = /^\/api\/runs\/([A-Za-z0-9]{6})(\.txt|\.json|\.summary)?$/.exec(p);
-	const log = m && runStore.get(m[1].toUpperCase());
+	const m = /^\/api\/runs\/([A-Za-z0-9]{6})(\.txt|\.json|\.summary|\.card)?$/.exec(p);
+	if (!m) return sendText(res, 404, 'not found');
+	const id = m[1].toUpperCase();
+	if (m[2] === '.card') {
+		const card = runStore.getCard(id);
+		return card ? sendJson(res, 200, card) : sendText(res, 404, 'not found');
+	}
+	const log = runStore.get(id);
 	if (!log) return sendText(res, 404, 'not found');
 	if (m[2] === '.summary') return sendText(res, 200, log.summary.join('\n'));
 	if (m[2] === '.txt') return sendText(res, 200, logText(log));

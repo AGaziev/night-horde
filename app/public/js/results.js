@@ -1,9 +1,8 @@
 // v23 results screen: group numbers, awards, the finale, a tab per player with small canvas charts, events,
 // plus the shareable text and PNG card. Data: `over.card` from the server (server/runlog.js, card()).
-import { modeOf } from '/shared/content.js';
+import { modeOf, PLAYER_COLORS } from '/shared/content.js';
 import { sprites } from './sprites.js';
 
-const $ = (id) => document.getElementById(id);
 function el(tag, cls, text) {
 	const n = document.createElement(tag);
 	if (cls) n.className = cls;
@@ -26,9 +25,7 @@ const STATE = { alive: 'на ногах', down: 'лежит', offline: 'вне �
 const TITLE = (c) => (c.grade === 2 ? 'Владыка повержен' : c.win ? 'Ночь пережита' : 'Орда победила');
 const card = (c) => (c && typeof c === 'object' && Array.isArray(c.players) ? c : null);
 
-// The results block inside #over-card. Returns true when there was a card to show.
-let cur = null, sel = null, colors = new Map(), meId = null;
-const colorOf = (pid) => colors.get(pid) || '#90a4ae';
+const views = new WeakMap();
 
 function mark(hero, color) {
 	const url = hero && sprites.ready ? sprites.portrait(hero, color, 0) : null;
@@ -43,52 +40,65 @@ function mark(hero, color) {
 	return dot;
 }
 
-export function renderResults(c, me, cols) {
-	const root = $('over-card');
-	root.textContent = '';
-	cur = card(c);
-	colors = cols instanceof Map ? cols : new Map();
-	meId = me;
-	root.hidden = !cur;
-	if (!cur) return false;
-	root.append(groupBlock(), awardsBlock());
-	const fin = finaleBlock();
+export function renderResults(root, value, me, cols) {
+	const previous = views.get(root);
+	previous?.resize.disconnect();
+	views.delete(root);
+	const c = card(value);
+	root.replaceChildren();
+	root.hidden = !c;
+	if (!c) return false;
+
+	const colorByPlayer = new Map(c.players.map((p, i) => [p.pid, cols?.get(p.pid) ?? PLAYER_COLORS[i % PLAYER_COLORS.length]]));
+	const colorOf = (pid) => colorByPlayer.get(pid) ?? '#90a4ae';
+	root.append(groupBlock(c), awardsBlock(c, me, colorOf));
+	const fin = finaleBlock(c, colorOf);
 	if (fin) root.appendChild(fin);
-	const players = cur.players;
+
 	const tabs = el('div', 'res-tabs');
 	tabs.setAttribute('role', 'tablist');
-	tabs.hidden = players.length < 2;
-	for (const p of players) {
-		const b = el('button', 'res-tab');
-		b.type = 'button';
-		b.dataset.pid = p.pid;
-		b.setAttribute('role', 'tab');
-		b.style.setProperty('--c', colorOf(p.pid));
-		b.append(el('span', '', p.name), el('span', p.downs ? 'res-tab-downs' : 'res-tab-downs zero', `✝${p.downs}`));
-		tabs.appendChild(b);
-	}
-	tabs.addEventListener('click', (e) => {
-		const b = e.target.closest('button[data-pid]');
-		if (b) select(b.dataset.pid);
-	});
+	tabs.setAttribute('aria-label', 'Герои');
+	tabs.hidden = c.players.length < 2;
 	const body = el('div', 'res-player');
-	body.id = 'over-player';
 	root.append(tabs, body);
-	const ev = eventsBlock();
+	const ev = eventsBlock(c);
 	if (ev) root.appendChild(ev);
-	select(players.some((p) => p.pid === sel) ? sel : players.find((p) => String(p.pid) === String(me))?.pid ?? players[0]?.pid);
+
+	let redraw;
+	const resize = new ResizeObserver(() => redraw?.());
+	const view = { id: c.id, pid: null, resize };
+	views.set(root, view);
+	resize.observe(root);
+
+	function select(player) {
+		view.pid = player.pid;
+		for (const button of tabs.children) {
+			const active = button.dataset.pid === String(player.pid);
+			button.classList.toggle('on', active);
+			button.setAttribute('aria-selected', String(active));
+		}
+		const color = colorOf(player.pid);
+		const chart = renderPlayer(body, player, color);
+		redraw = chart ? () => drawChart(chart, player, color) : null;
+		redraw?.();
+	}
+
+	for (const p of c.players) {
+		const button = el('button', 'res-tab');
+		button.type = 'button';
+		button.dataset.pid = p.pid;
+		button.setAttribute('role', 'tab');
+		button.style.setProperty('--c', colorOf(p.pid));
+		button.append(el('span', '', p.name), el('span', p.downs ? 'res-tab-downs' : 'res-tab-downs zero', `✝${p.downs}`));
+		button.addEventListener('click', () => select(p));
+		tabs.appendChild(button);
+	}
+	const selected = c.players.find((p) => previous?.id === c.id && p.pid === previous.pid)
+		?? c.players.find((p) => String(p.pid) === String(me)) ?? c.players[0];
+	if (selected) select(selected);
+	else body.hidden = true;
 	return true;
 }
-
-// Charts follow the panel width (phone rotation, window resize); one redraw per frame at most.
-let raf = 0;
-window.addEventListener('resize', () => {
-	if (raf || !cur) return;
-	raf = requestAnimationFrame(() => {
-		raf = 0;
-		drawCharts();
-	});
-});
 
 function sec(title) {
 	const s = el('section', 'res-sec');
@@ -102,8 +112,8 @@ function bigTile(box, v, label, cls = '') {
 	box.appendChild(t);
 }
 
-function groupBlock() {
-	const c = cur, g = c.group ?? { downs: 0, lifted: 0, revives: 0 };
+function groupBlock(c) {
+	const g = c.group ?? { downs: 0, lifted: 0, revives: 0 };
 	const box = el('div', 'res-group');
 	bigTile(box, fmtNum(c.kills), 'убито врагов');
 	bigTile(box, g.downs, c.players.length > 1 ? 'падений группы' : plural(g.downs, 'падение', 'падения', 'падений'), g.downs ? 'bad' : 'good');
@@ -112,13 +122,13 @@ function groupBlock() {
 	return box;
 }
 
-function awardsBlock() {
+function awardsBlock(c, me, colorOf) {
 	const s = sec('Награды');
-	const list = cur.awards ?? [];
+	const list = c.awards ?? [];
 	s.hidden = !list.length;
 	const box = el('div', 'res-awards');
 	for (const a of list) {
-		const it = el('div', 'res-award' + (a.pid === meId ? ' me' : ''));
+		const it = el('div', 'res-award' + (a.pid === me ? ' me' : ''));
 		it.style.setProperty('--c', colorOf(a.pid));
 		const head = el('div', 'res-award-top');
 		head.append(el('span', 'res-award-icon', a.icon), el('b', '', a.title));
@@ -129,8 +139,8 @@ function awardsBlock() {
 	return s;
 }
 
-function finaleBlock() {
-	const f = cur.fin;
+function finaleBlock(c, colorOf) {
+	const f = c.fin;
 	if (!f) return null;
 	const s = sec('Финал');
 	s.classList.add('res-fin');
@@ -140,7 +150,7 @@ function finaleBlock() {
 	s.appendChild(el('p', 'res-lead', head));
 	// One bar = the Lord's health: a segment per player by damage dealt, the rest is what he kept.
 	const bar = el('div', 'fin-bar');
-	const players = cur.players.filter((p) => p.lord > 0).sort((a, b) => b.lord - a.lord);
+	const players = c.players.filter((p) => p.lord > 0).sort((a, b) => b.lord - a.lord);
 	const total = players.reduce((t, p) => t + p.lord, 0) || 1;
 	for (const p of players) {
 		const seg = el('span', 'fin-seg');
@@ -161,8 +171,8 @@ function finaleBlock() {
 	return s;
 }
 
-function eventsBlock() {
-	const ev = cur.events ?? [], bosses = cur.bosses ?? [];
+function eventsBlock(c) {
+	const ev = c.events ?? [], bosses = c.bosses ?? [];
 	if (!ev.length && !bosses.length) return null;
 	const s = sec('Боссы и события');
 	const rows = [
@@ -181,22 +191,11 @@ function eventsBlock() {
 	return s;
 }
 
-function select(pid) {
-	// Tabs carry the pid as a string in data-pid; the card has numbers.
-	const p = cur?.players.find((x) => String(x.pid) === String(pid));
-	const box = $('over-player');
-	if (!p || !box) return;
-	sel = p.pid;
-	pid = p.pid;
-	for (const b of document.querySelectorAll('#over-card .res-tab')) {
-		const on = b.dataset.pid === String(pid);
-		b.classList.toggle('on', on);
-		b.setAttribute('aria-selected', String(on));
-	}
-	box.textContent = '';
-	box.style.setProperty('--c', colorOf(pid));
+function renderPlayer(box, p, color) {
+	box.replaceChildren();
+	box.style.setProperty('--c', color);
 	const head = el('div', 'pl-head');
-	head.append(mark(p.hero, colorOf(pid)), el('b', '', p.name), el('span', 'muted', `${p.heroName} · ур. ${p.level}${STATE[p.state] ? ` · ${STATE[p.state]}` : ''}`));
+	head.append(mark(p.hero, color), el('b', '', p.name), el('span', 'muted', `${p.heroName} · ур. ${p.level}${STATE[p.state] ? ` · ${STATE[p.state]}` : ''}`));
 	box.appendChild(head);
 	// The three numbers players asked for, big.
 	const big = el('div', 'pl-big');
@@ -213,7 +212,7 @@ function select(pid) {
 	num(fmtNum(p.kills), 'убийств');
 	num(fmtNum(p.dmg), 'урона');
 	num(fmtNum(p.taken), 'принял');
-	num(`${p.minHp ?? '—'}/${p.maxHp}`, 'мин. здоровье');
+	if (p.maxHp != null) num(`${p.minHp ?? '—'}/${p.maxHp}`, 'мин. здоровье');
 	if (p.lord) num(fmtNum(p.lord), 'по Владыке');
 	if (p.drops) num(String(p.drops), 'обрыв связи');
 	box.appendChild(nums);
@@ -234,14 +233,15 @@ function select(pid) {
 	if (!p.weapons.length) ws.appendChild(el('p', 'res-note', 'Урона нет'));
 	box.appendChild(ws);
 
+	let chart = null;
 	if ((p.dpm?.length ?? 0) > 0) {
 		const cs = sec('По минутам');
-		const cv = el('canvas', 'res-canvas');
-		cv.setAttribute('role', 'img');
-		cv.setAttribute('aria-label', `Урон в секунду по минутам: ${p.dpm.join(', ')}; минимум здоровья: ${(p.hpm ?? []).join(', ')}`);
+		chart = el('canvas', 'res-canvas');
+		chart.setAttribute('role', 'img');
+		chart.setAttribute('aria-label', `Урон в секунду по минутам: ${p.dpm.join(', ')}; минимум здоровья: ${(p.hpm ?? []).join(', ')}`);
 		const leg = el('div', 'res-legend');
 		leg.append(el('span', 'res-key res-key-dmg', 'урон в секунду'), el('span', 'res-key res-key-hp', 'минимум здоровья'), el('span', 'res-key res-key-down', 'падение'));
-		cs.append(cv, leg);
+		cs.append(chart, leg);
 		box.appendChild(cs);
 	}
 
@@ -278,13 +278,7 @@ function select(pid) {
 		ts.appendChild(ul);
 		box.appendChild(ts);
 	}
-	drawCharts();
-}
-
-function drawCharts() {
-	const p = cur?.players.find((x) => x.pid === sel);
-	const cv = document.querySelector('#over-player canvas.res-canvas');
-	if (p && cv) drawChart(cv, p, colorOf(p.pid));
+	return chart;
 }
 
 export const cardText = (c) => (card(c) ? resultsText(c) : '');

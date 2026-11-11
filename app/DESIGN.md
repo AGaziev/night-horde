@@ -37,7 +37,8 @@ public/shared/content.js
 
 Лог забега (`server/runlog.js`):
 - `GET /api/runs` — последние 30 карточек с результатом и героями. `GET /api/runs/<ID>` — полный JSON,
-  `GET /api/runs/<ID>.txt` — сводка и JSON, `GET /api/runs/<ID>.summary` — сводка для истории в лобби.
+  `GET /api/runs/<ID>.txt` — сводка и JSON, `GET /api/runs/<ID>.summary` — текст сводки.
+  `GET /api/runs/<ID>.card` — карточка итогов. Для забегов до v31 карточка собирается из сохранённого лога.
 - `GET /api/runs/history` → `{ personal, mine, recent }`, до 20 записей в каждом списке. `mine` выбирается
   по числовому `X-Vibe-User-Id`. ID участников хранятся только в архиве, отдельно от публичного лога.
 - На проде логи хранятся в `/opt/data/runs` (деплой с `dataDirs: ["/opt/data"]`), локально — в

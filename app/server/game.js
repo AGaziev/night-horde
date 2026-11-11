@@ -4838,7 +4838,6 @@ export class Room {
 			h.queue = 0;
 		}
 		const log = this.runLog?.build(this, win) ?? null;
-		if (log) runStore.add(log, this.runUids);
 		this.lastLog = log;
 		const stats = [...this.heroes.values()].map((h) => ({
 			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.runAchievements(h, win),
@@ -4859,6 +4858,7 @@ export class Room {
 		} catch (e) {
 			console.error('results card', e);
 		}
+		if (log) runStore.add(log, this.runUids, card);
 		this.overMsg = {
 			t: 'over', win, grade, fin: this.finaleResult(), card, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
 			stats,
