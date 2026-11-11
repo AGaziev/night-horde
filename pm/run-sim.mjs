@@ -3,7 +3,9 @@
 // human: picks by rarity, loves artifacts, reacts 0.25 s late to a smaller circle and misses a quarter of the shots (the lower bound;
 // smart is the upper one). v18: both bots react to Wave 4 events (see the loop).
 // v20: both bots take overclocks and banish cards (chooseBan).
-// APP=<dir> selects a code variant (default ../app); MODE=lunch|night sets the run mode (seconds default to it); K0=<n> offsets the hero rotation (parallel chunks). Prints {N, pick, logs:[...]}.
+// APP=<dir> selects a code variant (default ../app); MODE=lunch|night sets the run mode (seconds default to it); K0=<n> offsets the hero rotation (parallel chunks).
+// Prints {N, pick, logs:[...], completion:[...]}; every log must come from an actual terminal Room.finish.
+import { queueOffer, drainOffers, runToTerminal } from './sim-runner.mjs';
 const APP = process.env.APP ?? new URL('../app/', import.meta.url).pathname;
 const { Room } = await import(APP + '/server/game.js');
 const { TICK_HZ, MODES, EVOS, EVO_BY_WEAPON, FINALE } = await import(APP + '/public/shared/content.js');
@@ -106,7 +108,7 @@ const TICKS = process.env.TICKS ? [] : null;
 function runOnce(k) {
 	const pending = [];
 	const r = new Room('SIM', (pid, msg) => {
-		if (msg.t === 'lvl' && msg.choices.length) pending.push([pid, msg.choices]);
+		queueOffer(pending, pid, msg);
 	});
 	r.setMode?.(MODE);
 	for (let pid = 1; pid <= N; pid++) r.addPlayer(pid, 'B' + pid, heroes[(k * N + pid - 1) % heroes.length]);
@@ -116,7 +118,7 @@ function runOnce(k) {
 	const REACT = human ? Math.round(+(process.env.H_REACT ?? 0.25) * TICK_HZ) : 1;
 	const SEE = human ? +(process.env.H_SEE ?? 190) : 260, SHOT_SEE = human ? 90 : 120, GREED = human ? 1.2 : 0.6;
 	const plan = new Map();
-	for (let i = 0; i < SECS * TICK_HZ + 2 && r.state === 'play'; i++) {
+	return runToTerminal(r, { k, seconds: SECS, tickHz: TICK_HZ }, (i) => {
 		for (const h of r.heroes.values()) {
 			if (h.st !== 0) continue;
 			if (human && i % REACT !== h.pid % REACT && plan.has(h.pid)) {
@@ -207,22 +209,18 @@ function runOnce(k) {
 			r.tick(dt);
 			if (r.time > SECS * 0.6) TICKS.push(performance.now() - t0);
 		} else r.tick(dt);
-		while (pending.length) {
-			const [pid, choices] = pending.shift();
-			const h = r.heroes.get(pid);
-			if (!h?.offer) continue;
-			for (let b = chooseBan(h, h.offer); b >= 0 && h.offer; b = chooseBan(h, h.offer)) r.handle(pid, { t: 'ban', i: b });
-			if (h.offer) r.handle(pid, { t: 'pick', i: choose(h, h.offer) });
-		}
-	}
-	return r.lastLog ?? r.runLog.build(r, false);
+		drainOffers(r, pending, choose, chooseBan);
+	});
 }
 
-const logs = [];
+const logs = [], completion = [];
 const K0 = +(process.env.K0 ?? 0);
-for (let k = K0; k < K0 + RUNS; k++) logs.push(runOnce(k));
+for (let k = K0; k < K0 + RUNS; k++) {
+	const result = runOnce(k);
+	logs.push(result.log); completion.push(result.completion);
+}
 const tick = TICKS?.length ? (() => {
 	const v = TICKS.slice().sort((a, b) => a - b);
 	return { avg: v.reduce((a, b) => a + b, 0) / v.length, p99: v[Math.floor(v.length * 0.99)], max: v.at(-1) };
 })() : undefined;
-console.log(JSON.stringify({ N, pick, logs, tick }));
+console.log(JSON.stringify({ N, pick, logs, completion, tick }));

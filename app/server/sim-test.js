@@ -1938,7 +1938,7 @@ console.log('over/again/leave: ok');
 		r.addPlayer(1, 'L', 'knight');
 		r.start();
 		assert.equal(r.tscale, 1.5);
-		assert.equal(r.xpMul, C.MODES.lunch.xpMul);
+		assert.equal(r.xpMul, 1.5);
 		assert.deepEqual(r.bossAt, [120, 240, 360, 480, 540]); // v21: the Lord's fight is the last 60 s
 		const pk = Object.fromEntries(r.peaks.map((p) => [p.id, p]));
 		assert.equal(pk.ring.at, 100);
@@ -1953,13 +1953,16 @@ console.log('over/again/leave: ok');
 		const night = new Room('NGHT', () => {});
 		night.addPlayer(1, 'N', 'knight');
 		night.start();
+		assert.equal(night.runLength, 900);
+		assert.equal(night.tscale, 1);
+		assert.equal(night.xpMul, 1);
 		night.time = 600;
 		assert.equal(enemyHpScaleOf(r), enemyHpScaleOf(night), 'pressure by night time');
 		// Gems are worth xpMul more in lunch.
 		const h = r.heroes.get(1), hn = night.heroes.get(1);
 		r.collectGem(h, 2);
 		night.collectGem(hn, 2);
-		assert.ok(Math.abs(h.xp - hn.xp * C.MODES.lunch.xpMul) < 1e-9);
+		assert.ok(Math.abs(h.xp - hn.xp * 1.5) < 1e-9);
 		// The run ends at 10:00 with the dawn burn and a win.
 		const out = [];
 		const r2 = new Room('LN2', (pid, m) => out.push(m));
@@ -1989,17 +1992,20 @@ console.log('over/again/leave: ok');
 		hub.handle(1, { t: 'mode', mode: 'night' });
 		assert.equal(room.mode, 'night');
 		assert.equal(msgs.filter(([pid, m]) => pid === 2 && m.t === 'lobby').pop()[1].mode, 'night', 'everyone sees the mode');
-		// Lunch groups get extra enemy hp (balance), solo does not; the night has none.
-		assert.equal(r.modeHp, 1);
-		const pair = new Room('LP', () => {});
-		pair.setMode('lunch');
-		pair.addPlayer(1, 'A', 'knight');
-		pair.addPlayer(2, 'B', 'witch');
-		pair.start();
-		assert.equal(pair.modeHp, C.modeHpMul('lunch', 2));
-		assert.ok(pair.modeHp > 1 && night.modeHp === 1);
-		const eL = pair.spawnEnemy('bat', [...pair.heroes.values()], 1);
-		assert.ok(Math.abs(eL.maxHp - C.ENEMIES.bat.hp * pair.modeHp) < 1e-9);
+		// Buildcraft HP calibration applies in both modes, with the fourth value shared by larger groups.
+		for (const [mode, hp] of Object.entries({ night: [1.5, 2, 2.4, 2.2], lunch: [1.9, 2, 2.2, 2.4] })) {
+			for (const players of [1, 2, 3, 4, 8]) {
+				const expected = hp[Math.min(players, 4) - 1];
+				assert.equal(C.modeHpMul(mode, players), expected, `${mode}: HP multiplier for ${players} players`);
+				const group = new Room('MHP', () => {});
+				group.setMode(mode);
+				for (let pid = 1; pid <= players; pid++) group.addPlayer(pid, `P${pid}`, 'knight');
+				group.start();
+				assert.equal(group.modeHp, expected, 'room start applies the calibrated multiplier');
+				const enemy = group.spawnEnemy('bat', [...group.heroes.values()], 1);
+				assert.ok(Math.abs(enemy.maxHp - C.ENEMIES.bat.hp * expected) < 1e-9, 'spawned enemy health includes mode scaling');
+			}
+		}
 		console.log('lunch mode: ok');
 	}
 	// Solo pause: menu pause and an open offer stop the clock; groups cannot pause.
