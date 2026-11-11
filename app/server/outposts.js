@@ -14,7 +14,7 @@ const ROSTER = Object.freeze([
 	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'shield',
 	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'brute',
 	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'sniper',
-	'skel', 'brute', 'skel', 'shield', 'skel', 'brute', 'skel', 'sniper',
+	'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel', 'skel',
 ]);
 const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 const garrison = net => ({ total: net.guardsPerPost, pending: [...ROSTER],

@@ -22,7 +22,9 @@ function allPosts(r, hs) {
 }
 function fillOrdinary(r, hs, n) { while (ordinary(r).length < n) r.spawnEnemy('bat', hs, 1); }
 const composition = types => types.reduce((counts, type) => { counts[type] = (counts[type] ?? 0) + 1; return counts; }, {});
-const roster = { skel: 32, brute: 4, shield: 2, sniper: 2 };
+const roster = { skel: 36, brute: 2, shield: 1, sniper: 1 };
+// Preserve the exact v3.2 initial wave; only the finite tail changes.
+const firstWave = ['brute', 'shield', 'brute', 'sniper'].flatMap(type => [...Array(7).fill('skel'), type]);
 
 // Counts are fixed at network creation, including finite reserves, in both modes.
 for (const n of [1, 2, 4, 7, 8]) for (const mode of ['night', 'lunch']) {
@@ -44,11 +46,12 @@ for (const n of [1, 2, 4, 7, 8]) for (const mode of ['night', 'lunch']) {
 	assert.equal(p.spawned, total); assert.equal(p.killed, total); assert.equal(p.chest, 1);
 	assert.equal(ids.size, total, 'no revived or recycled guards');
 	assert.ok(types.every(t => ['skel', 'brute', 'shield', 'sniper'].includes(t)), 'roster never runs past its finite archetypes');
+	assert.deepEqual(types.slice(0, 32), firstWave, 'the first32 dispatches preserve their exact previous order');
 	assert.deepEqual(composition(types), roster, 'actual dispatched roster has the approved mix at every party size');
-	assert.equal(types.reduce((sum, type) => sum + ENEMIES[type].hp, 0) / total, 46.5, 'base health of the actual finite roster');
-	assert.equal(types.at(-1), 'sniper', 'the last reserve is a real sniper, not an exhausted type lookup');
+	assert.equal(types.reduce((sum, type) => sum + ENEMIES[type].hp, 0) / total, 38.25, 'base health of the actual finite roster');
+	assert.deepEqual(types.slice(32), Array(8).fill('skel'), 'the finite final8 are actual skeletons');
 	r.updateOutposts(hs); assert.equal(liveGuards(r, p).length, 0, 'cleared post never replenishes');
-	console.log(`density ${mode}/${n}: total=${total}, liveLimit=${net.liveLimit}, actual mix=${JSON.stringify(composition(types))}, mean baseHP=46.5`);
+	console.log(`density ${mode}/${n}: total=${total}, liveLimit=${net.liveLimit}, exact first32 preserved, actual mix=${JSON.stringify(composition(types))}, mean baseHP=38.25`);
 }
 
 // Eight old camps cannot consume the ninth camp's reserved slots or the 350 ordinary slots.
@@ -61,6 +64,7 @@ for (const mode of ['night', 'lunch']) {
 	assert.equal(liveGuards(r).length, 288);
 	assert.deepEqual(net.posts.map(p => liveGuards(r, p).length), Array(9).fill(32));
 	for (const p of net.posts) {
+		assert.deepEqual(liveGuards(r, p).map(e => ENEMY_TYPES[e.type]), firstWave, 'each of the nine first waves retains its exact order');
 		assert.deepEqual(composition(liveGuards(r, p).map(e => ENEMY_TYPES[e.type])), { skel: 28, brute: 2, shield: 1, sniper: 1 }, 'every first wave includes the strong archetypes');
 		assert.equal(p.pending.length, 8, 'every post retains its own finite tail');
 	}
@@ -85,16 +89,18 @@ for (const mode of ['night', 'lunch']) {
 		approach(r, hs, p);
 		const first = liveGuards(r, p), types = first.map(e => ENEMY_TYPES[e.type]);
 		assert.equal(first.length, 32); assert.equal(p.spawned, 32);
+		assert.deepEqual(types, firstWave, 'initial threat and dispatch order stay unchanged');
 		for (const e of first) r.killEnemy(e, hs[0]);
 		r.compactEnemies(); assert.equal(p.killed, 32); assert.equal(p.chest, 0);
 		r.updateOutposts(hs);
 		const tail = liveGuards(r, p);
 		assert.equal(tail.length, 8); assert.equal(p.spawned, 40); assert.equal(p.pending.length, 0);
-		assert.deepEqual(tail.map(e => ENEMY_TYPES[e.type]), ['skel', 'brute', 'skel', 'shield', 'skel', 'brute', 'skel', 'sniper'], 'the entire finite tail dispatches real archetypes in deterministic order');
+		assert.deepEqual(tail.map(e => ENEMY_TYPES[e.type]), Array(8).fill('skel'), 'all eight actual reserves are finite skeletons');
 		assert.deepEqual(composition([...types, ...tail.map(e => ENEMY_TYPES[e.type])]), roster, 'every completed post has the exact full composition');
 		for (const e of tail) {
 			assert.equal(p.chest, 0, 'pending tail cannot be treated as already cleared');
 			if (p === last) assert.equal(net.status, 'active', 'last combat death is required');
+			assert.equal(sent.filter(({ m }) => m.t === 'reforge').length, 0, 'no shared reward before the last combat death');
 			r.killEnemy(e, hs[0]);
 		}
 		assert.equal(p.killed, 40); assert.equal(p.chest, 1);
@@ -102,8 +108,9 @@ for (const mode of ['night', 'lunch']) {
 	}
 	assert.equal(net.status, 'won');
 	assert.equal(sent.filter(({ m }) => m.t === 'reforge').length, 8, 'one shared reward per hero');
+	for (const h of hs) assert.equal(sent.filter(({ pid, m }) => pid === h.pid && m.t === 'reforge').length, 1, 'each hero receives exactly one reward');
 	r.updateOutposts(hs); assert.equal(liveGuards(r).length, 0);
-	console.log('density exact40 mix on all9 posts, actual final8 reserves/last sniper, final combat death and one-time team reward: OK');
+	console.log('density exact first32 and36/2/1/1 mix on all9 posts, actual skeleton tail8, final combat death and one-time team reward: OK');
 }
 
 console.log('Outpost density: exact finite composition, dispersed reservation, real pending tail and fixed totals: OK');
