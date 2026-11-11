@@ -1992,18 +1992,25 @@ console.log('over/again/leave: ok');
 		hub.handle(1, { t: 'mode', mode: 'night' });
 		assert.equal(room.mode, 'night');
 		assert.equal(msgs.filter(([pid, m]) => pid === 2 && m.t === 'lobby').pop()[1].mode, 'night', 'everyone sees the mode');
-		// Buildcraft HP calibration applies in both modes, with the fourth value shared by larger groups.
-		for (const [mode, hp] of Object.entries({ night: [1.5, 2, 2.4, 2.2], lunch: [1.9, 2, 2.2, 2.4] })) {
+		// Buildcraft calibration applies in both modes, with the fourth value shared by larger groups.
+		for (const [mode, { hp, dmg }] of Object.entries({
+			night: { hp: [1.8, 2, 2.4, 2.5], dmg: [0.75, 0.6, 0.56, 0.6] },
+			lunch: { hp: [1.9, 2, 2.4, 2.4], dmg: [0.75, 0.6, 0.5, 0.6] },
+		})) {
 			for (const players of [1, 2, 3, 4, 8]) {
 				const expected = hp[Math.min(players, 4) - 1];
+				const expectedDmg = dmg[Math.min(players, 4) - 1];
 				assert.equal(C.modeHpMul(mode, players), expected, `${mode}: HP multiplier for ${players} players`);
+				assert.equal(C.modeDmgMul(mode, players), expectedDmg, `${mode}: damage multiplier for ${players} players`);
 				const group = new Room('MHP', () => {});
 				group.setMode(mode);
 				for (let pid = 1; pid <= players; pid++) group.addPlayer(pid, `P${pid}`, 'knight');
 				group.start();
 				assert.equal(group.modeHp, expected, 'room start applies the calibrated multiplier');
+				assert.equal(group.modeDmg, expectedDmg, 'room start applies the calibrated damage');
 				const enemy = group.spawnEnemy('bat', [...group.heroes.values()], 1);
 				assert.ok(Math.abs(enemy.maxHp - C.ENEMIES.bat.hp * expected) < 1e-9, 'spawned enemy health includes mode scaling');
+				assert.ok(Math.abs(enemy.dmg - C.ENEMIES.bat.dmg * C.enemyDmgScale(group.nt, players) * expectedDmg) < 1e-9, 'spawned enemy damage includes mode scaling');
 			}
 		}
 		console.log('lunch mode: ok');
