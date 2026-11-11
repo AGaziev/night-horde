@@ -28,8 +28,8 @@ const ICE_TRAIL_LIFE = 2.5;
 const REACT_LIFE = 0.5;
 const REACT_LABEL_LIFE = 0.9;
 const REACT_LABEL_EVERY = 0.5; // per reaction kind, so labels do not pile up
-// Puddle looks announced by 'zk': 1 burning pool, 2 censer cloud.
-export const ZK_FIRE = 1, ZK_CLOUD = 2;
+// Puddle looks announced by 'zk': 1 burning pool, 2 censer cloud, 3 lane of light (Солнечное копьё, v24).
+export const ZK_FIRE = 1, ZK_CLOUD = 2, ZK_LIGHT = 3;
 // Trap records in snapshot `tr`: [id, x, y, kind, ownerPid]; kind 0 trap, 1 mine, 2 mine recharging, 3 spike.
 export const TR_STRIDE = 5;
 

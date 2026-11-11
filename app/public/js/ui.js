@@ -1,5 +1,5 @@
 // DOM screens, HUD, level-up panel, toasts.
-import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS } from '/shared/content.js';
+import { ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -267,6 +267,39 @@ export class UI {
 		}, 1000 / (sheet.fps || 8));
 	}
 
+	// v24 «Книга связок»: every duo, the known ones with names; the six affinity rules by roles.
+	renderDuoBook() {
+		const known = knownDuos();
+		const key = [...known].sort().join(',');
+		if (this.bookKey === key) return;
+		this.bookKey = key;
+		const ids = Object.keys(DUOS);
+		$('duo-book-count').textContent = `${ids.filter((id) => known.has(id)).length} / ${ids.length}`;
+		const grid = $('duo-book-grid');
+		grid.textContent = '';
+		for (const id of ids) {
+			const D = DUOS[id], open = known.has(id);
+			const cell = el('div', open ? 'duo-cell open' : 'duo-cell');
+			cell.appendChild(el('div', 'duo-cell-icon', open ? D.icon : '?'));
+			cell.appendChild(el('div', 'duo-cell-name', open ? D.name : 'не открыта'));
+			cell.appendChild(el('div', 'duo-cell-parts', D.parts.map((p) => `${WEAPONS[p].icon} ${WEAPONS[p].name}`).join(' + ')));
+			cell.title = open ? D.desc : 'Ещё не открыта: возьмите оба оружия до 3-го уровня';
+			grid.appendChild(cell);
+		}
+		const aff = $('duo-book-aff');
+		aff.textContent = '';
+		for (const id of AFFINITY_IDS) {
+			const A = AFFINITY[id];
+			const li = el('li');
+			li.appendChild(el('b', '', `${A.roles.map((r) => ROLES[r].icon).join(' + ')} ${A.name}`));
+			li.appendChild(el('span', 'muted', ` — ${A.desc}`));
+			aff.appendChild(li);
+		}
+		const roles = el('li', 'muted');
+		roles.textContent = Object.entries(ROLES).map(([r, R]) => `${R.icon} ${R.name}: ${Object.values(WEAPONS).filter((W) => W.role === r).map((W) => W.name).join(', ')}`).join('; ');
+		aff.appendChild(roles);
+	}
+
 	renderLobby(lobby, me) {
 		this.lastLobby = [lobby, me];
 		$('lobby-code').textContent = lobby.code || '—';
@@ -297,6 +330,7 @@ export class UI {
 		}
 		const isHost = lobby.host === me;
 		this.renderMode(lobby.mode, isHost);
+		this.renderDuoBook();
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
 		readyBtn.classList.toggle('btn-on', myReady);
@@ -421,7 +455,8 @@ export class UI {
 			const card = el('button', (c.kind === 'rare' ? 'card card-rare' : c.kind === 'ember' ? 'card card-ember' : DUOS[c.id] ? 'card card-duo-up' : 'card') + (R ? ` rar rar-${R.id}` : ''));
 			card.type = 'button';
 			card.appendChild(el('span', 'card-key', String(i + 1)));
-			card.appendChild(el('span', 'card-kind', c.kind === 'weapon' ? (DUOS[c.id] ? 'связка' : 'оружие') : c.kind === 'passive' ? 'артефакт' : c.kind === 'rare' ? 'редкое' : c.kind === 'ember' ? 'угли' : ''));
+			const role = c.kind === 'weapon' ? ROLES[WEAPONS[c.id]?.role] : null; // v24: the role decides the affinity
+			card.appendChild(el('span', 'card-kind', c.kind === 'weapon' ? (DUOS[c.id] ? 'связка' : 'оружие' + (role ? ` · ${role.icon} ${role.name}` : '')) : c.kind === 'passive' ? 'артефакт' : c.kind === 'rare' ? 'редкое' : c.kind === 'ember' ? 'угли' : ''));
 			const def = c.kind === 'weapon' ? weaponDef(c.id) : c.kind === 'passive' ? PASSIVES[c.id] : null;
 			card.appendChild(el('div', 'card-icon', c.icon || def?.icon || '?'));
 			card.appendChild(el('div', 'card-name', c.name || def?.name || c.id));
@@ -446,13 +481,27 @@ export class UI {
 				const evo = Object.values(EVOS).find((E) => E.requires === c.id);
 				if (evo && c.level === 1) card.appendChild(el('div', 'card-hint', `⚡ эволюция: ${WEAPONS[evo.from].name} 5 ур.`));
 			}
-			if (c.duoHint) {
-				const h = c.duoHint;
+			let hints = 0;
+			for (const h of c.duoHints ?? (c.duoHint ? [c.duoHint] : [])) {
 				const name = known.has(h.id) ? h.name : '???';
 				card.appendChild(el('div', 'card-hint', `🔗 с «${h.withName}» → ${name} (нужно ${h.need} + ${h.need})`));
+				hints++;
 			}
-			if (c.reactHint) card.appendChild(el('div', 'card-hint card-hint-react', `💥 реакция «${c.reactHint.name}» с «${c.reactHint.withName}»${c.reactHint.ally ? ' союзника' : ''}`));
-			if (c.synHint) card.appendChild(el('div', 'card-hint', `✦ с «${c.synHint.withName}»: ${c.synHint.desc}`));
+			if (c.reactHint) {
+				card.appendChild(el('div', 'card-hint card-hint-react', `💥 реакция «${c.reactHint.name}» с «${c.reactHint.withName}»${c.reactHint.ally ? ' союзника' : ''}`));
+				hints++;
+			}
+			if (c.synHint) {
+				card.appendChild(el('div', 'card-hint', `✦ с «${c.synHint.withName}»: ${c.synHint.desc}`));
+				hints++;
+			}
+			// v24 affinity: one line, only while the card has room (a duo is worth more).
+			if (c.affHint && hints < 3) {
+				const A = AFFINITY[c.affHint.id];
+				const line = el('div', 'card-hint card-hint-aff', `≈ сродство с «${c.affHint.withName}»: ${A.name}`);
+				line.title = A.desc;
+				card.appendChild(line);
+			}
 			card.addEventListener('click', () => this.onPick && this.onPick(i));
 			add(card, c, i);
 		});
@@ -669,7 +718,11 @@ export class UI {
 				// v20: an overclocked weapon (4th field of a plain weapon) gets a violet frame, a mark and the variant in the title.
 				fillIcons(box, w.map(([id, lvl, , oc]) => {
 					const O = WEAPONS[id] && oc ? OVERCLOCKS[id]?.[oc - 1] : null;
-					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), weaponTitle(id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : ''), EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : ''];
+					const role = ROLES[WEAPONS[id]?.role];
+					// v24: affinities of this weapon with the other plain weapons, in the tooltip.
+					const aff = w.map(([o]) => [o, affinityOf(id, o)]).filter(([, a]) => a).map(([o, a]) => `${AFFINITY[a].name} с «${WEAPONS[o].name}»`);
+					const title = weaponTitle(id) + (O ? ` — разгон «${O.name}»: ${O.desc}` : '') + (role ? `\n${role.icon} ${role.name}` : '') + (aff.length ? `\nСродство: ${aff.join(', ')}` : '');
+					return [weaponDef(id)?.icon || '?', lvlText(id, lvl) + (O ? '⚙' : ''), title, EVOS[id] ? 'hud-icon-evo' : DUOS[id] ? 'hud-icon-duo' : O ? 'hud-icon-ovr' : '', role?.icon];
 				}), `${w.length}/${MAX_WEAPONS}`, 'Слоты оружия');
 				drawDuoLinks(box, w);
 			}
@@ -790,33 +843,40 @@ function fillIcons(box, items, slots, slotsTitle) {
 		s.title = slotsTitle;
 		box.appendChild(s);
 	}
-	for (const [icon, lvl, title, cls] of items) {
+	for (const [icon, lvl, title, cls, badge] of items) {
 		const d = el('div', cls ? `hud-icon ${cls}` : 'hud-icon', icon);
 		d.title = title;
 		d.appendChild(el('b', '', String(lvl)));
+		if (badge) d.appendChild(el('i', 'hud-role', badge));
 		box.appendChild(d);
 	}
 }
 
 // Thin lines between owned weapons that form a duo: dim, pulsing at 2 + 2, glowing at 3 + 3.
+// v24: with four partners per weapon only the two best pairs (highest lower level) get a line.
 function drawDuoLinks(box, w) {
 	const icons = [...box.querySelectorAll('.hud-icon')];
+	const pairs = [];
 	for (let i = 0; i < w.length; i++) {
 		for (let j = i + 1; j < w.length; j++) {
 			if (DUOS[w[i][0]] || DUOS[w[j][0]] || !DUO_BY_PAIR[duoKey(w[i][0], w[j][0])]) continue;
-			const a = icons[i], b = icons[j];
-			if (!a || !b) continue;
-			const ax = a.offsetLeft + a.offsetWidth / 2, ay = a.offsetTop + a.offsetHeight + 3;
-			const bx = b.offsetLeft + b.offsetWidth / 2, by = b.offsetTop + b.offsetHeight + 3;
-			const len = Math.hypot(bx - ax, by - ay);
-			const lo = Math.min(w[i][1], w[j][1]);
-			const line = el('i', 'duo-link' + (lo >= 3 ? ' ready' : lo >= 2 ? ' warm' : ''));
-			line.style.left = ax + 'px';
-			line.style.top = ay + 'px';
-			line.style.width = len + 'px';
-			line.style.transform = `rotate(${Math.atan2(by - ay, bx - ax)}rad)`;
-			line.title = DUOS[DUO_BY_PAIR[duoKey(w[i][0], w[j][0])]].name;
-			box.appendChild(line);
+			pairs.push([i, j, Math.min(w[i][1], w[j][1]), w[i][1] + w[j][1]]);
 		}
+	}
+	pairs.sort((x, y) => y[2] - x[2] || y[3] - x[3]);
+	for (const [i, j] of pairs.slice(0, 2)) {
+		const a = icons[i], b = icons[j];
+		if (!a || !b) continue;
+		const ax = a.offsetLeft + a.offsetWidth / 2, ay = a.offsetTop + a.offsetHeight + 3;
+		const bx = b.offsetLeft + b.offsetWidth / 2, by = b.offsetTop + b.offsetHeight + 3;
+		const len = Math.hypot(bx - ax, by - ay);
+		const lo = Math.min(w[i][1], w[j][1]);
+		const line = el('i', 'duo-link' + (lo >= 3 ? ' ready' : lo >= 2 ? ' warm' : ''));
+		line.style.left = ax + 'px';
+		line.style.top = ay + 'px';
+		line.style.width = len + 'px';
+		line.style.transform = `rotate(${Math.atan2(by - ay, bx - ax)}rad)`;
+		line.title = DUOS[DUO_BY_PAIR[duoKey(w[i][0], w[j][0])]].name;
+		box.appendChild(line);
 	}
 }

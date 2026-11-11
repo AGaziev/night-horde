@@ -549,27 +549,28 @@ console.log('over/again/leave: ok');
 		assert.equal(MAX_PASSIVES, 4);
 		const r = mkRoom();
 		const h = r.heroes.get(1);
-		h.weapons = new Map(['whip', 'bolt', 'knives', 'ward', 'lantern', 'frost'].map((id) => [id, { lvl: 2, t: 0 }])); // no duo pairs
-		h.passives = new Map(['crit', 'mail', 'area', 'regen'].map((id) => [id, 1])); // no evolution pairs
+		// v24: the only 6 weapons with no duo pair among 30 duos (frost stands for the sixth slot below)
+		h.weapons = new Map(['orbit', 'flask', 'sickle', 'traps', 'lantern', 'ward'].map((id) => [id, { lvl: 2, t: 0 }])); // no duo pairs
+		h.passives = new Map(['crit', 'might', 'haste', 'regen'].map((id) => [id, 1])); // no evolution pairs
 		r.recalcMods(h);
 		for (let k = 0; k < 100; k++) {
 			for (const c of r.makeChoices(h)) {
 				assert.ok(c.kind === 'heal' || c.kind === 'rare' || c.level > 1, `no new picks with full slots: ${c.kind}:${c.id}`);
 			}
 		}
-		h.weapons.delete('frost');
+		h.weapons.delete('ward');
 		sent.length = 0;
 		r.grantOffer(h);
 		assert.deepEqual(lastOffer().slots, [5, 6, 4, 4], 'slots in the offer');
 		for (const w of h.weapons.values()) w.lvl = MAX_LEVEL;
 		// v20: overclocks come before embers, so the weapons here are already overclocked.
 		for (const w of h.weapons.values()) w.oc = 1;
-		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0, oc: 1 });
+		h.weapons.set('ward', { lvl: MAX_LEVEL, t: 0, oc: 1 });
 		for (const id of h.passives.keys()) h.passives.set(id, MAX_LEVEL);
 		h.offer = null;
 		assert.deepEqual(r.makeChoices(h).map((c) => c.kind), ['ember', 'ember', 'ember'], 'all maxed: embers instead of healing');
 		// Screenshot 9:50: everything owned is maxed, but a weapon slot is free — new weapons, never embers.
-		h.weapons.delete('frost');
+		h.weapons.delete('ward');
 		for (let k = 0; k < 50; k++) {
 			h.lastOfferNewW = k % 2 === 0;
 			const c = r.makeChoices(h);
@@ -577,7 +578,7 @@ console.log('over/again/leave: ok');
 			assert.equal(c.length, 3);
 		}
 		// Same with a free artifact slot: artifacts fill the offer, embers stay out.
-		h.weapons.set('frost', { lvl: MAX_LEVEL, t: 0, oc: 1 });
+		h.weapons.set('ward', { lvl: MAX_LEVEL, t: 0, oc: 1 });
 		h.passives.delete('regen');
 		r.recalcMods(h);
 		for (let k = 0; k < 30; k++) assert.ok(!r.makeChoices(h).some((x) => x.kind === 'ember'), 'free artifact slot: no embers');
@@ -989,7 +990,7 @@ console.log('over/again/leave: ok');
 	const take = (kind) => { const out = fxAll.filter((f) => f[0] === kind); return out; };
 	const duo = (r, id, lvl = 1) => { const h = r.heroes.get(1); h.weapons = new Map([[id, { lvl, t: 0 }]]); r.updateSynergy(); return h; };
 
-	assert.equal(DUO_IDS.length, 16, '13 duos of the plan + 3 for Spear and Trail (wave 2)');
+	assert.ok(DUO_IDS.length >= 24, '16 duos up to v23 + 8 of DUOS v2 delivery A (v24)');
 	for (const [key, id] of Object.entries(DUO_BY_PAIR)) assert.equal(duoKey(...DUOS[id].parts), key);
 
 	// Rules: card in slot 1 at 3 + 3, start level by sum, fusing frees a slot, parts are not offered again.

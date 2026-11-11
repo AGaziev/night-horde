@@ -3,7 +3,7 @@ import {
 	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
 	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT, weaponLevel,
 } from '/shared/content.js';
-import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD } from './game.js';
+import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
 
@@ -351,6 +351,14 @@ export class Renderer {
 					ctx.moveTo(fx + 3, fy);
 					ctx.arc(fx, fy, 3 * (1 - ph), 0, TAU);
 				}
+				ctx.fill();
+			} else if (k === ZK_LIGHT) {
+				const g = ctx.createRadialGradient(x, y, 0, x, y, r * 1.3);
+				g.addColorStop(0, 'rgba(255,241,118,0.30)');
+				g.addColorStop(1, 'rgba(255,213,79,0)');
+				ctx.fillStyle = g;
+				ctx.beginPath();
+				ctx.arc(x, y, r * 1.3, 0, TAU);
 				ctx.fill();
 			} else if (k === ZK_CLOUD) {
 				ctx.fillStyle = 'rgba(200,230,201,0.07)';
@@ -1271,6 +1279,16 @@ export class Renderer {
 					if (pos) this.drawBlizzard(ctx, pos.x, pos.y, EVOS.blizzard.levels[0].radius * (row[P.pid] === game.me ? game.areaMul() : 1), now);
 					continue;
 				}
+				if (wl[0] === 'dome') {
+					// Купол: the aura is wider while the shield holds a charge (server domeTick).
+					const pos = game.playerPos(row[P.pid], this.tmp);
+					if (!pos) continue;
+					const L = duoLevel('dome', wl[1]);
+					const charged = (row[P.ward] | 0) > 0;
+					const r = L.radius * (charged ? L.chargeArea : 1) * (row[P.pid] === game.me ? game.areaMul() : 1);
+					this.drawDome(ctx, pos.x, pos.y, r, charged, game.meta(row[P.pid]).color, now);
+					continue;
+				}
 				if (wl[0] !== 'aura' && wl[0] !== 'tocsin') continue;
 				// v20: an overclock (wl[3]) changes the radius the server hits with.
 				const def = wl[0] === 'tocsin' ? EVOS.tocsin.levels[0] : weaponLevel('aura', Math.max(1, Math.min(5, wl[1] | 0)), wl[3] | 0);
@@ -1293,6 +1311,21 @@ export class Renderer {
 				ctx.globalAlpha = 1;
 			}
 		}
+	}
+
+	drawDome(ctx, x, y, r, charged, color, now) {
+		ctx.fillStyle = charged ? '#ffe082' : color;
+		ctx.globalAlpha = (charged ? 0.12 : 0.07) + Math.sin(now * 3) * 0.03;
+		ctx.beginPath();
+		ctx.arc(x, y, r, 0, TAU);
+		ctx.fill();
+		ctx.globalAlpha = charged ? 0.6 : 0.3;
+		ctx.strokeStyle = charged ? '#ffd54f' : color;
+		ctx.lineWidth = charged ? 3 : 2;
+		if (!charged) ctx.setLineDash([8, 10]);
+		ctx.stroke();
+		ctx.setLineDash([]);
+		ctx.globalAlpha = 1;
 	}
 
 	drawOrbits(ctx, game, tm) {
@@ -2330,9 +2363,10 @@ export class Renderer {
 			if (!p) continue;
 			const k = c.t / 0.45;
 			const storm = this.hasWeapon(game, c.pid, 'stormlight');
+			const fire = !storm && this.hasWeapon(game, c.pid, 'glow'); // Зарево: a red-hot cone
 			const g = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, c.range);
-			g.addColorStop(0, storm ? `rgba(179,229,252,${0.4 * (1 - k)})` : `rgba(255,236,179,${0.35 * (1 - k)})`);
-			g.addColorStop(1, storm ? 'rgba(128,216,255,0)' : 'rgba(255,213,79,0)');
+			g.addColorStop(0, storm ? `rgba(179,229,252,${0.4 * (1 - k)})` : fire ? `rgba(255,171,64,${0.4 * (1 - k)})` : `rgba(255,236,179,${0.35 * (1 - k)})`);
+			g.addColorStop(1, storm ? 'rgba(128,216,255,0)' : fire ? 'rgba(244,81,30,0)' : 'rgba(255,213,79,0)');
 			ctx.fillStyle = g;
 			ctx.beginPath();
 			ctx.moveTo(p.x, p.y);

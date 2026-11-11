@@ -1,4 +1,4 @@
-import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS } from '/shared/content.js';
+import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS, AFFINITY } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
 import { Game, P } from './game.js';
@@ -247,6 +247,11 @@ function showOver(msg) {
 }
 
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
+// v24: the first trigger of an affinity kind in this run.
+net.on('aff', (msg) => {
+	const A = AFFINITY[msg.id];
+	if (A && WEAPONS[msg.a] && WEAPONS[msg.b]) ui.toast(`≈ Сродство «${A.name}»: ${WEAPONS[msg.a].name} + ${WEAPONS[msg.b].name} — ${A.desc}`, 'info');
+});
 
 // Game events
 

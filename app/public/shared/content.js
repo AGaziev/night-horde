@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v23';
+export const GAME_VERSION = 'v24';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -193,7 +193,7 @@ export const heroTrait = (heroId) => ({ ...NO_TRAIT, ...(HEROES[heroId]?.trait ?
 // Visual-relevant formulas (orbit, aura) are defined below so the client draws exactly what the server simulates.
 export const WEAPONS = {
 	bolt: {
-		name: 'Искра', icon: '✦', desc: 'Самонаводящийся снаряд в ближайшего врага', tags: ['proj'],
+		name: 'Искра', icon: '✦', desc: 'Самонаводящийся снаряд в ближайшего врага', tags: ['proj'], role: 'shot',
 		levels: [
 			{ dmg: 10, cd: 1.0, count: 1, speed: 420, pierce: 1 },
 			{ dmg: 12, cd: 0.9, count: 2, speed: 440, pierce: 1 },
@@ -203,7 +203,7 @@ export const WEAPONS = {
 		],
 	},
 	whip: {
-		name: 'Клинок', icon: '⚔', desc: 'Широкий горизонтальный удар в сторону ближайшего врага', tags: ['phys'],
+		name: 'Клинок', icon: '⚔', desc: 'Широкий горизонтальный удар в сторону ближайшего врага', tags: ['phys'], role: 'ring',
 		levels: [
 			{ dmg: 14, cd: 1.3, range: 110, width: 40, both: false },
 			{ dmg: 18, cd: 1.2, range: 120, width: 44, both: false },
@@ -213,7 +213,7 @@ export const WEAPONS = {
 		],
 	},
 	knives: {
-		name: 'Ножи', icon: '➶', desc: 'Веер быстрых ножей в ближайшего врага', tags: ['phys', 'proj'],
+		name: 'Ножи', icon: '➶', desc: 'Веер быстрых ножей в ближайшего врага', tags: ['phys', 'proj'], role: 'shot',
 		levels: [
 			{ dmg: 8, cd: 0.7, count: 1, speed: 600, pierce: 1, spread: 0.12 },
 			{ dmg: 9, cd: 0.6, count: 2, speed: 620, pierce: 1, spread: 0.12 },
@@ -223,7 +223,7 @@ export const WEAPONS = {
 		],
 	},
 	orbit: {
-		name: 'Хоровод', icon: '◎', desc: 'Клинки кружат вокруг героя', tags: ['phys'],
+		name: 'Хоровод', icon: '◎', desc: 'Клинки кружат вокруг героя', tags: ['phys'], role: 'ring',
 		levels: [
 			{ dmg: 8, count: 2, radius: 70, rps: 0.6, hitCd: 0.5 },
 			{ dmg: 10, count: 3, radius: 75, rps: 0.65, hitCd: 0.5 },
@@ -233,7 +233,7 @@ export const WEAPONS = {
 		],
 	},
 	aura: {
-		name: 'Ореол', icon: '◌', desc: 'Постоянный урон врагам рядом', tags: ['aoe'],
+		name: 'Ореол', icon: '◌', desc: 'Постоянный урон врагам рядом', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ dmg: 4, radius: 70, tick: 0.5 },
 			{ dmg: 5, radius: 80, tick: 0.5 },
@@ -243,7 +243,7 @@ export const WEAPONS = {
 		],
 	},
 	lightning: {
-		name: 'Гроза', icon: 'ϟ', desc: 'Молния бьёт случайных врагов на экране', tags: ['shock'],
+		name: 'Гроза', icon: 'ϟ', desc: 'Молния бьёт случайных врагов на экране', tags: ['shock'], role: 'shot',
 		levels: [
 			{ dmg: 20, cd: 2.2, strikes: 1, chain: 0 },
 			{ dmg: 24, cd: 2.0, strikes: 2, chain: 0 },
@@ -253,7 +253,7 @@ export const WEAPONS = {
 		],
 	},
 	flask: {
-		name: 'Зелье', icon: '⚗', desc: 'Лужа яда рядом с героем', tags: ['aoe'],
+		name: 'Зелье', icon: '⚗', desc: 'Лужа яда рядом с героем', tags: ['aoe'], role: 'trace',
 		levels: [
 			{ dmg: 5, cd: 3.0, count: 1, radius: 50, duration: 2.5, tick: 0.4 },
 			{ dmg: 6, cd: 2.8, count: 2, radius: 55, duration: 2.8, tick: 0.4 },
@@ -263,7 +263,7 @@ export const WEAPONS = {
 		],
 	},
 	sickle: {
-		name: 'Серп', icon: '☾', desc: 'Летит к врагу и возвращается, режет всех на пути', tags: ['phys', 'proj'],
+		name: 'Серп', icon: '☾', desc: 'Летит к врагу и возвращается, режет всех на пути', tags: ['phys', 'proj'], role: 'shot',
 		levels: [
 			{ dmg: 12, cd: 1.4, count: 1, range: 260, speed: 480 },
 			{ dmg: 15, cd: 1.3, count: 1, range: 280, speed: 500 },
@@ -273,7 +273,7 @@ export const WEAPONS = {
 		],
 	},
 	bomb: {
-		name: 'Петарда', icon: '✹', desc: 'Взрывается в гуще врагов', tags: ['fire', 'aoe'],
+		name: 'Петарда', icon: '✹', desc: 'Взрывается в гуще врагов', tags: ['fire', 'aoe'], role: 'trace',
 		levels: [
 			{ dmg: 22, cd: 2.4, count: 1, radius: 60, fuse: 0.7 },
 			{ dmg: 28, cd: 2.2, count: 1, radius: 66, fuse: 0.7 },
@@ -283,7 +283,7 @@ export const WEAPONS = {
 		],
 	},
 	frost: {
-		name: 'Иней', icon: '❄', desc: 'Волна холода ранит и замедляет врагов вокруг', tags: ['cold', 'aoe'],
+		name: 'Иней', icon: '❄', desc: 'Волна холода ранит и замедляет врагов вокруг', tags: ['cold', 'aoe'], role: 'ring',
 		levels: [
 			{ dmg: 8, cd: 3.0, radius: 110, slow: 0.30, dur: 1.5, freeze: 0 },
 			{ dmg: 10, cd: 2.8, radius: 125, slow: 0.35, dur: 1.6, freeze: 0 },
@@ -293,7 +293,7 @@ export const WEAPONS = {
 		],
 	},
 	traps: {
-		name: 'Капканы', icon: '⊓', desc: 'Капканы на пути отступления держат врагов', tags: ['phys', 'trap'],
+		name: 'Капканы', icon: '⊓', desc: 'Капканы на пути отступления держат врагов', tags: ['phys', 'trap'], role: 'trace',
 		levels: [
 			{ dmg: 20, cd: 2.0, max: 4, root: 1.0, radius: 26, splash: 0 },
 			{ dmg: 26, cd: 1.8, max: 5, root: 1.2, radius: 28, splash: 0 },
@@ -304,7 +304,7 @@ export const WEAPONS = {
 	},
 	// Wave 3 weapons that need no wave-2 states (mark and burn already exist in hurtEnemy).
 	lantern: {
-		name: 'Фонарь', icon: '🏮', desc: 'Свет помечает врагов: они получают больше урона от всех', tags: ['aoe'],
+		name: 'Фонарь', icon: '🏮', desc: 'Свет помечает врагов: они получают больше урона от всех', tags: ['aoe'], role: 'trace',
 		levels: [
 			{ dmg: 3, tick: 0.5, range: 200, angle: 50, mark: 0.15 },
 			{ dmg: 4, tick: 0.5, range: 220, angle: 55, mark: 0.18 },
@@ -314,7 +314,7 @@ export const WEAPONS = {
 		],
 	},
 	trail: {
-		name: 'Пламенный след', icon: '🔥', desc: 'Огонь на пройденном пути поджигает врагов', tags: ['fire', 'aoe'],
+		name: 'Пламенный след', icon: '🔥', desc: 'Огонь на пройденном пути поджигает врагов', tags: ['fire', 'aoe'], role: 'trace',
 		levels: [
 			{ dmg: 3, every: 0.25, radius: 22, dur: 2.0, tick: 0.3, burn: 2 },
 			{ dmg: 4, every: 0.25, radius: 24, dur: 2.2, tick: 0.3, burn: 3 },
@@ -324,7 +324,7 @@ export const WEAPONS = {
 		],
 	},
 	spear: {
-		name: 'Копьё', icon: '↟', desc: 'Пробивает строй насквозь, бьёт сильнейшего', tags: ['phys', 'proj'],
+		name: 'Копьё', icon: '↟', desc: 'Пробивает строй насквозь, бьёт сильнейшего', tags: ['phys', 'proj'], role: 'shot',
 		levels: [
 			{ dmg: 30, cd: 2.5, pierce: 5, width: 16, speed: 700, kb: 40 },
 			{ dmg: 38, cd: 2.3, pierce: 6, width: 16, speed: 720, kb: 50 },
@@ -334,7 +334,7 @@ export const WEAPONS = {
 		],
 	},
 	ward: {
-		name: 'Оберег', icon: '⛉', desc: 'Оружие: бьёт и блокирует удары — щит гасит удар врага и взрывается, когда ломается', tags: ['aoe'],
+		name: 'Оберег', icon: '⛉', desc: 'Оружие: бьёт и блокирует удары — щит гасит удар врага и взрывается, когда ломается', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ charges: 1, cd: 12, burstDmg: 15, burstR: 90, kb: 60 },
 			{ charges: 1, cd: 10, burstDmg: 20, burstR: 100, kb: 70 },
@@ -394,7 +394,7 @@ export const REACTION_IDS = Object.keys(REACTIONS);
 // Which weapons leave a state, and which state + hit tag makes which reaction (for card hints; the server rules live in Room.react).
 export const STATE_SOURCES = {
 	wet: ['flask', 'molotov', 'censer', 'quagmire'],
-	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath'],
+	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe'],
 	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
 	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire'],
 	root: ['traps', 'pitfall', 'tripwire'],
@@ -854,10 +854,109 @@ export const DUOS = {
 			{ dmg: 42, count: 5, radius: 105, rps: 0.55, hitCd: 0.35, burn: 18, every: 0.18, patchR: 30, patchLife: 2.0, patchDmg: 11, tick: 0.3 },
 		],
 	},
+	// v24 (связки v2, поставка А): по 4 связки на оружие, см. pm/DUOS-v2-design.md.
+	guide: {
+		name: 'Путеводный огонь', icon: '✧', parts: ['bolt', 'lantern'], tags: ['proj', 'aoe'],
+		desc: 'Луч метит группу, искры летят в помеченных и продлевают метку; помеченный враг при смерти выпускает искру',
+		levels: [
+			{ dmg: 4, tick: 0.45, range: 260, angle: 60, mark: 0.22, sparkDmg: 20, sparkCd: 0.7, count: 2, pierce: 2, speed: 480, deathSparks: 1 },
+			{ dmg: 5, tick: 0.45, range: 280, angle: 65, mark: 0.26, sparkDmg: 26, sparkCd: 0.65, count: 3, pierce: 2, speed: 490, deathSparks: 1 },
+			{ dmg: 6, tick: 0.4, range: 300, angle: 70, mark: 0.30, sparkDmg: 32, sparkCd: 0.6, count: 4, pierce: 3, speed: 500, deathSparks: 2 },
+		],
+	},
+	sunspear: {
+		name: 'Солнечное копьё', icon: '☀', parts: ['spear', 'lantern'], tags: ['phys', 'proj'],
+		desc: 'Копьё в сильнейшего оставляет полосу света: все в ней помечены и получают больше урона от всех',
+		levels: [
+			{ dmg: 55, cd: 2.0, count: 1, pierce: 8, width: 18, speed: 740, kb: 50, laneR: 20, laneLife: 2, mark: 0.22, laneDmg: 12, tick: 0.4 },
+			{ dmg: 72, cd: 1.8, count: 1, pierce: 10, width: 20, speed: 760, kb: 60, laneR: 22, laneLife: 2, mark: 0.27, laneDmg: 12, tick: 0.4 },
+			{ dmg: 90, cd: 1.6, count: 1, pierce: 99, width: 22, speed: 780, kb: 70, laneR: 24, laneLife: 2.2, mark: 0.32, laneDmg: 14, tick: 0.4 },
+		],
+	},
+	glow: {
+		name: 'Зарево', icon: '🔆', parts: ['lantern', 'trail'], tags: ['fire', 'aoe'],
+		desc: 'Луч метит и поджигает; помеченный горящий враг при смерти оставляет горящее пятно',
+		levels: [
+			{ dmg: 15, tick: 0.45, range: 240, angle: 60, mark: 0.20, burn: 12, patchR: 30, patchLife: 2, patchDmg: 6, patchTick: 0.3 },
+			{ dmg: 21, tick: 0.45, range: 260, angle: 65, mark: 0.24, burn: 20, patchR: 34, patchLife: 2.2, patchDmg: 8, patchTick: 0.3 },
+			{ dmg: 32, tick: 0.4, range: 290, angle: 70, mark: 0.28, burn: 36, patchR: 38, patchLife: 2.5, patchDmg: 10, patchTick: 0.3 },
+		],
+	},
+	dome: {
+		name: 'Купол', icon: '⛫', parts: ['aura', 'ward'], tags: ['aoe'],
+		desc: 'Пока у щита есть заряд, ореол шире и сильнее; каждый поглощённый удар — вспышка ореола',
+		levels: [
+			{ dmg: 7, tick: 0.4, radius: 100, chargeMul: 1.3, chargeArea: 1.15, charges: 2, cd: 9, burstDmg: 30, burstR: 120, kb: 70 },
+			{ dmg: 9, tick: 0.4, radius: 110, chargeMul: 1.3, chargeArea: 1.15, charges: 2, cd: 8, burstDmg: 40, burstR: 130, kb: 80 },
+			{ dmg: 11, tick: 0.4, radius: 120, chargeMul: 1.35, chargeArea: 1.15, charges: 3, cd: 7, burstDmg: 52, burstR: 140, kb: 90 },
+		],
+	},
+	riposte: {
+		name: 'Контрудар', icon: '⚔', parts: ['whip', 'ward'], tags: ['phys'],
+		desc: 'Удар клинка в обе стороны; поглощённый щитом удар сразу отвечает круговым ударом с удвоенным уроном',
+		levels: [
+			{ dmg: 20, atkCd: 1.0, range: 150, width: 56, charges: 2, cd: 9, ripMul: 2, ripR: 160, kb: 80 },
+			{ dmg: 26, atkCd: 0.9, range: 160, width: 60, charges: 2, cd: 8, ripMul: 2, ripR: 170, kb: 80 },
+			{ dmg: 30, atkCd: 0.85, range: 175, width: 64, charges: 3, cd: 7, ripMul: 2.5, ripR: 180, kb: 90 },
+		],
+	},
+	rod: {
+		name: 'Громоотвод', icon: '🗲', parts: ['lightning', 'ward'], tags: ['shock', 'aoe'],
+		desc: 'Молнии бьют ближайших к герою врагов; поглощённый щитом удар — молния в ближайшего с длинной цепью',
+		levels: [
+			{ dmg: 30, atkCd: 1.6, strikes: 2, chain: 2, radius: 260, charges: 2, cd: 9, counter: 45, counterChain: 3 },
+			{ dmg: 36, atkCd: 1.5, strikes: 3, chain: 2, radius: 270, charges: 2, cd: 8, counter: 55, counterChain: 3 },
+			{ dmg: 44, atkCd: 1.3, strikes: 3, chain: 3, radius: 280, charges: 3, cd: 7, counter: 70, counterChain: 4 },
+		],
+	},
+	pitch: {
+		name: 'Смола', icon: '♨', parts: ['flask', 'trail'], tags: ['fire', 'aoe'],
+		desc: 'За героем тянется горящая смола: широкие лужи жгут и замедляют',
+		levels: [
+			{ dmg: 12, every: 0.3, radius: 34, dur: 3, tick: 0.3, burn: 8, slow: 0.2, max: 12 },
+			{ dmg: 18, every: 0.28, radius: 38, dur: 3.2, tick: 0.3, burn: 11, slow: 0.25, max: 13 },
+			{ dmg: 26, every: 0.25, radius: 42, dur: 3.5, tick: 0.3, burn: 18, slow: 0.3, max: 15 },
+		],
+	},
+	firescythe: {
+		name: 'Огненный серп', icon: '☾', parts: ['sickle', 'trail'], tags: ['fire', 'phys', 'proj'],
+		desc: 'Серп летит к врагу и возвращается, оставляя горящую полосу; задетых поджигает',
+		levels: [
+			{ dmg: 30, cd: 1.3, count: 1, range: 300, speed: 520, patchR: 24, patchLife: 2, patchDmg: 7, tick: 0.3, burn: 5.5, every: 40 },
+			{ dmg: 36, cd: 1.2, count: 2, range: 320, speed: 540, patchR: 24, patchLife: 2, patchDmg: 6, tick: 0.3, burn: 5, every: 40 },
+			{ dmg: 46, cd: 1.1, count: 2, range: 340, speed: 560, patchR: 28, patchLife: 2.2, patchDmg: 10.5, tick: 0.3, burn: 9, every: 40 },
+		],
+	},
 };
 export const DUO_IDS = Object.keys(DUOS);
 export const duoKey = (a, b) => (a < b ? `${a}+${b}` : `${b}+${a}`);
 export const DUO_BY_PAIR = Object.fromEntries(DUO_IDS.map((id) => [duoKey(...DUOS[id].parts), id]));
+// Affinity (v24, связки v2): two plain weapons of one player with no duo between them. An enemy hit by one of them and
+// within AFFINITY_WINDOW s by the other gets the rule's effect on the second hit, at most once per AFFINITY_EVERY s per enemy and pair.
+// The rule comes from the two weapons' roles (WEAPONS[id].role). Numbers fitted on `AFF=1 node pm/duo-bench.mjs`.
+export const ROLES = {
+	ring: { name: 'Круг', icon: '●', desc: 'бьёт вокруг героя' },
+	shot: { name: 'Выстрел', icon: '➶', desc: 'летит к врагу' },
+	trace: { name: 'След', icon: '▲', desc: 'оставляет на поле лужу, огонь, капкан, взрыв или метку' },
+};
+export const AFFINITY_WINDOW = 1.5;
+export const AFFINITY_EVERY = 1;
+export const AFFINITY = {
+	vise: { roles: ['ring', 'ring'], name: 'Тиски', icon: '⊂⊃', desc: 'удар по врагу, только что задетому другим, +35% урона', mul: 0.35 },
+	crossfire: { roles: ['shot', 'shot'], name: 'Перекрёстный огонь', icon: '✕', desc: '+40% к шансу крита по врагу, только что задетому другим', crit: 0.4 },
+	soak: { roles: ['trace', 'trace'], name: 'Пропитка', icon: '≈', desc: 'враг, задетый обоими, 2 с получает от ваших следов +15%', mul: 0.15, dur: 2 },
+	recoil: { roles: ['ring', 'shot'], name: 'Отдача', icon: '⇤', desc: 'перекрёстный удар бьёт на 50% сильнее и чуть откидывает', mul: 0.5, kb: 10 },
+	drag: { roles: ['ring', 'trace'], name: 'Вязкость', icon: '≋', desc: 'перекрёстный удар бьёт на 45% сильнее и замедляет на 15% на 1 с (не холод)', mul: 0.45, slow: 0.15, dur: 1 },
+	aim: { roles: ['shot', 'trace'], name: 'Наводка', icon: '◎', desc: 'перекрёстный удар метит на 2 с: +16% урона от всех, поверх других меток', vuln: 0.16, dur: 2 },
+};
+export const AFFINITY_IDS = Object.keys(AFFINITY);
+const roleKey = (a, b) => [a, b].sort().join('+');
+const AFFINITY_BY_ROLES = Object.fromEntries(AFFINITY_IDS.map((id) => [roleKey(...AFFINITY[id].roles), id]));
+// Affinity rule id of two plain weapons, or null (same weapon, not plain, or the pair has a duo).
+export const affinityOf = (a, b) => {
+	if (a === b || !WEAPONS[a] || !WEAPONS[b] || DUO_BY_PAIR[duoKey(a, b)]) return null;
+	return AFFINITY_BY_ROLES[roleKey(WEAPONS[a].role, WEAPONS[b].role)] ?? null;
+};
 // Evolutions (5.4): weapon at level 5 + its artifact at any level → a single-level weapon that replaces it.
 // The artifact stays; an evolved weapon cannot join a duo, a weapon in a duo cannot evolve.
 export const EVOS = {

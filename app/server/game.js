@@ -15,6 +15,7 @@ import {
 	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, finaleAddScale, finaleAddCap, clampToRing,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, overclockId, BANS_START,
+	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
@@ -211,6 +212,7 @@ function makeHero(member, x, y) {
 		fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
 		bans: BANS_START, banned: new Set(), spinQueue: 0, offerSpin: false,
+		affN: Object.fromEntries(AFFINITY_IDS.map((id) => [id, 0])), affSeen: new Set(), // v24 affinity triggers
 		// v23 results card: the strongest single hit [dmg, source, time], kill times of the last STREAK_WINDOW s, best streak [kills, time].
 		bestHit: [0, null, 0], kq: [], kqi: 0, bestStreak: [0, 0],
 		streakT: 0, altarDmgT: 0, altarCurseT: 0, altarXpT: 0, altarDeal: null, downT: 0, offline: false,
@@ -774,13 +776,28 @@ export class Room {
 	}
 
 	// «🔗 с Грозой → Громовой разрез (нужно 3 + 3)» on weapon cards that pair with something already owned.
+	// v24: every owned partner (`duoHints`, the highest level first, at most two; `duoHint` = the first one for old clients)
+	// and, when this weapon pairs with nothing owned, the affinity with the first owned plain weapon (`affHint`).
 	duoHint(h, c) {
-		if (c.kind !== 'weapon' || DUOS[c.id] || this.duoCount(h) >= MAX_DUOS) return;
+		if (c.kind !== 'weapon' || !WEAPONS[c.id]) return;
+		if (this.duoCount(h) < MAX_DUOS) {
+			const list = [];
+			for (const [id, w] of h.weapons) {
+				if (id === c.id || !WEAPONS[id]) continue;
+				const duo = DUO_BY_PAIR[duoKey(c.id, id)];
+				if (duo) list.push({ with: id, withName: WEAPONS[id].name, id: duo, name: DUOS[duo].name, need: DUO_MIN_LEVEL, lvl: w.lvl });
+			}
+			list.sort((a, b) => b.lvl - a.lvl);
+			if (list.length) {
+				c.duoHints = list.slice(0, 2);
+				c.duoHint = c.duoHints[0];
+				return;
+			}
+		}
 		for (const [id] of h.weapons) {
-			if (id === c.id || DUOS[id]) continue;
-			const duo = DUO_BY_PAIR[duoKey(c.id, id)];
-			if (duo) {
-				c.duoHint = { with: id, withName: WEAPONS[id].name, id: duo, name: DUOS[duo].name, need: DUO_MIN_LEVEL };
+			const a = affinityOf(c.id, id);
+			if (a) {
+				c.affHint = { id: a, with: id, withName: WEAPONS[id].name, name: AFFINITY[a].name, desc: AFFINITY[a].desc };
 				return;
 			}
 		}
@@ -818,8 +835,9 @@ export class Room {
 			if (!OVERCLOCKS[id] || w.oc || w.lvl < MAX_LEVEL) continue;
 			if (!OVERCLOCKS[id].some((_, k) => !h.banned.has(`ovr:${id}:${k + 1}`))) continue;
 			if (!all && h.duoDefer['ovr:' + id] > h.offerNo) continue;
-			// A duo partner is owned: the duo is within reach (it would drop the overclock), wait for it.
-			if (duoOpen && [...h.weapons.keys()].some((o) => o !== id && WEAPONS[o] && DUO_BY_PAIR[duoKey(id, o)])) continue;
+			// v24: a duo partner of level ≥ DUO_MIN_LEVEL is owned: the duo is at hand (it would drop the overclock), wait for it.
+			// With 4 partners per weapon a merely owned partner would starve overclocks.
+			if (duoOpen && [...h.weapons].some(([o, ow]) => o !== id && WEAPONS[o] && ow.lvl >= DUO_MIN_LEVEL && DUO_BY_PAIR[duoKey(id, o)])) continue;
 			const evo = EVO_BY_WEAPON[id];
 			if (evo) {
 				const req = EVOS[evo].requires;
@@ -1036,6 +1054,7 @@ export class Room {
 		}
 		this.time += dt;
 		this.tickNo++;
+		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
@@ -1112,6 +1131,7 @@ export class Room {
 			dead: false, zig: type === 'wisp', phase: Math.random() * Math.PI * 2, oh: null,
 			boss: E.boss === true, ai: E.ai ?? null, bk: E.bk ?? null, bs: 0, bt: 0, bcd: 2, dcd: 1, vulnT: 0, group: 0, tx: 0, ty: 0, bvx: 0, bvy: 0, split: false,
 			slow: 0, slowT: 0, frozenT: 0, thawT: 0, knockT: 0, rootT: 0, wetT: 0, markT: 0, markMul: 0,
+			affW: null, affPid: 0, affT: 0, affCd: null, dragT: 0, drag: 0, soakT: 0, soakPid: 0, aimT: 0,
 			burnT: 0, burnDps: 0, burnOwner: null, burnAcc: 0,
 			elite: null, windT: 0, fuseT: 0, shotT: E.shotCd ? E.shotCd * (0.5 + Math.random() * 0.5) : 0,
 			fuseBy: null, exploded: false, auxT: 0, fa: 0, born: this.time,
@@ -1471,6 +1491,7 @@ export class Room {
 			dy /= d;
 			// Stop at contact distance so enemies don't stack on the player.
 			let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+			if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
 			if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
 			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
 			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
@@ -1966,7 +1987,18 @@ export class Room {
 		const now = this.time;
 		let crit = false;
 		if (!src.raw && e.markT > now) dmg *= 1 + e.markMul;
+		if (!src.raw && e.aimT > now) dmg *= 1 + AFFINITY.aim.vuln; // affinity «Наводка», on top of any mark
 		if (e.vulnT > now) dmg *= e.def.vuln ?? 1;
+		let critAdd = 0;
+		if (h && !src.raw && WEAPONS[src.weapon] && !this.affinityOff) {
+			const a = this.affinity(e, h, src.weapon);
+			if (a) {
+				const A = AFFINITY[a];
+				if (A.mul && a !== 'soak') dmg *= 1 + A.mul;
+				if (A.crit) critAdd = A.crit;
+			}
+			if (e.soakT > now && e.soakPid === h.pid && WEAPONS[src.weapon].role === 'trace') dmg *= 1 + AFFINITY.soak.mul;
+		}
 		if (h && !src.raw) {
 			if (h.rageT > now) dmg *= ITEMS.rage.mul;
 			if (h.streakT > now) dmg *= STREAK_MUL;
@@ -1975,7 +2007,7 @@ export class Room {
 			if (h.bondMul > 1) dmg *= h.bondMul;
 			if (h.bannerT > now) dmg *= 1 + EVOS.banner.levels[0].dmgBuff;
 			if (h.mods.chillVuln > 0 && e.slowT > now) dmg *= 1 + h.mods.chillVuln;
-			if (h.mods.critChance > 0 && Math.random() < h.mods.critChance) {
+			if (h.mods.critChance + critAdd > 0 && Math.random() < h.mods.critChance + critAdd) {
 				crit = true;
 				dmg *= h.mods.critMul;
 			}
@@ -2013,6 +2045,38 @@ export class Room {
 			} else if (e.burnT <= this.time + 1) this.burn(e, h, h.mods.burnDps * EMBER_WEAK.frac, EMBER_WEAK.dur);
 		}
 		return dmg;
+	}
+
+	// Affinity (v24): a hit by plain weapon `w` on an enemy this player hit with another plain weapon within AFFINITY_WINDOW s.
+	// Returns the rule id when it fires (side effects applied here, damage and crit by the caller), else null.
+	affinity(e, h, w) {
+		const now = this.time, prev = e.affW;
+		const fresh = prev && prev !== w && e.affPid === h.pid && now - e.affT <= AFFINITY_WINDOW;
+		e.affW = w;
+		e.affPid = h.pid;
+		e.affT = now;
+		if (!fresh || !h.weapons.has(prev) || !h.weapons.has(w)) return null;
+		const a = affinityOf(prev, w);
+		if (!a) return null;
+		const key = prev < w ? prev + '+' + w : w + '+' + prev;
+		if ((e.affCd?.[key] ?? 0) > now) return null;
+		(e.affCd ??= {})[key] = now + AFFINITY_EVERY;
+		const A = AFFINITY[a];
+		if (a === 'recoil' && !e.boss) this.knock(e, h.x, h.y, A.kb);
+		else if (a === 'drag' && !e.boss) {
+			e.drag = Math.max(e.dragT > now ? e.drag : 0, A.slow);
+			e.dragT = now + A.dur;
+		} else if (a === 'aim') e.aimT = now + A.dur;
+		else if (a === 'soak') {
+			e.soakT = now + A.dur;
+			e.soakPid = h.pid;
+		}
+		h.affN[a]++;
+		if (!h.affSeen.has(a)) {
+			h.affSeen.add(a);
+			this.send(h.pid, { t: 'aff', id: a, a: prev, b: w });
+		}
+		return a;
 	}
 
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
@@ -2119,6 +2183,7 @@ export class Room {
 		if (e.def.special && e.ai !== 'flee') this.runLog?.special(this, e, 'killed');
 		if (e.add) this.runLog?.finAddKilled();
 		if (e.burnT > this.time && e.burnOwner?.weapons.has('firepath')) this.spreadFire(e);
+		if (e.markT > this.time && e.lightBy) this.lightDeath(e);
 		if (h && src.weapon === 'fireworks') this.gems[this.gems.length - 1].pull = h;
 		if (e.ai === 'exploder' && !e.exploded) {
 			e.exploded = true;
@@ -2547,6 +2612,35 @@ export class Room {
 			case 'firewheel':
 				this.firewheelTick(h, w, L, dt);
 				return;
+			case 'guide':
+				this.guideTick(h, w, L, dt);
+				return;
+			case 'glow':
+				w.t -= dt;
+				if (w.t <= 0) w.t = this.glowTick(h, L) ? L.tick : 0.2;
+				return;
+			case 'dome':
+				this.wardTick(h, w, L, dt);
+				w.a = (w.a ?? 0.2) - dt;
+				if (w.a <= 0) {
+					w.a = L.tick;
+					this.domeTick(h, L);
+				}
+				return;
+			case 'riposte':
+				this.wardTick(h, w, L, dt);
+				w.a = (w.a ?? 0.3) - dt;
+				if (w.a <= 0) w.a = this.riposteSwing(h, L) ? L.atkCd * cdMul : 0.1;
+				return;
+			case 'rod':
+				this.wardTick(h, w, L, dt);
+				w.a = (w.a ?? 0.3) - dt;
+				if (w.a <= 0) w.a = this.rodStrikes(h, L) ? L.atkCd * cdMul : 0.2;
+				return;
+			case 'pitch':
+				w.t -= dt;
+				if (w.t <= 0) w.t = this.pitchTick(h, L) ? L.every : 0.05;
+				return;
 			case 'stormlight':
 				this.stormlightTick(h, w, L, dt);
 				return;
@@ -2773,6 +2867,26 @@ export class Room {
 				w.t = L.cd * cdMul;
 				return;
 			}
+			case 'firescythe': {
+				const count = L.count + amount;
+				const range = L.range * areaMul;
+				const targets = this.nearestEnemies(h.x, h.y, count, range + 60);
+				if (!targets.length) {
+					w.t = 0.1;
+					return;
+				}
+				for (let i = 0; i < count; i++) {
+					const t = targets[i % targets.length];
+					const a = Math.atan2(t.y - h.y, t.x - h.x) + (i < targets.length ? 0 : (i - targets.length + 1) * 0.5);
+					const speed = L.speed * h.mods.speedMul;
+					this.addProjectile(h, 'sickle', a, speed, dmg, Infinity, (range / speed) * 2 + 1.5, null, range / speed, {
+						src, burnHit: L.burn,
+						fire: { every: L.every, acc: L.every, r: L.patchR * areaMul, life: L.patchLife * durMul, dmg: L.patchDmg * dmgMul, tick: L.tick, burn: L.burn },
+					});
+				}
+				w.t = L.cd * cdMul;
+				return;
+			}
 			case 'icedisc': {
 				const count = L.count + amount;
 				const range = L.range * areaMul;
@@ -2861,6 +2975,7 @@ export class Room {
 				return;
 			case 'spear':
 			case 'volley':
+			case 'sunspear':
 			case 'banner': {
 				const t = this.toughest(h, SPEAR_RANGE);
 				if (!t) {
@@ -2876,6 +2991,7 @@ export class Room {
 						src, kb: L.kb, r: L.width / 2, bond,
 						caltrop: oc === 'caltrop' ? { every: 90, acc: 45, dmg: dmg * OVR_SPIKE.frac } : null,
 						shed: id === 'volley' ? { every: L.every, acc: 0, dmg: L.knifeDmg * dmgMul, speed: 560, life: 0.45 } : null,
+						lane: id === 'sunspear' ? { every: L.laneR * 1.6, acc: 0, r: L.laneR * areaMul, life: L.laneLife * durMul, mark: L.mark, dmg: L.laneDmg * dmgMul, tick: L.tick } : null,
 						onEnd: id === 'banner' && i === 0 ? (p) => this.plantBanner(h, p.x, p.y, L) : null,
 					});
 				}
@@ -3035,7 +3151,7 @@ export class Room {
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
-		const id = h.weapons.has('bastion') ? 'bastion' : h.weapons.has('phalanx') ? 'phalanx' : 'ward';
+		const id = ['bastion', 'phalanx', 'dome', 'riposte', 'rod'].find((k) => h.weapons.has(k)) ?? 'ward';
 		const w = h.weapons.get(id);
 		const L = weaponLevel(id, w?.lvl ?? 1, w?.oc);
 		h.ward--;
@@ -3044,6 +3160,19 @@ export class Room {
 		if (w && h.ward < h.wardMax) w.t = Math.min(w.t, L.cd * h.mods.cdMul);
 		if (id === 'phalanx') {
 			this.spearRing(h, L);
+			return;
+		}
+		if (id === 'dome') {
+			this.explode({ x: h.x, y: h.y, r: L.burstR * h.mods.areaMul, pdmg: 0, edmg: L.burstDmg * h.mods.dmgMul, owner: h, kind: 7, src: SRC.dome, kb: L.kb });
+			return;
+		}
+		if (id === 'riposte') {
+			this.riposteAnswer(h, L);
+			return;
+		}
+		if (id === 'rod') {
+			const t = this.nearestEnemies(h.x, h.y, 1, 260)[0];
+			if (t) this.strikeAt(h, t, L.counter * h.mods.dmgMul, L.counterChain + h.trait.chainBonus, SRC.rod);
 			return;
 		}
 		if (id === 'bastion' || h.ward <= 0 || overclockId(id, w?.oc) === 'thorns') {
@@ -3215,6 +3344,163 @@ export class Room {
 			(e.oh ??= {})[key] = this.time + 0.5;
 			this.hurtEnemy(e, L.dmg * h.mods.dmgMul, h, SRC.beacon);
 		}
+	}
+
+	// --- v24 duos (связки v2) ---
+
+	// Путеводный огонь: the cone marks a group; sparks fly only at marked enemies and stretch the mark.
+	guideTick(h, w, L, dt) {
+		const { dmgMul, areaMul, amount, cdMul } = h.mods;
+		w.t -= dt;
+		if (w.t <= 0) {
+			const c = this.lightCone(h, L.range * areaMul, L.angle, L.mark, L.tick + 0.3, L.dmg * dmgMul, SRC.guide);
+			w.t = c ? L.tick : 0.2;
+			if (c) {
+				w.cone = c.list;
+				for (const e of c.list) e.lightBy = h;
+			}
+		}
+		w.s = (w.s ?? 0.3) - dt;
+		if (w.s > 0) return;
+		const cand = (w.cone ?? []).filter((e) => !e.dead && e.markT > this.time);
+		if (!cand.length) {
+			w.s = 0.1;
+			return;
+		}
+		cand.sort((a, b) => dist2(a.x, a.y, h.x, h.y) - dist2(b.x, b.y, h.x, h.y));
+		const n = L.count + amount;
+		for (let i = 0; i < n; i++) {
+			const t = cand[i % cand.length];
+			const a = Math.atan2(t.y - h.y, t.x - h.x) + (i - (n - 1) / 2) * 0.2;
+			this.addProjectile(h, 'bolt', a, L.speed, L.sparkDmg * dmgMul, L.pierce, 2.5, t, 0, { src: SRC.guide, markExt: 1 });
+		}
+		w.s = L.sparkCd * cdMul;
+	}
+
+	// Зарево: the cone marks and ignites.
+	glowTick(h, L) {
+		const c = this.lightCone(h, L.range * h.mods.areaMul, L.angle, L.mark, L.tick + 0.3, L.dmg * h.mods.dmgMul, SRC.glow);
+		if (!c) return false;
+		for (const e of c.list) {
+			e.lightBy = h;
+			if (!e.dead) this.burn(e, h, L.burn, 2);
+		}
+		return true;
+	}
+
+	// A marked enemy lit by Путеводный огонь or Зарево dies: sparks into neighbours or a burning patch.
+	lightDeath(e) {
+		const h = e.lightBy;
+		if (!this.heroes.has(h.pid)) return;
+		const gw = h.weapons.get('guide');
+		if (gw && this.lightBudget > 0) {
+			const L = weaponLevel('guide', gw.lvl);
+			const exclude = [e];
+			for (let i = 0; i < L.deathSparks && this.lightBudget > 0; i++, this.lightBudget--) {
+				const t = this.nearestFrom(e, exclude, 260);
+				if (!t) break;
+				exclude.push(t);
+				this.addProjectile(h, 'bolt', Math.atan2(t.y - e.y, t.x - e.x), L.speed, L.sparkDmg * 0.5 * h.mods.dmgMul, 1, 1.0, t, 0, { x: e.x, y: e.y, src: SRC.guide });
+			}
+		}
+		const lw = h.weapons.get('glow');
+		if (lw && e.burnT > this.time && this.lightBudget > 0) {
+			this.lightBudget--;
+			const L = weaponLevel('glow', lw.lvl);
+			this.addPatch(h, e.x, e.y, L.patchR * h.mods.areaMul, L.patchLife * h.mods.durMul, L.patchDmg * h.mods.dmgMul, L.patchTick, SRC.glow, 0, 'glowp', 12);
+		}
+	}
+
+	// A burning patch of a duo (zk 1); at most `max` of this `tag` per player, the oldest goes.
+	addPatch(h, x, y, r, life, dmg, tick, src, burn, tag, max, extra = null) {
+		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src, burn, tag, ...extra };
+		this.puddles.push(z);
+		this.fx.push(['zk', z.id, extra?.mark ? 3 : 1]);
+		let mine = 0;
+		for (const p of this.puddles) if (p.owner === h && p.tag === tag) mine++;
+		if (mine > max) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.tag === tag), 1);
+		return z;
+	}
+
+	// Солнечное копьё: a lane of light behind the spear marks everyone in it.
+	dropLane(p, dt) {
+		const l = p.lane;
+		l.acc += p.speed * dt;
+		if (l.acc < l.every) return;
+		l.acc -= l.every;
+		this.addPatch(p.owner, p.x, p.y, l.r, l.life, l.dmg, l.tick, p.src, 0, 'lane', 60, { mark: l.mark });
+	}
+
+	// Огненный серп: a burning strip along the whole flight, both ways.
+	dropFire(p, dt) {
+		const f = p.fire;
+		f.acc += p.speed * dt;
+		if (f.acc < f.every) return;
+		f.acc -= f.every;
+		this.addPatch(p.owner, p.x, p.y, f.r, f.life, f.dmg, f.tick, p.src, f.burn, 'scythe', 48);
+	}
+
+	// Купол: an aura that is wider and stronger while the shield holds a charge.
+	domeTick(h, L) {
+		const charged = h.ward > 0;
+		const r = L.radius * h.mods.areaMul * (charged ? L.chargeArea : 1);
+		const dmg = L.dmg * h.mods.dmgMul * (charged ? L.chargeMul : 1);
+		for (const e of this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2)) {
+			const rr = r + e.r * 0.5;
+			if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
+			this.hurtEnemy(e, dmg, h, SRC.dome);
+		}
+		if (h.trait.auraHeal > 0) {
+			for (const o of this.heroes.values()) {
+				if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < r * r) o.hp = Math.min(o.maxHp, o.hp + h.trait.auraHeal * L.tick);
+			}
+		}
+		this.breakAround(h.x, h.y, r, h);
+	}
+
+	// Контрудар: a swing to both sides.
+	riposteSwing(h, L) {
+		const range = L.range * h.mods.areaMul, width = L.width * h.mods.areaMul;
+		const target = this.nearestEnemies(h.x, h.y, 1, range + width)[0];
+		if (!target) return false;
+		const dir = target.x >= h.x ? 1 : -1;
+		const hit = [];
+		for (const d of [dir, -dir]) {
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.slashHits(h, d, range, width, L.dmg * h.mods.dmgMul, SRC.riposte, hit);
+			this.breakAround(h.x + (d * range) / 2, h.y, range / 2, h);
+		}
+		return true;
+	}
+
+	// A charge eaten by Контрудар answers with a round swing.
+	riposteAnswer(h, L) {
+		const r = L.ripR * h.mods.areaMul;
+		this.fx.push(['crescent', h.pid, Math.round(r)]);
+		for (const e of this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2)) {
+			const rr = r + e.r * 0.5;
+			if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
+			this.hurtEnemy(e, L.dmg * L.ripMul * h.mods.dmgMul, h, SRC.riposte);
+			if (!e.dead && !e.boss) this.knock(e, h.x, h.y, L.kb);
+		}
+		this.breakAround(h.x, h.y, r, h);
+	}
+
+	// Громоотвод: lightning into the enemies nearest to the hero.
+	rodStrikes(h, L) {
+		const near = this.nearestEnemies(h.x, h.y, L.strikes + h.mods.amount, L.radius * h.mods.areaMul);
+		if (!near.length) return false;
+		for (const t of near) this.strikeAt(h, t, L.dmg * h.mods.dmgMul, L.chain + h.trait.chainBonus, SRC.rod);
+		return true;
+	}
+
+	// Смола: burning pitch behind a moving hero, wide pools that burn and slow.
+	pitchTick(h, L) {
+		if (this.time - h.movedT > MOVE_RECENT) return false;
+		const z = this.addPatch(h, h.x, h.y, L.radius * h.mods.areaMul, L.dur * h.mods.durMul, L.dmg * h.mods.dmgMul, L.tick, SRC.pitch, L.burn, 'pitch', L.max);
+		// Not a cold slow: with its own fire a cold slow would make «Пар» on every tick and put the burn out.
+		z.drag = Math.max(L.slow, h.trait.puddleSlow);
+		return true;
 	}
 
 	// Огненная тропа: a burning enemy that dies sets its neighbours on fire.
@@ -3700,7 +3986,8 @@ export class Room {
 			x: opts.x ?? h.x, y: opts.y ?? h.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, speed, dmg, pierce, life, target,
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
 			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
-			seek: opts.seek ?? false, caltrop: opts.caltrop ?? null,
+			seek: opts.seek ?? false, caltrop: opts.caltrop ?? null, lane: opts.lane ?? null, fire: opts.fire ?? null,
+			burnHit: opts.burnHit ?? 0, markExt: opts.markExt ?? 0,
 		};
 		this.projectiles.push(p);
 		// Projectiles often live shorter than a snapshot interval, so clients simulate them from events.
@@ -3790,6 +4077,8 @@ export class Room {
 			}
 			if (p.trail) this.iceTrail(p, dt);
 			if (p.shed) this.shedKnives(p, dt);
+			if (p.lane) this.dropLane(p, dt);
+			if (p.fire) this.dropFire(p, dt);
 			if (p.caltrop && !(p.returns && p.outT <= 0)) {
 				p.caltrop.acc += p.speed * dt;
 				if (p.caltrop.acc >= p.caltrop.every) {
@@ -3848,6 +4137,8 @@ export class Room {
 				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
 				if (p.kb && !e.dead && !e.boss && !(p.returns && p.outT <= 0)) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
 				if (p.split) this.splitSpark(p, e);
+				if (p.burnHit && !e.dead) this.burn(e, p.owner, p.burnHit, 2);
+				if (p.markExt && !e.dead && e.markT > this.time) e.markT = Math.max(e.markT, this.time + p.markExt);
 				if (--p.pierce <= 0) break;
 				if (p.seek) {
 					// Overclocks «Рикошет» and «Шаровая молния»: after a hit the projectile turns to a neighbour it has not hit yet.
@@ -3951,6 +4242,14 @@ export class Room {
 						}
 						this.hurtEnemy(e, z.dmg, z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
+						if (z.drag && !e.dead && !e.boss) {
+							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
+							e.dragT = this.time + z.tick + 0.1;
+						}
+						if (z.mark && !e.dead) {
+							if (e.markT <= this.time || z.mark > e.markMul) e.markMul = z.mark;
+							e.markT = Math.max(e.markT, this.time + z.tick + 0.3);
+						}
 					}
 					this.breakAround(z.x, z.y, z.r, z.owner);
 				}

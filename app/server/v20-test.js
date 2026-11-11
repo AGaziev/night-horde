@@ -25,7 +25,7 @@ function room(heroes = ['knight'], mode = 'night') {
 const lastOffer = (pid = 1) => sent.filter(([p, m]) => p === pid && m.t === 'lvl').at(-1)[1];
 const kinds = (cards) => cards.map((c) => c.kind);
 // A hero with full slots: `weapons` at level 5, four maxed artifacts that open no evolution of these weapons.
-function setBuild(r, h, weapons, passives = ['crit', 'mail', 'area', 'regen'], lvl = MAX_LEVEL) {
+function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen'], lvl = MAX_LEVEL) {
 	h.weapons = new Map(weapons.map((id) => [id, { lvl, t: 0 }]));
 	h.passives = new Map(passives.map((id) => [id, MAX_LEVEL]));
 	r.recalcMods(h);
@@ -33,10 +33,11 @@ function setBuild(r, h, weapons, passives = ['crit', 'mail', 'area', 'regen'], l
 	h.offer = null;
 	h.duoDefer = {};
 }
-const NO_PAIRS = ['whip', 'bolt', 'knives', 'ward', 'lantern', 'frost']; // no duo pairs, no evolutions with the artifacts above
+// v24: the only six weapons with no duo pair among the 30 duos; orbit is the weapon under test, ward the last slot.
+const NO_PAIRS = ['orbit', 'flask', 'sickle', 'traps', 'lantern', 'ward']; // no duo pairs, no evolutions with the artifacts above
 
-assert.equal(GAME_VERSION, 'v23');
-assert.equal(PROTO, 20);
+assert.ok(/^v2[34]/.test(GAME_VERSION));
+assert.ok(PROTO >= 20);
 
 // --- table: two variants for each of the 15 plain weapons, one-line descriptions, stats patched only at level 5 ---
 {
@@ -68,23 +69,23 @@ assert.equal(PROTO, 20);
 	// Level 4 weapon: no overclock. Level 5 while two or more upgrades are left: the overclock waits.
 	setBuild(r, h, NO_PAIRS, undefined, 4);
 	for (let k = 0; k < 30; k++) assert.ok(!kinds(r.makeChoices(h)).includes('ovr'), 'no overclock below level 5');
-	h.weapons.get('whip').lvl = 5;
+	h.weapons.get('orbit').lvl = 5;
 	h.duoDefer = {};
 	for (let k = 0; k < 30; k++) assert.ok(!kinds(r.makeChoices(h)).includes('ovr'), 'many upgrades left: the overclock waits');
 	// One upgrade left: the pair comes in slots 1–2, the upgrade in slot 3.
 	setBuild(r, h, NO_PAIRS);
-	for (const [id, w] of h.weapons) if (id !== 'whip') w.oc = 1;
+	for (const [id, w] of h.weapons) if (id !== 'orbit') w.oc = 1;
 	h.passives.set('crit', 4);
 	let c = r.makeChoices(h);
-	assert.deepEqual([c[0].kind, c[1].kind, c[0].id, c[1].id, c[0].v, c[1].v], ['ovr', 'ovr', 'whip', 'whip', 1, 2], 'both variants as two cards in slots 1–2');
-	assert.equal(c[0].name, OVERCLOCKS.whip[0].name);
-	assert.equal(c[0].wName, WEAPONS.whip.name);
+	assert.deepEqual([c[0].kind, c[1].kind, c[0].id, c[1].id, c[0].v, c[1].v], ['ovr', 'ovr', 'orbit', 'orbit', 1, 2], 'both variants as two cards in slots 1–2');
+	assert.equal(c[0].name, OVERCLOCKS.orbit[0].name);
+	assert.equal(c[0].wName, WEAPONS.orbit.name);
 	assert.deepEqual(c.slice(2).map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'slot 3 is the last upgrade');
 	// Two upgrades left: still waiting.
-	h.passives.set('mail', 4);
+	h.passives.set('might', 4);
 	assert.ok(!kinds(r.makeChoices(h)).includes('ovr'));
 	h.passives.set('crit', 5);
-	h.passives.set('mail', 5);
+	h.passives.set('might', 5);
 
 	// Everything maxed, no overclocks taken: overclocks, never embers.
 	setBuild(r, h, NO_PAIRS);
@@ -101,10 +102,10 @@ assert.equal(PROTO, 20);
 	assert.deepEqual(c.map((x) => `${x.kind}:${x.id}`), ['passive:crit'], 'one upgrade left: no embers next to it');
 	// One overclock left: its two cards, no embers.
 	h.passives.set('crit', 5);
-	delete h.weapons.get('frost').oc;
+	delete h.weapons.get('ward').oc;
 	h.duoDefer = {};
 	c = r.makeChoices(h);
-	assert.deepEqual(c.map((x) => `${x.kind}:${x.id}:${x.v}`), ['ovr:frost:1', 'ovr:frost:2']);
+	assert.deepEqual(c.map((x) => `${x.kind}:${x.id}:${x.v}`), ['ovr:ward:1', 'ovr:ward:2']);
 	// Low hp: healing joins as the third card.
 	h.hp = 1;
 	c = r.makeChoices(h);
@@ -147,12 +148,14 @@ assert.equal(PROTO, 20);
 	h.weapons = new Map([['spear', { lvl: 5, t: 0 }]]);
 	assert.equal(EVOS[EVO_BY_WEAPON.spear].requires, 'bond');
 	assert.deepEqual(r.ovrList(h), ['spear'], 'solo: «Узы» cannot come, the spear does not wait');
-	// A duo partner is owned: wait for the duo (knives + traps → «Растяжка»); no duo slots left: overclock.
+	// v24: a duo partner of level ≥ 3 is owned: wait for the duo (knives + traps → «Растяжка»); a lower partner does not hold it.
 	h.weapons = new Map([['knives', { lvl: 5, t: 0 }], ['traps', { lvl: 2, t: 0 }]]);
 	h.passives = new Map([['crit', 5], ['mail', 5], ['area', 5], ['regen', 5]]);
 	h.duoDefer = {};
 	r.recalcMods(h);
-	assert.deepEqual(r.ovrList(h, true).filter((id) => id === 'knives'), [], 'duo partner owned: the weapon waits');
+	assert.ok(r.ovrList(h, true).includes('knives'), 'v24: a partner below level 3 does not hold the overclock');
+	h.weapons.get('traps').lvl = 3;
+	assert.deepEqual(r.ovrList(h, true).filter((id) => id === 'knives'), [], 'duo partner at level 3 owned: the weapon waits');
 	h.weapons.set('thunderslash', { lvl: 1, t: 0 });
 	h.weapons.set('orb', { lvl: 1, t: 0 });
 	assert.ok(r.ovrList(h, true).includes('knives'), 'both duo slots used: overclock allowed');
@@ -274,13 +277,13 @@ assert.equal(PROTO, 20);
 	assert.equal(h.rerolls, REROLLS_START + 1, 'feather: +1 reroll');
 	// An overclock variant: the other one stays and comes alone.
 	setBuild(r, h, NO_PAIRS);
-	for (const [id, w] of h.weapons) if (id !== 'whip') w.oc = 1;
+	for (const [id, w] of h.weapons) if (id !== 'orbit') w.oc = 1;
 	h.banned.clear();
 	h.offer = r.makeChoices(h);
 	assert.deepEqual(kinds(h.offer), ['ovr', 'ovr']);
 	r.handle(1, { t: 'ban', i: 0 });
-	assert.ok(h.banned.has('ovr:whip:1'));
-	assert.deepEqual(h.offer.map((c) => `${c.kind}:${c.id}:${c.v}`), ['ovr:whip:2'], 'the other variant stays');
+	assert.ok(h.banned.has('ovr:orbit:1'));
+	assert.deepEqual(h.offer.map((c) => `${c.kind}:${c.id}:${c.v}`), ['ovr:orbit:2'], 'the other variant stays');
 	r.handle(1, { t: 'ban', i: 0 });
 	assert.equal(h.bans, 0);
 	assert.deepEqual(kinds(h.offer), ['ember', 'ember', 'ember'], 'both variants banished: embers');
@@ -290,7 +293,7 @@ assert.equal(PROTO, 20);
 	const log = r.runLog.build(r, false).team[0];
 	assert.equal(log.bans.length, 3);
 	assert.ok(log.picks.filter((e) => e[2] === 'ban').length === 3);
-	assert.equal(log.bans[1][1], 'whip~1');
+	assert.equal(log.bans[1][1], 'orbit~1');
 	console.log('banish: OK');
 }
 
@@ -348,12 +351,12 @@ assert.equal(PROTO, 20);
 {
 	const r = room();
 	const h = r.heroes.get(1);
-	setBuild(r, h, NO_PAIRS.slice(0, 5), ['crit', 'mail', 'area']);
+	setBuild(r, h, NO_PAIRS.slice(0, 5), ['crit', 'might', 'haste']);
 	for (const w of h.weapons.values()) w.oc = 1;
-	h.weapons.get('whip').lvl = 4;
-	delete h.weapons.get('whip').oc;
+	h.weapons.get('orbit').lvl = 4;
+	delete h.weapons.get('orbit').oc;
 	r.time = 500;
-	h.offer = [{ id: 'frost', kind: 'weapon', level: 1, add: 1 }];
+	h.offer = [{ id: 'ward', kind: 'weapon', level: 1, add: 1 }];
 	r.handle(1, { t: 'pick', i: 0 });
 	assert.equal(r.runLog.p.get(1).slotsFullT, null, 'artifact slot still free');
 	r.time = 520;
@@ -362,7 +365,7 @@ assert.equal(PROTO, 20);
 	assert.equal(r.runLog.p.get(1).slotsFullT, 520);
 	// Last third (from 600 of 900): one upgrade and two embers.
 	r.time = 650;
-	h.offer = [{ id: 'whip', kind: 'weapon', level: 5, add: 1 }];
+	h.offer = [{ id: 'orbit', kind: 'weapon', level: 5, add: 1 }];
 	r.handle(1, { t: 'pick', i: 0 });
 	for (const t of [700, 800]) {
 		r.time = t;

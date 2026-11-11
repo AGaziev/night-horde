@@ -37,7 +37,7 @@ const reacts = (r, kind) => r.fx.filter((f) => f[0] === 'react' && f[1] === REAC
 		assert.equal(DUO_BY_PAIR[duoKey(...D.parts)], id);
 		assert.equal(D.levels.length, 3, id);
 	}
-	for (const id of Object.keys(WEAPONS)) assert.ok((per[id] ?? 0) >= 1 && per[id] <= 3, `${id} in 1..3 duos (${per[id]})`);
+	for (const id of Object.keys(WEAPONS)) assert.ok((per[id] ?? 0) >= 1 && per[id] <= 4, `${id} in 1..4 duos (${per[id]})`); // v24: up to 4
 	for (const id of ['stormlight', 'volley', 'phalanx', 'firewheel']) assert.ok(DUOS[id]);
 	const req = {};
 	for (const id of EVO_IDS) {
