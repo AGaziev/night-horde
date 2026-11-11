@@ -247,6 +247,7 @@ export class Events {
 		if (D.xpMul) h.altarXpT = t + D.dur;
 		h.altarDeal = D;
 		room.fx.push(['altar', h.pid, ALTAR_DEALS.indexOf(D)]);
+		room.offerAltarSwap(h);
 	}
 
 	openCursed(ev, h, alive) {

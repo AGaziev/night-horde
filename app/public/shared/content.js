@@ -1,7 +1,7 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v24';
+export const GAME_VERSION = 'v27';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
@@ -21,7 +21,7 @@ export const teamXpMul = (players) => Math.max(1, players) / (1 + OLD_GEM_SHARE 
 export const MAX_LEVEL = 5; // max level of every weapon and passive
 // Slots are scarce on purpose: a full build is 4 weapons + 4 artifacts, so choices differ between players.
 export const MAX_WEAPONS = 6;
-export const MAX_PASSIVES = 4;
+export const MAX_PASSIVES = 6;
 // Bosses (v8): regular ones at BOSS_SCHEDULE in a random order without repeats, the final one is always the Lord.
 export const BOSS_SCHEDULE = [180, 360, 540, 720];
 export const BOSS_POOL = ['brood', 'ram', 'gunner', 'twin'];
@@ -40,13 +40,23 @@ export const xpForNext = (level, players = 1) => Math.round((5 + (level - 1) * 8
 // Player colors by join order.
 export const PLAYER_COLORS = ['#4fc3f7', '#ff8a65', '#aed581', '#ba68c8', '#ffd54f', '#4db6ac', '#f06292', '#90a4ae'];
 
+export const HERO_PERKS = {
+	knight: { name: 'Щит', desc: 'Раз в 20 с щит поглощает один удар.', cooldown: 20 },
+	witch: { name: 'Эхо атаки', desc: 'Раз в 8 с повторяет атаку с 60% урона и её эффектами.', cooldown: 8, damage: 0.6 },
+	ranger: { name: 'Бросок на ходу', desc: 'На бегу раз в 3 с бросает клинок в преследователя или ближайшего врага.', cooldown: 3 },
+	smith: { name: 'Удар молота', desc: 'Серия попаданий вызывает удар молотом. Разное оружие набирает серию быстрее.', cooldown: 4 },
+	stormcaller: { name: 'Разряд', desc: 'Раз в 6 с отмечает врага. Следующее попадание выпускает молнию из цели.', cooldown: 6 },
+	alchemist: { name: 'Осадок', desc: 'Раз в 6 с попадание оставляет лужу сырости. Она перенимает холод или горение атаки.', cooldown: 6 },
+	spearmaiden: { name: 'Прокол', desc: 'Раз в 6 с попадание пробивает линию врагов через цель.', cooldown: 6 },
+	herald: { name: 'Целительный звон', desc: 'Попадание раз в 15 с лечит вас на 6 и одного союзника рядом на 12.', cooldown: 15, self: 6, ally: 12, range: 145 },
+};
+
 export const HEROES = {
 	knight: { name: 'Страж', desc: 'Крепкий воин с клинком', hp: 140, speed: 150, weapon: 'whip', color: '#90caf9' },
 	witch: { name: 'Ведьма', desc: 'Самонаводящиеся искры', hp: 100, speed: 160, weapon: 'bolt', color: '#ce93d8' },
 	ranger: { name: 'Следопыт', desc: 'Быстрый, метает ножи', hp: 110, speed: 175, weapon: 'knives', color: '#a5d6a7' },
 	herald: {
 		name: 'Звонарь', desc: 'Поддержка с ореолом', hp: 140, speed: 145, weapon: 'aura', color: '#ffe082',
-		trait: { auraHeal: 1 }, traitDesc: 'Союзники в его ореоле лечатся на 1\u00a0❤/\u2060с',
 	},
 	smith: {
 		name: 'Кузнец', desc: 'Танк с кружащими молотами', hp: 170, speed: 135, weapon: 'orbit', color: '#ffab91',
@@ -180,13 +190,12 @@ export function unlockProgress(id, stats) {
 }
 
 // Hero traits (all optional, read by the server from HEROES[id].trait):
-//   auraHeal   — hp/s healed to other alive players inside this hero's aura
 //   dmgTaken   — multiplier for damage taken
 //   taunt      — enemies within this distance target this hero instead of the nearest player
 //   chainBonus — extra lightning chain jumps
 //   puddleSlow — fraction of speed enemies lose while inside this hero's puddles
 //   spearRam   — spear damage bonus per enemy the spear has already pierced; spearKb — spear knockback multiplier
-export const NO_TRAIT = Object.freeze({ auraHeal: 0, dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0, spearRam: 0, spearKb: 1 });
+export const NO_TRAIT = Object.freeze({ dmgTaken: 1, taunt: 0, chainBonus: 0, puddleSlow: 0, spearRam: 0, spearKb: 1 });
 export const heroTrait = (heroId) => ({ ...NO_TRAIT, ...(HEROES[heroId]?.trait ?? {}) });
 
 // Weapon stats per level: index 0 = level 1. `cd` is cooldown in seconds.
@@ -343,6 +352,36 @@ export const WEAPONS = {
 			{ charges: 3, cd: 7, burstDmg: 40, burstR: 140, kb: 100 },
 		],
 	},
+	prism: {
+		name: 'Призма', icon: '◇', desc: 'Луч раздваивается за первой целью и поражает врагов за ней', tags: ['proj'], role: 'shot',
+		levels: [
+			{ dmg: 16, cd: 2.4, range: 260, width: 22 },
+			{ dmg: 20, cd: 2.2, range: 290, width: 24 },
+			{ dmg: 25, cd: 2.0, range: 320, width: 27 },
+			{ dmg: 31, cd: 1.8, range: 350, width: 30 },
+			{ dmg: 40, cd: 1.6, range: 380, width: 34 },
+		],
+	},
+	tuning: {
+		name: 'Камертон', icon: '♬', desc: 'Волна метит врагов. Следующий физический удар по метке даёт новый импульс', tags: ['aoe'], role: 'ring',
+		levels: [
+			{ dmg: 12, cd: 2.8, radius: 95, dur: 2.2 },
+			{ dmg: 15, cd: 2.6, radius: 108, dur: 2.5 },
+			{ dmg: 20, cd: 2.4, radius: 123, dur: 2.7 },
+			{ dmg: 25, cd: 2.2, radius: 140, dur: 3 },
+			{ dmg: 32, cd: 2, radius: 160, dur: 3.3 },
+		],
+	},
+	anchor: {
+		name: 'Теневой якорь', icon: '⚓', desc: 'Стягивает обычных врагов в центр толпы. В луже Зелья продлевает её действие', tags: ['aoe'], role: 'trace',
+		levels: [
+			{ dmg: 12, cd: 4.2, radius: 95, range: 260 },
+			{ dmg: 16, cd: 4, radius: 108, range: 280 },
+			{ dmg: 20, cd: 3.7, radius: 124, range: 300 },
+			{ dmg: 26, cd: 3.4, radius: 140, range: 320 },
+			{ dmg: 34, cd: 3.1, radius: 158, range: 350 },
+		],
+	},
 };
 
 // Passive multipliers are applied per level (value * level). `tpl` shows the value one card adds ({v}, see passiveDesc);
@@ -365,6 +404,10 @@ export const PASSIVES = {
 	frostcore: { name: 'Ледяное сердце', icon: '❆', desc: '+10% силы контроля; замедленные получают +6% урона за уровень', tpl: '+{v}% силы контроля; замедленные получают +6% урона за уровень', stat: 'ctrlMul', perLevel: 0.10, extra: { chillVuln: [0.06, 0.12, 0.18, 0.24, 0.30] } },
 	luck: { name: 'Подкова', icon: '☘', desc: '+10% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', tpl: '+{v}% удачи: сундуки, редкие карточки, золотые кристаллы; +4% шанс крита за уровень', stat: 'luck', perLevel: 0.10, bonus: { critChance: 0.04 } },
 	clover: { name: 'Клевер', icon: '🍀', desc: '+15% к шансу редких карточек; +5% урона за уровень', tpl: '+{v}% к шансу редких карточек; +5% урона за уровень', stat: 'fortune', perLevel: 0.15, bonus: { dmgMul: 0.05 } },
+	lens: { name: 'Гранёная линза', icon: '◈', desc: 'Попадания по следующим целям одной атаки сильнее', tpl: '+{v}% урона по следующим целям одной атаки', stat: 'piercePower', perLevel: 0.12 },
+	coil: { name: 'Грозовая катушка', icon: 'ϟ', desc: 'Убийство электрическим ударом пересылает молнию ближайшему врагу. С уровнем разряд бьёт дальше, до трёх прыжков.', stat: 'coil', values: [1, 1, 2, 2, 3], noRarity: true },
+	counterweight: { name: 'Противовес', icon: '⚖', desc: 'Снижает контактный урон на месте. Блок Оберега заряжает следующий разряд', tpl: 'На месте −{v}% контактного урона. Блок Оберега заряжает следующий разряд', stat: 'brace', perLevel: 0.10 },
+	ashseal: { name: 'Пепельная печать', icon: '☄', desc: 'Смерть горящего врага передаёт огонь соседям. С уровнем пожар расходится дальше', stat: 'ashHops', values: [1, 1, 2, 2, 3], noRarity: true },
 	// coop: offered only when the room has 2+ players.
 	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', tpl: '+{v}% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
@@ -378,6 +421,13 @@ export const SYNERGIES = [
 	{ weapon: 'traps', passive: 'hourglass', desc: 'корни дольше на 12% за уровень' },
 	{ weapon: 'sickle', passive: 'swift', desc: 'серп летит быстрее вместе с героем' },
 	{ weapon: 'spear', passive: 'bond', desc: 'копьё рядом с союзником +30% урона' },
+	{ weapon: 'prism', passive: 'lens', desc: 'луч получает третью ветвь' },
+	{ weapon: 'sickle', passive: 'lens', desc: 'удар на обратном пути сильнее по уже задетым целям' },
+	{ weapon: 'tuning', passive: 'coil', desc: 'враг под резонансной меткой передаёт электрический разряд при смерти' },
+	{ weapon: 'lightning', passive: 'coil', desc: 'убийство молнией запускает цепь разрядов' },
+	{ weapon: 'ward', passive: 'counterweight', desc: 'блок заряжает следующий электрический удар' },
+	{ weapon: 'anchor', passive: 'counterweight', desc: 'стягивание двух или более врагов вызывает удар в центре' },
+	{ weapon: 'bomb', passive: 'ashseal', desc: 'взрыв оставляет горящую зону' },
 ];
 // Reactions (5.3): enemy state + hit tag, from any player. Index = kind in the ['react', kind, x, y, r] event.
 export const REACTIONS = {
@@ -441,7 +491,7 @@ export const passiveValue = (id, level) => {
 export const baseMods = () => ({
 	dmgMul: 1, cdMul: 1, speedMul: 1, magnetMul: 1, areaMul: 1, regen: 0,
 	critChance: 0, critMul: 2, amount: 0, durMul: 1, luck: 0, xpMul: 1, armor: 0,
-	burnChance: 0, burnDps: 0, ctrlMul: 1, chillVuln: 0, bond: 0, fortune: 0,
+	burnChance: 0, burnDps: 0, ctrlMul: 1, chillVuln: 0, bond: 0, fortune: 0, piercePower: 0, coil: 0, brace: 0, ashHops: 0,
 });
 
 // Card rarity: every weapon or artifact card in a level-up offer rolls one (index = card.rar).
@@ -957,6 +1007,20 @@ export const affinityOf = (a, b) => {
 	if (a === b || !WEAPONS[a] || !WEAPONS[b] || DUO_BY_PAIR[duoKey(a, b)]) return null;
 	return AFFINITY_BY_ROLES[roleKey(WEAPONS[a].role, WEAPONS[b].role)] ?? null;
 };
+
+// The carrier keeps its level and attack. The other weapon becomes its imprint.
+export const FORGE_MIN_LEVEL = 3;
+export const FORGE_RECIPES = {
+	[duoKey('sickle', 'frost')]: {
+		sickle: { name: 'Морозный след', desc: 'Возвращаясь, Серп оставляет замедляющий след.' },
+		frost: { name: 'Ледяные серпы', desc: 'Волна Инея выпускает три возвращающихся серпа.' },
+	},
+	[duoKey('flask', 'lightning')]: {
+		flask: { name: 'Живая вода', desc: 'Первый удар каждой лужи вызывает молнию и запускает «Проводник».' },
+		lightning: { name: 'Ливень', desc: 'Первый удар Грозы оставляет лужу, проводящую следующие разряды.' },
+	},
+};
+export const forgeRecipe = (carrier, donor) => FORGE_RECIPES[duoKey(carrier, donor)]?.[carrier];
 // Evolutions (5.4): weapon at level 5 + its artifact at any level → a single-level weapon that replaces it.
 // The artifact stays; an evolved weapon cannot join a duo, a weapon in a duo cannot evolve.
 export const EVOS = {
@@ -1100,6 +1164,18 @@ export const OVERCLOCKS = {
 		{ id: 'back', name: 'Возврат', desc: 'Копьё возвращается к герою и бьёт второй раз; каждый удар слабее', mul: { dmg: 0.6 } },
 		{ id: 'caltrop', name: 'Шипы', desc: 'Копьё оставляет за собой шипы, которые держат врагов; само бьёт слабее', mul: { dmg: 0.75 } },
 	],
+	prism: [
+		{ id: 'focus', name: 'Белый луч', desc: 'Вдвое сильнее по первой цели, ветви слабее', mul: { dmg: 2 }, set: { branch: 0.2 } },
+		{ id: 'spectrum', name: 'Спектр', desc: 'Ветви шире и сильнее, перезарядка дольше', mul: { width: 1.6, cd: 1.2 }, set: { branch: 0.8 } },
+	],
+	tuning: [
+		{ id: 'low', name: 'Низкий тон', desc: 'Волна шире, резонанс держится дольше, удар слабее', mul: { radius: 1.3, dur: 1.5, dmg: 0.75 } },
+		{ id: 'high', name: 'Высокий тон', desc: 'Резонанс бьёт сильнее, волна уже', mul: { radius: 0.75, dmg: 1.4 }, set: { resonance: 1.5 } },
+	],
+	anchor: [
+		{ id: 'mass', name: 'Тяжесть', desc: 'Стягивает большую толпу, перезарядка дольше', mul: { radius: 1.4, cd: 1.3 } },
+		{ id: 'collapse', name: 'Схлопывание', desc: 'Больше урона в меньшей зоне', mul: { radius: 0.8, dmg: 1.8 } },
+	],
 	ward: [
 		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато вспышка на каждом поглощённом ударе', add: { charges: -1 } },
 		{ id: 'quick', name: 'Быстрый щит', desc: 'Один заряд, но восстанавливается на треть быстрее; вспышка шире и слабее', set: { charges: 1 }, mul: { cd: 0.7, burstR: 1.3, burstDmg: 0.5 } },
@@ -1129,7 +1205,7 @@ export const CHEST_RARE_CHANCE = 0.3;
 export const HEAL_OFFER_HP = 0.5; // below this hp fraction the 3rd card is always healing
 
 // Enemy state bits in snapshot `e` (6th field).
-export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256 };
+export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256, resonance: 8192, stormMarked: 16384 };
 
 // Elites: from ELITE_START every ELITE_EVERY seconds one regular enemy becomes an elite.
 export const ELITE_START = 240;

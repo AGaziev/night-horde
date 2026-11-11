@@ -326,6 +326,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 .duo-main { font-size: 1.9rem; text-shadow: 0 0 12px #ffd54f; }
 @keyframes duo-merge { 50% { transform: translateX(var(--dx)); opacity: 0.4; } }
 .hud-slots { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); background: rgba(0, 0, 0, 0.45); border-radius: 6px; padding: 2px 5px; }
+.card-swap-select, .card-swap-button { width: 100%; margin-top: 6px; font-size: 0.72rem; }
+.card-swap-select { color: var(--text); background: #242336; border: 1px solid var(--muted); border-radius: 6px; padding: 4px; }
 .levelup-slots { text-align: center; font-size: 0.78rem; color: var(--muted); text-shadow: 0 1px 4px #000; margin: -4px 0 6px; }
 .hud-icon {
 	position: relative;

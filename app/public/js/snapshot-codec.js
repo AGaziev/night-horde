@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 21; // v24: «aff» message, puddle look zk 3, DUOS v2
+export const PROTO = 22; // v27: merge of v24 (aff, zk 3) and v25–v26 (perks, forge, buildring)
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.

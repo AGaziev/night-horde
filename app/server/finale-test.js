@@ -56,8 +56,8 @@ function toFight(r) {
 }
 const close = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps * Math.max(1, Math.abs(b));
 
-assert.ok(/^v2[34]/.test(GAME_VERSION));
-assert.ok(PROTO >= 20);
+assert.equal(GAME_VERSION, 'v27');
+assert.equal(PROTO, 22);
 
 // --- 1. schedule ---
 {

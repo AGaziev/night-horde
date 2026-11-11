@@ -206,6 +206,13 @@ net.on('lvl', (msg) => {
 	if (ui.showOffer(msg) && msg.choices?.some((c) => c.rar === 3)) sound.legendary();
 });
 
+// The authoritative inventory also covers altar swaps and reconnects.
+net.on('ps', (msg) => {
+	if (!game.running || !msg.levels || !msg.values) return;
+	game.passives = msg.levels;
+	game.pvals = msg.values;
+});
+
 // v20: embers taken so far, for the HUD.
 net.on('emb', (msg) => {
 	if (game.running && msg.e && typeof msg.e === 'object') game.embers = msg.e;
@@ -367,12 +374,12 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 	}
 };
 
-function pick(i) {
+function pick(i, drop) {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
 	// v20: in «Изгнать» mode a digit banishes; a boss chest card cannot be taken before it is revealed.
 	if (ui.banMode) return void ban(i);
 	if (!ui.cardReady(i)) return;
-	if (game.pick(i)) {
+	if (game.pick(i, drop)) {
 		sound.card('pick');
 		ui.hideOffer();
 	}

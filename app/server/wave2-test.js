@@ -16,6 +16,8 @@ function room(heroes = ['knight']) {
 	r.start();
 	r.enemies.length = 0;
 	r.time = 100;
+	// This suite isolates reactions from the hero passives.
+	for (const h of r.heroes.values()) h.perk.readyAt = Infinity;
 	return r;
 }
 function foe(r, x, y, type = 'brute') {
@@ -37,7 +39,10 @@ const reacts = (r, kind) => r.fx.filter((f) => f[0] === 'react' && f[1] === REAC
 		assert.equal(DUO_BY_PAIR[duoKey(...D.parts)], id);
 		assert.equal(D.levels.length, 3, id);
 	}
-	for (const id of Object.keys(WEAPONS)) assert.ok((per[id] ?? 0) >= 1 && per[id] <= 4, `${id} in 1..4 duos (${per[id]})`); // v24: up to 4
+	// v24: up to 4 duos per weapon; the v26 weapons (prism, tuning, anchor) have none yet.
+	for (const id of Object.keys(WEAPONS).filter((id) => !['prism', 'tuning', 'anchor'].includes(id))) {
+		assert.ok((per[id] ?? 0) >= 1 && per[id] <= 4, `${id} in 1..4 duos (${per[id]})`);
+	}
 	for (const id of ['stormlight', 'volley', 'phalanx', 'firewheel']) assert.ok(DUOS[id]);
 	const req = {};
 	for (const id of EVO_IDS) {

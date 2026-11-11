@@ -34,7 +34,7 @@ export const ZK_FIRE = 1, ZK_CLOUD = 2, ZK_LIGHT = 3;
 export const TR_STRIDE = 5;
 
 // Player row indexes in snapshot `p`.
-export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12, ward: 13 };
+export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12, ward: 13, heroShield: 14 };
 
 const EMPTY = [];
 
@@ -232,15 +232,16 @@ export class Game {
 	}
 	areaMul() { return 1 + this.passiveVal('area'); }
 
-	pick(i) {
+	pick(i, drop) {
 		const offer = this.offer;
 		if (!offer || !offer.choices[i]) return false;
 		const c = offer.choices[i];
+		if (c.kind === 'swap' && !c.replace?.some(({ id }) => id === drop)) return false;
 		if (c.kind === 'passive' && PASSIVES[c.id]) {
 			if (typeof c.val === 'number') this.pvals[c.id] = this.passiveVal(c.id) + c.val;
 			this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
 		}
-		this.net.send({ t: 'pick', i });
+		this.net.send({ t: 'pick', i, drop });
 		this.offer = null;
 		return true;
 	}
@@ -679,6 +680,14 @@ export class Game {
 				const def = ENEMIES[ENEMY_TYPES[ev[3]]] || ENEMIES.bat;
 				this.burst(+ev[1], +ev[2], def.color, def.boss ? 60 : def.r > 15 ? 14 : 8, def.r);
 				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.3, r0: def.r * 0.5, r1: def.r * 2, color: def.color });
+				break;
+			}
+			case 'buildbeam':
+				this.zaps.push({ pts: [+ev[1], +ev[2], +ev[3], +ev[4]], t: 0, color: '#d897ff' });
+				break;
+			case 'buildring': {
+				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55', '#a5f0c6'][ev[4]] || '#d1a6ff';
+				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.33, r0: r * 0.25, r1: r, color, fill: true });
 				break;
 			}
 			case 'zap':

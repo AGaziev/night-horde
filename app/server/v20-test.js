@@ -24,8 +24,8 @@ function room(heroes = ['knight'], mode = 'night') {
 }
 const lastOffer = (pid = 1) => sent.filter(([p, m]) => p === pid && m.t === 'lvl').at(-1)[1];
 const kinds = (cards) => cards.map((c) => c.kind);
-// A hero with full slots: `weapons` at level 5, four maxed artifacts that open no evolution of these weapons.
-function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen'], lvl = MAX_LEVEL) {
+// A hero with full slots: `weapons` at level 5, six maxed artifacts that open no evolution of these weapons.
+function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen', 'magnet', 'echo'], lvl = MAX_LEVEL) {
 	h.weapons = new Map(weapons.map((id) => [id, { lvl, t: 0 }]));
 	h.passives = new Map(passives.map((id) => [id, MAX_LEVEL]));
 	r.recalcMods(h);
@@ -36,12 +36,12 @@ function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen'],
 // v24: the only six weapons with no duo pair among the 30 duos; orbit is the weapon under test, ward the last slot.
 const NO_PAIRS = ['orbit', 'flask', 'sickle', 'traps', 'lantern', 'ward']; // no duo pairs, no evolutions with the artifacts above
 
-assert.ok(/^v2[34]/.test(GAME_VERSION));
-assert.ok(PROTO >= 20);
+assert.equal(GAME_VERSION, 'v27');
+assert.equal(PROTO, 22);
 
-// --- table: two variants for each of the 15 plain weapons, one-line descriptions, stats patched only at level 5 ---
+// --- table: two variants for each plain weapon, one-line descriptions, stats patched only at level 5 ---
 {
-	assert.equal(WEAPON_IDS.length, 15);
+	assert.equal(WEAPON_IDS.length, 18);
 	const names = new Set();
 	for (const id of WEAPON_IDS) {
 		assert.equal(OVERCLOCKS[id]?.length, 2, `two overclocks for ${id}`);
@@ -126,6 +126,8 @@ assert.ok(PROTO >= 20);
 	assert.deepEqual(r.ovrList(h), [], 'artifact slot free: the weapon waits for its evolution');
 	// The slot is taken by another artifact: the evolution is out of reach, overclock it.
 	h.passives.set('regen', 5);
+	h.passives.set('magnet', 5);
+	h.passives.set('swift', 5);
 	assert.deepEqual(r.ovrList(h), ['whip']);
 	// The artifact is owned: the evolution card comes, not the overclock…
 	h.passives.delete('regen');
@@ -150,7 +152,7 @@ assert.ok(PROTO >= 20);
 	assert.deepEqual(r.ovrList(h), ['spear'], 'solo: «Узы» cannot come, the spear does not wait');
 	// v24: a duo partner of level ≥ 3 is owned: wait for the duo (knives + traps → «Растяжка»); a lower partner does not hold it.
 	h.weapons = new Map([['knives', { lvl: 5, t: 0 }], ['traps', { lvl: 2, t: 0 }]]);
-	h.passives = new Map([['crit', 5], ['mail', 5], ['area', 5], ['regen', 5]]);
+	h.passives = new Map([['crit', 5], ['mail', 5], ['area', 5], ['regen', 5], ['magnet', 5], ['swift', 5]]);
 	h.duoDefer = {};
 	r.recalcMods(h);
 	assert.ok(r.ovrList(h, true).includes('knives'), 'v24: a partner below level 3 does not hold the overclock');
@@ -351,7 +353,7 @@ assert.ok(PROTO >= 20);
 {
 	const r = room();
 	const h = r.heroes.get(1);
-	setBuild(r, h, NO_PAIRS.slice(0, 5), ['crit', 'might', 'haste']);
+	setBuild(r, h, NO_PAIRS.slice(0, 5), ['crit', 'might', 'haste', 'magnet', 'echo']);
 	for (const w of h.weapons.values()) w.oc = 1;
 	h.weapons.get('orbit').lvl = 4;
 	delete h.weapons.get('orbit').oc;
@@ -465,7 +467,7 @@ function fight(id, oc, seconds = 12) {
 	w.h.ward = 3;
 	w.r.overclock(w.h, { id: 'ward', v: 2 });
 	assert.equal(w.h.ward, 1);
-	console.log('30 overclocks fight: OK');
+	console.log('all overclocks fight: OK');
 }
 
 console.log('v20-test: OK');

@@ -61,7 +61,10 @@ const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', '
 {
 	const per = {};
 	for (const D of Object.values(DUOS)) for (const p of D.parts) per[p] = (per[p] ?? 0) + 1;
-	for (const id of Object.keys(WEAPONS)) assert.ok(per[id] >= 1 && per[id] <= 4, `${id}: ${per[id]} duos`);
+	// v27: the v26 weapons (Призма, Камертон, Теневой якорь) have no duos yet; they meet everyone through affinity.
+	const V26 = ['prism', 'tuning', 'anchor'];
+	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 1 && per[id] <= 4, `${id}: ${per[id]} duos`);
+	for (const id of V26) assert.equal(per[id] ?? 0, 0, `${id}: no duos yet`);
 	for (const id of ['lantern', 'trail', 'ward']) assert.ok(per[id] >= 4, `${id} gets its new duos (${per[id]})`);
 	for (const id of NEW_A) {
 		assert.ok(DUOS[id], id);
@@ -70,7 +73,9 @@ const NEW_A = ['guide', 'sunspear', 'glow', 'dome', 'riposte', 'rod', 'pitch', '
 	}
 	for (const id of ['glow', 'pitch', 'firescythe']) assert.ok(STATE_SOURCES.burn.includes(id), `${id} burns`);
 	for (const W of Object.values(WEAPONS)) assert.ok(ROLES[W.role], `${W.name} has a role`);
-	for (const r of Object.keys(ROLES)) assert.equal(Object.values(WEAPONS).filter((W) => W.role === r).length, 5, `five weapons are ${r}`);
+	const perRole = Object.keys(ROLES).map((r) => Object.values(WEAPONS).filter((W) => W.role === r).length);
+	assert.ok(perRole.every((n) => n === perRole[0]), `roles are even: ${perRole}`);
+	assert.deepEqual(['prism', 'tuning', 'anchor'].map((id) => WEAPONS[id].role), ['shot', 'ring', 'trace']);
 	assert.equal(AFFINITY_IDS.length, 6);
 	// Every pair of plain weapons has either a duo or an affinity.
 	const ids = Object.keys(WEAPONS);
