@@ -151,6 +151,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 
 .btn {
 	appearance: none;
+	color: inherit;
+	text-decoration: none;
 	border: 1px solid var(--panel-border);
 	background: rgba(255, 255, 255, 0.06);
 	border-radius: 10px;
@@ -804,12 +806,10 @@ input[type="text"]:focus { border-color: var(--accent); }
 .run-history-win { color: var(--ok); }
 .run-history-loss { color: var(--danger); }
 .game-dialog [role="status"]:empty { margin: 0; }
-#run-history-summary {
-	margin: 12px 0 0;
-	white-space: pre-wrap;
-	overflow-wrap: anywhere;
-	font: 13px/1.55 var(--font);
-}
+#run-history-card { min-width: 0; }
+.run-history-result { margin: 16px 0 0; }
+#run-history-date { margin: 4px 0 0; }
+#run-history-download { display: inline-flex; margin-top: 16px; }
 
 #menu-feedback { margin-top: 16px; }
 .combination-dialog { width: min(1100px, calc(100vw - 24px)); max-width: 1100px; }
@@ -849,3 +849,38 @@ input[type="text"]:focus { border-color: var(--accent); }
 }
 
 .matrix-scroll thead th { position: sticky; top: 0; background: var(--bg); z-index: 2; }
+
+.lobby-countdown {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 10px;
+	margin-top: 14px;
+}
+.lobby-countdown strong { color: var(--accent); font-variant-numeric: tabular-nums; }
+#lobby-invite-fields { padding: 0; border: 0; min-width: 0; margin: 0; }
+#lobby-invite-fields h3 { margin: 16px 0 8px; font-size: 1rem; }
+#lobby-invite-fields select {
+	padding: 8px 10px;
+	border: 1px solid var(--panel-border);
+	border-radius: 10px;
+	background: var(--bg);
+	color: var(--text);
+	font: inherit;
+}
+.lobby-invite-list {
+	display: grid;
+	gap: 4px;
+	max-height: 240px;
+	overflow-y: auto;
+}
+.lobby-invite-list label {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px;
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.04);
+}
+.lobby-invite-list input { accent-color: var(--accent); }

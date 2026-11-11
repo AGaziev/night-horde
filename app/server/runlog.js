@@ -331,50 +331,8 @@ export class RunLog {
 		this.p.get(h.pid)?.ups.push(r1(room.time));
 	}
 
-	// v23 results card (`over.card`): what the results screen and the shared card show, names resolved, small.
 	card(room, log) {
-		if (!log) return null;
-		const heroes = new Map([...room.heroes.values()].map((h) => [h.pid, h]));
-		const lordBy = log.finale?.by ?? {};
-		const players = log.team.map((t) => {
-			const h = heroes.get(t.pid), p = this.p.get(t.pid);
-			const embers = Object.values(t.build?.embers ?? {}).reduce((s, n) => s + n, 0);
-			const takenTop = Object.entries(t.taken).slice(0, 3).map(([k, v]) => [enemyName(k), v]);
-			const hit = h?.bestHit ?? [0, null, 0];
-			return {
-				pid: t.pid, name: t.name, hero: t.hero, heroName: t.heroName, level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
-				weapons: t.dmgBy.slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
-				supportDamage: Math.round(h?.supportDamage ?? 0),
-				taken: t.takenTotal, takenTop, revives: t.ach?.revives ?? 0,
-				// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
-				downs: t.downs.filter((d) => d[1] !== 'offline').length, downsAt: t.downs.filter((d) => d[1] !== 'offline').map((d) => Math.round(d[0])),
-				lifted: t.ups.length, liftedAt: t.ups.map((x) => Math.round(x)), drops: t.drops?.length ?? 0,
-				state: h?.offline ? 'offline' : h?.st === 0 ? 'alive' : 'down', minHp: t.minHp,
-				bestHit: hit[0] > 0 ? [Math.round(hit[0]), srcName(hit[1] ?? 'other'), r1(hit[2])] : null,
-				streak: h && h.bestStreak[0] > 0 ? [h.bestStreak[0], r1(h.bestStreak[1])] : null,
-				fused: [...t.evos.map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'evo']), ...t.duos.map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'duo'])].sort((a, b) => a[0] - b[0]),
-				ovr: (t.ovr?.took ?? []).map(([at, s]) => { const [id, v] = s.split('~'); return [at, `${WEAPONS[id]?.name ?? id} — «${OVERCLOCKS[id]?.[v - 1]?.name ?? v}»`]; }),
-				embers,
-				// Per minute: damage per second (all weapons) and the lowest hp of the minute.
-				dpm: (p?.dps ?? []).map((row) => Object.entries(row).reduce((s, [k, v]) => s + (k.startsWith('r_') ? 0 : v), 0)),
-				hpm: (p?.hpMin ?? []).map((x) => x[1]),
-				lord: Math.round(lordBy[t.name] ?? 0),
-			};
-		});
-		const top = players.flatMap((p) => p.weapons.slice(0, 1).map((w) => ({ name: p.name, weapon: w[0], dmg: w[1], pct: w[2] }))).sort((a, b) => b.dmg - a.dmg)[0] ?? null;
-		const F = log.finale;
-		return {
-			id: log.id, v: log.v, mode: log.mode, len: log.runLength, time: log.time, win: log.win, grade: log.grade, kills: log.kills,
-			players, top, awards: awards(players, log),
-			group: { downs: players.reduce((s, p) => s + p.downs, 0), lifted: players.reduce((s, p) => s + p.lifted, 0), revives: players.reduce((s, p) => s + p.revives, 0) },
-			fin: F && F.at !== null ? { at: F.at, lordHp: F.lordHp, sec: F.sec, hpLeft: F.hpLeft, grade: F.grade, lastHit: F.lastHit, rageAt: F.rageAt, rayAt: F.rayAt ?? null, revived: F.revived } : null,
-			bosses: (log.bosses ?? []).map((b) => [b.name, b.at, b.sec, !!b.absorbed]),
-			// [name, at, outcome, ok]: ok is null for single-outcome events (fog), else res 1 is the good one.
-			events: (log.events ?? []).map((e) => {
-				const D = EVENTS[EVENT_INDEX[e.id]];
-				return [D?.name ?? e.id, e.at, D?.done?.[e.res] ?? '', (D?.done?.length ?? 0) < 2 ? null : e.res === 1];
-			}),
-		};
+		return log ? resultsCard(log, room.heroes, this.p) : null;
 	}
 
 	build(room, win) {
@@ -447,6 +405,57 @@ export class RunLog {
 		if (JSON.stringify(log).length > MAX_JSON) for (const p of log.team) p.dpsByMin = p.dpsByMin.filter((_, i) => i % 3 === 2 || i === p.dpsByMin.length - 1);
 		return log;
 	}
+}
+
+// v23 results card (`over.card`): what the results screen and the shared card show, names resolved, small.
+function resultsCard(log, heroes, telemetry) {
+	const lordBy = log.finale?.by ?? {};
+	const players = log.team.map((t, i) => {
+		const h = heroes?.get(t.pid), p = telemetry?.get(t.pid);
+		const downsAt = (t.downs ?? []).filter((d) => d[1] !== 'offline').map((d) => Math.round(d[0]));
+		const liftedAt = (t.ups ?? []).map((at) => Math.round(at));
+		const hpm = (p?.hpMin ?? t.hpByMin ?? []).map((x) => x[1]);
+		const samples = p?.dps ?? t.dpsByMin ?? [];
+		// Large legacy logs dropped some DPS rows. Only plot rows with an unambiguous minute.
+		const dpm = samples.length === hpm.length
+			? samples.map((row) => Object.entries(row).reduce((sum, [key, value]) => sum + (key.startsWith('r_') ? 0 : value), 0))
+			: [];
+		const embers = Object.values(t.build?.embers ?? {}).reduce((s, n) => s + n, 0);
+		const takenTop = Object.entries(t.taken ?? {}).slice(0, 3).map(([k, v]) => [enemyName(k), v]);
+		const hit = h?.bestHit ?? [0, null, 0];
+		return {
+			pid: t.pid ?? i + 1, name: t.name, hero: t.hero, heroName: t.heroName ?? HEROES[t.hero]?.name ?? t.hero,
+			level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
+			weapons: (t.dmgBy ?? []).slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
+			supportDamage: Math.round(h?.supportDamage ?? 0),
+			taken: t.takenTotal ?? 0, takenTop, revives: t.ach?.revives ?? 0,
+			// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
+			downs: downsAt.length, downsAt,
+			lifted: liftedAt.length, liftedAt, drops: t.drops?.length ?? 0,
+			state: h ? (h.offline ? 'offline' : h.st === 0 ? 'alive' : 'down') : null, minHp: t.minHp,
+			bestHit: hit[0] > 0 ? [Math.round(hit[0]), srcName(hit[1] ?? 'other'), r1(hit[2])] : null,
+			streak: h && h.bestStreak[0] > 0 ? [h.bestStreak[0], r1(h.bestStreak[1])] : null,
+			fused: [...(t.evos ?? []).map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'evo']), ...(t.duos ?? []).map(([at, id]) => [at, weaponDef(id)?.name ?? id, 'duo'])].sort((a, b) => a[0] - b[0]),
+			ovr: (t.ovr?.took ?? []).map(([at, s]) => { const [id, v] = s.split('~'); return [at, `${WEAPONS[id]?.name ?? id} — «${OVERCLOCKS[id]?.[v - 1]?.name ?? v}»`]; }),
+			embers,
+			dpm, hpm,
+			lord: Math.round(lordBy[t.name] ?? 0),
+		};
+	});
+	const top = players.flatMap((p) => p.weapons.slice(0, 1).map((w) => ({ name: p.name, weapon: w[0], dmg: w[1], pct: w[2] }))).sort((a, b) => b.dmg - a.dmg)[0] ?? null;
+	const F = log.finale;
+	return {
+		id: log.id, v: log.v, mode: log.mode, len: log.runLength, time: log.time, win: log.win, grade: log.grade ?? (log.win ? 1 : 0), kills: log.kills,
+		players, top, awards: awards(players, log),
+		group: { downs: players.reduce((s, p) => s + p.downs, 0), lifted: players.reduce((s, p) => s + p.lifted, 0), revives: players.reduce((s, p) => s + p.revives, 0) },
+		fin: F && F.at != null ? { at: F.at, lordHp: F.lordHp, sec: F.sec, hpLeft: F.hpLeft, grade: F.grade, lastHit: F.lastHit, rageAt: F.rageAt, rayAt: F.rayAt ?? null, revived: F.revived } : null,
+		bosses: (log.bosses ?? []).map((b) => [b.name, b.at, b.sec ?? null, !!b.absorbed]),
+		// [name, at, outcome, ok]: ok is null for single-outcome events (fog), else res 1 is the good one.
+		events: (log.events ?? []).map((e) => {
+			const D = EVENTS[EVENT_INDEX[e.id]];
+			return [D?.name ?? e.id, e.at, D?.done?.[e.res] ?? '', (D?.done?.length ?? 0) < 2 ? null : e.res === 1];
+		}),
+	};
 }
 
 // Short human summary in Russian on top of the log.
@@ -645,10 +654,11 @@ export class RunStore {
 		this.dir = null;
 	}
 
-	remember(log, uids) {
-		this.runs = this.runs.filter((r) => r.id !== log.id);
-		this.runs.unshift(log);
-		this.runs.sort((a, b) => b.at.localeCompare(a.at));
+	remember(record) {
+		const { log, uids } = record;
+		this.runs = this.runs.filter((r) => r.log.id !== log.id);
+		this.runs.unshift(record);
+		this.runs.sort((a, b) => b.log.at.localeCompare(a.log.at));
 		if (this.runs.length > KEEP_RUNS) this.runs.pop();
 		const row = {
 			id: log.id, at: log.at, v: log.v, mode: log.mode ?? 'night', win: log.win,
@@ -658,11 +668,11 @@ export class RunStore {
 		this.index.set(log.id, { row, uids });
 	}
 
-	add(log, uids = []) {
-		uids = [...new Set(uids)];
-		this.remember(log, uids);
+	add(log, uids = [], card = null) {
+		const record = { log, uids: [...new Set(uids)], card };
+		this.remember(record);
 		try {
-			if (this.dir) this.write(log, uids);
+			if (this.dir) this.write(record);
 			this.prune();
 		} catch (e) {
 			console.error('run archive write:', e.code ?? e.message);
@@ -670,8 +680,17 @@ export class RunStore {
 	}
 
 	get(id) {
+		return this.getRecord(id)?.log ?? null;
+	}
+
+	getCard(id) {
+		const record = this.getRecord(id);
+		return record ? record.card ?? resultsCard(record.log) : null;
+	}
+
+	getRecord(id) {
 		if (!RUN_ID_RE.test(id)) return null;
-		return this.runs.find((r) => r.id === id) ?? (this.dir && this.read(this.dir, id)?.log) ?? null;
+		return this.runs.find((r) => r.log.id === id) ?? (this.dir && this.read(this.dir, id)) ?? null;
 	}
 
 	recent() {
@@ -701,12 +720,12 @@ export class RunStore {
 			if (fresh && legacyDir && fs.existsSync(legacyDir)) {
 				for (const id of this.files(legacyDir)) {
 					const record = this.read(legacyDir, id);
-					if (record) this.write(record.log, record.uids);
+					if (record) this.write(record);
 				}
 			}
 			for (const id of this.files(dir)) {
 				const record = this.read(dir, id);
-				if (record) this.remember(record.log, record.uids);
+				if (record) this.remember(record);
 			}
 			this.prune();
 		} catch (e) {
@@ -725,17 +744,17 @@ export class RunStore {
 			const record = JSON.parse(fs.readFileSync(path.join(dir, id + '.json'), 'utf8'));
 			const log = record?.log ?? record;
 			if (log?.id !== id || typeof log.at !== 'string' || !Array.isArray(log.team) || !Array.isArray(log.summary)) return null;
-			return { log, uids: Array.isArray(record.uids) ? record.uids : [] };
+			return { log, uids: Array.isArray(record.uids) ? record.uids : [], card: record.card ?? null };
 		} catch {
 			return null;
 		}
 	}
 
-	write(log, uids) {
-		const file = path.join(this.dir, log.id + '.json');
+	write(record) {
+		const file = path.join(this.dir, record.log.id + '.json');
 		const tmp = file + '.tmp';
 		try {
-			fs.writeFileSync(tmp, JSON.stringify({ log, uids }), { mode: 0o600, flush: true });
+			fs.writeFileSync(tmp, JSON.stringify(record), { mode: 0o600, flush: true });
 			fs.renameSync(tmp, file);
 		} finally {
 			fs.rmSync(tmp, { force: true });
@@ -750,7 +769,7 @@ export class RunStore {
 			this.index.delete(row.id);
 			removed.add(row.id);
 		}
-		this.runs = this.runs.filter((r) => !removed.has(r.id));
+		this.runs = this.runs.filter((r) => !removed.has(r.log.id));
 	}
 }
 

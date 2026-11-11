@@ -21,6 +21,7 @@ export class Net {
 	constructor() {
 		this.sid = readSid();
 		this.name = '';
+		this.invites = false;
 		this.transport = null; // 'WS' | 'SSE'
 		this.forceSse = new URLSearchParams(location.search).get('transport') === 'sse';
 		this.connected = false;
@@ -62,6 +63,7 @@ export class Net {
 				const data = await res.json();
 				this.sid = data.sid;
 				this.name = data.name || '';
+				this.invites = data.invites === true;
 				writeSid(this.sid);
 				return;
 			} catch {

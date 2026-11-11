@@ -17,7 +17,7 @@ function tempDir(t) {
 
 function fixture(i) {
 	return {
-		id: 'Z' + String(i).padStart(5, '0'), at: new Date(1_800_000_000_000 + i * 1000).toISOString(),
+		id: 'Z' + String(i).padStart(5, '0'), at: new Date(1_700_000_000_000 + i * 1000).toISOString(),
 		v: 'v29', win: false, time: 45, team: [{ name: 'Аня', hero: 'witch', level: 1 }],
 		summary: ['Сводка забега ' + i],
 	};
@@ -62,6 +62,7 @@ test('при первом запуске старые логи переходя�
 test('завершённый забег сохраняет участников по ID, а HTTP и игровые сообщения не раскрывают ID', async (t) => {
 	const dir = tempDir(t);
 	runStore.persist(dir);
+	fs.writeFileSync(path.join(dir, 'Z00001.json'), JSON.stringify(fixture(1)));
 	const messages = [];
 	const hub = new Hub((pid, msg) => messages.push(msg));
 	hub.addPlayer(1, 'Аня', '12345678');
@@ -102,7 +103,7 @@ test('завершённый забег сохраняет участников 
 	for (const uid of ['12345678', '87654321']) {
 		const rows = await history(uid);
 		assert.equal(rows.personal, true);
-		assert.deepEqual(rows.mine, rows.recent);
+		assert.deepEqual(rows.mine, rows.recent.slice(0, 1));
 		assert.deepEqual(rows.mine[0], {
 			id: log.id, at: log.at, v: log.v, mode: 'lunch', win: false, grade: 0, time: 91,
 			players: [{ name: 'Аня', hero: 'witch', level: 1 }],
@@ -120,4 +121,13 @@ test('завершённый забег сохраняет участников 
 	assert.deepEqual(await (await request('/api/runs/' + log.id)).json(), JSON.parse(JSON.stringify(log)));
 	assert.equal(await (await request('/api/runs/' + log.id.toLowerCase() + '.summary')).text(), log.summary.join('\n'));
 	assert.equal((await request('/api/runs/MISS00.summary')).status, 404);
+	const restoredCard = await request('/api/runs/' + log.id.toLowerCase() + '.card');
+	assert.equal(restoredCard.status, 200);
+	assert.deepEqual(await restoredCard.json(), JSON.parse(JSON.stringify(room.overMsg.card)));
+	const legacyCard = await request('/api/runs/Z00001.card');
+	assert.equal(legacyCard.status, 200);
+	assert.deepEqual((await legacyCard.json()).players.map(({ name, hero, level, bestHit }) => ({ name, hero, level, bestHit })), [
+		{ name: 'Аня', hero: 'witch', level: 1, bestHit: null },
+	]);
+	assert.equal((await request('/api/runs/MISS00.card')).status, 404);
 });

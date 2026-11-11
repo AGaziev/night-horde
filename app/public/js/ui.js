@@ -698,7 +698,7 @@ export class UI {
 		// v23: the results card (group, awards, finale, a tab per player) replaces the plain table when the server sent one.
 		this.card = msg.card && typeof msg.card === 'object' ? msg.card : null;
 		this.cardColors = new Map(stats.map((s) => [s.pid, s.color || '#90a4ae']));
-		const shown = renderResults(this.card, me, this.cardColors);
+		const shown = renderResults($('over-card'), this.card, me, this.cardColors);
 		$('over-table').hidden = shown;
 		$('over-share').hidden = !shown;
 		$('over-again').hidden = !isHost;
