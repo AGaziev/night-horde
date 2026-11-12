@@ -427,6 +427,7 @@ function resultsCard(log, heroes, telemetry) {
 			pid: t.pid ?? i + 1, name: t.name, hero: t.hero, heroName: t.heroName ?? HEROES[t.hero]?.name ?? t.hero,
 			level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
 			weapons: (t.dmgBy ?? []).slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
+			supportDamage: Math.round(h?.supportDamage ?? 0),
 			taken: t.takenTotal ?? 0, takenTop, revives: t.ach?.revives ?? 0,
 			// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
 			downs: downsAt.length, downsAt,

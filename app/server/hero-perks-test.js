@@ -117,7 +117,9 @@ const weaponHit = (room, h, e, id, dmg = 20) => room.hurtEnemy(e, dmg, h, { weap
 	room.updateWeapon(h, 'frost', w, dt);
 	assert.equal(room.projectiles.length, 6, 'both waves inherit returning sickles');
 	assert.ok(Math.abs(room.projectiles[3].dmg / room.projectiles[0].dmg - 0.6) < 1e-10);
-	assert.ok(Math.abs(e.maxHp - e.hp - 13 * 1.6) < 1e-8, 'the wave and its 60% repeat both hit the boss');
+	assert.equal(e.hp, e.maxHp, 'cold waves travel before hitting');
+	room.updateColdWaves(0.2);
+	assert.ok(Math.abs(e.maxHp - e.hp - weaponLevel('frost', 3).dmg * 1.6) < 1e-8, 'the wave and its 60% repeat both hit the boss');
 	assert.equal(w.t, weaponLevel('frost', 3).cd, 'repeat does not reset the real weapon');
 	room.time += 1;
 	w.t = 0;
@@ -276,3 +278,26 @@ console.log('Offensive passives: all six, solo and ally triggers, forge echo and
 	assert.ok(k.hp < hp, 'a disconnected knight is not shielded');
 }
 console.log('Perks of downed and disconnected heroes; the bell picks the most wounded ally');
+
+{
+	const { room, heroes: [h] } = encounter(['witch']);
+	h.weapons = new Map([['frost', { lvl: 1, t: 0 }]]);
+	room.time = 10; foe(room, 90, 0);
+	room.updateWeapon(h, 'frost', h.weapons.get('frost'), dt);
+	assert.equal(room.coldWaves.length, 2, 'a plain traveling frost cast is echoed');
+	assert.equal(h.perk.readyAt, 18);
+}
+{
+	const { room, heroes: [h] } = encounter(['witch']);
+	h.weapons = new Map([['spectral', { lvl: 1, t: 0, parts: [{ id: 'prism', lvl: 3, t: 0 }, { id: 'tuning', lvl: 3, t: 0 }] }]]);
+	room.time = 10; foe(room, 50, 0);
+	room.updateWeapon(h, 'spectral', h.weapons.get('spectral'), dt);
+	assert.equal(h.perk.echoPulse ?? null, null, 'an inherited cast cannot also schedule a second fallback echo');
+	assert.equal(h.perk.readyAt, 18);
+}
+{
+	const { room, heroes: [h] } = encounter(['smith']);
+	room.time = 10; const e = foe(room, 50, 0);
+	for (const component of ['whip', 'lightning', 'whip']) room.hurtEnemy(e, 10, h, { weapon: 'thunderslash', component, tags: ['phys'] });
+	assert.equal(h.perk.readyAt, 14, 'the smith retains the different-weapon series after fusion');
+}

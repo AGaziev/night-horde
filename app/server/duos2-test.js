@@ -64,13 +64,13 @@ const NEW_B = ['frostsnare', 'abatis', 'harpoon', 'rockets', 'stingers', 'whirlw
 	for (const D of Object.values(DUOS)) for (const p of D.parts) per[p] = (per[p] ?? 0) + 1;
 	// v27: the v26 weapons (Призма, Камертон, Теневой якорь) have no duos yet; they meet everyone through affinity.
 	const V26 = ['prism', 'tuning', 'anchor'];
-	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 1 && per[id] <= 4, `${id}: ${per[id]} duos`);
-	for (const id of V26) assert.equal(per[id] ?? 0, 0, `${id}: no duos yet`);
+	for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.ok(per[id] >= 4 && per[id] <= 5, `${id}: ${per[id]} duos`);
+	for (const id of V26) assert.equal(per[id], 4, `${id}: four fusion partners`);
 	for (const id of ['lantern', 'trail', 'ward']) assert.ok(per[id] >= 4, `${id} gets its new duos (${per[id]})`);
 	if (DUOS.whirlwind) {
 		// Delivery B: 30 duos, exactly 4 per weapon; affinity on the other 75 pairs as in pm/DUOS-v2-design.md.
-		assert.equal(Object.keys(DUOS).length, 30);
-		for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.equal(per[id], 4, id);
+		assert.equal(Object.keys(DUOS).length, 39);
+		for (const id of Object.keys(WEAPONS).filter((id) => !V26.includes(id))) assert.equal(Object.values(DUOS).filter(d => d.parts.includes(id) && !d.parts.some(p => V26.includes(p))).length, 4, id);
 		// The design's 75 affinities are among the 15 weapons of v24; the v26 weapons add their own pairs on top.
 		const n = {};
 		const ids = Object.keys(WEAPONS).filter((id) => !V26.includes(id));
@@ -274,7 +274,7 @@ if (NEW_B.length) {
 		h.weapons.set('harpoon', { lvl: 1, t: 0 });
 		const e = foe(r, 200, 0, 1e7, 'brute');
 		h.movedT = -10;
-		for (let i = 0; i < 1.4 * TICK_HZ; i++) r.tick(dt);
+		for (let i = 0; i < 1.4 * TICK_HZ; i++) { r.time += dt; r.rebuildGrid(); r.castWeapon(h, 'harpoon', h.weapons.get('harpoon'), dt); r.updateProjectiles(dt); }
 		assert.ok(e.maxHp - e.hp >= DUOS.harpoon.levels[0].dmg * 2 * 0.99, `hit there and back: ${e.maxHp - e.hp}`);
 		console.log('harpoon: OK');
 	}

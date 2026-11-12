@@ -41,7 +41,7 @@ const reacts = (r, kind) => r.fx.filter((f) => f[0] === 'react' && f[1] === REAC
 	}
 	// v24: up to 4 duos per weapon; the v26 weapons (prism, tuning, anchor) have none yet.
 	for (const id of Object.keys(WEAPONS).filter((id) => !['prism', 'tuning', 'anchor'].includes(id))) {
-		assert.ok((per[id] ?? 0) >= 1 && per[id] <= 4, `${id} in 1..4 duos (${per[id]})`);
+		assert.ok((per[id] ?? 0) >= 1 && per[id] <= 5, `${id} in 1..5 duos (${per[id]})`);
 	}
 	for (const id of ['stormlight', 'volley', 'phalanx', 'firewheel']) assert.ok(DUOS[id]);
 	const req = {};

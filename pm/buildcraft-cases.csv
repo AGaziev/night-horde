@@ -1,0 +1,1171 @@
+duo,name,players,build,layout,level,duo_dps,parts_dps,ratio,minimum_seed_ratio,pass
+thunderslash,Громовой разрез,1,plain,crowd,1,1369.9,834,1.643,1.638,True
+thunderslash,Громовой разрез,1,plain,crowd,2,2053.8,1243.4,1.652,1.648,True
+thunderslash,Громовой разрез,1,plain,crowd,3,2934,1760,1.667,1.663,True
+thunderslash,Громовой разрез,1,plain,boss,1,80.8,42,1.924,1.919,True
+thunderslash,Громовой разрез,1,plain,boss,2,116.7,58.6,1.992,1.982,True
+thunderslash,Громовой разрез,1,plain,boss,3,161.4,81.5,1.98,1.978,True
+thunderslash,Громовой разрез,1,rapid,crowd,1,3163.9,1915.6,1.652,1.62,True
+thunderslash,Громовой разрез,1,rapid,crowd,2,5054.2,3051,1.657,1.65,True
+thunderslash,Громовой разрез,1,rapid,crowd,3,7538.5,4611.1,1.635,1.603,True
+thunderslash,Громовой разрез,1,rapid,boss,1,189,99.3,1.904,1.872,True
+thunderslash,Громовой разрез,1,rapid,boss,2,278.7,138.5,2.012,1.988,True
+thunderslash,Громовой разрез,1,rapid,boss,3,385.3,196,1.966,1.924,True
+thunderslash,Громовой разрез,1,elemental,crowd,1,26722.2,2223.9,12.016,11.743,True
+thunderslash,Громовой разрез,1,elemental,crowd,2,31330.5,3629.5,8.632,8.492,True
+thunderslash,Громовой разрез,1,elemental,crowd,3,42525.5,6245.7,6.809,6.723,True
+thunderslash,Громовой разрез,1,elemental,boss,1,174.4,63.3,2.753,2.741,True
+thunderslash,Громовой разрез,1,elemental,boss,2,229.2,85.7,2.676,2.655,True
+thunderslash,Громовой разрез,1,elemental,boss,3,300.8,117.4,2.562,2.554,True
+thunderslash,Громовой разрез,4,rapid,crowd,1,3163.9,1915.6,1.652,1.62,True
+thunderslash,Громовой разрез,4,rapid,crowd,2,5054.2,3051,1.657,1.65,True
+thunderslash,Громовой разрез,4,rapid,crowd,3,7538.5,4611.1,1.635,1.603,True
+thunderslash,Громовой разрез,4,rapid,boss,1,189,99.3,1.904,1.872,True
+thunderslash,Громовой разрез,4,rapid,boss,2,278.7,138.5,2.012,1.988,True
+thunderslash,Громовой разрез,4,rapid,boss,3,385.3,196,1.966,1.924,True
+thunderslash,Громовой разрез,8,rapid,crowd,1,3163.9,1915.6,1.652,1.62,True
+thunderslash,Громовой разрез,8,rapid,crowd,2,5054.2,3051,1.657,1.65,True
+thunderslash,Громовой разрез,8,rapid,crowd,3,7538.5,4611.1,1.635,1.603,True
+thunderslash,Громовой разрез,8,rapid,boss,1,189,99.3,1.904,1.872,True
+thunderslash,Громовой разрез,8,rapid,boss,2,278.7,138.5,2.012,1.988,True
+thunderslash,Громовой разрез,8,rapid,boss,3,385.3,196,1.966,1.924,True
+orb,Шаровая молния,1,plain,crowd,1,307,134.4,2.285,2.254,True
+orb,Шаровая молния,1,plain,crowd,2,638.8,272.3,2.346,2.342,True
+orb,Шаровая молния,1,plain,crowd,3,1477.1,664.3,2.223,2.221,True
+orb,Шаровая молния,1,plain,boss,1,89.8,52.6,1.707,1.707,True
+orb,Шаровая молния,1,plain,boss,2,161,95.5,1.686,1.686,True
+orb,Шаровая молния,1,plain,boss,3,290.3,169.1,1.717,1.717,True
+orb,Шаровая молния,1,rapid,crowd,1,1377.1,449.1,3.066,2.916,True
+orb,Шаровая молния,1,rapid,crowd,2,2821.4,849.2,3.322,3.287,True
+orb,Шаровая молния,1,rapid,crowd,3,5342.8,2036.9,2.623,2.584,True
+orb,Шаровая молния,1,rapid,boss,1,354.1,163.2,2.17,2.123,True
+orb,Шаровая молния,1,rapid,boss,2,618.6,291.5,2.122,2.053,True
+orb,Шаровая молния,1,rapid,boss,3,976.9,489.9,1.994,1.93,True
+orb,Шаровая молния,1,elemental,crowd,1,44361.3,440.8,100.631,92.502,True
+orb,Шаровая молния,1,elemental,crowd,2,48624.8,1061.8,45.794,44.213,True
+orb,Шаровая молния,1,elemental,crowd,3,112328.1,3428.9,32.759,30.952,True
+orb,Шаровая молния,1,elemental,boss,1,214.1,75.7,2.829,2.829,True
+orb,Шаровая молния,1,elemental,boss,2,318.7,129.8,2.455,2.455,True
+orb,Шаровая молния,1,elemental,boss,3,601.9,222.8,2.701,2.701,True
+orb,Шаровая молния,4,rapid,crowd,1,1377.1,449.1,3.066,2.916,True
+orb,Шаровая молния,4,rapid,crowd,2,2821.4,849.2,3.322,3.287,True
+orb,Шаровая молния,4,rapid,crowd,3,5342.8,2036.9,2.623,2.584,True
+orb,Шаровая молния,4,rapid,boss,1,354.1,163.2,2.17,2.123,True
+orb,Шаровая молния,4,rapid,boss,2,618.6,291.5,2.122,2.053,True
+orb,Шаровая молния,4,rapid,boss,3,976.9,489.9,1.994,1.93,True
+orb,Шаровая молния,8,rapid,crowd,1,1377.1,449.1,3.066,2.916,True
+orb,Шаровая молния,8,rapid,crowd,2,2821.4,849.2,3.322,3.287,True
+orb,Шаровая молния,8,rapid,crowd,3,5342.8,2036.9,2.623,2.584,True
+orb,Шаровая молния,8,rapid,boss,1,354.1,163.2,2.17,2.123,True
+orb,Шаровая молния,8,rapid,boss,2,618.6,291.5,2.122,2.053,True
+orb,Шаровая молния,8,rapid,boss,3,976.9,489.9,1.994,1.93,True
+orrery,Планетарий,1,plain,crowd,1,306.6,129.5,2.368,2.324,True
+orrery,Планетарий,1,plain,crowd,2,591.7,232,2.55,2.508,True
+orrery,Планетарий,1,plain,crowd,3,1028.2,509.4,2.018,2.011,True
+orrery,Планетарий,1,plain,boss,1,97.5,36.5,2.672,2.667,True
+orrery,Планетарий,1,plain,boss,2,198.5,74.6,2.662,2.656,True
+orrery,Планетарий,1,plain,boss,3,313.4,139.7,2.243,2.243,True
+orrery,Планетарий,1,rapid,crowd,1,787.8,386.3,2.039,2.013,True
+orrery,Планетарий,1,rapid,crowd,2,1314.1,663.3,1.981,1.963,True
+orrery,Планетарий,1,rapid,crowd,3,2482.2,1479.6,1.678,1.676,True
+orrery,Планетарий,1,rapid,boss,1,264.7,130.3,2.032,2.018,True
+orrery,Планетарий,1,rapid,boss,2,481,242.1,1.987,1.948,True
+orrery,Планетарий,1,rapid,boss,3,753.5,416.5,1.809,1.8,True
+orrery,Планетарий,1,elemental,crowd,1,431,171.4,2.515,2.467,True
+orrery,Планетарий,1,elemental,crowd,2,842,311.6,2.702,2.654,True
+orrery,Планетарий,1,elemental,crowd,3,1499,730.4,2.052,2.045,True
+orrery,Планетарий,1,elemental,boss,1,118,44.2,2.672,2.667,True
+orrery,Планетарий,1,elemental,boss,2,240.2,90.2,2.662,2.656,True
+orrery,Планетарий,1,elemental,boss,3,379.2,169,2.243,2.243,True
+orrery,Планетарий,4,rapid,crowd,1,787.8,386.3,2.039,2.013,True
+orrery,Планетарий,4,rapid,crowd,2,1314.1,663.3,1.981,1.963,True
+orrery,Планетарий,4,rapid,crowd,3,2482.2,1479.6,1.678,1.676,True
+orrery,Планетарий,4,rapid,boss,1,264.7,130.3,2.032,2.018,True
+orrery,Планетарий,4,rapid,boss,2,481,242.1,1.987,1.948,True
+orrery,Планетарий,4,rapid,boss,3,753.5,416.5,1.809,1.8,True
+orrery,Планетарий,8,rapid,crowd,1,787.8,386.3,2.039,2.013,True
+orrery,Планетарий,8,rapid,crowd,2,1314.1,663.3,1.981,1.963,True
+orrery,Планетарий,8,rapid,crowd,3,2482.2,1479.6,1.678,1.676,True
+orrery,Планетарий,8,rapid,boss,1,264.7,130.3,2.032,2.018,True
+orrery,Планетарий,8,rapid,boss,2,481,242.1,1.987,1.948,True
+orrery,Планетарий,8,rapid,boss,3,753.5,416.5,1.809,1.8,True
+windmill,Мельница,1,plain,crowd,1,1254.1,832.7,1.506,1.496,True
+windmill,Мельница,1,plain,crowd,2,1927.4,1243.6,1.55,1.511,True
+windmill,Мельница,1,plain,crowd,3,2594.8,1661.6,1.562,1.56,True
+windmill,Мельница,1,plain,boss,1,40.4,25.9,1.56,1.551,True
+windmill,Мельница,1,plain,boss,2,61.4,37.6,1.63,1.617,True
+windmill,Мельница,1,plain,boss,3,85.4,52.1,1.638,1.635,True
+windmill,Мельница,1,rapid,crowd,1,3179.1,1965.1,1.618,1.572,True
+windmill,Мельница,1,rapid,crowd,2,4629.8,2813.7,1.645,1.64,True
+windmill,Мельница,1,rapid,crowd,3,6348.7,4002.9,1.586,1.55,True
+windmill,Мельница,1,rapid,boss,1,101.2,61.4,1.649,1.627,True
+windmill,Мельница,1,rapid,boss,2,146.9,89.4,1.643,1.608,True
+windmill,Мельница,1,rapid,boss,3,199.3,128.4,1.552,1.516,True
+windmill,Мельница,1,elemental,crowd,1,1517.5,1007.6,1.506,1.496,True
+windmill,Мельница,1,elemental,crowd,2,2332.2,1504.8,1.55,1.511,True
+windmill,Мельница,1,elemental,crowd,3,3139.7,2010.6,1.562,1.56,True
+windmill,Мельница,1,elemental,boss,1,48.9,31.4,1.56,1.551,True
+windmill,Мельница,1,elemental,boss,2,74.2,45.6,1.63,1.617,True
+windmill,Мельница,1,elemental,boss,3,103.3,63.1,1.638,1.635,True
+windmill,Мельница,4,rapid,crowd,1,3179.1,1965.1,1.618,1.572,True
+windmill,Мельница,4,rapid,crowd,2,4629.8,2813.7,1.645,1.64,True
+windmill,Мельница,4,rapid,crowd,3,6348.7,4002.9,1.586,1.55,True
+windmill,Мельница,4,rapid,boss,1,101.2,61.4,1.649,1.627,True
+windmill,Мельница,4,rapid,boss,2,146.9,89.4,1.643,1.608,True
+windmill,Мельница,4,rapid,boss,3,199.3,128.4,1.552,1.516,True
+windmill,Мельница,8,rapid,crowd,1,3179.1,1965.1,1.618,1.572,True
+windmill,Мельница,8,rapid,crowd,2,4629.8,2813.7,1.645,1.64,True
+windmill,Мельница,8,rapid,crowd,3,6348.7,4002.9,1.586,1.55,True
+windmill,Мельница,8,rapid,boss,1,101.2,61.4,1.649,1.627,True
+windmill,Мельница,8,rapid,boss,2,146.9,89.4,1.643,1.608,True
+windmill,Мельница,8,rapid,boss,3,199.3,128.4,1.552,1.516,True
+tripwire,Растяжка,1,plain,crowd,1,1349.2,765.6,1.762,1.758,True
+tripwire,Растяжка,1,plain,crowd,2,2008.1,1064.2,1.887,1.833,True
+tripwire,Растяжка,1,plain,crowd,3,3952.1,1814.3,2.178,2.158,True
+tripwire,Растяжка,1,plain,boss,1,203.8,126.5,1.611,1.593,True
+tripwire,Растяжка,1,plain,boss,2,322,197.5,1.63,1.626,True
+tripwire,Растяжка,1,plain,boss,3,560.5,318,1.763,1.762,True
+tripwire,Растяжка,1,rapid,crowd,1,3075.5,1822.3,1.688,1.623,True
+tripwire,Растяжка,1,rapid,crowd,2,4741,2811.2,1.686,1.623,True
+tripwire,Растяжка,1,rapid,crowd,3,9525.5,4480.5,2.126,2.049,True
+tripwire,Растяжка,1,rapid,boss,1,538.7,352.1,1.53,1.475,True
+tripwire,Растяжка,1,rapid,boss,2,846.5,520.8,1.626,1.611,True
+tripwire,Растяжка,1,rapid,boss,3,1349.2,805.3,1.675,1.653,True
+tripwire,Растяжка,1,elemental,crowd,1,1573,785.2,2.003,1.875,True
+tripwire,Растяжка,1,elemental,crowd,2,2318,1267.6,1.829,1.725,True
+tripwire,Растяжка,1,elemental,crowd,3,4831,2158.5,2.238,2.205,True
+tripwire,Растяжка,1,elemental,boss,1,246.6,153.1,1.611,1.593,True
+tripwire,Растяжка,1,elemental,boss,2,389.6,239,1.63,1.626,True
+tripwire,Растяжка,1,elemental,boss,3,678.2,384.8,1.763,1.762,True
+tripwire,Растяжка,4,rapid,crowd,1,3075.5,1822.3,1.688,1.623,True
+tripwire,Растяжка,4,rapid,crowd,2,4741,2811.2,1.686,1.623,True
+tripwire,Растяжка,4,rapid,crowd,3,9525.5,4480.5,2.126,2.049,True
+tripwire,Растяжка,4,rapid,boss,1,538.7,352.1,1.53,1.475,True
+tripwire,Растяжка,4,rapid,boss,2,846.5,520.8,1.626,1.611,True
+tripwire,Растяжка,4,rapid,boss,3,1349.2,805.3,1.675,1.653,True
+tripwire,Растяжка,8,rapid,crowd,1,3075.5,1822.3,1.688,1.623,True
+tripwire,Растяжка,8,rapid,crowd,2,4741,2811.2,1.686,1.623,True
+tripwire,Растяжка,8,rapid,crowd,3,9525.5,4480.5,2.126,2.049,True
+tripwire,Растяжка,8,rapid,boss,1,538.7,352.1,1.53,1.475,True
+tripwire,Растяжка,8,rapid,boss,2,846.5,520.8,1.626,1.611,True
+tripwire,Растяжка,8,rapid,boss,3,1349.2,805.3,1.675,1.653,True
+fanback,Возвратный веер,1,plain,crowd,1,1861.8,816.4,2.28,2.184,True
+fanback,Возвратный веер,1,plain,crowd,2,2999.8,1150.4,2.608,2.601,True
+fanback,Возвратный веер,1,plain,crowd,3,5843.3,2594.4,2.252,2.237,True
+fanback,Возвратный веер,1,plain,boss,1,149.8,89.6,1.672,1.665,True
+fanback,Возвратный веер,1,plain,boss,2,244.7,138.3,1.769,1.768,True
+fanback,Возвратный веер,1,plain,boss,3,441.6,253.4,1.743,1.743,True
+fanback,Возвратный веер,1,rapid,crowd,1,5299.2,3087.7,1.716,1.594,True
+fanback,Возвратный веер,1,rapid,crowd,2,8318.7,4044.6,2.057,1.977,True
+fanback,Возвратный веер,1,rapid,crowd,3,15330.3,8164.6,1.878,1.828,True
+fanback,Возвратный веер,1,rapid,boss,1,386.3,251.1,1.539,1.51,True
+fanback,Возвратный веер,1,rapid,boss,2,618.8,383,1.616,1.585,True
+fanback,Возвратный веер,1,rapid,boss,3,1076.1,653.1,1.648,1.64,True
+fanback,Возвратный веер,1,elemental,crowd,1,2988.4,1301.6,2.296,2.195,True
+fanback,Возвратный веер,1,elemental,crowd,2,4816.6,1829.4,2.633,2.627,True
+fanback,Возвратный веер,1,elemental,crowd,3,9393,4147.3,2.265,2.25,True
+fanback,Возвратный веер,1,elemental,boss,1,181.3,109.4,1.657,1.65,True
+fanback,Возвратный веер,1,elemental,boss,2,296.1,168.5,1.757,1.755,True
+fanback,Возвратный веер,1,elemental,boss,3,534.4,308.2,1.734,1.731,True
+fanback,Возвратный веер,4,rapid,crowd,1,5299.2,3087.7,1.716,1.594,True
+fanback,Возвратный веер,4,rapid,crowd,2,8318.7,4044.6,2.057,1.977,True
+fanback,Возвратный веер,4,rapid,crowd,3,15330.3,8164.6,1.878,1.828,True
+fanback,Возвратный веер,4,rapid,boss,1,386.3,251.1,1.539,1.51,True
+fanback,Возвратный веер,4,rapid,boss,2,618.8,383,1.616,1.585,True
+fanback,Возвратный веер,4,rapid,boss,3,1076.1,653.1,1.648,1.64,True
+fanback,Возвратный веер,8,rapid,crowd,1,5299.2,3087.7,1.716,1.594,True
+fanback,Возвратный веер,8,rapid,crowd,2,8318.7,4044.6,2.057,1.977,True
+fanback,Возвратный веер,8,rapid,crowd,3,15330.3,8164.6,1.878,1.828,True
+fanback,Возвратный веер,8,rapid,boss,1,386.3,251.1,1.539,1.51,True
+fanback,Возвратный веер,8,rapid,boss,2,618.8,383,1.616,1.585,True
+fanback,Возвратный веер,8,rapid,boss,3,1076.1,653.1,1.648,1.64,True
+molotov,Коктейль,1,plain,crowd,1,4246.6,2228.3,1.906,1.857,True
+molotov,Коктейль,1,plain,crowd,2,8465.7,4251.5,1.991,1.976,True
+molotov,Коктейль,1,plain,crowd,3,15060.2,7587,1.985,1.983,True
+molotov,Коктейль,1,plain,boss,1,125.7,62.1,2.025,1.992,True
+molotov,Коктейль,1,plain,boss,2,209.5,98.8,2.122,2.084,True
+molotov,Коктейль,1,plain,boss,3,403.8,176.9,2.283,2.167,True
+molotov,Коктейль,1,rapid,crowd,1,25722,11460.8,2.244,2.2,True
+molotov,Коктейль,1,rapid,crowd,2,47913.5,21086.2,2.272,2.246,True
+molotov,Коктейль,1,rapid,crowd,3,79524.9,35899.8,2.215,2.207,True
+molotov,Коктейль,1,rapid,boss,1,671.4,272.7,2.462,2.261,True
+molotov,Коктейль,1,rapid,boss,2,1217,433.5,2.807,2.8,True
+molotov,Коктейль,1,rapid,boss,3,2084.7,879.8,2.37,2.235,True
+molotov,Коктейль,1,elemental,crowd,1,5138.3,3133.9,1.64,1.572,True
+molotov,Коктейль,1,elemental,crowd,2,10243.5,5874.9,1.744,1.721,True
+molotov,Коктейль,1,elemental,crowd,3,18222.9,10713.6,1.701,1.699,True
+molotov,Коктейль,1,elemental,boss,1,152.1,88.4,1.722,1.7,True
+molotov,Коктейль,1,elemental,boss,2,253.5,140.8,1.801,1.793,True
+molotov,Коктейль,1,elemental,boss,3,488.7,253.6,1.927,1.872,True
+molotov,Коктейль,4,rapid,crowd,1,25722,11460.8,2.244,2.2,True
+molotov,Коктейль,4,rapid,crowd,2,47913.5,21086.2,2.272,2.246,True
+molotov,Коктейль,4,rapid,crowd,3,79524.9,35899.8,2.215,2.207,True
+molotov,Коктейль,4,rapid,boss,1,671.4,272.7,2.462,2.261,True
+molotov,Коктейль,4,rapid,boss,2,1217,433.5,2.807,2.8,True
+molotov,Коктейль,4,rapid,boss,3,2084.7,879.8,2.37,2.235,True
+molotov,Коктейль,8,rapid,crowd,1,25722,11460.8,2.244,2.2,True
+molotov,Коктейль,8,rapid,crowd,2,47913.5,21086.2,2.272,2.246,True
+molotov,Коктейль,8,rapid,crowd,3,79524.9,35899.8,2.215,2.207,True
+molotov,Коктейль,8,rapid,boss,1,671.4,272.7,2.462,2.261,True
+molotov,Коктейль,8,rapid,boss,2,1217,433.5,2.807,2.8,True
+molotov,Коктейль,8,rapid,boss,3,2084.7,879.8,2.37,2.235,True
+minefield,Минное поле,1,plain,crowd,1,2427.5,1602.8,1.515,1.485,True
+minefield,Минное поле,1,plain,crowd,2,3620.2,2178.5,1.662,1.653,True
+minefield,Минное поле,1,plain,crowd,3,7070.9,3923.4,1.802,1.73,True
+minefield,Минное поле,1,plain,boss,1,129.2,99.2,1.302,1.254,True
+minefield,Минное поле,1,plain,boss,2,197.4,145.5,1.357,1.357,True
+minefield,Минное поле,1,plain,boss,3,365,236.2,1.545,1.531,True
+minefield,Минное поле,1,rapid,crowd,1,7313.5,4377.7,1.671,1.648,True
+minefield,Минное поле,1,rapid,crowd,2,10531.3,5878.9,1.791,1.754,True
+minefield,Минное поле,1,rapid,crowd,3,20657.4,11573.9,1.785,1.776,True
+minefield,Минное поле,1,rapid,boss,1,378.8,289.5,1.309,1.282,True
+minefield,Минное поле,1,rapid,boss,2,558.6,399.5,1.398,1.38,True
+minefield,Минное поле,1,rapid,boss,3,932.7,634.2,1.471,1.378,True
+minefield,Минное поле,1,elemental,crowd,1,2824.4,2053.1,1.376,1.273,True
+minefield,Минное поле,1,elemental,crowd,2,4206.6,3058.8,1.375,1.37,True
+minefield,Минное поле,1,elemental,crowd,3,8394.4,5884.8,1.426,1.378,True
+minefield,Минное поле,1,elemental,boss,1,156.3,133.4,1.172,1.125,True
+minefield,Минное поле,1,elemental,boss,2,238.9,198.8,1.202,1.193,True
+minefield,Минное поле,1,elemental,boss,3,441.7,324.1,1.363,1.351,True
+minefield,Минное поле,4,rapid,crowd,1,7313.5,4377.7,1.671,1.648,True
+minefield,Минное поле,4,rapid,crowd,2,10531.3,5878.9,1.791,1.754,True
+minefield,Минное поле,4,rapid,crowd,3,20657.4,11573.9,1.785,1.776,True
+minefield,Минное поле,4,rapid,boss,1,378.8,289.5,1.309,1.282,True
+minefield,Минное поле,4,rapid,boss,2,558.6,399.5,1.398,1.38,True
+minefield,Минное поле,4,rapid,boss,3,932.7,634.2,1.471,1.378,True
+minefield,Минное поле,8,rapid,crowd,1,7313.5,4377.7,1.671,1.648,True
+minefield,Минное поле,8,rapid,crowd,2,10531.3,5878.9,1.791,1.754,True
+minefield,Минное поле,8,rapid,crowd,3,20657.4,11573.9,1.785,1.776,True
+minefield,Минное поле,8,rapid,boss,1,378.8,289.5,1.309,1.282,True
+minefield,Минное поле,8,rapid,boss,2,558.6,399.5,1.398,1.38,True
+minefield,Минное поле,8,rapid,boss,3,932.7,634.2,1.471,1.378,True
+icebomb,Ледяная граната,1,plain,crowd,1,3994.9,1186.2,3.368,3.3,True
+icebomb,Ледяная граната,1,plain,crowd,2,6785,1639.3,4.139,3.996,True
+icebomb,Ледяная граната,1,plain,crowd,3,9037.2,3240.7,2.789,2.635,True
+icebomb,Ледяная граната,1,plain,boss,1,55.7,38.4,1.451,1.438,True
+icebomb,Ледяная граната,1,plain,boss,2,90.6,57.5,1.575,1.575,True
+icebomb,Ледяная граната,1,plain,boss,3,161,106.9,1.507,1.391,True
+icebomb,Ледяная граната,1,rapid,crowd,1,8928.5,3961.7,2.254,2.072,True
+icebomb,Ледяная граната,1,rapid,crowd,2,13308.1,5196.1,2.561,2.282,True
+icebomb,Ледяная граната,1,rapid,crowd,3,13749,9769.5,1.407,1.396,True
+icebomb,Ледяная граната,1,rapid,boss,1,206,132.8,1.551,1.548,True
+icebomb,Ледяная граната,1,rapid,boss,2,283.6,175.3,1.618,1.565,True
+icebomb,Ледяная граната,1,rapid,boss,3,498.5,312.4,1.596,1.562,True
+icebomb,Ледяная граната,1,elemental,crowd,1,4619,2157.5,2.141,2.021,True
+icebomb,Ледяная граната,1,elemental,crowd,2,5996.6,2995.3,2.002,1.835,True
+icebomb,Ледяная граната,1,elemental,crowd,3,7707.1,6022.8,1.28,1.213,True
+icebomb,Ледяная граната,1,elemental,boss,1,74.8,65.3,1.146,1.139,True
+icebomb,Ледяная граната,1,elemental,boss,2,117,100.8,1.16,1.145,True
+icebomb,Ледяная граната,1,elemental,boss,3,217.4,183.1,1.187,1.115,True
+icebomb,Ледяная граната,4,rapid,crowd,1,8928.5,3961.7,2.254,2.072,True
+icebomb,Ледяная граната,4,rapid,crowd,2,13308.1,5196.1,2.561,2.282,True
+icebomb,Ледяная граната,4,rapid,crowd,3,13749,9769.5,1.407,1.396,True
+icebomb,Ледяная граната,4,rapid,boss,1,206,132.8,1.551,1.548,True
+icebomb,Ледяная граната,4,rapid,boss,2,283.6,175.3,1.618,1.565,True
+icebomb,Ледяная граната,4,rapid,boss,3,498.5,312.4,1.596,1.562,True
+icebomb,Ледяная граната,8,rapid,crowd,1,8928.5,3961.7,2.254,2.072,True
+icebomb,Ледяная граната,8,rapid,crowd,2,13308.1,5196.1,2.561,2.282,True
+icebomb,Ледяная граната,8,rapid,crowd,3,13749,9769.5,1.407,1.396,True
+icebomb,Ледяная граната,8,rapid,boss,1,206,132.8,1.551,1.548,True
+icebomb,Ледяная граната,8,rapid,boss,2,283.6,175.3,1.618,1.565,True
+icebomb,Ледяная граната,8,rapid,boss,3,498.5,312.4,1.596,1.562,True
+aurora,Полярное сияние,1,plain,crowd,1,1186.6,790.4,1.501,1.463,True
+aurora,Полярное сияние,1,plain,crowd,2,1523.2,1153.8,1.32,1.295,True
+aurora,Полярное сияние,1,plain,crowd,3,2070.1,1735.4,1.193,1.153,True
+aurora,Полярное сияние,1,plain,boss,1,40.9,26.7,1.53,1.53,True
+aurora,Полярное сияние,1,plain,boss,2,59.7,39,1.529,1.529,True
+aurora,Полярное сияние,1,plain,boss,3,84.2,57.4,1.465,1.465,True
+aurora,Полярное сияние,1,rapid,crowd,1,2505.1,1820.7,1.376,1.366,True
+aurora,Полярное сияние,1,rapid,crowd,2,3476.8,2607.8,1.333,1.249,True
+aurora,Полярное сияние,1,rapid,crowd,3,4826,3973.4,1.215,1.213,True
+aurora,Полярное сияние,1,rapid,boss,1,92.7,62,1.496,1.483,True
+aurora,Полярное сияние,1,rapid,boss,2,141.6,92.5,1.53,1.517,True
+aurora,Полярное сияние,1,rapid,boss,3,195.5,137.4,1.423,1.371,True
+aurora,Полярное сияние,1,elemental,crowd,1,1653,1122.4,1.473,1.467,True
+aurora,Полярное сияние,1,elemental,crowd,2,1970,1676.4,1.175,1.175,True
+aurora,Полярное сияние,1,elemental,crowd,3,2837.2,2247.4,1.262,1.238,True
+aurora,Полярное сияние,1,elemental,boss,1,58.3,38.1,1.531,1.531,True
+aurora,Полярное сияние,1,elemental,boss,2,85.1,55.7,1.529,1.529,True
+aurora,Полярное сияние,1,elemental,boss,3,120.1,81.9,1.466,1.466,True
+aurora,Полярное сияние,4,rapid,crowd,1,2505.1,1820.7,1.376,1.366,True
+aurora,Полярное сияние,4,rapid,crowd,2,3476.8,2607.8,1.333,1.249,True
+aurora,Полярное сияние,4,rapid,crowd,3,4826,3973.4,1.215,1.213,True
+aurora,Полярное сияние,4,rapid,boss,1,92.7,62,1.496,1.483,True
+aurora,Полярное сияние,4,rapid,boss,2,141.6,92.5,1.53,1.517,True
+aurora,Полярное сияние,4,rapid,boss,3,195.5,137.4,1.423,1.371,True
+aurora,Полярное сияние,8,rapid,crowd,1,2505.1,1820.7,1.376,1.366,True
+aurora,Полярное сияние,8,rapid,crowd,2,3476.8,2607.8,1.333,1.249,True
+aurora,Полярное сияние,8,rapid,crowd,3,4826,3973.4,1.215,1.213,True
+aurora,Полярное сияние,8,rapid,boss,1,92.7,62,1.496,1.483,True
+aurora,Полярное сияние,8,rapid,boss,2,141.6,92.5,1.53,1.517,True
+aurora,Полярное сияние,8,rapid,boss,3,195.5,137.4,1.423,1.371,True
+censer,Кадило,1,plain,crowd,1,3075.9,1869.9,1.645,1.639,True
+censer,Кадило,1,plain,crowd,2,5808,3551.3,1.635,1.632,True
+censer,Кадило,1,plain,crowd,3,10429.1,5890.7,1.77,1.769,True
+censer,Кадило,1,plain,boss,1,86.1,48.5,1.773,1.751,True
+censer,Кадило,1,plain,boss,2,142.6,77.1,1.849,1.831,True
+censer,Кадило,1,plain,boss,3,262.2,126.3,2.075,2.047,True
+censer,Кадило,1,rapid,crowd,1,14801.6,9646.4,1.534,1.497,True
+censer,Кадило,1,rapid,crowd,2,29402.5,18261.3,1.61,1.567,True
+censer,Кадило,1,rapid,crowd,3,53969.2,31481.3,1.714,1.713,True
+censer,Кадило,1,rapid,boss,1,348,219.9,1.582,1.533,True
+censer,Кадило,1,rapid,boss,2,711.4,368.1,1.932,1.823,True
+censer,Кадило,1,rapid,boss,3,1309,598.3,2.188,1.997,True
+censer,Кадило,1,elemental,crowd,1,4523.1,2769.6,1.633,1.626,True
+censer,Кадило,1,elemental,crowd,2,8261.6,5061.7,1.632,1.622,True
+censer,Кадило,1,elemental,crowd,3,14611.9,8274.9,1.766,1.766,True
+censer,Кадило,1,elemental,boss,1,123.1,69.5,1.772,1.748,True
+censer,Кадило,1,elemental,boss,2,204.5,110,1.859,1.846,True
+censer,Кадило,1,elemental,boss,3,374.9,180.3,2.079,2.051,True
+censer,Кадило,4,rapid,crowd,1,14801.6,9646.4,1.534,1.497,True
+censer,Кадило,4,rapid,crowd,2,29402.5,18261.3,1.61,1.567,True
+censer,Кадило,4,rapid,crowd,3,53969.2,31481.3,1.714,1.713,True
+censer,Кадило,4,rapid,boss,1,348,219.9,1.582,1.533,True
+censer,Кадило,4,rapid,boss,2,711.4,368.1,1.932,1.823,True
+censer,Кадило,4,rapid,boss,3,1309,598.3,2.188,1.997,True
+censer,Кадило,8,rapid,crowd,1,14801.6,9646.4,1.534,1.497,True
+censer,Кадило,8,rapid,crowd,2,29402.5,18261.3,1.61,1.567,True
+censer,Кадило,8,rapid,crowd,3,53969.2,31481.3,1.714,1.713,True
+censer,Кадило,8,rapid,boss,1,348,219.9,1.582,1.533,True
+censer,Кадило,8,rapid,boss,2,711.4,368.1,1.932,1.823,True
+censer,Кадило,8,rapid,boss,3,1309,598.3,2.188,1.997,True
+icedisc,Ледяной диск,1,plain,crowd,1,3243.7,1045.2,3.103,2.995,True
+icedisc,Ледяной диск,1,plain,crowd,2,5995.8,4139.3,1.449,1.407,True
+icedisc,Ледяной диск,1,plain,crowd,3,8226.1,4880.3,1.686,1.592,True
+icedisc,Ледяной диск,1,plain,boss,1,72.9,38.7,1.887,1.877,True
+icedisc,Ледяной диск,1,plain,boss,2,112.6,51,2.21,2.197,True
+icedisc,Ледяной диск,1,plain,boss,3,191.9,95.1,2.018,2.015,True
+icedisc,Ледяной диск,1,rapid,crowd,1,17467,11612.4,1.504,1.373,True
+icedisc,Ледяной диск,1,rapid,crowd,2,13886.9,9039.7,1.536,1.535,True
+icedisc,Ледяной диск,1,rapid,crowd,3,18320.6,14381.1,1.274,1.126,True
+icedisc,Ледяной диск,1,rapid,boss,1,215.1,91.8,2.342,2.322,True
+icedisc,Ледяной диск,1,rapid,boss,2,267.7,124.3,2.154,2.154,True
+icedisc,Ледяной диск,1,rapid,boss,3,448.3,219.7,2.04,2.011,True
+icedisc,Ледяной диск,1,elemental,crowd,1,8516.8,1930.7,4.411,3.539,True
+icedisc,Ледяной диск,1,elemental,crowd,2,13123.1,9084.4,1.445,1.347,True
+icedisc,Ледяной диск,1,elemental,crowd,3,14006,8741.3,1.602,1.274,True
+icedisc,Ледяной диск,1,elemental,boss,1,103,50.6,2.037,1.998,True
+icedisc,Ледяной диск,1,elemental,boss,2,159.2,72,2.212,2.2,True
+icedisc,Ледяной диск,1,elemental,boss,3,273,135.7,2.012,1.999,True
+icedisc,Ледяной диск,4,rapid,crowd,1,17467,11612.4,1.504,1.373,True
+icedisc,Ледяной диск,4,rapid,crowd,2,13886.9,9039.7,1.536,1.535,True
+icedisc,Ледяной диск,4,rapid,crowd,3,18320.6,14381.1,1.274,1.126,True
+icedisc,Ледяной диск,4,rapid,boss,1,215.1,91.8,2.342,2.322,True
+icedisc,Ледяной диск,4,rapid,boss,2,267.7,124.3,2.154,2.154,True
+icedisc,Ледяной диск,4,rapid,boss,3,448.3,219.7,2.04,2.011,True
+icedisc,Ледяной диск,8,rapid,crowd,1,17467,11612.4,1.504,1.373,True
+icedisc,Ледяной диск,8,rapid,crowd,2,13886.9,9039.7,1.536,1.535,True
+icedisc,Ледяной диск,8,rapid,crowd,3,18320.6,14381.1,1.274,1.126,True
+icedisc,Ледяной диск,8,rapid,boss,1,215.1,91.8,2.342,2.322,True
+icedisc,Ледяной диск,8,rapid,boss,2,267.7,124.3,2.154,2.154,True
+icedisc,Ледяной диск,8,rapid,boss,3,448.3,219.7,2.04,2.011,True
+stormlight,Прожектор бури,1,plain,crowd,1,825.5,559.9,1.474,1.062,True
+stormlight,Прожектор бури,1,plain,crowd,2,1296.7,682.1,1.901,1.64,True
+stormlight,Прожектор бури,1,plain,crowd,3,2387.7,1211,1.972,1.78,True
+stormlight,Прожектор бури,1,plain,boss,1,89.5,46.8,1.913,1.913,True
+stormlight,Прожектор бури,1,plain,boss,2,120.6,60.7,1.987,1.987,True
+stormlight,Прожектор бури,1,plain,boss,3,177,86.6,2.045,2.045,True
+stormlight,Прожектор бури,1,rapid,crowd,1,2127.2,1219,1.745,1.658,True
+stormlight,Прожектор бури,1,rapid,crowd,2,3473.1,1915.6,1.813,1.724,True
+stormlight,Прожектор бури,1,rapid,crowd,3,5770.4,3200,1.803,1.657,True
+stormlight,Прожектор бури,1,rapid,boss,1,203.1,104.6,1.942,1.895,True
+stormlight,Прожектор бури,1,rapid,boss,2,288,144.7,1.99,1.956,True
+stormlight,Прожектор бури,1,rapid,boss,3,422.9,205.7,2.056,2.042,True
+stormlight,Прожектор бури,1,elemental,crowd,1,27431.8,1954.7,14.034,10.424,True
+stormlight,Прожектор бури,1,elemental,crowd,2,31834.5,3621.5,8.79,6.297,True
+stormlight,Прожектор бури,1,elemental,crowd,3,51806.2,7578.2,6.836,6.592,True
+stormlight,Прожектор бури,1,elemental,boss,1,176,71.5,2.461,2.461,True
+stormlight,Прожектор бури,1,elemental,boss,2,223.8,91.5,2.447,2.447,True
+stormlight,Прожектор бури,1,elemental,boss,3,308.9,128.4,2.405,2.405,True
+stormlight,Прожектор бури,4,rapid,crowd,1,2127.2,1219,1.745,1.658,True
+stormlight,Прожектор бури,4,rapid,crowd,2,3473.1,1915.6,1.813,1.724,True
+stormlight,Прожектор бури,4,rapid,crowd,3,5770.4,3200,1.803,1.657,True
+stormlight,Прожектор бури,4,rapid,boss,1,203.1,104.6,1.942,1.895,True
+stormlight,Прожектор бури,4,rapid,boss,2,288,144.7,1.99,1.956,True
+stormlight,Прожектор бури,4,rapid,boss,3,422.9,205.7,2.056,2.042,True
+stormlight,Прожектор бури,8,rapid,crowd,1,2127.2,1219,1.745,1.658,True
+stormlight,Прожектор бури,8,rapid,crowd,2,3473.1,1915.6,1.813,1.724,True
+stormlight,Прожектор бури,8,rapid,crowd,3,5770.4,3200,1.803,1.657,True
+stormlight,Прожектор бури,8,rapid,boss,1,203.1,104.6,1.942,1.895,True
+stormlight,Прожектор бури,8,rapid,boss,2,288,144.7,1.99,1.956,True
+stormlight,Прожектор бури,8,rapid,boss,3,422.9,205.7,2.056,2.042,True
+volley,Залп,1,plain,crowd,1,461.9,259.4,1.78,1.756,True
+volley,Залп,1,plain,crowd,2,821.6,455.4,1.804,1.777,True
+volley,Залп,1,plain,crowd,3,2513,1181.3,2.127,1.448,True
+volley,Залп,1,plain,boss,1,123.4,81.8,1.51,1.507,True
+volley,Залп,1,plain,boss,2,192.2,130,1.479,1.476,True
+volley,Залп,1,plain,boss,3,347.9,220,1.581,1.58,True
+volley,Залп,1,rapid,crowd,1,1909.2,1095.6,1.743,1.689,True
+volley,Залп,1,rapid,crowd,2,3049,1932.1,1.578,1.534,True
+volley,Залп,1,rapid,crowd,3,5917.4,4057.4,1.458,1.405,True
+volley,Залп,1,rapid,boss,1,454.3,291.4,1.559,1.556,True
+volley,Залп,1,rapid,boss,2,686.7,437.8,1.568,1.568,True
+volley,Залп,1,rapid,boss,3,1129.7,700.2,1.613,1.573,True
+volley,Залп,1,elemental,crowd,1,707.9,391.3,1.809,1.781,True
+volley,Залп,1,elemental,crowd,2,1270,692.8,1.833,1.803,True
+volley,Залп,1,elemental,crowd,3,2953.2,1848.2,1.598,1.366,True
+volley,Залп,1,elemental,boss,1,149.4,98.9,1.51,1.507,True
+volley,Залп,1,elemental,boss,2,232.6,157.3,1.479,1.476,True
+volley,Залп,1,elemental,boss,3,420.9,266.2,1.581,1.58,True
+volley,Залп,4,rapid,crowd,1,1909.2,1095.6,1.743,1.689,True
+volley,Залп,4,rapid,crowd,2,3049,1932.1,1.578,1.534,True
+volley,Залп,4,rapid,crowd,3,5917.4,4057.4,1.458,1.405,True
+volley,Залп,4,rapid,boss,1,454.3,291.4,1.559,1.556,True
+volley,Залп,4,rapid,boss,2,686.7,437.8,1.568,1.568,True
+volley,Залп,4,rapid,boss,3,1129.7,700.2,1.613,1.573,True
+volley,Залп,8,rapid,crowd,1,1909.2,1095.6,1.743,1.689,True
+volley,Залп,8,rapid,crowd,2,3049,1932.1,1.578,1.534,True
+volley,Залп,8,rapid,crowd,3,5917.4,4057.4,1.458,1.405,True
+volley,Залп,8,rapid,boss,1,454.3,291.4,1.559,1.556,True
+volley,Залп,8,rapid,boss,2,686.7,437.8,1.568,1.568,True
+volley,Залп,8,rapid,boss,3,1129.7,700.2,1.613,1.573,True
+phalanx,Фаланга,1,plain,crowd,1,477.4,221.4,2.156,2.126,True
+phalanx,Фаланга,1,plain,crowd,2,714.2,370.4,1.928,1.785,True
+phalanx,Фаланга,1,plain,crowd,3,1268.1,681.3,1.861,1.832,True
+phalanx,Фаланга,1,plain,boss,1,57.7,29.3,1.97,1.948,True
+phalanx,Фаланга,1,plain,boss,2,88.1,40.6,2.168,2.168,True
+phalanx,Фаланга,1,plain,boss,3,115.4,63,1.831,1.831,True
+phalanx,Фаланга,1,rapid,crowd,1,1474.8,803,1.837,1.719,True
+phalanx,Фаланга,1,rapid,crowd,2,2498,1378.2,1.812,1.649,True
+phalanx,Фаланга,1,rapid,crowd,3,4159.3,2977.7,1.397,1.371,True
+phalanx,Фаланга,1,rapid,boss,1,191.1,122.4,1.561,1.555,True
+phalanx,Фаланга,1,rapid,boss,2,289.6,177.1,1.635,1.605,True
+phalanx,Фаланга,1,rapid,boss,3,446.6,282.2,1.583,1.574,True
+phalanx,Фаланга,1,elemental,crowd,1,708.1,320.1,2.212,2.159,True
+phalanx,Фаланга,1,elemental,crowd,2,1034.7,546.2,1.894,1.861,True
+phalanx,Фаланга,1,elemental,crowd,3,1991.6,1057.8,1.883,1.454,True
+phalanx,Фаланга,1,elemental,boss,1,73.2,37.5,1.949,1.929,True
+phalanx,Фаланга,1,elemental,boss,2,110.9,52.7,2.103,2.103,True
+phalanx,Фаланга,1,elemental,boss,3,146.3,81.8,1.789,1.789,True
+phalanx,Фаланга,4,rapid,crowd,1,1474.8,803,1.837,1.719,True
+phalanx,Фаланга,4,rapid,crowd,2,2498,1378.2,1.812,1.649,True
+phalanx,Фаланга,4,rapid,crowd,3,4159.3,2977.7,1.397,1.371,True
+phalanx,Фаланга,4,rapid,boss,1,191.1,122.4,1.561,1.555,True
+phalanx,Фаланга,4,rapid,boss,2,289.6,177.1,1.635,1.605,True
+phalanx,Фаланга,4,rapid,boss,3,446.6,282.2,1.583,1.574,True
+phalanx,Фаланга,8,rapid,crowd,1,1474.8,803,1.837,1.719,True
+phalanx,Фаланга,8,rapid,crowd,2,2498,1378.2,1.812,1.649,True
+phalanx,Фаланга,8,rapid,crowd,3,4159.3,2977.7,1.397,1.371,True
+phalanx,Фаланга,8,rapid,boss,1,191.1,122.4,1.561,1.555,True
+phalanx,Фаланга,8,rapid,boss,2,289.6,177.1,1.635,1.605,True
+phalanx,Фаланга,8,rapid,boss,3,446.6,282.2,1.583,1.574,True
+firewheel,Огненное колесо,1,plain,crowd,1,842.5,673.8,1.25,1.248,True
+firewheel,Огненное колесо,1,plain,crowd,2,1303.6,1031.5,1.264,1.261,True
+firewheel,Огненное колесо,1,plain,crowd,3,1720.6,1320,1.303,1.298,True
+firewheel,Огненное колесо,1,plain,boss,1,23.7,19.6,1.206,1.2,True
+firewheel,Огненное колесо,1,plain,boss,2,36.5,30,1.216,1.2,True
+firewheel,Огненное колесо,1,plain,boss,3,46.6,38.3,1.216,1.2,True
+firewheel,Огненное колесо,1,rapid,crowd,1,2057.2,1615.4,1.273,1.267,True
+firewheel,Огненное колесо,1,rapid,crowd,2,3191.8,2472.3,1.291,1.284,True
+firewheel,Огненное колесо,1,rapid,crowd,3,4243.8,3165.4,1.341,1.335,True
+firewheel,Огненное колесо,1,rapid,boss,1,56.3,46.7,1.205,1.2,True
+firewheel,Огненное колесо,1,rapid,boss,2,88.2,73.5,1.201,1.2,True
+firewheel,Огненное колесо,1,rapid,boss,3,110.5,91.8,1.203,1.197,True
+firewheel,Огненное колесо,1,elemental,crowd,1,1019.4,815.2,1.25,1.248,True
+firewheel,Огненное колесо,1,elemental,crowd,2,1577.3,1248.1,1.264,1.261,True
+firewheel,Огненное колесо,1,elemental,crowd,3,2081.9,1597.2,1.303,1.298,True
+firewheel,Огненное колесо,1,elemental,boss,1,28.6,23.7,1.206,1.2,True
+firewheel,Огненное колесо,1,elemental,boss,2,44.1,36.3,1.216,1.2,True
+firewheel,Огненное колесо,1,elemental,boss,3,56.4,46.3,1.216,1.2,True
+firewheel,Огненное колесо,4,rapid,crowd,1,2057.2,1615.4,1.273,1.267,True
+firewheel,Огненное колесо,4,rapid,crowd,2,3191.8,2472.3,1.291,1.284,True
+firewheel,Огненное колесо,4,rapid,crowd,3,4243.8,3165.4,1.341,1.335,True
+firewheel,Огненное колесо,4,rapid,boss,1,56.3,46.7,1.205,1.2,True
+firewheel,Огненное колесо,4,rapid,boss,2,88.2,73.5,1.201,1.2,True
+firewheel,Огненное колесо,4,rapid,boss,3,110.5,91.8,1.203,1.197,True
+firewheel,Огненное колесо,8,rapid,crowd,1,2057.2,1615.4,1.273,1.267,True
+firewheel,Огненное колесо,8,rapid,crowd,2,3191.8,2472.3,1.291,1.284,True
+firewheel,Огненное колесо,8,rapid,crowd,3,4243.8,3165.4,1.341,1.335,True
+firewheel,Огненное колесо,8,rapid,boss,1,56.3,46.7,1.205,1.2,True
+firewheel,Огненное колесо,8,rapid,boss,2,88.2,73.5,1.201,1.2,True
+firewheel,Огненное колесо,8,rapid,boss,3,110.5,91.8,1.203,1.197,True
+guide,Путеводный огонь,1,plain,crowd,1,736.7,485.8,1.517,1.482,True
+guide,Путеводный огонь,1,plain,crowd,2,1148.6,776.4,1.479,1.418,True
+guide,Путеводный огонь,1,plain,crowd,3,2318.4,1439.8,1.61,1.608,True
+guide,Путеводный огонь,1,plain,boss,1,117.1,73.1,1.601,1.601,True
+guide,Путеводный огонь,1,plain,boss,2,220.1,132.8,1.658,1.658,True
+guide,Путеводный огонь,1,plain,boss,3,394,240,1.642,1.642,True
+guide,Путеводный огонь,1,rapid,crowd,1,1921,1311.4,1.465,1.4,True
+guide,Путеводный огонь,1,rapid,crowd,2,3329.3,2016.9,1.651,1.646,True
+guide,Путеводный огонь,1,rapid,crowd,3,5640.1,3664,1.539,1.494,True
+guide,Путеводный огонь,1,rapid,boss,1,367.8,228.8,1.607,1.585,True
+guide,Путеводный огонь,1,rapid,boss,2,649.7,400.6,1.622,1.597,True
+guide,Путеводный огонь,1,rapid,boss,3,1127.7,684.8,1.647,1.616,True
+guide,Путеводный огонь,1,elemental,crowd,1,948.8,626.7,1.514,1.464,True
+guide,Путеводный огонь,1,elemental,crowd,2,1485.5,989.1,1.502,1.451,True
+guide,Путеводный огонь,1,elemental,crowd,3,3128.7,1915.6,1.633,1.628,True
+guide,Путеводный огонь,1,elemental,boss,1,141.6,88.4,1.601,1.601,True
+guide,Путеводный огонь,1,elemental,boss,2,266.3,160.7,1.658,1.658,True
+guide,Путеводный огонь,1,elemental,boss,3,476.8,290.4,1.642,1.642,True
+guide,Путеводный огонь,4,rapid,crowd,1,1921,1311.4,1.465,1.4,True
+guide,Путеводный огонь,4,rapid,crowd,2,3329.3,2016.9,1.651,1.646,True
+guide,Путеводный огонь,4,rapid,crowd,3,5640.1,3664,1.539,1.494,True
+guide,Путеводный огонь,4,rapid,boss,1,367.8,228.8,1.607,1.585,True
+guide,Путеводный огонь,4,rapid,boss,2,649.7,400.6,1.622,1.597,True
+guide,Путеводный огонь,4,rapid,boss,3,1127.7,684.8,1.647,1.616,True
+guide,Путеводный огонь,8,rapid,crowd,1,1921,1311.4,1.465,1.4,True
+guide,Путеводный огонь,8,rapid,crowd,2,3329.3,2016.9,1.651,1.646,True
+guide,Путеводный огонь,8,rapid,crowd,3,5640.1,3664,1.539,1.494,True
+guide,Путеводный огонь,8,rapid,boss,1,367.8,228.8,1.607,1.585,True
+guide,Путеводный огонь,8,rapid,boss,2,649.7,400.6,1.622,1.597,True
+guide,Путеводный огонь,8,rapid,boss,3,1127.7,684.8,1.647,1.616,True
+sunspear,Солнечное копьё,1,plain,crowd,1,896.1,624.7,1.434,1.338,True
+sunspear,Солнечное копьё,1,plain,crowd,2,1244.2,968.9,1.284,1.207,True
+sunspear,Солнечное копьё,1,plain,crowd,3,2793.9,1629.4,1.715,1.613,True
+sunspear,Солнечное копьё,1,plain,boss,1,94.8,56.9,1.665,1.663,True
+sunspear,Солнечное копьё,1,plain,boss,2,126.8,76,1.668,1.667,True
+sunspear,Солнечное копьё,1,plain,boss,3,186.5,114.9,1.623,1.621,True
+sunspear,Солнечное копьё,1,rapid,crowd,1,3507,1839.4,1.907,1.716,True
+sunspear,Солнечное копьё,1,rapid,crowd,2,4923.3,2553,1.928,1.823,True
+sunspear,Солнечное копьё,1,rapid,crowd,3,10565.3,5603.3,1.886,1.868,True
+sunspear,Солнечное копьё,1,rapid,boss,1,390.3,195.7,1.994,1.927,True
+sunspear,Солнечное копьё,1,rapid,boss,2,521.3,275.3,1.893,1.889,True
+sunspear,Солнечное копьё,1,rapid,boss,3,798.5,456.7,1.748,1.697,True
+sunspear,Солнечное копьё,1,elemental,crowd,1,1232.1,822.7,1.498,1.444,True
+sunspear,Солнечное копьё,1,elemental,crowd,2,1772.8,1275.1,1.39,1.384,True
+sunspear,Солнечное копьё,1,elemental,crowd,3,4285.4,2116.3,2.025,1.656,True
+sunspear,Солнечное копьё,1,elemental,boss,1,114.7,68.9,1.665,1.663,True
+sunspear,Солнечное копьё,1,elemental,boss,2,153.4,91.9,1.668,1.667,True
+sunspear,Солнечное копьё,1,elemental,boss,3,225.6,139,1.623,1.621,True
+sunspear,Солнечное копьё,4,rapid,crowd,1,3507,1839.4,1.907,1.716,True
+sunspear,Солнечное копьё,4,rapid,crowd,2,4923.3,2553,1.928,1.823,True
+sunspear,Солнечное копьё,4,rapid,crowd,3,10565.3,5603.3,1.886,1.868,True
+sunspear,Солнечное копьё,4,rapid,boss,1,390.3,195.7,1.994,1.927,True
+sunspear,Солнечное копьё,4,rapid,boss,2,521.3,275.3,1.893,1.889,True
+sunspear,Солнечное копьё,4,rapid,boss,3,798.5,456.7,1.748,1.697,True
+sunspear,Солнечное копьё,8,rapid,crowd,1,3507,1839.4,1.907,1.716,True
+sunspear,Солнечное копьё,8,rapid,crowd,2,4923.3,2553,1.928,1.823,True
+sunspear,Солнечное копьё,8,rapid,crowd,3,10565.3,5603.3,1.886,1.868,True
+sunspear,Солнечное копьё,8,rapid,boss,1,390.3,195.7,1.994,1.927,True
+sunspear,Солнечное копьё,8,rapid,boss,2,521.3,275.3,1.893,1.889,True
+sunspear,Солнечное копьё,8,rapid,boss,3,798.5,456.7,1.748,1.697,True
+glow,Зарево,1,plain,crowd,1,1647,1130.1,1.457,1.413,True
+glow,Зарево,1,plain,crowd,2,2560.2,1741.5,1.47,1.45,True
+glow,Зарево,1,plain,crowd,3,3639.6,2387.7,1.524,1.473,True
+glow,Зарево,1,plain,boss,1,75.7,50.8,1.49,1.49,True
+glow,Зарево,1,plain,boss,2,107.8,72.1,1.494,1.494,True
+glow,Зарево,1,plain,boss,3,153.5,98,1.567,1.566,True
+glow,Зарево,1,rapid,crowd,1,3722.4,2782,1.338,1.295,True
+glow,Зарево,1,rapid,crowd,2,5846.2,4086.2,1.431,1.319,True
+glow,Зарево,1,rapid,crowd,3,8199.3,5625.7,1.457,1.446,True
+glow,Зарево,1,rapid,boss,1,175,118.7,1.475,1.468,True
+glow,Зарево,1,rapid,boss,2,251.5,170.4,1.476,1.473,True
+glow,Зарево,1,rapid,boss,3,358.9,232.3,1.545,1.519,True
+glow,Зарево,1,elemental,crowd,1,1992.9,1371.2,1.453,1.405,True
+glow,Зарево,1,elemental,crowd,2,3097.8,2107.2,1.47,1.45,True
+glow,Зарево,1,elemental,crowd,3,4403.9,2889.1,1.524,1.473,True
+glow,Зарево,1,elemental,boss,1,91.6,61.5,1.49,1.49,True
+glow,Зарево,1,elemental,boss,2,130.4,87.3,1.494,1.494,True
+glow,Зарево,1,elemental,boss,3,185.8,118.6,1.567,1.566,True
+glow,Зарево,4,rapid,crowd,1,3722.4,2782,1.338,1.295,True
+glow,Зарево,4,rapid,crowd,2,5846.2,4086.2,1.431,1.319,True
+glow,Зарево,4,rapid,crowd,3,8199.3,5625.7,1.457,1.446,True
+glow,Зарево,4,rapid,boss,1,175,118.7,1.475,1.468,True
+glow,Зарево,4,rapid,boss,2,251.5,170.4,1.476,1.473,True
+glow,Зарево,4,rapid,boss,3,358.9,232.3,1.545,1.519,True
+glow,Зарево,8,rapid,crowd,1,3722.4,2782,1.338,1.295,True
+glow,Зарево,8,rapid,crowd,2,5846.2,4086.2,1.431,1.319,True
+glow,Зарево,8,rapid,crowd,3,8199.3,5625.7,1.457,1.446,True
+glow,Зарево,8,rapid,boss,1,175,118.7,1.475,1.468,True
+glow,Зарево,8,rapid,boss,2,251.5,170.4,1.476,1.473,True
+glow,Зарево,8,rapid,boss,3,358.9,232.3,1.545,1.519,True
+dome,Купол,1,plain,crowd,1,986.5,569.7,1.732,1.675,True
+dome,Купол,1,plain,crowd,2,1366.8,823.2,1.66,1.647,True
+dome,Купол,1,plain,crowd,3,1831.9,1130.8,1.62,1.62,True
+dome,Купол,1,plain,boss,1,41.3,24.1,1.714,1.714,True
+dome,Купол,1,plain,boss,2,56.8,35.2,1.615,1.615,True
+dome,Купол,1,plain,boss,3,84.5,52.9,1.596,1.596,True
+dome,Купол,1,rapid,crowd,1,2543.1,1519.2,1.674,1.618,True
+dome,Купол,1,rapid,crowd,2,3720.7,2190.7,1.698,1.63,True
+dome,Купол,1,rapid,crowd,3,5229.3,3087.8,1.694,1.637,True
+dome,Купол,1,rapid,boss,1,95.8,58.5,1.637,1.624,True
+dome,Купол,1,rapid,boss,2,139.3,86.9,1.603,1.6,True
+dome,Купол,1,rapid,boss,3,209.9,132.5,1.585,1.571,True
+dome,Купол,1,elemental,crowd,1,1280.2,733.3,1.746,1.733,True
+dome,Купол,1,elemental,crowd,2,1762.6,1069.7,1.648,1.645,True
+dome,Купол,1,elemental,crowd,3,2354.6,1493.2,1.577,1.559,True
+dome,Купол,1,elemental,boss,1,62.7,36.7,1.709,1.709,True
+dome,Купол,1,elemental,boss,2,85.8,54.1,1.585,1.585,True
+dome,Купол,1,elemental,boss,3,128.1,81.8,1.566,1.566,True
+dome,Купол,4,rapid,crowd,1,2543.1,1519.2,1.674,1.618,True
+dome,Купол,4,rapid,crowd,2,3720.7,2190.7,1.698,1.63,True
+dome,Купол,4,rapid,crowd,3,5229.3,3087.8,1.694,1.637,True
+dome,Купол,4,rapid,boss,1,95.8,58.5,1.637,1.624,True
+dome,Купол,4,rapid,boss,2,139.3,86.9,1.603,1.6,True
+dome,Купол,4,rapid,boss,3,209.9,132.5,1.585,1.571,True
+dome,Купол,8,rapid,crowd,1,2543.1,1519.2,1.674,1.618,True
+dome,Купол,8,rapid,crowd,2,3720.7,2190.7,1.698,1.63,True
+dome,Купол,8,rapid,crowd,3,5229.3,3087.8,1.694,1.637,True
+dome,Купол,8,rapid,boss,1,95.8,58.5,1.637,1.624,True
+dome,Купол,8,rapid,boss,2,139.3,86.9,1.603,1.6,True
+dome,Купол,8,rapid,boss,3,209.9,132.5,1.585,1.571,True
+riposte,Контрудар,1,plain,crowd,1,1361.9,752.7,1.809,1.746,True
+riposte,Контрудар,1,plain,crowd,2,1906.4,1095.8,1.74,1.724,True
+riposte,Контрудар,1,plain,crowd,3,2384.3,1323.8,1.801,1.762,True
+riposte,Контрудар,1,plain,boss,1,53.8,31,1.738,1.723,True
+riposte,Контрудар,1,plain,boss,2,75.9,45.5,1.67,1.662,True
+riposte,Контрудар,1,plain,boss,3,109.5,64.8,1.691,1.686,True
+riposte,Контрудар,1,rapid,crowd,1,3211.1,1821.4,1.763,1.748,True
+riposte,Контрудар,1,rapid,crowd,2,4423.1,2350.8,1.882,1.868,True
+riposte,Контрудар,1,rapid,crowd,3,5162,2689,1.92,1.918,True
+riposte,Контрудар,1,rapid,boss,1,131.8,75.4,1.749,1.675,True
+riposte,Контрудар,1,rapid,boss,2,189.6,114.4,1.658,1.653,True
+riposte,Контрудар,1,rapid,boss,3,273.9,162.8,1.682,1.631,True
+riposte,Контрудар,1,elemental,crowd,1,1651.3,912.9,1.809,1.746,True
+riposte,Контрудар,1,elemental,crowd,2,2311,1329.5,1.738,1.723,True
+riposte,Контрудар,1,elemental,crowd,3,2891.7,1607.4,1.799,1.76,True
+riposte,Контрудар,1,elemental,boss,1,68.5,39.6,1.731,1.716,True
+riposte,Контрудар,1,elemental,boss,2,96.1,58.6,1.642,1.635,True
+riposte,Контрудар,1,elemental,boss,3,139.2,83.9,1.659,1.654,True
+riposte,Контрудар,4,rapid,crowd,1,3211.1,1821.4,1.763,1.748,True
+riposte,Контрудар,4,rapid,crowd,2,4423.1,2350.8,1.882,1.868,True
+riposte,Контрудар,4,rapid,crowd,3,5162,2689,1.92,1.918,True
+riposte,Контрудар,4,rapid,boss,1,131.8,75.4,1.749,1.675,True
+riposte,Контрудар,4,rapid,boss,2,189.6,114.4,1.658,1.653,True
+riposte,Контрудар,4,rapid,boss,3,273.9,162.8,1.682,1.631,True
+riposte,Контрудар,8,rapid,crowd,1,3211.1,1821.4,1.763,1.748,True
+riposte,Контрудар,8,rapid,crowd,2,4423.1,2350.8,1.882,1.868,True
+riposte,Контрудар,8,rapid,crowd,3,5162,2689,1.92,1.918,True
+riposte,Контрудар,8,rapid,boss,1,131.8,75.4,1.749,1.675,True
+riposte,Контрудар,8,rapid,boss,2,189.6,114.4,1.658,1.653,True
+riposte,Контрудар,8,rapid,boss,3,273.9,162.8,1.682,1.631,True
+rod,Громоотвод,1,plain,crowd,1,291,151.9,1.916,1.914,True
+rod,Громоотвод,1,plain,crowd,2,454.7,288.3,1.578,1.567,True
+rod,Громоотвод,1,plain,crowd,3,806,488.9,1.649,1.645,True
+rod,Громоотвод,1,plain,boss,1,41.3,21.6,1.907,1.907,True
+rod,Громоотвод,1,plain,boss,2,52.8,29.4,1.798,1.798,True
+rod,Громоотвод,1,plain,boss,3,78.1,42.8,1.826,1.826,True
+rod,Громоотвод,1,rapid,crowd,1,772.6,470.2,1.643,1.617,True
+rod,Громоотвод,1,rapid,crowd,2,1314.9,811,1.621,1.62,True
+rod,Громоотвод,1,rapid,crowd,3,2389,1464.6,1.631,1.627,True
+rod,Громоотвод,1,rapid,boss,1,90.8,50.9,1.785,1.784,True
+rod,Громоотвод,1,rapid,boss,2,137.5,68.2,2.015,1.935,True
+rod,Громоотвод,1,rapid,boss,3,198.9,110,1.808,1.786,True
+rod,Громоотвод,1,elemental,crowd,1,2129.8,503.6,4.229,3.981,True
+rod,Громоотвод,1,elemental,crowd,2,4017.6,1269.4,3.165,3.085,True
+rod,Громоотвод,1,elemental,crowd,3,6897.3,2700.5,2.554,2.45,True
+rod,Громоотвод,1,elemental,boss,1,82.1,41.3,1.991,1.991,True
+rod,Громоотвод,1,elemental,boss,2,101.5,54.4,1.866,1.866,True
+rod,Громоотвод,1,elemental,boss,3,144.5,76.6,1.885,1.885,True
+rod,Громоотвод,4,rapid,crowd,1,772.6,470.2,1.643,1.617,True
+rod,Громоотвод,4,rapid,crowd,2,1314.9,811,1.621,1.62,True
+rod,Громоотвод,4,rapid,crowd,3,2389,1464.6,1.631,1.627,True
+rod,Громоотвод,4,rapid,boss,1,90.8,50.9,1.785,1.784,True
+rod,Громоотвод,4,rapid,boss,2,137.5,68.2,2.015,1.935,True
+rod,Громоотвод,4,rapid,boss,3,198.9,110,1.808,1.786,True
+rod,Громоотвод,8,rapid,crowd,1,772.6,470.2,1.643,1.617,True
+rod,Громоотвод,8,rapid,crowd,2,1314.9,811,1.621,1.62,True
+rod,Громоотвод,8,rapid,crowd,3,2389,1464.6,1.631,1.627,True
+rod,Громоотвод,8,rapid,boss,1,90.8,50.9,1.785,1.784,True
+rod,Громоотвод,8,rapid,boss,2,137.5,68.2,2.015,1.935,True
+rod,Громоотвод,8,rapid,boss,3,198.9,110,1.808,1.786,True
+pitch,Смола,1,plain,crowd,1,4014.6,1920.8,2.09,2.047,True
+pitch,Смола,1,plain,crowd,2,7279.2,3676.3,1.98,1.97,True
+pitch,Смола,1,plain,crowd,3,11700.6,5866.8,1.994,1.984,True
+pitch,Смола,1,plain,boss,1,115,49.1,2.342,2.3,True
+pitch,Смола,1,plain,boss,2,196.5,79.7,2.464,2.428,True
+pitch,Смола,1,plain,boss,3,313.4,124.3,2.521,2.478,True
+pitch,Смола,1,rapid,crowd,1,17151.7,9609.3,1.785,1.761,True
+pitch,Смола,1,rapid,crowd,2,32969.8,18760,1.757,1.688,True
+pitch,Смола,1,rapid,crowd,3,54261.7,30472.3,1.781,1.688,True
+pitch,Смола,1,rapid,boss,1,471.7,208.5,2.262,2.129,True
+pitch,Смола,1,rapid,boss,2,848.8,385.8,2.2,2.07,True
+pitch,Смола,1,rapid,boss,3,1382.9,686.1,2.016,2.007,True
+pitch,Смола,1,elemental,crowd,1,4857.7,2324.1,2.09,2.047,True
+pitch,Смола,1,elemental,crowd,2,8807.8,4448.3,1.98,1.97,True
+pitch,Смола,1,elemental,crowd,3,14157.7,7098.8,1.994,1.984,True
+pitch,Смола,1,elemental,boss,1,139.2,59.4,2.342,2.3,True
+pitch,Смола,1,elemental,boss,2,237.7,96.5,2.464,2.428,True
+pitch,Смола,1,elemental,boss,3,379.2,150.4,2.521,2.478,True
+pitch,Смола,4,rapid,crowd,1,17151.7,9609.3,1.785,1.761,True
+pitch,Смола,4,rapid,crowd,2,32969.8,18760,1.757,1.688,True
+pitch,Смола,4,rapid,crowd,3,54261.7,30472.3,1.781,1.688,True
+pitch,Смола,4,rapid,boss,1,471.7,208.5,2.262,2.129,True
+pitch,Смола,4,rapid,boss,2,848.8,385.8,2.2,2.07,True
+pitch,Смола,4,rapid,boss,3,1382.9,686.1,2.016,2.007,True
+pitch,Смола,8,rapid,crowd,1,17151.7,9609.3,1.785,1.761,True
+pitch,Смола,8,rapid,crowd,2,32969.8,18760,1.757,1.688,True
+pitch,Смола,8,rapid,crowd,3,54261.7,30472.3,1.781,1.688,True
+pitch,Смола,8,rapid,boss,1,471.7,208.5,2.262,2.129,True
+pitch,Смола,8,rapid,boss,2,848.8,385.8,2.2,2.07,True
+pitch,Смола,8,rapid,boss,3,1382.9,686.1,2.016,2.007,True
+firescythe,Огненный серп,1,plain,crowd,1,2392.6,1322.3,1.809,1.804,True
+firescythe,Огненный серп,1,plain,crowd,2,3995,1908.9,2.093,2.069,True
+firescythe,Огненный серп,1,plain,crowd,3,6940,3375.4,2.056,2.054,True
+firescythe,Огненный серп,1,plain,boss,1,94.9,51.3,1.851,1.85,True
+firescythe,Огненный серп,1,plain,boss,2,150.5,70.5,2.136,2.133,True
+firescythe,Огненный серп,1,plain,boss,3,247.4,121.3,2.039,2.034,True
+firescythe,Огненный серп,1,rapid,crowd,1,9927.5,4208.6,2.359,2.35,True
+firescythe,Огненный серп,1,rapid,crowd,2,10561,5915.2,1.785,1.757,True
+firescythe,Огненный серп,1,rapid,crowd,3,20557.1,9954.6,2.065,2.047,True
+firescythe,Огненный серп,1,rapid,boss,1,297.1,123.9,2.398,2.371,True
+firescythe,Огненный серп,1,rapid,boss,2,338.1,171.7,1.97,1.926,True
+firescythe,Огненный серп,1,rapid,boss,3,621.6,283.2,2.195,2.113,True
+firescythe,Огненный серп,1,elemental,crowd,1,3314.4,1891.7,1.752,1.744,True
+firescythe,Огненный серп,1,elemental,crowd,2,5509.3,2708.7,2.034,2.011,True
+firescythe,Огненный серп,1,elemental,crowd,3,9753,4979.2,1.959,1.957,True
+firescythe,Огненный серп,1,elemental,boss,1,114.8,63,1.822,1.821,True
+firescythe,Огненный серп,1,elemental,boss,2,182.1,86.5,2.106,2.093,True
+firescythe,Огненный серп,1,elemental,boss,3,299.4,148.3,2.018,2.017,True
+firescythe,Огненный серп,4,rapid,crowd,1,9927.5,4208.6,2.359,2.35,True
+firescythe,Огненный серп,4,rapid,crowd,2,10561,5915.2,1.785,1.757,True
+firescythe,Огненный серп,4,rapid,crowd,3,20557.1,9954.6,2.065,2.047,True
+firescythe,Огненный серп,4,rapid,boss,1,297.1,123.9,2.398,2.371,True
+firescythe,Огненный серп,4,rapid,boss,2,338.1,171.7,1.97,1.926,True
+firescythe,Огненный серп,4,rapid,boss,3,621.6,283.2,2.195,2.113,True
+firescythe,Огненный серп,8,rapid,crowd,1,9927.5,4208.6,2.359,2.35,True
+firescythe,Огненный серп,8,rapid,crowd,2,10561,5915.2,1.785,1.757,True
+firescythe,Огненный серп,8,rapid,crowd,3,20557.1,9954.6,2.065,2.047,True
+firescythe,Огненный серп,8,rapid,boss,1,297.1,123.9,2.398,2.371,True
+firescythe,Огненный серп,8,rapid,boss,2,338.1,171.7,1.97,1.926,True
+firescythe,Огненный серп,8,rapid,boss,3,621.6,283.2,2.195,2.113,True
+frostsnare,Ледяные силки,1,plain,crowd,1,5088.1,2062.3,2.467,2.201,True
+frostsnare,Ледяные силки,1,plain,crowd,2,4463.7,2497.2,1.787,1.613,True
+frostsnare,Ледяные силки,1,plain,crowd,3,8383.5,5993.5,1.399,1.315,True
+frostsnare,Ледяные силки,1,plain,boss,1,192.3,76.7,2.509,2.501,True
+frostsnare,Ледяные силки,1,plain,boss,2,278.7,110.4,2.523,2.516,True
+frostsnare,Ледяные силки,1,plain,boss,3,402.4,163.5,2.461,2.431,True
+frostsnare,Ледяные силки,1,rapid,crowd,1,9228,2494.1,3.7,3.108,True
+frostsnare,Ледяные силки,1,rapid,crowd,2,13818,6812.2,2.028,1.756,True
+frostsnare,Ледяные силки,1,rapid,crowd,3,14189.6,7723.3,1.837,1.73,True
+frostsnare,Ледяные силки,1,rapid,boss,1,462.7,188.4,2.456,2.453,True
+frostsnare,Ледяные силки,1,rapid,boss,2,710.1,283.1,2.508,2.368,True
+frostsnare,Ледяные силки,1,rapid,boss,3,998.3,407.2,2.452,2.407,True
+frostsnare,Ледяные силки,1,elemental,crowd,1,8966,3030.4,2.959,2.679,True
+frostsnare,Ледяные силки,1,elemental,crowd,2,8927.4,2538.7,3.517,2.826,True
+frostsnare,Ледяные силки,1,elemental,crowd,3,12957.6,9047.3,1.432,1.186,True
+frostsnare,Ледяные силки,1,elemental,boss,1,273.2,105.6,2.588,2.579,True
+frostsnare,Ледяные силки,1,elemental,boss,2,397.1,156.5,2.537,2.528,True
+frostsnare,Ледяные силки,1,elemental,boss,3,571.3,233.2,2.45,2.421,True
+frostsnare,Ледяные силки,4,rapid,crowd,1,9228,2494.1,3.7,3.108,True
+frostsnare,Ледяные силки,4,rapid,crowd,2,13818,6812.2,2.028,1.756,True
+frostsnare,Ледяные силки,4,rapid,crowd,3,14189.6,7723.3,1.837,1.73,True
+frostsnare,Ледяные силки,4,rapid,boss,1,462.7,188.4,2.456,2.453,True
+frostsnare,Ледяные силки,4,rapid,boss,2,710.1,283.1,2.508,2.368,True
+frostsnare,Ледяные силки,4,rapid,boss,3,998.3,407.2,2.452,2.407,True
+frostsnare,Ледяные силки,8,rapid,crowd,1,9228,2494.1,3.7,3.108,True
+frostsnare,Ледяные силки,8,rapid,crowd,2,13818,6812.2,2.028,1.756,True
+frostsnare,Ледяные силки,8,rapid,crowd,3,14189.6,7723.3,1.837,1.73,True
+frostsnare,Ледяные силки,8,rapid,boss,1,462.7,188.4,2.456,2.453,True
+frostsnare,Ледяные силки,8,rapid,boss,2,710.1,283.1,2.508,2.368,True
+frostsnare,Ледяные силки,8,rapid,boss,3,998.3,407.2,2.452,2.407,True
+abatis,Засека,1,plain,crowd,1,1830.7,1334.2,1.372,1.34,True
+abatis,Засека,1,plain,crowd,2,2731.6,1839.5,1.485,1.464,True
+abatis,Засека,1,plain,crowd,3,3640.7,2627.3,1.386,1.359,True
+abatis,Засека,1,plain,boss,1,125.4,94.4,1.328,1.326,True
+abatis,Засека,1,plain,boss,2,181.6,137.3,1.322,1.32,True
+abatis,Засека,1,plain,boss,3,263.3,199.8,1.318,1.317,True
+abatis,Засека,1,rapid,crowd,1,4333,2920.8,1.484,1.463,True
+abatis,Засека,1,rapid,crowd,2,6499.6,3933.6,1.652,1.631,True
+abatis,Засека,1,rapid,crowd,3,8423.6,6240.5,1.35,1.282,True
+abatis,Засека,1,rapid,boss,1,290.7,227.5,1.278,1.277,True
+abatis,Засека,1,rapid,boss,2,441.5,328.1,1.346,1.338,True
+abatis,Засека,1,rapid,boss,3,641.8,489.2,1.312,1.259,True
+abatis,Засека,1,elemental,crowd,1,1999.5,1340.8,1.491,1.441,True
+abatis,Засека,1,elemental,crowd,2,2957.9,2073.7,1.426,1.396,True
+abatis,Засека,1,elemental,crowd,3,4125.7,2961.9,1.393,1.382,True
+abatis,Засека,1,elemental,boss,1,151.7,114.2,1.328,1.326,True
+abatis,Засека,1,elemental,boss,2,219.7,166.2,1.322,1.32,True
+abatis,Засека,1,elemental,boss,3,318.6,241.7,1.318,1.317,True
+abatis,Засека,4,rapid,crowd,1,4333,2920.8,1.484,1.463,True
+abatis,Засека,4,rapid,crowd,2,6499.6,3933.6,1.652,1.631,True
+abatis,Засека,4,rapid,crowd,3,8423.6,6240.5,1.35,1.282,True
+abatis,Засека,4,rapid,boss,1,290.7,227.5,1.278,1.277,True
+abatis,Засека,4,rapid,boss,2,441.5,328.1,1.346,1.338,True
+abatis,Засека,4,rapid,boss,3,641.8,489.2,1.312,1.259,True
+abatis,Засека,8,rapid,crowd,1,4333,2920.8,1.484,1.463,True
+abatis,Засека,8,rapid,crowd,2,6499.6,3933.6,1.652,1.631,True
+abatis,Засека,8,rapid,crowd,3,8423.6,6240.5,1.35,1.282,True
+abatis,Засека,8,rapid,boss,1,290.7,227.5,1.278,1.277,True
+abatis,Засека,8,rapid,boss,2,441.5,328.1,1.346,1.338,True
+abatis,Засека,8,rapid,boss,3,641.8,489.2,1.312,1.259,True
+harpoon,Гарпун,1,plain,crowd,1,1097.1,835.3,1.313,1.226,True
+harpoon,Гарпун,1,plain,crowd,2,1453.4,1188.9,1.223,1.22,True
+harpoon,Гарпун,1,plain,crowd,3,3327.5,2446.4,1.36,1.125,True
+harpoon,Гарпун,1,plain,boss,1,87.2,55.9,1.56,1.534,True
+harpoon,Гарпун,1,plain,boss,2,109.1,73.3,1.489,1.482,True
+harpoon,Гарпун,1,plain,boss,3,203.6,133.4,1.526,1.523,True
+harpoon,Гарпун,1,rapid,crowd,1,4154,3072.8,1.352,1.304,True
+harpoon,Гарпун,1,rapid,crowd,2,5612.6,3594.9,1.561,1.363,True
+harpoon,Гарпун,1,rapid,crowd,3,10797.9,6673.4,1.618,1.316,True
+harpoon,Гарпун,1,rapid,boss,1,311.8,184.4,1.69,1.685,True
+harpoon,Гарпун,1,rapid,boss,2,391.7,248.4,1.577,1.538,True
+harpoon,Гарпун,1,rapid,boss,3,670.3,438.9,1.527,1.481,True
+harpoon,Гарпун,1,elemental,crowd,1,1678.5,1379.6,1.217,1.205,True
+harpoon,Гарпун,1,elemental,crowd,2,2400.4,1934.5,1.241,1.171,True
+harpoon,Гарпун,1,elemental,crowd,3,6851.7,3935.3,1.741,1.422,True
+harpoon,Гарпун,1,elemental,boss,1,105.5,68.6,1.538,1.512,True
+harpoon,Гарпун,1,elemental,boss,2,132,89.9,1.469,1.469,True
+harpoon,Гарпун,1,elemental,boss,3,246.3,163,1.512,1.51,True
+harpoon,Гарпун,4,rapid,crowd,1,4154,3072.8,1.352,1.304,True
+harpoon,Гарпун,4,rapid,crowd,2,5612.6,3594.9,1.561,1.363,True
+harpoon,Гарпун,4,rapid,crowd,3,10797.9,6673.4,1.618,1.316,True
+harpoon,Гарпун,4,rapid,boss,1,311.8,184.4,1.69,1.685,True
+harpoon,Гарпун,4,rapid,boss,2,391.7,248.4,1.577,1.538,True
+harpoon,Гарпун,4,rapid,boss,3,670.3,438.9,1.527,1.481,True
+harpoon,Гарпун,8,rapid,crowd,1,4154,3072.8,1.352,1.304,True
+harpoon,Гарпун,8,rapid,crowd,2,5612.6,3594.9,1.561,1.363,True
+harpoon,Гарпун,8,rapid,crowd,3,10797.9,6673.4,1.618,1.316,True
+harpoon,Гарпун,8,rapid,boss,1,311.8,184.4,1.69,1.685,True
+harpoon,Гарпун,8,rapid,boss,2,391.7,248.4,1.577,1.538,True
+harpoon,Гарпун,8,rapid,boss,3,670.3,438.9,1.527,1.481,True
+rockets,Ракетница,1,plain,crowd,1,1952.3,993.9,1.964,1.923,True
+rockets,Ракетница,1,plain,crowd,2,2912.2,1514.8,1.923,1.905,True
+rockets,Ракетница,1,plain,crowd,3,7068.4,3224.1,2.192,2.103,True
+rockets,Ракетница,1,plain,boss,1,108.1,65.3,1.656,1.625,True
+rockets,Ракетница,1,plain,boss,2,189.6,119.8,1.584,1.584,True
+rockets,Ракетница,1,plain,boss,3,384.8,231,1.666,1.661,True
+rockets,Ракетница,1,rapid,crowd,1,7311.3,3715,1.968,1.856,True
+rockets,Ракетница,1,rapid,crowd,2,10522.2,4967,2.118,2.076,True
+rockets,Ракетница,1,rapid,crowd,3,21383.3,10463.5,2.044,1.946,True
+rockets,Ракетница,1,rapid,boss,1,392.1,235.9,1.662,1.659,True
+rockets,Ракетница,1,rapid,boss,2,598.3,392.1,1.526,1.526,True
+rockets,Ракетница,1,rapid,boss,3,1144.2,691,1.656,1.608,True
+rockets,Ракетница,1,elemental,crowd,1,2380.7,1655.4,1.438,1.419,True
+rockets,Ракетница,1,elemental,crowd,2,3559.8,2594.7,1.372,1.367,True
+rockets,Ракетница,1,elemental,crowd,3,8690.5,5403.2,1.608,1.597,True
+rockets,Ракетница,1,elemental,boss,1,130.8,92.9,1.408,1.373,True
+rockets,Ракетница,1,elemental,boss,2,229.5,164.7,1.393,1.376,True
+rockets,Ракетница,1,elemental,boss,3,465.6,319.6,1.457,1.451,True
+rockets,Ракетница,4,rapid,crowd,1,7311.3,3715,1.968,1.856,True
+rockets,Ракетница,4,rapid,crowd,2,10522.2,4967,2.118,2.076,True
+rockets,Ракетница,4,rapid,crowd,3,21383.3,10463.5,2.044,1.946,True
+rockets,Ракетница,4,rapid,boss,1,392.1,235.9,1.662,1.659,True
+rockets,Ракетница,4,rapid,boss,2,598.3,392.1,1.526,1.526,True
+rockets,Ракетница,4,rapid,boss,3,1144.2,691,1.656,1.608,True
+rockets,Ракетница,8,rapid,crowd,1,7311.3,3715,1.968,1.856,True
+rockets,Ракетница,8,rapid,crowd,2,10522.2,4967,2.118,2.076,True
+rockets,Ракетница,8,rapid,crowd,3,21383.3,10463.5,2.044,1.946,True
+rockets,Ракетница,8,rapid,boss,1,392.1,235.9,1.662,1.659,True
+rockets,Ракетница,8,rapid,boss,2,598.3,392.1,1.526,1.526,True
+rockets,Ракетница,8,rapid,boss,3,1144.2,691,1.656,1.608,True
+stingers,Ядовитые жала,1,plain,crowd,1,2875.3,1414.9,2.032,2.019,True
+stingers,Ядовитые жала,1,plain,crowd,2,6306.3,2960.4,2.13,2.112,True
+stingers,Ядовитые жала,1,plain,crowd,3,11355.3,5097.5,2.228,2.187,True
+stingers,Ядовитые жала,1,plain,boss,1,163.9,88.4,1.855,1.839,True
+stingers,Ядовитые жала,1,plain,boss,2,302.1,147.6,2.047,2.018,True
+stingers,Ядовитые жала,1,plain,boss,3,565,267.9,2.109,2.106,True
+stingers,Ядовитые жала,1,rapid,crowd,1,14018.8,8886.7,1.577,1.512,True
+stingers,Ядовитые жала,1,rapid,crowd,2,29463.6,16943.6,1.739,1.677,True
+stingers,Ядовитые жала,1,rapid,crowd,3,48022.7,28709.1,1.673,1.658,True
+stingers,Ядовитые жала,1,rapid,boss,1,612.4,336.9,1.818,1.719,True
+stingers,Ядовитые жала,1,rapid,boss,2,1117.1,604.4,1.848,1.782,True
+stingers,Ядовитые жала,1,rapid,boss,3,1862.4,1007.9,1.848,1.716,True
+stingers,Ядовитые жала,1,elemental,crowd,1,3513.4,1734.1,2.026,2.013,True
+stingers,Ядовитые жала,1,elemental,crowd,2,7687.4,3618.7,2.124,2.106,True
+stingers,Ядовитые жала,1,elemental,crowd,3,13929.4,6290.2,2.214,2.175,True
+stingers,Ядовитые жала,1,elemental,boss,1,198.4,106.9,1.855,1.839,True
+stingers,Ядовитые жала,1,elemental,boss,2,365.5,178.6,2.047,2.018,True
+stingers,Ядовитые жала,1,elemental,boss,3,683.7,324.1,2.109,2.106,True
+stingers,Ядовитые жала,4,rapid,crowd,1,14018.8,8886.7,1.577,1.512,True
+stingers,Ядовитые жала,4,rapid,crowd,2,29463.6,16943.6,1.739,1.677,True
+stingers,Ядовитые жала,4,rapid,crowd,3,48022.7,28709.1,1.673,1.658,True
+stingers,Ядовитые жала,4,rapid,boss,1,612.4,336.9,1.818,1.719,True
+stingers,Ядовитые жала,4,rapid,boss,2,1117.1,604.4,1.848,1.782,True
+stingers,Ядовитые жала,4,rapid,boss,3,1862.4,1007.9,1.848,1.716,True
+stingers,Ядовитые жала,8,rapid,crowd,1,14018.8,8886.7,1.577,1.512,True
+stingers,Ядовитые жала,8,rapid,crowd,2,29463.6,16943.6,1.739,1.677,True
+stingers,Ядовитые жала,8,rapid,crowd,3,48022.7,28709.1,1.673,1.658,True
+stingers,Ядовитые жала,8,rapid,boss,1,612.4,336.9,1.818,1.719,True
+stingers,Ядовитые жала,8,rapid,boss,2,1117.1,604.4,1.848,1.782,True
+stingers,Ядовитые жала,8,rapid,boss,3,1862.4,1007.9,1.848,1.716,True
+whirlwind,Смерч,1,plain,crowd,1,857.9,622.9,1.377,1.352,True
+whirlwind,Смерч,1,plain,crowd,2,1233,906.4,1.36,1.354,True
+whirlwind,Смерч,1,plain,crowd,3,1830.6,1343.9,1.362,1.359,True
+whirlwind,Смерч,1,plain,boss,1,26.6,19,1.395,1.393,True
+whirlwind,Смерч,1,plain,boss,2,37.3,27.3,1.363,1.361,True
+whirlwind,Смерч,1,plain,boss,3,54.8,40.3,1.359,1.358,True
+whirlwind,Смерч,1,rapid,crowd,1,2059.3,1467.1,1.404,1.385,True
+whirlwind,Смерч,1,rapid,crowd,2,2898.4,2182.4,1.328,1.324,True
+whirlwind,Смерч,1,rapid,crowd,3,4611.2,3392.2,1.359,1.338,True
+whirlwind,Смерч,1,rapid,boss,1,61.6,44,1.398,1.348,True
+whirlwind,Смерч,1,rapid,boss,2,86.4,65.7,1.315,1.305,True
+whirlwind,Смерч,1,rapid,boss,3,135.2,101.5,1.333,1.319,True
+whirlwind,Смерч,1,elemental,crowd,1,1247.7,906.2,1.377,1.377,True
+whirlwind,Смерч,1,elemental,crowd,2,1728.9,1287.9,1.342,1.34,True
+whirlwind,Смерч,1,elemental,crowd,3,2571.2,1902.1,1.352,1.345,True
+whirlwind,Смерч,1,elemental,boss,1,37.8,27.1,1.396,1.394,True
+whirlwind,Смерч,1,elemental,boss,2,53,38.9,1.364,1.362,True
+whirlwind,Смерч,1,elemental,boss,3,78,57.4,1.36,1.358,True
+whirlwind,Смерч,4,rapid,crowd,1,2059.3,1467.1,1.404,1.385,True
+whirlwind,Смерч,4,rapid,crowd,2,2898.4,2182.4,1.328,1.324,True
+whirlwind,Смерч,4,rapid,crowd,3,4611.2,3392.2,1.359,1.338,True
+whirlwind,Смерч,4,rapid,boss,1,61.6,44,1.398,1.348,True
+whirlwind,Смерч,4,rapid,boss,2,86.4,65.7,1.315,1.305,True
+whirlwind,Смерч,4,rapid,boss,3,135.2,101.5,1.333,1.319,True
+whirlwind,Смерч,8,rapid,crowd,1,2059.3,1467.1,1.404,1.385,True
+whirlwind,Смерч,8,rapid,crowd,2,2898.4,2182.4,1.328,1.324,True
+whirlwind,Смерч,8,rapid,crowd,3,4611.2,3392.2,1.359,1.338,True
+whirlwind,Смерч,8,rapid,boss,1,61.6,44,1.398,1.348,True
+whirlwind,Смерч,8,rapid,boss,2,86.4,65.7,1.315,1.305,True
+whirlwind,Смерч,8,rapid,boss,3,135.2,101.5,1.333,1.319,True
+spectral,Спектральный резонатор,1,plain,crowd,1,5196.7,603,8.617,6.979,True
+spectral,Спектральный резонатор,1,plain,crowd,2,6942.9,839.5,8.271,6.64,True
+spectral,Спектральный резонатор,1,plain,crowd,3,13261.5,1238.3,10.709,9.776,True
+spectral,Спектральный резонатор,1,plain,boss,1,49.1,33.3,1.473,1.473,True
+spectral,Спектральный резонатор,1,plain,boss,2,69.4,47.6,1.457,1.457,True
+spectral,Спектральный резонатор,1,plain,boss,3,99.8,66,1.512,1.512,True
+spectral,Спектральный резонатор,1,rapid,crowd,1,15591,1390.2,11.215,10.289,True
+spectral,Спектральный резонатор,1,rapid,crowd,2,18615.1,1930.8,9.641,8.435,True
+spectral,Спектральный резонатор,1,rapid,crowd,3,30994.6,2985,10.384,9.358,True
+spectral,Спектральный резонатор,1,rapid,boss,1,112.9,76.3,1.48,1.441,True
+spectral,Спектральный резонатор,1,rapid,boss,2,156.6,104.1,1.504,1.394,True
+spectral,Спектральный резонатор,1,rapid,boss,3,236.3,154.5,1.529,1.508,True
+spectral,Спектральный резонатор,1,elemental,crowd,1,6475.7,886.1,7.308,6.005,True
+spectral,Спектральный резонатор,1,elemental,crowd,2,8651.8,1224.9,7.063,5.677,True
+spectral,Спектральный резонатор,1,elemental,crowd,3,16424.2,1813.3,9.058,8.313,True
+spectral,Спектральный резонатор,1,elemental,boss,1,59.4,40.3,1.473,1.473,True
+spectral,Спектральный резонатор,1,elemental,boss,2,84,57.6,1.457,1.457,True
+spectral,Спектральный резонатор,1,elemental,boss,3,120.7,79.9,1.512,1.512,True
+spectral,Спектральный резонатор,4,rapid,crowd,1,15591,1390.2,11.215,10.289,True
+spectral,Спектральный резонатор,4,rapid,crowd,2,18615.1,1930.8,9.641,8.435,True
+spectral,Спектральный резонатор,4,rapid,crowd,3,30994.6,2985,10.384,9.358,True
+spectral,Спектральный резонатор,4,rapid,boss,1,112.9,76.3,1.48,1.441,True
+spectral,Спектральный резонатор,4,rapid,boss,2,156.6,104.1,1.504,1.394,True
+spectral,Спектральный резонатор,4,rapid,boss,3,236.3,154.5,1.529,1.508,True
+spectral,Спектральный резонатор,8,rapid,crowd,1,15591,1390.2,11.215,10.289,True
+spectral,Спектральный резонатор,8,rapid,crowd,2,18615.1,1930.8,9.641,8.435,True
+spectral,Спектральный резонатор,8,rapid,crowd,3,30994.6,2985,10.384,9.358,True
+spectral,Спектральный резонатор,8,rapid,boss,1,112.9,76.3,1.48,1.441,True
+spectral,Спектральный резонатор,8,rapid,boss,2,156.6,104.1,1.504,1.394,True
+spectral,Спектральный резонатор,8,rapid,boss,3,236.3,154.5,1.529,1.508,True
+singularity,Сингулярная линза,1,plain,crowd,1,816.4,481.9,1.694,1.144,True
+singularity,Сингулярная линза,1,plain,crowd,2,1429.6,824.9,1.733,1.314,True
+singularity,Сингулярная линза,1,plain,crowd,3,2364.7,1217.8,1.942,1.802,True
+singularity,Сингулярная линза,1,plain,boss,1,71,34.3,2.069,2.069,True
+singularity,Сингулярная линза,1,plain,boss,2,98.9,48.4,2.042,2.042,True
+singularity,Сингулярная линза,1,plain,boss,3,144.1,68,2.119,2.119,True
+singularity,Сингулярная линза,1,rapid,crowd,1,3372.5,1720.5,1.96,1.902,True
+singularity,Сингулярная линза,1,rapid,crowd,2,5018.2,2392.8,2.097,2.051,True
+singularity,Сингулярная линза,1,rapid,crowd,3,8014,3127.2,2.563,2.436,True
+singularity,Сингулярная линза,1,rapid,boss,1,166.2,81.1,2.05,2.007,True
+singularity,Сингулярная линза,1,rapid,boss,2,228.8,109.3,2.094,2.063,True
+singularity,Сингулярная линза,1,rapid,boss,3,355,166.7,2.129,2.115,True
+singularity,Сингулярная линза,1,elemental,crowd,1,1705.7,965.9,1.766,1.218,True
+singularity,Сингулярная линза,1,elemental,crowd,2,2851.5,1642.9,1.736,1.395,True
+singularity,Сингулярная линза,1,elemental,crowd,3,4715.6,2378.6,1.983,1.88,True
+singularity,Сингулярная линза,1,elemental,boss,1,86,41.5,2.069,2.069,True
+singularity,Сингулярная линза,1,elemental,boss,2,119.6,58.6,2.042,2.042,True
+singularity,Сингулярная линза,1,elemental,boss,3,174.4,82.3,2.119,2.119,True
+singularity,Сингулярная линза,4,rapid,crowd,1,3372.5,1720.5,1.96,1.902,True
+singularity,Сингулярная линза,4,rapid,crowd,2,5018.2,2392.8,2.097,2.051,True
+singularity,Сингулярная линза,4,rapid,crowd,3,8014,3127.2,2.563,2.436,True
+singularity,Сингулярная линза,4,rapid,boss,1,166.2,81.1,2.05,2.007,True
+singularity,Сингулярная линза,4,rapid,boss,2,228.8,109.3,2.094,2.063,True
+singularity,Сингулярная линза,4,rapid,boss,3,355,166.7,2.129,2.115,True
+singularity,Сингулярная линза,8,rapid,crowd,1,3372.5,1720.5,1.96,1.902,True
+singularity,Сингулярная линза,8,rapid,crowd,2,5018.2,2392.8,2.097,2.051,True
+singularity,Сингулярная линза,8,rapid,crowd,3,8014,3127.2,2.563,2.436,True
+singularity,Сингулярная линза,8,rapid,boss,1,166.2,81.1,2.05,2.007,True
+singularity,Сингулярная линза,8,rapid,boss,2,228.8,109.3,2.094,2.063,True
+singularity,Сингулярная линза,8,rapid,boss,3,355,166.7,2.129,2.115,True
+gravitybell,Гравитационный звон,1,plain,crowd,1,1106.2,428.8,2.58,1.837,True
+gravitybell,Гравитационный звон,1,plain,crowd,2,1327.8,666.4,1.992,1.836,True
+gravitybell,Гравитационный звон,1,plain,crowd,3,5648.2,1008.8,5.599,5.188,True
+gravitybell,Гравитационный звон,1,plain,boss,1,31.6,17.7,1.788,1.788,True
+gravitybell,Гравитационный звон,1,plain,boss,2,42.3,23.7,1.785,1.785,True
+gravitybell,Гравитационный звон,1,plain,boss,3,65.8,34,1.936,1.936,True
+gravitybell,Гравитационный звон,1,rapid,crowd,1,7758.8,1325.8,5.852,5.744,True
+gravitybell,Гравитационный звон,1,rapid,crowd,2,14292.8,1879.3,7.605,7.151,True
+gravitybell,Гравитационный звон,1,rapid,crowd,3,26142.7,2817.1,9.28,8.977,True
+gravitybell,Гравитационный звон,1,rapid,boss,1,83.8,41.6,2.013,1.997,True
+gravitybell,Гравитационный звон,1,rapid,boss,2,117.8,57.6,2.044,1.995,True
+gravitybell,Гравитационный звон,1,rapid,boss,3,186.7,82.3,2.269,2.255,True
+gravitybell,Гравитационный звон,1,elemental,crowd,1,1796.2,796.3,2.256,1.655,True
+gravitybell,Гравитационный звон,1,elemental,crowd,2,2244.1,1207.7,1.858,1.805,True
+gravitybell,Гравитационный звон,1,elemental,crowd,3,7970,1835.9,4.341,4.057,True
+gravitybell,Гравитационный звон,1,elemental,boss,1,38.2,21.4,1.788,1.788,True
+gravitybell,Гравитационный звон,1,elemental,boss,2,51.2,28.7,1.785,1.785,True
+gravitybell,Гравитационный звон,1,elemental,boss,3,79.6,41.1,1.936,1.936,True
+gravitybell,Гравитационный звон,4,rapid,crowd,1,7758.8,1325.8,5.852,5.744,True
+gravitybell,Гравитационный звон,4,rapid,crowd,2,14292.8,1879.3,7.605,7.151,True
+gravitybell,Гравитационный звон,4,rapid,crowd,3,26142.7,2817.1,9.28,8.977,True
+gravitybell,Гравитационный звон,4,rapid,boss,1,83.8,41.6,2.013,1.997,True
+gravitybell,Гравитационный звон,4,rapid,boss,2,117.8,57.6,2.044,1.995,True
+gravitybell,Гравитационный звон,4,rapid,boss,3,186.7,82.3,2.269,2.255,True
+gravitybell,Гравитационный звон,8,rapid,crowd,1,7758.8,1325.8,5.852,5.744,True
+gravitybell,Гравитационный звон,8,rapid,crowd,2,14292.8,1879.3,7.605,7.151,True
+gravitybell,Гравитационный звон,8,rapid,crowd,3,26142.7,2817.1,9.28,8.977,True
+gravitybell,Гравитационный звон,8,rapid,boss,1,83.8,41.6,2.013,1.997,True
+gravitybell,Гравитационный звон,8,rapid,boss,2,117.8,57.6,2.044,1.995,True
+gravitybell,Гравитационный звон,8,rapid,boss,3,186.7,82.3,2.269,2.255,True
+sunprism,Солнечная призма,1,plain,crowd,1,1276,750.1,1.701,1.641,True
+sunprism,Солнечная призма,1,plain,crowd,2,1896.3,1066.4,1.778,1.725,True
+sunprism,Солнечная призма,1,plain,crowd,3,3043.6,1746.1,1.743,1.725,True
+sunprism,Солнечная призма,1,plain,boss,1,87.2,57.6,1.514,1.514,True
+sunprism,Солнечная призма,1,plain,boss,2,121.5,80,1.518,1.518,True
+sunprism,Солнечная призма,1,plain,boss,3,180.9,113.6,1.593,1.593,True
+sunprism,Солнечная призма,1,rapid,crowd,1,3173.9,1998.4,1.588,1.47,True
+sunprism,Солнечная призма,1,rapid,crowd,2,4557.9,2432.1,1.874,1.582,True
+sunprism,Солнечная призма,1,rapid,crowd,3,7333.3,4560.7,1.608,1.577,True
+sunprism,Солнечная призма,1,rapid,boss,1,202.3,141,1.434,1.388,True
+sunprism,Солнечная призма,1,rapid,boss,2,278.7,182.1,1.531,1.438,True
+sunprism,Солнечная призма,1,rapid,boss,3,425.7,266.5,1.597,1.544,True
+sunprism,Солнечная призма,1,elemental,crowd,1,1886.9,1133.3,1.665,1.614,True
+sunprism,Солнечная призма,1,elemental,crowd,2,2657.3,1585,1.677,1.673,True
+sunprism,Солнечная призма,1,elemental,crowd,3,4399.6,2482.1,1.773,1.768,True
+sunprism,Солнечная призма,1,elemental,boss,1,105.5,69.7,1.514,1.514,True
+sunprism,Солнечная призма,1,elemental,boss,2,147,96.9,1.518,1.518,True
+sunprism,Солнечная призма,1,elemental,boss,3,218.9,137.4,1.593,1.593,True
+sunprism,Солнечная призма,4,rapid,crowd,1,3173.9,1998.4,1.588,1.47,True
+sunprism,Солнечная призма,4,rapid,crowd,2,4557.9,2432.1,1.874,1.582,True
+sunprism,Солнечная призма,4,rapid,crowd,3,7333.3,4560.7,1.608,1.577,True
+sunprism,Солнечная призма,4,rapid,boss,1,202.3,141,1.434,1.388,True
+sunprism,Солнечная призма,4,rapid,boss,2,278.7,182.1,1.531,1.438,True
+sunprism,Солнечная призма,4,rapid,boss,3,425.7,266.5,1.597,1.544,True
+sunprism,Солнечная призма,8,rapid,crowd,1,3173.9,1998.4,1.588,1.47,True
+sunprism,Солнечная призма,8,rapid,crowd,2,4557.9,2432.1,1.874,1.582,True
+sunprism,Солнечная призма,8,rapid,crowd,3,7333.3,4560.7,1.608,1.577,True
+sunprism,Солнечная призма,8,rapid,boss,1,202.3,141,1.434,1.388,True
+sunprism,Солнечная призма,8,rapid,boss,2,278.7,182.1,1.531,1.438,True
+sunprism,Солнечная призма,8,rapid,boss,3,425.7,266.5,1.597,1.544,True
+arclaser,Дуговой лазер,1,plain,crowd,1,880.1,406.3,2.166,2.1,True
+arclaser,Дуговой лазер,1,plain,crowd,2,1281.9,530.8,2.415,2.307,True
+arclaser,Дуговой лазер,1,plain,crowd,3,2493.8,871.8,2.86,2.711,True
+arclaser,Дуговой лазер,1,plain,boss,1,60.9,41.3,1.472,1.472,True
+arclaser,Дуговой лазер,1,plain,boss,2,84.5,57.4,1.472,1.472,True
+arclaser,Дуговой лазер,1,plain,boss,3,124.1,79.8,1.555,1.555,True
+arclaser,Дуговой лазер,1,rapid,crowd,1,2251.2,1071.5,2.101,1.927,True
+arclaser,Дуговой лазер,1,rapid,crowd,2,3623.1,1421.1,2.55,2.481,True
+arclaser,Дуговой лазер,1,rapid,crowd,3,6534.1,2679.6,2.438,2.383,True
+arclaser,Дуговой лазер,1,rapid,boss,1,142.7,94.2,1.514,1.484,True
+arclaser,Дуговой лазер,1,rapid,boss,2,196.7,131.2,1.499,1.465,True
+arclaser,Дуговой лазер,1,rapid,boss,3,292.7,194.4,1.505,1.473,True
+arclaser,Дуговой лазер,1,elemental,crowd,1,19360.6,1713,11.302,10.726,True
+arclaser,Дуговой лазер,1,elemental,crowd,2,26118.6,2204.6,11.848,10.803,True
+arclaser,Дуговой лазер,1,elemental,crowd,3,53150.9,5044.2,10.537,10.085,True
+arclaser,Дуговой лазер,1,elemental,boss,1,102.2,63,1.622,1.622,True
+arclaser,Дуговой лазер,1,elemental,boss,2,134.9,84.8,1.592,1.592,True
+arclaser,Дуговой лазер,1,elemental,boss,3,196,115.9,1.692,1.692,True
+arclaser,Дуговой лазер,4,rapid,crowd,1,2251.2,1071.5,2.101,1.927,True
+arclaser,Дуговой лазер,4,rapid,crowd,2,3623.1,1421.1,2.55,2.481,True
+arclaser,Дуговой лазер,4,rapid,crowd,3,6534.1,2679.6,2.438,2.383,True
+arclaser,Дуговой лазер,4,rapid,boss,1,142.7,94.2,1.514,1.484,True
+arclaser,Дуговой лазер,4,rapid,boss,2,196.7,131.2,1.499,1.465,True
+arclaser,Дуговой лазер,4,rapid,boss,3,292.7,194.4,1.505,1.473,True
+arclaser,Дуговой лазер,8,rapid,crowd,1,2251.2,1071.5,2.101,1.927,True
+arclaser,Дуговой лазер,8,rapid,crowd,2,3623.1,1421.1,2.55,2.481,True
+arclaser,Дуговой лазер,8,rapid,crowd,3,6534.1,2679.6,2.438,2.383,True
+arclaser,Дуговой лазер,8,rapid,boss,1,142.7,94.2,1.514,1.484,True
+arclaser,Дуговой лазер,8,rapid,boss,2,196.7,131.2,1.499,1.465,True
+arclaser,Дуговой лазер,8,rapid,boss,3,292.7,194.4,1.505,1.473,True
+resonantshield,Звонкий бастион,1,plain,crowd,1,4579.7,328.2,13.953,12.587,True
+resonantshield,Звонкий бастион,1,plain,crowd,2,8214.4,490.9,16.734,16.315,True
+resonantshield,Звонкий бастион,1,plain,crowd,3,8712.6,646.7,13.473,13.087,True
+resonantshield,Звонкий бастион,1,plain,boss,1,27.5,13.6,2.015,2.015,True
+resonantshield,Звонкий бастион,1,plain,boss,2,42.2,19.6,2.156,2.156,True
+resonantshield,Звонкий бастион,1,plain,boss,3,66.7,29,2.3,2.3,True
+resonantshield,Звонкий бастион,1,rapid,crowd,1,13822.5,826.2,16.73,15.715,True
+resonantshield,Звонкий бастион,1,rapid,crowd,2,21663.1,1222.2,17.724,16.487,True
+resonantshield,Звонкий бастион,1,rapid,crowd,3,20406.3,1787.9,11.414,11.396,True
+resonantshield,Звонкий бастион,1,rapid,boss,1,68.5,34.3,1.995,1.984,True
+resonantshield,Звонкий бастион,1,rapid,boss,2,101.4,48.8,2.078,2.076,True
+resonantshield,Звонкий бастион,1,rapid,boss,3,173.5,72.3,2.401,2.374,True
+resonantshield,Звонкий бастион,1,elemental,crowd,1,5543.9,399.2,13.886,12.526,True
+resonantshield,Звонкий бастион,1,elemental,crowd,2,9943.7,597.5,16.642,16.223,True
+resonantshield,Звонкий бастион,1,elemental,crowd,3,10548.8,788,13.387,13.004,True
+resonantshield,Звонкий бастион,1,elemental,boss,1,35.8,18.6,1.924,1.924,True
+resonantshield,Звонкий бастион,1,elemental,boss,2,55.4,27.3,2.031,2.031,True
+resonantshield,Звонкий бастион,1,elemental,boss,3,87.4,40.6,2.15,2.15,True
+resonantshield,Звонкий бастион,4,rapid,crowd,1,13822.5,826.2,16.73,15.715,True
+resonantshield,Звонкий бастион,4,rapid,crowd,2,21663.1,1222.2,17.724,16.487,True
+resonantshield,Звонкий бастион,4,rapid,crowd,3,20406.3,1787.9,11.414,11.396,True
+resonantshield,Звонкий бастион,4,rapid,boss,1,68.5,34.3,1.995,1.984,True
+resonantshield,Звонкий бастион,4,rapid,boss,2,101.4,48.8,2.078,2.076,True
+resonantshield,Звонкий бастион,4,rapid,boss,3,173.5,72.3,2.401,2.374,True
+resonantshield,Звонкий бастион,8,rapid,crowd,1,13822.5,826.2,16.73,15.715,True
+resonantshield,Звонкий бастион,8,rapid,crowd,2,21663.1,1222.2,17.724,16.487,True
+resonantshield,Звонкий бастион,8,rapid,crowd,3,20406.3,1787.9,11.414,11.396,True
+resonantshield,Звонкий бастион,8,rapid,boss,1,68.5,34.3,1.995,1.984,True
+resonantshield,Звонкий бастион,8,rapid,boss,2,101.4,48.8,2.078,2.076,True
+resonantshield,Звонкий бастион,8,rapid,boss,3,173.5,72.3,2.401,2.374,True
+crystalchoir,Хрустальный хор,1,plain,crowd,1,5131.9,491.6,10.44,10.39,True
+crystalchoir,Хрустальный хор,1,plain,crowd,2,5252.3,707.3,7.426,7.069,True
+crystalchoir,Хрустальный хор,1,plain,crowd,3,8614.5,1038.1,8.298,8.01,True
+crystalchoir,Хрустальный хор,1,plain,boss,1,24.8,16.3,1.523,1.523,True
+crystalchoir,Хрустальный хор,1,plain,boss,2,35.1,23.5,1.498,1.498,True
+crystalchoir,Хрустальный хор,1,plain,boss,3,52.7,33.5,1.574,1.574,True
+crystalchoir,Хрустальный хор,1,rapid,crowd,1,12684.7,1172.6,10.818,10.174,True
+crystalchoir,Хрустальный хор,1,rapid,crowd,2,9339.5,1651.4,5.655,5.09,True
+crystalchoir,Хрустальный хор,1,rapid,crowd,3,14111.2,2303,6.127,5.444,True
+crystalchoir,Хрустальный хор,1,rapid,boss,1,58.2,37.7,1.542,1.533,True
+crystalchoir,Хрустальный хор,1,rapid,boss,2,79.4,53.3,1.489,1.452,True
+crystalchoir,Хрустальный хор,1,rapid,boss,3,124.1,77.1,1.609,1.606,True
+crystalchoir,Хрустальный хор,1,elemental,crowd,1,7557.7,602.2,12.55,11.345,True
+crystalchoir,Хрустальный хор,1,elemental,crowd,2,7966.3,971.4,8.201,8.055,True
+crystalchoir,Хрустальный хор,1,elemental,crowd,3,14813.6,1446.4,10.242,9.707,True
+crystalchoir,Хрустальный хор,1,elemental,boss,1,35.1,19.7,1.786,1.786,True
+crystalchoir,Хрустальный хор,1,elemental,boss,2,49.8,32,1.557,1.555,True
+crystalchoir,Хрустальный хор,1,elemental,boss,3,75.1,47.3,1.588,1.588,True
+crystalchoir,Хрустальный хор,4,rapid,crowd,1,12684.7,1172.6,10.818,10.174,True
+crystalchoir,Хрустальный хор,4,rapid,crowd,2,9339.5,1651.4,5.655,5.09,True
+crystalchoir,Хрустальный хор,4,rapid,crowd,3,14111.2,2303,6.127,5.444,True
+crystalchoir,Хрустальный хор,4,rapid,boss,1,58.2,37.7,1.542,1.533,True
+crystalchoir,Хрустальный хор,4,rapid,boss,2,79.4,53.3,1.489,1.452,True
+crystalchoir,Хрустальный хор,4,rapid,boss,3,124.1,77.1,1.609,1.606,True
+crystalchoir,Хрустальный хор,8,rapid,crowd,1,12684.7,1172.6,10.818,10.174,True
+crystalchoir,Хрустальный хор,8,rapid,crowd,2,9339.5,1651.4,5.655,5.09,True
+crystalchoir,Хрустальный хор,8,rapid,crowd,3,14111.2,2303,6.127,5.444,True
+crystalchoir,Хрустальный хор,8,rapid,boss,1,58.2,37.7,1.542,1.533,True
+crystalchoir,Хрустальный хор,8,rapid,boss,2,79.4,53.3,1.489,1.452,True
+crystalchoir,Хрустальный хор,8,rapid,boss,3,124.1,77.1,1.609,1.606,True
+blacksnare,Чёрная западня,1,plain,crowd,1,1479.8,720,2.055,1.725,True
+blacksnare,Чёрная западня,1,plain,crowd,2,1931.3,1152,1.676,1.487,True
+blacksnare,Чёрная западня,1,plain,crowd,3,3018.3,2063.6,1.463,1.431,True
+blacksnare,Чёрная западня,1,plain,boss,1,122.6,78.1,1.57,1.564,True
+blacksnare,Чёрная западня,1,plain,boss,2,174.2,112.3,1.552,1.552,True
+blacksnare,Чёрная западня,1,plain,boss,3,266.2,166,1.603,1.603,True
+blacksnare,Чёрная западня,1,rapid,crowd,1,3956.3,2555.7,1.548,1.47,True
+blacksnare,Чёрная западня,1,rapid,crowd,2,5669.1,3300.4,1.718,1.565,True
+blacksnare,Чёрная западня,1,rapid,crowd,3,7723.2,4917.2,1.571,1.451,True
+blacksnare,Чёрная западня,1,rapid,boss,1,299.9,191.9,1.563,1.551,True
+blacksnare,Чёрная западня,1,rapid,boss,2,435.2,287,1.516,1.481,True
+blacksnare,Чёрная западня,1,rapid,boss,3,642.2,412.8,1.556,1.552,True
+blacksnare,Чёрная западня,1,elemental,crowd,1,2613.2,1323.9,1.974,1.821,True
+blacksnare,Чёрная западня,1,elemental,crowd,2,2924.6,1744.3,1.677,1.4,True
+blacksnare,Чёрная западня,1,elemental,crowd,3,5592.3,3143.9,1.779,1.696,True
+blacksnare,Чёрная западня,1,elemental,boss,1,148.3,94.5,1.57,1.564,True
+blacksnare,Чёрная западня,1,elemental,boss,2,210.7,135.8,1.552,1.552,True
+blacksnare,Чёрная западня,1,elemental,boss,3,322.1,200.9,1.603,1.603,True
+blacksnare,Чёрная западня,4,rapid,crowd,1,3956.3,2555.7,1.548,1.47,True
+blacksnare,Чёрная западня,4,rapid,crowd,2,5669.1,3300.4,1.718,1.565,True
+blacksnare,Чёрная западня,4,rapid,crowd,3,7723.2,4917.2,1.571,1.451,True
+blacksnare,Чёрная западня,4,rapid,boss,1,299.9,191.9,1.563,1.551,True
+blacksnare,Чёрная западня,4,rapid,boss,2,435.2,287,1.516,1.481,True
+blacksnare,Чёрная западня,4,rapid,boss,3,642.2,412.8,1.556,1.552,True
+blacksnare,Чёрная западня,8,rapid,crowd,1,3956.3,2555.7,1.548,1.47,True
+blacksnare,Чёрная западня,8,rapid,crowd,2,5669.1,3300.4,1.718,1.565,True
+blacksnare,Чёрная западня,8,rapid,crowd,3,7723.2,4917.2,1.571,1.451,True
+blacksnare,Чёрная западня,8,rapid,boss,1,299.9,191.9,1.563,1.551,True
+blacksnare,Чёрная западня,8,rapid,boss,2,435.2,287,1.516,1.481,True
+blacksnare,Чёрная западня,8,rapid,boss,3,642.2,412.8,1.556,1.552,True
+inferno,Пекло,1,plain,crowd,1,1119.6,743.4,1.506,1.103,True
+inferno,Пекло,1,plain,crowd,2,1706.8,1217,1.402,1.265,True
+inferno,Пекло,1,plain,crowd,3,3137.8,1666.5,1.883,1.828,True
+inferno,Пекло,1,plain,boss,1,51.1,28.7,1.781,1.776,True
+inferno,Пекло,1,plain,boss,2,74.6,41.9,1.779,1.777,True
+inferno,Пекло,1,plain,boss,3,114.8,55.9,2.052,2.049,True
+inferno,Пекло,1,rapid,crowd,1,4813.9,2109.8,2.282,2.156,True
+inferno,Пекло,1,rapid,crowd,2,7255.4,3295.9,2.201,2.121,True
+inferno,Пекло,1,rapid,crowd,3,12412.7,3971.3,3.126,3.023,True
+inferno,Пекло,1,rapid,boss,1,145.8,70.1,2.08,2.008,True
+inferno,Пекло,1,rapid,boss,2,214.3,106,2.021,2.014,True
+inferno,Пекло,1,rapid,boss,3,350.9,130.3,2.694,2.669,True
+inferno,Пекло,1,elemental,crowd,1,1710.7,1177,1.453,1.07,True
+inferno,Пекло,1,elemental,crowd,2,2562.9,1873.8,1.368,1.235,True
+inferno,Пекло,1,elemental,crowd,3,4672.9,2631.7,1.776,1.738,True
+inferno,Пекло,1,elemental,boss,1,61.9,34.7,1.781,1.776,True
+inferno,Пекло,1,elemental,boss,2,90.2,50.7,1.779,1.777,True
+inferno,Пекло,1,elemental,boss,3,138.9,67.7,2.052,2.049,True
+inferno,Пекло,4,rapid,crowd,1,4813.9,2109.8,2.282,2.156,True
+inferno,Пекло,4,rapid,crowd,2,7255.4,3295.9,2.201,2.121,True
+inferno,Пекло,4,rapid,crowd,3,12412.7,3971.3,3.126,3.023,True
+inferno,Пекло,4,rapid,boss,1,145.8,70.1,2.08,2.008,True
+inferno,Пекло,4,rapid,boss,2,214.3,106,2.021,2.014,True
+inferno,Пекло,4,rapid,boss,3,350.9,130.3,2.694,2.669,True
+inferno,Пекло,8,rapid,crowd,1,4813.9,2109.8,2.282,2.156,True
+inferno,Пекло,8,rapid,crowd,2,7255.4,3295.9,2.201,2.121,True
+inferno,Пекло,8,rapid,crowd,3,12412.7,3971.3,3.126,3.023,True
+inferno,Пекло,8,rapid,boss,1,145.8,70.1,2.08,2.008,True
+inferno,Пекло,8,rapid,boss,2,214.3,106,2.021,2.014,True
+inferno,Пекло,8,rapid,boss,3,350.9,130.3,2.694,2.669,True

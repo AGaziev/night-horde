@@ -35,12 +35,13 @@ function checkSnapshot(s) {
 		assert.ok(p[9] >= 0 && p[9] <= 100);
 		assert.equal(typeof p[10], 'number');
 		assert.equal(typeof p[11], 'number');
-		for (const [id, lvl, extra, mask, donor] of p[12]) {
+		for (const [id, lvl, extra, mask, donor, parts] of p[12]) {
 			assert.ok((WEAPON_IDS.includes(id) || (DUO_IDS.includes(id) && lvl <= 3) || (EVO_IDS.includes(id) && lvl === 1)) && isInt(lvl), `weapon ${id}`);
 			// v20: an overclocked plain weapon at level 5 carries [id, lvl, echo amount, variant 1|2].
 			const ovr = WEAPON_IDS.includes(id) && lvl === 5 && (mask === 1 || mask === 2);
-			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || ovr || donor) && isInt(extra)));
-			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr || (donor && mask === 0));
+			assert.ok(extra === undefined || ((['orbit', 'windmill', 'firewheel', 'orrery'].includes(id) || DUOS[id] || ovr || donor) && isInt(extra)));
+			assert.ok(mask === undefined || (id === 'orrery' && isInt(mask)) || ovr || ((donor || DUOS[id]) && mask === 0));
+			if (DUOS[id]) assert.ok(parts.length === 2 && parts.every(([part, level]) => DUOS[id].parts.includes(part) && level >= 3 && level <= 5), 'inherited attacks in snapshot');
 		}
 	}
 	const flat = (arr, n) => {
@@ -68,9 +69,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'coldwave'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5, coldwave: 7,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -651,7 +652,7 @@ console.log('over/again/leave: ok');
 		only(h, 'frost', 5);
 		const e = put(r, 'ghoul', 60, 0);
 		e.speed = 60;
-		r.tick(dtt);
+		for (let i = 0; i < 5; i++) r.tick(dtt);
 		assert.ok(e.hp < 1000 && e.slowT > r.time && e.frozenT > r.time, 'frost hits, slows, freezes');
 		assert.equal(r.enemyState(e) & (ST.chill | ST.frozen), ST.chill | ST.frozen);
 		e.x = 20; // touching the hero while frozen
@@ -679,7 +680,7 @@ console.log('over/again/leave: ok');
 		r.time += 0.5;
 		r.fx = [];
 		r.tick(dtt);
-		assert.equal(r.traps.length, 0, 'trap used');
+		assert.equal(r.traps.length, 1, 'trap keeps its second activation');
 		assert.ok(e.hp < 1000 && e.rootT > r.time, 'damage + root');
 		assert.ok(r.enemyState(e) & ST.root);
 		assert.ok(r.snapshot().fx.some((f) => f[0] === 'snap'));
@@ -1152,11 +1153,11 @@ console.log('over/again/leave: ok');
 		const r = mkRoom();
 		duo(r, 'aurora');
 		const e = put(r, 'brute', 80, 0), far = put(r, 'brute', 200, 0);
-		let chilled = false, frozenFar = false;
+		let chilled = false, frozenNear = false;
 		fxAll.length = 0;
-		run(r, 3.5, () => { chilled ||= e.slowT > r.time; frozenFar ||= far.frozenT > r.time; });
+		run(r, 3.5, () => { chilled ||= e.slowT > r.time; frozenNear ||= e.frozenT > r.time; });
 		assert.ok(chilled && e.hp < 1e5, 'aura chills and hurts');
-		assert.ok(frozenFar && take('frost').some((f) => f[2] === 220), 'ring to 2r freezes');
+		assert.ok(frozenNear && take('frost').some((f) => f[2] === 90), 'the pulse holds enemies inside the inherited aura');
 		console.log('duo aurora: ok');
 	}
 	// 11. Кадило: clouds hurt enemies and heal allies (not the owner).
@@ -1829,8 +1830,8 @@ console.log('over/again/leave: ok');
 	}
 	assert.equal(passiveDesc('might', 0.17), '+17% урона');
 	assert.equal(passiveDesc('haste', -0.09), '−9% перезарядки');
-	assert.equal(passiveDesc('regen', 0.4), '+0,4 здоровья в секунду');
-	assert.equal(passiveDesc('vigor', 23), '+23 к макс. здоровью');
+	assert.equal(passiveDesc('regen', 0.4), '+0,4 здоровья в секунду; +2,5% урона оружия за уровень');
+	assert.equal(passiveDesc('vigor', 23), '+23 к макс. здоровью; +2,5% урона оружия за уровень');
 	assert.ok(PASSIVES.clover && PASSIVES.clover.stat === 'fortune' && PASSIVES.luck.name === 'Подкова');
 
 	const sent = [];
@@ -1937,7 +1938,7 @@ console.log('over/again/leave: ok');
 		r.addPlayer(1, 'L', 'knight');
 		r.start();
 		assert.equal(r.tscale, 1.5);
-		assert.equal(r.xpMul, C.MODES.lunch.xpMul);
+		assert.equal(r.xpMul, 1.5);
 		assert.deepEqual(r.bossAt, [120, 240, 360, 480, 540]); // v21: the Lord's fight is the last 60 s
 		const pk = Object.fromEntries(r.peaks.map((p) => [p.id, p]));
 		assert.equal(pk.ring.at, 100);
@@ -1952,13 +1953,16 @@ console.log('over/again/leave: ok');
 		const night = new Room('NGHT', () => {});
 		night.addPlayer(1, 'N', 'knight');
 		night.start();
+		assert.equal(night.runLength, 900);
+		assert.equal(night.tscale, 1);
+		assert.equal(night.xpMul, 1);
 		night.time = 600;
 		assert.equal(enemyHpScaleOf(r), enemyHpScaleOf(night), 'pressure by night time');
 		// Gems are worth xpMul more in lunch.
 		const h = r.heroes.get(1), hn = night.heroes.get(1);
 		r.collectGem(h, 2);
 		night.collectGem(hn, 2);
-		assert.ok(Math.abs(h.xp - hn.xp * C.MODES.lunch.xpMul) < 1e-9);
+		assert.ok(Math.abs(h.xp - hn.xp * 1.5) < 1e-9);
 		// The run ends at 10:00 with the dawn burn and a win.
 		const out = [];
 		const r2 = new Room('LN2', (pid, m) => out.push(m));
@@ -1988,17 +1992,27 @@ console.log('over/again/leave: ok');
 		hub.handle(1, { t: 'mode', mode: 'night' });
 		assert.equal(room.mode, 'night');
 		assert.equal(msgs.filter(([pid, m]) => pid === 2 && m.t === 'lobby').pop()[1].mode, 'night', 'everyone sees the mode');
-		// Lunch groups get extra enemy hp (balance), solo does not; the night has none.
-		assert.equal(r.modeHp, 1);
-		const pair = new Room('LP', () => {});
-		pair.setMode('lunch');
-		pair.addPlayer(1, 'A', 'knight');
-		pair.addPlayer(2, 'B', 'witch');
-		pair.start();
-		assert.equal(pair.modeHp, C.modeHpMul('lunch', 2));
-		assert.ok(pair.modeHp > 1 && night.modeHp === 1);
-		const eL = pair.spawnEnemy('bat', [...pair.heroes.values()], 1);
-		assert.ok(Math.abs(eL.maxHp - C.ENEMIES.bat.hp * pair.modeHp) < 1e-9);
+		// Buildcraft calibration applies in both modes, with the fourth value shared by larger groups.
+		for (const [mode, { hp, dmg }] of Object.entries({
+			night: { hp: [1.8, 2, 2.4, 2.5], dmg: [0.75, 0.6, 0.56, 0.6] },
+			lunch: { hp: [1.9, 2, 2.4, 2.4], dmg: [0.75, 0.6, 0.5, 0.6] },
+		})) {
+			for (const players of [1, 2, 3, 4, 8]) {
+				const expected = hp[Math.min(players, 4) - 1];
+				const expectedDmg = dmg[Math.min(players, 4) - 1];
+				assert.equal(C.modeHpMul(mode, players), expected, `${mode}: HP multiplier for ${players} players`);
+				assert.equal(C.modeDmgMul(mode, players), expectedDmg, `${mode}: damage multiplier for ${players} players`);
+				const group = new Room('MHP', () => {});
+				group.setMode(mode);
+				for (let pid = 1; pid <= players; pid++) group.addPlayer(pid, `P${pid}`, 'knight');
+				group.start();
+				assert.equal(group.modeHp, expected, 'room start applies the calibrated multiplier');
+				assert.equal(group.modeDmg, expectedDmg, 'room start applies the calibrated damage');
+				const enemy = group.spawnEnemy('bat', [...group.heroes.values()], 1);
+				assert.ok(Math.abs(enemy.maxHp - C.ENEMIES.bat.hp * expected) < 1e-9, 'spawned enemy health includes mode scaling');
+				assert.ok(Math.abs(enemy.dmg - C.ENEMIES.bat.dmg * C.enemyDmgScale(group.nt, players) * expectedDmg) < 1e-9, 'spawned enemy damage includes mode scaling');
+			}
+		}
 		console.log('lunch mode: ok');
 	}
 	// Solo pause: menu pause and an open offer stop the clock; groups cannot pause.

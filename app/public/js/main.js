@@ -8,6 +8,7 @@ import { Sound } from './audio.js';
 import { cardText, cardImage } from './results.js';
 import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
+import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,6 +21,7 @@ const net = new Net();
 const ui = new UI();
 const runHistory = setupRunHistory();
 const feedback = setupFeedback(() => net.sid);
+setupCombinations();
 const lobbyInvites = setupLobbyInvites(net, (msg) => ui.toast(msg, 'info'));
 const game = new Game(net);
 const canvas = $('game');

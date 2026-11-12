@@ -63,16 +63,20 @@ export function canRepeatCast(id) {
 export function repeatCast(room, h, id, w, dt) {
 	const copy = { ...w };
 	const beforeId = room.nextId, beforeDamage = h.dmg, beforeTimers = room.timers.length;
-	room.castWeapon(h, id, w, dt);
-	if (room.nextId === beforeId && h.dmg === beforeDamage && room.timers.length === beforeTimers) return;
-	const { cooldown, damage } = HERO_PERKS.witch;
-	h.perk.readyAt = room.time + cooldown;
-	perkRing(room, h.x, h.y, 46, 0);
-	room.castWeapon(h, id, copy, dt, damage);
+	const beforeWaves = room.coldWaves.length, previous = room.repeatingCast;
+	room.repeatingCast = true;
+	try {
+		room.castWeapon(h, id, w, dt);
+		if (room.nextId === beforeId && h.dmg === beforeDamage && room.timers.length === beforeTimers && room.coldWaves.length === beforeWaves) return;
+		const { cooldown, damage } = HERO_PERKS.witch;
+		h.perk.readyAt = room.time + cooldown;
+		perkRing(room, h.x, h.y, 46, 0);
+		room.castWeapon(h, id, copy, dt, damage);
+	} finally { room.repeatingCast = previous; }
 }
 
 function repeatPulse(room, h, e, dmg, src) {
-	if (canRepeatCast(src.weapon)) return;
+	if (room.repeatingCast || canRepeatCast(src.weapon)) return;
 	let pulse = h.perk.echoPulse;
 	if (!pulse || pulse.time !== room.time) {
 		if (room.time < h.perk.readyAt) return;
@@ -111,10 +115,11 @@ function hammerHit(room, h, e, dmg, src) {
 	if (room.time < h.perk.readyAt) return;
 	const strikes = e.hammerStrikes ??= new Map();
 	const last = strikes.get(h.pid);
-	if (last?.weapon === src.weapon && room.time - last.time < 0.18) return;
-	const count = last && room.time - last.time < 6 ? last.count + (last.weapon === src.weapon ? 1 : 2) : 1;
+	const weapon = src.component ?? src.weapon;
+	if (last?.weapon === weapon && room.time - last.time < 0.18) return;
+	const count = last && room.time - last.time < 6 ? last.count + (last.weapon === weapon ? 1 : 2) : 1;
 	if (count < 4) {
-		strikes.set(h.pid, { time: room.time, count, weapon: src.weapon });
+		strikes.set(h.pid, { time: room.time, count, weapon });
 		return;
 	}
 	strikes.delete(h.pid);

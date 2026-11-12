@@ -1,4 +1,5 @@
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
+import { CONFLUENCES } from './confluences.js';
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
 export const GAME_VERSION = 'v34';
@@ -85,9 +86,9 @@ export const MODES = {
 	// v23: three players fell mid-run (9–10 min, mostly to spit and Трубач shots; 17% wins at night, 7% at lunch) — ×0.9 / ×0.8.
 	// v28: v25–v26 (3 new weapons and 4 artifacts in the pool) thinned builds: from 6:00 the human bot took +30–50% damage,
 	// wins fell to 14% solo and 8% for pairs. Enemy damage for 1–2 players brings them back to 25–40% (pm/balance-v28.md).
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: 1, dmgMul: [0.75, 0.6, 0.49, 0.6] }, // v30: night trios, pm/balance-v30.md
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 2, 2.4, 2.5], dmgMul: [0.75, 0.6, 0.56, 0.6] }, // Terminal calibration: pm/balance-buildcraft-terminal.md.
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1, 1.13], dmgMul: [0.75, 0.5, 0.5, 0.52] }, // v30: lunch 4+, pm/balance-v30.md
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 2, 2.4, 2.4], dmgMul: [0.75, 0.6, 0.5, 0.6] }, // Terminal calibration: pm/balance-buildcraft-terminal.md.
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -244,7 +245,7 @@ export const WEAPONS = {
 		],
 	},
 	aura: {
-		name: 'Ореол', icon: '◌', desc: 'Постоянный урон врагам рядом', tags: ['aoe'], role: 'ring',
+		name: 'Ореол', icon: '◌', desc: 'Жжёт врагов рядом. За 2 с непрерывного контакта урон по цели вырастает до ×1,5', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ dmg: 4, radius: 70, tick: 0.5 },
 			{ dmg: 5, radius: 80, tick: 0.5 },
@@ -294,44 +295,44 @@ export const WEAPONS = {
 		],
 	},
 	frost: {
-		name: 'Иней', icon: '❄', desc: 'Волна холода ранит и замедляет врагов вокруг', tags: ['cold', 'aoe'], role: 'ring',
+		name: 'Иней', icon: '❄', desc: 'Ледяная волна летит сквозь толпу и ненадолго замораживает с первого уровня', tags: ['cold', 'aoe'], role: 'ring',
 		levels: [
-			{ dmg: 8, cd: 3.0, radius: 110, slow: 0.30, dur: 1.5, freeze: 0 },
-			{ dmg: 10, cd: 2.8, radius: 125, slow: 0.35, dur: 1.6, freeze: 0 },
-			{ dmg: 13, cd: 2.6, radius: 140, slow: 0.40, dur: 1.8, freeze: 0 },
-			{ dmg: 16, cd: 2.3, radius: 155, slow: 0.45, dur: 2.0, freeze: 0 },
-			{ dmg: 20, cd: 2.0, radius: 170, slow: 0.50, dur: 2.2, freeze: 0.6 },
+			{ dmg: 12, cd: 2.8, radius: 230, width: 55, slow: 0.30, dur: 1.5, freeze: 0.25 },
+			{ dmg: 15, cd: 2.6, radius: 255, width: 60, slow: 0.35, dur: 1.7, freeze: 0.35 },
+			{ dmg: 19, cd: 2.4, radius: 280, width: 68, slow: 0.40, dur: 1.9, freeze: 0.45 },
+			{ dmg: 24, cd: 2.1, radius: 310, width: 76, slow: 0.45, dur: 2.1, freeze: 0.55 },
+			{ dmg: 30, cd: 1.8, radius: 340, width: 85, slow: 0.50, dur: 2.3, freeze: 0.65 },
 		],
 	},
 	traps: {
-		name: 'Капканы', icon: '⊓', desc: 'Капканы на пути отступления держат врагов', tags: ['phys', 'trap'], role: 'trace',
+		name: 'Капканы', icon: '⊓', desc: 'Ставит капкан навстречу врагам: задевает группу, удерживает и срабатывает дважды', tags: ['phys', 'trap'], role: 'trace',
 		levels: [
-			{ dmg: 20, cd: 2.0, max: 4, root: 1.0, radius: 26, splash: 0 },
-			{ dmg: 26, cd: 1.8, max: 5, root: 1.2, radius: 28, splash: 0 },
-			{ dmg: 40, cd: 1.6, max: 6, root: 1.4, radius: 30, splash: 40 },
-			{ dmg: 40, cd: 1.4, max: 7, root: 1.6, radius: 32, splash: 50 },
-			{ dmg: 50, cd: 1.2, max: 8, root: 2.0, radius: 34, splash: 60 },
+			{ dmg: 24, cd: 2, max: 4, root: 1, radius: 30, splash: 46 },
+			{ dmg: 30, cd: 1.8, max: 5, root: 1.2, radius: 32, splash: 54 },
+			{ dmg: 40, cd: 1.6, max: 6, root: 1.4, radius: 34, splash: 62 },
+			{ dmg: 50, cd: 1.4, max: 7, root: 1.6, radius: 36, splash: 72 },
+			{ dmg: 64, cd: 1.2, max: 8, root: 1.8, radius: 38, splash: 82 },
 		],
 	},
 	// Wave 3 weapons that need no wave-2 states (mark and burn already exist in hurtEnemy).
 	lantern: {
-		name: 'Фонарь', icon: '🏮', desc: 'Свет помечает врагов: они получают больше урона от всех', tags: ['aoe'], role: 'trace',
+		name: 'Фонарь', icon: '🏮', desc: 'Выделяет сильнейшего врага: метка на 3 с усиливает весь урон по нему на 25–40%', tags: ['aoe'], role: 'trace',
 		levels: [
-			{ dmg: 3, tick: 0.5, range: 200, angle: 50, mark: 0.15 },
-			{ dmg: 4, tick: 0.5, range: 220, angle: 55, mark: 0.18 },
-			{ dmg: 5, tick: 0.45, range: 240, angle: 60, mark: 0.21 },
-			{ dmg: 6, tick: 0.45, range: 260, angle: 65, mark: 0.25 },
-			{ dmg: 8, tick: 0.4, range: 300, angle: 75, mark: 0.30 },
+			{ dmg: 6, tick: 0.5, range: 200, angle: 50, mark: 0.25 },
+			{ dmg: 7, tick: 0.5, range: 220, angle: 55, mark: 0.28 },
+			{ dmg: 9, tick: 0.45, range: 240, angle: 60, mark: 0.32 },
+			{ dmg: 11, tick: 0.45, range: 260, angle: 65, mark: 0.36 },
+			{ dmg: 14, tick: 0.4, range: 300, angle: 75, mark: 0.40 },
 		],
 	},
 	trail: {
-		name: 'Пламенный след', icon: '🔥', desc: 'Огонь на пройденном пути поджигает врагов', tags: ['fire', 'aoe'], role: 'trace',
+		name: 'Пламенный след', icon: '🔥', desc: 'Широкая огненная дорожка обжигает при входе и продолжает жечь после выхода', tags: ['fire', 'aoe'], role: 'trace',
 		levels: [
-			{ dmg: 3, every: 0.25, radius: 22, dur: 2.0, tick: 0.3, burn: 2 },
-			{ dmg: 4, every: 0.25, radius: 24, dur: 2.2, tick: 0.3, burn: 3 },
-			{ dmg: 5, every: 0.22, radius: 26, dur: 2.5, tick: 0.3, burn: 3 },
-			{ dmg: 6, every: 0.2, radius: 28, dur: 2.8, tick: 0.25, burn: 4 },
-			{ dmg: 8, every: 0.18, radius: 32, dur: 3.0, tick: 0.25, burn: 5 },
+			{ dmg: 4, every: 0.25, radius: 34, dur: 3, tick: 0.3, burn: 4 },
+			{ dmg: 5, every: 0.25, radius: 37, dur: 3.2, tick: 0.3, burn: 6 },
+			{ dmg: 6, every: 0.22, radius: 40, dur: 3.5, tick: 0.3, burn: 8 },
+			{ dmg: 8, every: 0.2, radius: 44, dur: 3.8, tick: 0.25, burn: 10 },
+			{ dmg: 10, every: 0.18, radius: 48, dur: 4, tick: 0.25, burn: 12 },
 		],
 	},
 	spear: {
@@ -345,7 +346,7 @@ export const WEAPONS = {
 		],
 	},
 	ward: {
-		name: 'Оберег', icon: '⛉', desc: 'Оружие: бьёт и блокирует удары — щит гасит удар врага и взрывается, когда ломается', tags: ['aoe'], role: 'ring',
+		name: 'Оберег', icon: '⛉', desc: 'Оружие: блокирует удары, отвечает вспышкой на каждый блок и бьёт щитом раз в 3 с, пока есть заряд', tags: ['aoe'], role: 'ring',
 		levels: [
 			{ charges: 1, cd: 12, burstDmg: 15, burstR: 90, kb: 60 },
 			{ charges: 1, cd: 10, burstDmg: 20, burstR: 100, kb: 70 },
@@ -415,6 +416,29 @@ export const PASSIVES = {
 	// coop: offered only when the room has 2+ players.
 	bond: { name: 'Узы', icon: '∞', desc: '+5% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', tpl: '+{v}% урона за каждого союзника в 250 px (до 3); союзникам рядом +2%', stat: 'bond', perLevel: 0.05, coop: true },
 };
+// Every artifact has a combat use for every weapon, including a starting weapon on its own.
+// Defensive/utility artifacts retain their main purpose; their smaller combat side is independent of rarity.
+export const ARTIFACT_COMBAT = {
+	vigor: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	swift: { bonus: { cdMul: -0.015 }, text: 'оружие атакует на 1,5% чаще за уровень' },
+	magnet: { bonus: { areaMul: 0.035, dmgMul: 0.01 }, text: '+3,5% размера и +1% урона оружия за уровень' },
+	area: { bonus: { dmgMul: 0.015 }, text: '+1,5% урона за уровень, в том числе точечным атакам' },
+	regen: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	echo: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона всем атакам за уровень, включая волны и лучи' },
+	hourglass: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	mail: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень' },
+	frostcore: { bonus: { dmgMul: 0.02 }, text: '+2% урона оружия за уровень' },
+	lens: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона первого попадания за уровень' },
+	counterweight: { bonus: { dmgMul: 0.025 }, text: '+2,5% урона оружия за уровень; заряд блока усиливает любую атаку' },
+};
+for (const [id, rule] of Object.entries(ARTIFACT_COMBAT)) {
+	const p = PASSIVES[id];
+	p.bonus = { ...p.bonus, ...rule.bonus };
+	p.desc += '; ' + rule.text;
+	if (p.tpl) p.tpl += '; ' + rule.text;
+}
+PASSIVES.coil.desc = 'Убийство любым оружием выпускает разряд; электрические и резонансные атаки передают более сильную молнию. До трёх прыжков.';
+PASSIVES.ashseal.desc = 'Любая атака оставляет тлеющую печать. Смерть горящего врага передаёт огонь соседям; число поколений ограничено уровнем.';
 // Direct weapon + artifact synergies (5.3): shown as hints on cards, applied on the server.
 export const SYNERGIES = [
 	{ weapon: 'knives', passive: 'crit', desc: 'крит-нож пробивает ещё одного врага' },
@@ -448,10 +472,10 @@ export const REACTION_IDS = Object.keys(REACTIONS);
 // Which weapons leave a state, and which state + hit tag makes which reaction (for card hints; the server rules live in Room.react).
 export const STATE_SOURCES = {
 	wet: ['flask', 'molotov', 'censer', 'quagmire', 'stingers'],
-	burn: ['trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe', 'rockets'],
-	frozen: ['frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
-	chill: ['frost', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
-	root: ['traps', 'pitfall', 'tripwire', 'frostsnare', 'abatis'],
+	burn: ['inferno', 'trail', 'bomb', 'molotov', 'minefield', 'firewheel', 'firepath', 'glow', 'pitch', 'firescythe', 'rockets'],
+	frozen: ['crystalchoir', 'frost', 'icebomb', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	chill: ['crystalchoir', 'frost', 'aurora', 'blizzard', 'icedisc', 'quagmire', 'frostsnare'],
+	root: ['blacksnare', 'traps', 'pitfall', 'tripwire', 'frostsnare', 'abatis'],
 };
 export const REACTION_RULES = [
 	{ id: 'cond', state: 'wet', tags: ['shock'] },
@@ -757,6 +781,10 @@ export const orbitAngle = (gameTime, rps, index, count) => gameTime * rps * Math
 // attack. The duo takes the first weapon's slot, the second slot frees up. Levels I–III; at most MAX_DUOS per player.
 // Pairs are matched in one place on the server (Room.updateCombos).
 export const MAX_DUOS = 2;
+// Fusion retains both attacks, then adds the signature interaction. These are combat multipliers, not offer odds.
+export const DUO_INHERIT_POWER = 1.2;
+export const DUO_SIGNATURE_POWER = 0.35;
+export const duoPartLevel = (level) => Math.min(5, level + 2);
 export const DUO_MIN_LEVEL = 3;
 export const DUO_MAX_LEVEL = 3;
 export const DUO_DEFER_OFFERS = 2; // a declined duo card comes back after this many offers
@@ -831,13 +859,13 @@ export const DUOS = {
 		name: 'Минное поле', icon: '◈', parts: ['bomb', 'traps'], tags: ['fire', 'aoe', 'trap'],
 		desc: 'Капканы становятся минами, которые перезаряжаются',
 		levels: [
-			{ dmg: 68, cd: 1.6, max: 5, radius: 80, kb: 60, recharge: 6, trigger: 26 },
-			{ dmg: 92, cd: 1.4, max: 6, radius: 90, kb: 60, recharge: 6, trigger: 28 },
-			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 60, recharge: 6, trigger: 30 },
+			{ dmg: 68, cd: 1.6, max: 5, radius: 80, kb: 0, recharge: 6, trigger: 26 },
+			{ dmg: 92, cd: 1.4, max: 6, radius: 90, kb: 0, recharge: 6, trigger: 28 },
+			{ dmg: 160, cd: 1.2, max: 8, radius: 100, kb: 0, recharge: 6, trigger: 30 },
 		],
 	},
 	icebomb: {
-		name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
+		signaturePower: 0.42, name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Взрыв замораживает, замёрзшие раскалываются осколками',
 		levels: [
 			{ dmg: 55, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
@@ -864,7 +892,7 @@ export const DUOS = {
 		],
 	},
 	icedisc: {
-		name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
+		inheritPower: 1.4, name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
 		desc: 'Диск оставляет ледяной след и замораживает на обратном пути',
 		levels: [
 			{ dmg: 68, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
@@ -873,7 +901,7 @@ export const DUOS = {
 		],
 	},
 	stormlight: {
-		name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
+		inheritPower: 1.5, name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Луч метит врагов, в луче бьют молнии; цепь только по помеченным',
 		levels: [
 			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 28, chain: 2 },
@@ -983,7 +1011,7 @@ export const DUOS = {
 	},
 	// v28 (связки v2, поставка Б).
 	frostsnare: {
-		name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		inheritPower: 2, signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
 		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
 		levels: [
 			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },
@@ -1037,6 +1065,7 @@ export const DUOS = {
 		],
 	},
 };
+Object.assign(DUOS, CONFLUENCES);
 export const DUO_IDS = Object.keys(DUOS);
 export const duoKey = (a, b) => (a < b ? `${a}+${b}` : `${b}+${a}`);
 export const DUO_BY_PAIR = Object.fromEntries(DUO_IDS.map((id) => [duoKey(...DUOS[id].parts), id]));
@@ -1236,7 +1265,7 @@ export const OVERCLOCKS = {
 		{ id: 'collapse', name: 'Схлопывание', desc: 'Больше урона в меньшей зоне', mul: { radius: 0.8, dmg: 1.8 } },
 	],
 	ward: [
-		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато вспышка на каждом поглощённом ударе', add: { charges: -1 } },
+		{ id: 'thorns', name: 'Отдача', desc: 'На заряд меньше, зато ответная вспышка вдвое сильнее', add: { charges: -1 }, mul: { burstDmg: 2 } },
 		{ id: 'quick', name: 'Быстрый щит', desc: 'Один заряд, но восстанавливается на треть быстрее; вспышка шире и слабее', set: { charges: 1 }, mul: { cd: 0.7, burstR: 1.3, burstDmg: 0.5 } },
 	],
 };
@@ -1252,6 +1281,24 @@ export function weaponLevel(id, lvl, oc = 0) {
 	for (const [k, v] of Object.entries(O.mul ?? {})) L[k] = Math.round(L[k] * v * 1000) / 1000;
 	for (const [k, v] of Object.entries(O.add ?? {})) L[k] = Math.round((L[k] + v) * 1000) / 1000;
 	return (ocCache[key] = L);
+}
+
+// Attack clocks which previously ignored haste (auras, beams, traps, burning paths and orbit contact).
+// Regular cast cooldowns already use cdMul at their call sites; durations and shield cooldowns stay unchanged here.
+export function attackLevel(id, lvl, oc = 0, mods = {}, parts = []) {
+	let base = weaponLevel(id, lvl, oc);
+	if (DUOS[id]?.parts.includes('ward')) {
+		// Fusion can retain a Ward above the duo's default inherited level.
+		const shield = weaponLevel('ward', Math.max(duoPartLevel(lvl), parts.find((part) => part.id === 'ward')?.lvl ?? 0));
+		base = { ...base, charges: Math.max(base.charges ?? 0, shield.charges), cd: Math.min(base.cd ?? Infinity, shield.cd) };
+	}
+	const speed = mods.cdMul ?? 1;
+	if (speed === 1) return base;
+	const out = { ...base };
+	for (const field of ['tick', 'every', 'hitCd', 'recharge', 'rearm', 'wave']) {
+		if (out[field] > 0) out[field] *= speed;
+	}
+	return out;
 }
 export const overclockId = (id, oc) => (oc ? OVERCLOCKS[id]?.[oc - 1]?.id ?? null : null);
 

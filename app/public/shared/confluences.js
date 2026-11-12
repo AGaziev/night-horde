@@ -1,0 +1,34 @@
+// Signature interactions of the nine new duos. Both inherited weapon attacks are handled by Room.updateWeapon.
+const levels = (first, second, third) => [first, { ...first, ...second }, { ...first, ...third }];
+const duo = (name, icon, parts, tags, effect, desc, stats) => ({ name, icon, parts, tags, effect, desc, levels: stats });
+export const CONFLUENCES = {
+  spectral: duo('Спектральный резонатор', '♬', ['prism','tuning'], ['proj','phys'], 'resonanceBeam',
+    'Расходящиеся лучи оставляют резонанс; следующее попадание взрывает метку',
+    levels({dmg:52,castCd:2.1,range:320,radius:90,width:24,dur:3}, {dmg:70,range:360,width:28}, {dmg:94,castCd:1.7,range:410,width:34})),
+  singularity: duo('Сингулярная линза', '◈', ['prism','anchor'], ['proj','aoe'], 'lensWell',
+    'Стягивает группу в фокус и прошивает её лучами из центра',
+    levels({dmg:60,castCd:3.8,range:320,radius:120,width:24,count:3}, {dmg:82,radius:145,count:4}, {dmg:110,castCd:3,range:380,radius:170,count:5})),
+  gravitybell: duo('Гравитационный звон', '◉', ['tuning','anchor'], ['phys','aoe'], 'resonanceWell',
+    'Воронка собирает врагов; пульсирующий резонанс бьёт внутри и готовит цепь физических ударов',
+    levels({dmg:36,castCd:3.8,range:300,radius:120,dur:3,tick:0.6}, {dmg:48,radius:140}, {dmg:64,castCd:3,range:360,radius:165,dur:3.5})),
+  sunprism: duo('Солнечная призма', '☀', ['prism','lantern'], ['proj','aoe'], 'markBeam',
+    'Веер лучей прожигает строй и оставляет долгую усиленную метку',
+    levels({dmg:54,castCd:2.2,range:340,radius:90,width:24,mark:0.42,dur:4}, {dmg:72,range:390,mark:0.47}, {dmg:96,castCd:1.7,range:450,width:34,mark:0.52})),
+  arclaser: duo('Дуговой лазер', 'ϟ', ['prism','lightning'], ['proj','shock'], 'shockBeam',
+    'Разветвлённый лазер пересылает молнии из поражённых целей',
+    levels({dmg:52,castCd:2.2,range:330,radius:90,width:24,chain:1}, {dmg:72,range:370,chain:2}, {dmg:96,castCd:1.7,range:420,width:34,chain:3})),
+  resonantshield: duo('Звонкий бастион', '⛉', ['tuning','ward'], ['phys','aoe'], 'sonicShield',
+    'Щит выпускает резонансные волны; каждый блок отвечает усиленной звуковой волной',
+    levels({dmg:30,castCd:2.6,radius:135,dur:3,charges:2,cd:10,burstDmg:25,burstR:130,kb:65}, {dmg:42,radius:155,cd:8}, {dmg:58,castCd:2,radius:180,charges:3,cd:7,burstDmg:40})),
+  crystalchoir: duo('Хрустальный хор', '❄', ['tuning','frost'], ['cold','phys','aoe'], 'choirWave',
+    'Широкая ледяная волна замораживает и оставляет резонанс для следующего удара',
+    levels({dmg:36,castCd:2.5,range:330,radius:80,dur:3,freeze:0.5}, {dmg:48,range:370,radius:95,freeze:0.65}, {dmg:66,castCd:1.9,range:420,radius:110,freeze:0.8})),
+  blacksnare: duo('Чёрная западня', '⊓', ['anchor','traps'], ['phys','trap','aoe'], 'trapWell',
+    'Стягивает врагов в многоразовую западню, которая удерживает и режет всю группу',
+    levels({dmg:60,castCd:4,range:300,radius:120,dur:3,root:1.2}, {dmg:82,radius:145,root:1.4}, {dmg:112,castCd:3.2,range:370,radius:170,root:1.6})),
+  inferno: duo('Пекло', '🔥', ['anchor','trail'], ['fire','aoe'], 'fireWell',
+    'Собирает врагов в огненную воронку; жжёт даже на месте и оставляет долгий поджог',
+    levels({dmg:18,castCd:3.8,range:310,radius:115,dur:3,tick:0.35,burn:10}, {dmg:26,radius:140,burn:15}, {dmg:38,castCd:3,range:370,radius:165,dur:3.6,burn:22})),
+};
+
+CONFLUENCES.singularity.signaturePower = 1.1;

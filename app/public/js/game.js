@@ -72,6 +72,7 @@ export class Game {
 		this.zaps = [];
 		this.slashes = [];
 		this.rings = [];
+		this.coldWaves = [];
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null; // {t, n}: the final burn at 15:00, drives the victory overlay
@@ -116,6 +117,7 @@ export class Game {
 		this.zaps.length = 0;
 		this.slashes.length = 0;
 		this.rings.length = 0;
+		this.coldWaves.length = 0;
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null;
@@ -295,6 +297,7 @@ export class Game {
 			at: now,
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
+			support: Array.isArray(msg.support) ? msg.support : EMPTY,
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
 			pMap: new Map(),
 			e: Array.isArray(msg.e) ? msg.e : EMPTY,
@@ -685,6 +688,9 @@ export class Game {
 			case 'buildbeam':
 				this.zaps.push({ pts: [+ev[1], +ev[2], +ev[3], +ev[4]], t: 0, color: '#d897ff' });
 				break;
+			case 'coldwave':
+				this.coldWaves.push({ x: +ev[1], y: +ev[2], angle: +ev[3], range: +ev[4], width: +ev[5], speed: +ev[6], t: 0, life: +ev[4] / +ev[6] });
+				break;
 			case 'buildring': {
 				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55', '#a5f0c6'][ev[4]] || '#d1a6ff';
 				this.rings.push({ x: +ev[1], y: +ev[2], t: 0, life: 0.33, r0: r * 0.25, r1: r, color, fill: true });
@@ -979,6 +985,7 @@ export class Game {
 		compact(this.zaps, (z) => (z.t += dt) < 0.25);
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
+		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
 		compact(this.warns, (w) => (w.t += dt) < w.life);
 		compact(this.blines, (l) => (l.t += dt) < l.life);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);

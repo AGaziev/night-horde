@@ -1,0 +1,18 @@
+{
+  "players": 8,
+  "duosPerPlayer": 2,
+  "weaponsPerPlayer": 6,
+  "enemies": 350,
+  "seconds": 30,
+  "node": "v24.22.2",
+  "cpuTrimmedMs": 1.925232250300842,
+  "p99WallMs": 4.380792000000042,
+  "tickBudgetMs": 33.333333333333336,
+  "averageWireBytes": 5061,
+  "maxima": {
+    "projectiles": 197,
+    "puddles": 128,
+    "traps": 19,
+    "waves": 10
+  }
+}

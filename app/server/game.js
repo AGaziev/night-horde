@@ -14,10 +14,12 @@ import {
 	beaconAngle, PEAK_WARN, peakSchedule, EMBER_WEAK, DEW_DROP, RARITIES, CHEST_FLOOR, rollRarity, passiveStep, passiveDesc,
 	FINALE, finaleFight, finaleRingR, finaleHpMul, finaleDmgMul, finaleAddScale, finaleAddCap, clampToRing,
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
-	OVERCLOCKS, weaponLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
+	OVERCLOCKS, weaponLevel, attackLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
+	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
+import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
@@ -118,6 +120,17 @@ const WEAPON_SHORT = { count: 3, frac: 0.4 }; // v29: see makeChoices
 const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
 const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
 const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
+const fieldSource = (src) => (src?.weapon ?? 'other') + ':' + (src?.component ?? 'signature');
+function trimOwned(list, owner, max, match) {
+	let excess = list.filter(item => item.owner === owner && match(item)).length - max;
+	if (excess <= 0) return;
+	let kept = 0;
+	for (const item of list) {
+		if (excess > 0 && item.owner === owner && match(item)) { excess--; continue; }
+		list[kept++] = item;
+	}
+	list.length = kept;
+}
 const shuffle = (a) => {
 	for (let i = a.length - 1; i > 0; i--) {
 		const j = Math.floor(Math.random() * (i + 1));
@@ -226,7 +239,7 @@ function makeHero(member, x, y) {
 		perk: { readyAt: HERO_PERKS[member.hero]?.cooldown ?? 0, receivedBellAt: -Infinity },
 		passives: new Map(),
 		mods: baseMods(),
-		kills: 0, dmg: 0, dmgBy: {}, revives: 0, knifeKills: 0,
+		kills: 0, dmg: 0, dmgBy: {}, supportDamage: 0, revives: 0, knifeKills: 0,
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		forgeUsed: false, forgeDefer: 0, buildChestDone: false, swapPending: false, swapUsed: false, fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, blockCharge: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
@@ -499,6 +512,7 @@ export class Room {
 		this.nextId = 1;
 		this.enemies = [];
 		this.projectiles = [];
+		this.coldWaves = [];
 		this.gems = [];
 		this.puddles = [];
 		this.bosses = [];
@@ -1032,7 +1046,8 @@ export class Room {
 		if (!h.weapons.has(a) || !h.weapons.has(b) || this.duoCount(h) >= MAX_DUOS) return false;
 		const next = new Map();
 		for (const [id, w] of h.weapons) {
-			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3 });
+			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3,
+				parts: [a, b].map((part) => ({ id: part, lvl: h.weapons.get(part).lvl, t: 0.3 })) });
 			else if (id !== b) next.set(id, w);
 		}
 		h.weapons = next;
@@ -1124,7 +1139,8 @@ export class Room {
 
 	// The single place where owned weapon pairs are matched against DUOS: h.combos = [{id, a, b, ready}].
 	updateCombos(h) {
-		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire'));
+		h.fireW = [...h.weapons.keys()].some((id) => weaponDef(id).tags?.includes('fire')
+			|| DUOS[id]?.parts.some((part) => WEAPONS[part].tags?.includes('fire')));
 		const own = [...h.weapons].filter(([id, w]) => !DUOS[id] && !w.imprint);
 		const out = [];
 		if (this.duoCount(h) < MAX_DUOS) {
@@ -1223,6 +1239,7 @@ export class Room {
 		this.rebuildGrid();
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
+		this.updateColdWaves(dt);
 		this.updateHostile(dt);
 		this.updateBlasts();
 		this.updateOrbs(dt);
@@ -2136,6 +2153,8 @@ export class Room {
 		if (e.dead || dmg <= 0) return 0;
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
+		src = this.weaponSource(h, src);
+		if (!src.raw && !src.react) dmg *= src.scale ?? 1;
 		const now = this.time;
 		const weaponDamage = dmg;
 		let crit = false;
@@ -2166,24 +2185,44 @@ export class Room {
 			}
 		}
 		const resonant = e.resonanceT > now;
+		const canSeedAsh = h?.mods.ashHops > 0 && !src.raw && !src.react && !src.perk && src.coilJumps === undefined;
 		const burning = e.burnT > now && e.burnOwner?.mods.ashHops > 0;
-		if (h && !src.react && !src.raw && src.tags.includes('shock') && h.blockCharge > 0) {
+		if (h && !src.react && !src.raw && h.blockCharge > 0) {
 			dmg *= 1 + 0.55 * h.blockCharge;
 			h.blockCharge = 0;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), 56, 2]);
 		}
-		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src);
-		if (e.elite === 'armored' && src.tags.includes('proj')) dmg *= 0.5;
+		// Reaction additions belong to this hit, including when splash damage nests hurtEnemy calls.
+		const reaction = { fixed: 0, flash: 0 };
+		if (!src.react && !src.raw && src.tags.length) dmg = this.react(e, dmg, h, src, reaction);
+		if (e.elite === 'armored' && src.tags.includes('proj')) {
+			dmg *= 0.5;
+			reaction.fixed *= 0.5;
+			reaction.flash *= 0.5;
+		}
 		if (e.ai === 'shield' && h && !src.raw && src !== SRC_BURN) {
 			const m = this.shieldMul(e, h);
 			if (m < 1) {
 				this.runLog?.special(this, e, 'blocked', dmg * (1 - m));
 				dmg *= m;
+				reaction.fixed *= m;
+				reaction.flash *= m;
 			}
 		}
 		const dealt = Math.min(dmg, e.hp);
-		const flashPart = Math.min(this.flashPart ?? 0, dealt);
-		this.flashPart = 0;
+		let withoutLocalMark = dmg;
+		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
+			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+		}
+		if (!src.raw && src.markSupport) {
+			// A reaction can carry another target's mark into this hit. Credit that
+			// inherited gain before the local mark, so their cross term is counted once.
+			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
+			src.markSupport.owner.supportDamage += Math.max(0,
+				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
+		}
+		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
 			h.dmg += dealt;
 			h.dmgBy[src.weapon] = (h.dmgBy[src.weapon] ?? 0) + dealt - flashPart;
@@ -2204,13 +2243,15 @@ export class Room {
 		if (e.hp <= 0) {
 			this.killEnemy(e, h, src);
 			if (burning) this.spreadAsh(e);
-			if (h?.mods.coil > 0 && !src.react && !src.raw
-				&& (src.tags.includes('shock') || resonant)) this.coilJump(e, h, src, dmg);
+			else if (canSeedAsh && this.seedAsh(e, h, weaponDamage)) this.spreadAsh(e);
+			if (h?.mods.coil > 0 && !src.react && !src.raw) this.coilJump(e, h,
+				{ ...src, coilPower: src.coilPower ?? (src.tags.includes('shock') || resonant ? 0.66 : 0.38) }, dmg);
 		} else if (h && h.mods.burnChance > 0 && !src.react) {
 			if (h.fireW) {
 				if (Math.random() < h.mods.burnChance) this.burn(e, h, h.mods.burnDps, 3);
 			} else if (e.burnT <= this.time + 1) this.burn(e, h, h.mods.burnDps * EMBER_WEAK.frac, EMBER_WEAK.dur);
 		}
+		if (!e.dead && canSeedAsh) this.seedAsh(e, h, weaponDamage);
 		if (h?.st === 0 && !h.offline && dealt > 0 && !src.raw && !src.react && !src.perk
 			&& src.coilJumps === undefined && Object.hasOwn(SRC, src.weapon)) onWeaponHit(this, h, e, weaponDamage, src);
 		this.lastCrit = crit;
@@ -2249,6 +2290,15 @@ export class Room {
 		return a;
 	}
 
+	seedAsh(e, h, damage) {
+		// A weapon can start a fire, but its own lightning cannot both ignite and detonate the same hit.
+		// Haste, Echo and overlapping zones cannot refresh this ignition more than once per 2.5 seconds.
+		if ((e.ashSeedAt?.[h.pid] ?? -Infinity) > this.time) return false;
+		(e.ashSeedAt ??= {})[h.pid] = this.time + 2.5;
+		this.burn(e, h, Math.max(1, damage * 0.08), 2.5, e.burnT > this.time ? e.ashHops : undefined);
+		return true;
+	}
+
 	spreadAsh(e) {
 		const h = e.burnOwner;
 		const hops = e.ashHops ?? h.mods.ashHops;
@@ -2267,18 +2317,29 @@ export class Room {
 		const next = this.nearestFrom(e, [e], 115 + 10 * h.passives.get('coil'));
 		if (!next) return;
 		this.fx.push(['zap', Math.round(e.x), Math.round(e.y), Math.round(next.x), Math.round(next.y)]);
-		this.hurtEnemy(next, Math.min(260, dmg * 0.66), h, { weapon: src.weapon, tags: ['shock'], coilJumps: jumps - 1 });
+		this.hurtEnemy(next, Math.min(260, dmg * (src.coilPower ?? 0.66)), h,
+			{ weapon: src.weapon, tags: ['shock'], coilJumps: jumps - 1, coilPower: src.coilPower ?? 0.66 });
+	}
+
+	// Carry only the primary mark's proportional contribution, excluding fixed
+	// reaction additions. This is accounting metadata; combat damage stays intact.
+	reactionSource(e, src, dmg, fixed = 0) {
+		const markable = dmg - fixed;
+		if (!(e.markT > this.time && e.markOwner && e.markMul > 0 && markable > 0)) return src;
+		const extra = markable - markable / (1 + e.markMul);
+		return { ...src, markSupport: { owner: e.markOwner, fraction: extra / dmg } };
 	}
 
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
-	react(e, dmg, h, src) {
+	react(e, dmg, h, src, reaction = {}) {
 		const now = this.time, t = src.tags;
 		const fire = t.includes('fire'), cold = t.includes('cold'), shock = t.includes('shock');
 		if (t.includes('phys') && e.resonanceT > now) {
 			e.resonanceT = 0;
 			const r = 58;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), r, 1]);
-			this.splash(e.x, e.y, r, dmg * 0.65 * e.resonancePower, h, { weapon: 'tuning', tags: [], react: true }, e);
+			this.splash(e.x, e.y, r, dmg * 0.65 * e.resonancePower, h,
+				this.reactionSource(e, { weapon: 'tuning', tags: [], react: true }, dmg), e);
 		}
 		if (fire && e.rootT > now && t.includes('aoe')) {
 			dmg *= REACT.blastMul;
@@ -2289,21 +2350,23 @@ export class Room {
 			e.frozenT = now;
 			e.thawT = now + FREEZE_IMMUNE;
 			this.reacted('shatter', e.x, e.y, REACT.shatterR);
-			this.splash(e.x, e.y, REACT.shatterR, dmg * REACT.shatterFrac, h, SRC_R.shatter, e);
+			this.splash(e.x, e.y, REACT.shatterR, dmg * REACT.shatterFrac, h, this.reactionSource(e, SRC_R.shatter, dmg), e);
 		}
 		if (shock && e.burnT > now) {
 			e.burnT = 0;
 			this.reacted('flash', e.x, e.y, REACT.flashR);
-			const flash = REACT.flashBase * (h?.mods.dmgMul ?? 1) + dmg * REACT.flashFrac;
-			this.splash(e.x, e.y, REACT.flashR, flash, h, SRC_R.flash, e);
+			const fixed = REACT.flashBase * (h?.mods.dmgMul ?? 1);
+			const flash = fixed + dmg * REACT.flashFrac;
+			this.splash(e.x, e.y, REACT.flashR, flash, h, this.reactionSource(e, SRC_R.flash, flash, fixed), e);
 			dmg += flash;
-			this.flashPart = flash; // v27 review: hurtEnemy books this part of the hit as r_flash, not as the weapon
+			reaction.fixed = fixed;
+			reaction.flash = flash; // hurtEnemy books this part as r_flash, rather than weapon damage
 		}
 		if (shock && e.wetT > now && e.wetZ && e.wetZ.life > 0 && !(e.wetZ.condT > now)) {
 			const z = e.wetZ;
 			z.condT = now + REACT.condEvery;
 			this.reacted('cond', z.x, z.y, z.r);
-			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, SRC_R.cond, e);
+			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, this.reactionSource(e, SRC_R.cond, dmg, reaction.fixed), e);
 		}
 		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1))) this.reacted('icing', e.x, e.y, 0);
 		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
@@ -2787,7 +2850,29 @@ export class Room {
 		return out;
 	}
 
+	weaponSource(h, src) {
+		const context = this.weaponContext;
+		if (!context || context.h !== h || src.weapon !== context.part || src.lineage || src.react || src.raw) return src;
+		return { ...src, weapon: context.weapon, component: context.part, scale: context.scale, lineage: true };
+	}
+
 	updateWeapon(h, id, w, dt) {
+		if (DUOS[id]) {
+			w.parts ??= DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl), t: 0.2 }));
+			const previous = this.weaponContext;
+			try {
+				for (const part of w.parts) {
+					part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
+					this.weaponContext = { h, weapon: id, part: part.id, scale: DUOS[id].inheritPower ?? DUO_INHERIT_POWER };
+					if (part.id === 'ward') this.wardBash(h, part, attackLevel('ward', part.lvl, 0, h.mods), dt);
+					else if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && part.t <= dt && canRepeatCast(part.id)) repeatCast(this, h, part.id, part, dt);
+					else this.castWeapon(h, part.id, part, dt);
+				}
+				this.weaponContext = { h, weapon: id, part: id, scale: DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER };
+				this.castWeapon(h, id, w, dt);
+			} finally { this.weaponContext = previous; }
+			return;
+		}
 		if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && w.t <= dt && canRepeatCast(id)) {
 			repeatCast(this, h, id, w, dt);
 			return;
@@ -2796,11 +2881,17 @@ export class Room {
 	}
 
 	castWeapon(h, id, w, dt, damageScale = 1) {
-		const L = weaponLevel(id, w.lvl, w.oc);
+		const L = attackLevel(id, w.lvl, w.oc, h.mods, w.parts);
 		const oc = overclockId(id, w.oc);
 		const { cdMul, areaMul, amount, durMul } = h.mods;
 		const dmgMul = h.mods.dmgMul * damageScale;
-		const src = SRC[id];
+		const src = this.weaponSource(h, SRC[id]);
+		if (DUOS[id]?.effect) {
+			if (L.charges) this.wardTick(h, w, L, dt);
+			w.castT = (w.castT ?? 0) - dt;
+			if (w.castT <= 0) w.castT = castConfluence(this, h, L, src, DUOS[id].effect) ? L.castCd * cdMul : 0.15;
+			return;
+		}
 		switch (id) {
 			case 'orbit':
 				this.orbitHits(h, L, dmgMul, areaMul, amount);
@@ -2875,7 +2966,7 @@ export class Room {
 				w.p = (w.p ?? L.pulse) - dt;
 				if (w.p <= 0) {
 					w.p = L.pulse * cdMul;
-					this.auroraPulse(h, L, id === 'blizzard' ? 1 : 2);
+					this.auroraPulse(h, id === 'aurora' ? { ...L, radius: WEAPONS.aura.levels[duoPartLevel(w.lvl) - 1].radius } : L, 1);
 				}
 				break;
 			case 'tocsin':
@@ -2992,7 +3083,19 @@ export class Room {
 				for (const e of near) {
 					const rr = r + e.r * 0.5;
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
-					this.hurtEnemy(e, dmg, h, src);
+					let heat = 1;
+					if (id === 'aura') {
+						const key = h.pid + ':' + src.weapon;
+						const prev = e.auraContact?.[key];
+						const held = prev && this.time - prev.last <= L.tick + 0.15 ? Math.min(2, prev.held + this.time - prev.last) : 0;
+						(e.auraContact ??= {})[key] = { held, last: this.time };
+						heat += held * 0.25;
+						if (held >= 2 && !(e.heatFxT > this.time)) {
+							e.heatFxT = this.time + 0.7;
+							this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), 22, 3]);
+						}
+					}
+					this.hurtEnemy(e, dmg * heat, h, src);
 					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2);
 				}
 				this.breakAround(h.x, h.y, r, h);
@@ -3001,31 +3104,16 @@ export class Room {
 				return;
 			}
 			case 'frost': {
-				const r = L.radius * areaMul;
-				const near = this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2);
-				let any = false;
-				for (const e of near) {
-					const rr = r + e.r * 0.5;
-					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
-					any = true;
-					this.hurtEnemy(e, dmg, h, src);
-					if (e.dead) continue;
-					this.slowEnemy(e, L.slow, L.dur * durMul);
-					if (L.freeze > 0 && !e.boss) this.freeze(e, L.freeze * h.mods.ctrlMul * durMul);
-				}
-				if (!any) {
-					w.t = 0.2;
-					return;
-				}
-				this.fx.push(['frost', h.pid, Math.round(r)]);
-				if (w.imprint === 'sickle') {
-					const t = this.nearestEnemies(h.x, h.y, 1, r + MAX_ENEMY_R)[0];
-					const a = t ? Math.atan2(t.y - h.y, t.x - h.x) : Math.atan2(h.fy, h.fx);
-					for (const off of [-0.55, 0, 0.55]) {
-						this.addProjectile(h, 'sickle', a + off, 320, dmg * 0.55, Infinity, 1.7, null, 0.46, { src });
-					}
-				}
-				this.breakAround(h.x, h.y, r, h);
+				const target = this.densestPoints(h, 1, L.radius * areaMul)[0];
+				if (!target) { w.t = 0.2; return; }
+				const a = Math.atan2(target.y - h.y, target.x - h.x);
+				const wave = { owner: h, x: h.x, y: h.y, dx: Math.cos(a), dy: Math.sin(a), distance: 0,
+					range: L.radius * areaMul, width: L.width * areaMul, speed: 420, dmg, src, hit: new Set(),
+					slow: L.slow, dur: L.dur * durMul, freeze: L.freeze * h.mods.ctrlMul * durMul };
+				this.coldWaves.push(wave);
+				this.fx.push(['coldwave', Math.round(h.x), Math.round(h.y), round3(a), Math.round(wave.range), Math.round(wave.width), wave.speed]);
+				if (w.imprint === 'sickle') for (const off of [-0.55, 0, 0.55])
+					this.addProjectile(h, 'sickle', a + off, 320, dmg * 0.55, Infinity, 1.7, null, 0.46, { src });
 				w.t = L.cd * cdMul;
 				return;
 			}
@@ -3046,7 +3134,11 @@ export class Room {
 				return;
 			}
 			case 'traps': {
-				const o = { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, splash: L.splash * areaMul, max: L.max, src, shards: oc === 'shards' }; // + Песочные часы
+				const target = this.nearestEnemies(h.x, h.y, 1, 260)[0];
+				const d = target ? Math.hypot(target.x - h.x, target.y - h.y) || 1 : 1;
+				const reach = Math.min(120, d * 0.7);
+				const o = { r: L.radius * areaMul, dmg, root: L.root * h.mods.ctrlMul * durMul, splash: L.splash * areaMul, max: L.max, src, shards: oc === 'shards', uses: 2, rearm: 1.8 * cdMul, rootTargets: 2 + Math.floor(w.lvl / 2),
+					...(target ? { x: h.x + (target.x - h.x) / d * reach, y: h.y + (target.y - h.y) / d * reach } : {}) }; // + Песочные часы
 				if (oc === 'circle') {
 					w.rot = (w.rot ?? 0) + 0.7;
 					for (let k = 0; k < 3; k++) this.layTrap(h, { ...o, x: h.x + Math.cos(w.rot + k * 2.094) * 64, y: h.y + Math.sin(w.rot + k * 2.094) * 64 });
@@ -3265,7 +3357,7 @@ export class Room {
 				return;
 			case 'trail':
 			case 'firepath':
-				w.t = this.trailTick(h, L, src) ? L.every : 0.05;
+				w.t = this.trailTick(h, L, src, w, damageScale) ? L.every : 0.05;
 				return;
 			case 'spear':
 			case 'volley':
@@ -3349,6 +3441,31 @@ export class Room {
 				return;
 			}
 		}
+	}
+
+	updateColdWaves(dt) {
+		let n = 0;
+		for (const wave of this.coldWaves) {
+			const from = wave.distance;
+			wave.distance = Math.min(wave.range, from + wave.speed * dt);
+			const middle = (from + wave.distance) / 2;
+			const x = wave.x + wave.dx * middle, y = wave.y + wave.dy * middle;
+			for (const e of this.grid.query(x, y, wave.width + wave.speed * dt + MAX_ENEMY_R, [])) {
+				if (e.dead || wave.hit.has(e)) continue;
+				const ex = e.x - wave.x, ey = e.y - wave.y;
+				const along = ex * wave.dx + ey * wave.dy;
+				const across = Math.abs(ex * wave.dy - ey * wave.dx);
+				if (along < from - e.r || along > wave.distance + e.r || across > wave.width + e.r) continue;
+				wave.hit.add(e);
+				this.hurtEnemy(e, wave.dmg, wave.owner, wave.src);
+				if (e.dead) continue;
+				this.slowEnemy(e, wave.slow, wave.dur);
+				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze);
+				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; }
+			}
+			if (wave.distance < wave.range) this.coldWaves[n++] = wave;
+		}
+		this.coldWaves.length = n;
 	}
 
 	prismAttack(h, L, dmg, src) {
@@ -3476,21 +3593,43 @@ export class Room {
 
 	// Lantern: a cone of light on the densest group marks enemies (+damage from everyone).
 	lanternTick(h, L, src) {
-		return this.lightCone(h, L.range * h.mods.areaMul, L.angle, L.mark, L.tick + 0.3, L.dmg * h.mods.dmgMul, src) !== null;
+		return this.lightCone(h, L.range * h.mods.areaMul, L.angle, L.mark, 3 * h.mods.durMul, L.dmg * h.mods.dmgMul, src,
+			this.toughest(h, L.range * h.mods.areaMul)) !== null;
 	}
 
-	trailTick(h, L, src) {
+	trailTick(h, L, src, w = {}, damageScale = 1) {
 		if (this.time - h.movedT > MOVE_RECENT) return false;
-		const z = {
-			id: this.nextId++, owner: h, x: h.x, y: h.y, r: L.radius * h.mods.areaMul, life: L.dur * h.mods.durMul, dmg: L.dmg * h.mods.dmgMul,
-			tick: L.tick, t: 0, src, burn: L.burn, trail: true,
-		};
-		this.puddles.push(z);
-		this.fx.push(['zk', z.id, 1]);
-		let mine = 0;
-		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
-		if (mine > (L.max ?? TRAIL_MAX)) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+		const r = L.radius * h.mods.areaMul;
+		const last = w.lastTrail;
+		const distance = last ? Math.hypot(h.x - last.x, h.y - last.y) : 0;
+		const steps = last && distance < 500 ? Math.min(8, Math.max(1, Math.ceil(distance / r))) : 1;
+		for (let i = 1; i <= steps; i++) {
+			const z = { id: this.nextId++, owner: h, x: last && distance < 500 ? last.x + (h.x - last.x) * i / steps : h.x,
+				y: last && distance < 500 ? last.y + (h.y - last.y) * i / steps : h.y, r, life: L.dur * h.mods.durMul,
+				dmg: L.dmg * h.mods.dmgMul * damageScale, tick: L.tick, t: 0, src, burn: L.burn * damageScale,
+				burnDur: 3.5, trail: true, baseTrail: true };
+			this.puddles.push(z);
+			this.fx.push(['zk', z.id, 1]);
+		}
+		w.lastTrail = { x: h.x, y: h.y };
+		trimOwned(this.puddles, h, L.max ?? TRAIL_MAX, p => p.trail && fieldSource(p.src) === fieldSource(src));
 		return true;
+	}
+
+	wardBash(h, w, L, dt, src = SRC.ward) {
+		// Independent offensive clock: it never grants extra charges or changes the knight's passive.
+		if (h.ward > 0 && L.burstDmg) {
+			w.bashT = (w.bashT ?? 0) - dt;
+			if (w.bashT <= 0) {
+				w.bashT = 3 * h.mods.cdMul;
+				const e = this.nearestEnemies(h.x, h.y, 1, 180 * h.mods.areaMul)[0];
+				if (e) {
+					this.hurtEnemy(e, L.burstDmg * 0.7 * h.mods.dmgMul, h, src);
+					if (!e.dead && !e.boss) this.knock(e, h.x, h.y, 20);
+					this.fx.push(['buildbeam', Math.round(h.x), Math.round(h.y), Math.round(e.x), Math.round(e.y)]);
+				}
+			}
+		}
 	}
 
 	// Ward / Bastion: charges refill one per cd; a full shield starts the run full.
@@ -3502,6 +3641,7 @@ export class Room {
 			h.ward = h.wardMax;
 			w.t = L.cd * h.mods.cdMul;
 		}
+		if (!DUOS[this.weaponContext?.weapon]) this.wardBash(h, w, L, dt, h.weapons.has('bastion') ? SRC.bastion : SRC.ward);
 		if (h.ward >= h.wardMax) {
 			w.t = L.cd * h.mods.cdMul;
 			return;
@@ -3516,13 +3656,24 @@ export class Room {
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
-		const id = ['bastion', 'phalanx', 'dome', 'riposte', 'rod'].find((k) => h.weapons.has(k)) ?? 'ward';
+		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id);
-		const L = weaponLevel(id, w?.lvl ?? 1, w?.oc);
+		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
+		if (DUOS[id]?.parts.includes('ward')) {
+			const inherited = w.parts?.find((part) => part.id === 'ward');
+			const base = attackLevel('ward', inherited?.lvl ?? duoPartLevel(w.lvl), 0, h.mods);
+			this.explode({ x: h.x, y: h.y, r: base.burstR * h.mods.areaMul, pdmg: 0,
+				edmg: base.burstDmg * h.mods.dmgMul, owner: h, kind: 7,
+				src: { weapon: id, component: 'ward', tags: ['aoe'], scale: DUO_INHERIT_POWER, lineage: true }, kb: base.kb });
+		}
+		if (DUOS[id]?.effect === 'sonicShield') {
+			this.tuningWave(h, L, L.dmg * 1.8 * h.mods.dmgMul, SRC[id]);
+			return;
+		}
 		if (w && h.ward < h.wardMax) w.t = Math.min(w.t, L.cd * h.mods.cdMul);
 		if (id === 'phalanx') {
 			this.spearRing(h, L);
@@ -3541,7 +3692,7 @@ export class Room {
 			if (t) this.strikeAt(h, t, L.counter * h.mods.dmgMul, L.counterChain + h.trait.chainBonus, SRC.rod);
 			return;
 		}
-		if (id === 'bastion' || h.ward <= 0 || overclockId(id, w?.oc) === 'thorns') {
+		if (id === 'ward' || id === 'bastion' || h.ward <= 0 || overclockId(id, w?.oc) === 'thorns') {
 			this.explode({ x: h.x, y: h.y, r: L.burstR * h.mods.areaMul, pdmg: 0, edmg: L.burstDmg * h.mods.dmgMul, owner: h, kind: 7, src: SRC[id], kb: L.kb });
 		}
 		if (id === 'bastion') {
@@ -3605,18 +3756,16 @@ export class Room {
 		w.k = ((w.k ?? 0) + 1) % count;
 		const z = {
 			id: this.nextId++, owner: h, x: xs[w.k], y: ys[w.k], r: L.patchR * areaMul, life: L.patchLife * durMul, dmg: L.patchDmg * dmgMul,
-			tick: L.tick, t: 0, src: SRC.firewheel, trail: true,
+			tick: L.tick, t: 0, src: this.weaponSource(h, SRC.firewheel), trail: true,
 		};
 		this.puddles.push(z);
 		this.fx.push(['zk', z.id, 1]);
-		let mine = 0;
-		for (const p of this.puddles) if (p.owner === h && p.trail) mine++;
-		if (mine > TRAIL_MAX) this.puddles.splice(this.puddles.findIndex((p) => p.owner === h && p.trail), 1);
+		trimOwned(this.puddles, h, TRAIL_MAX, p => p.trail && fieldSource(p.src) === fieldSource(z.src));
 	}
 
 	// Enemies inside a cone; marks them. Returns {dir, list} or null when no target.
-	lightCone(h, range, angleDeg, mark, markDur, dmg, src) {
-		const pt = this.densestPoints(h, 1, range)[0];
+	lightCone(h, range, angleDeg, mark, markDur, dmg, src, priority = null) {
+		const pt = priority ?? this.densestPoints(h, 1, range)[0];
 		if (!pt) return null;
 		const dir = Math.atan2(pt.y - h.y, pt.x - h.x);
 		const half = (angleDeg * Math.PI) / 360;
@@ -3628,8 +3777,11 @@ export class Room {
 			let da = Math.abs(Math.atan2(dy, dx) - dir);
 			if (da > Math.PI) da = Math.PI * 2 - da;
 			if (da > half) continue;
-			if (e.markT <= this.time || mark > e.markMul) e.markMul = mark;
-			e.markT = this.time + markDur;
+			if (e.markT <= this.time || mark >= e.markMul) {
+				e.markMul = mark;
+				e.markT = this.time + markDur;
+				e.markOwner = h;
+			}
 			list.push(e);
 			this.hurtEnemy(e, dmg, h, src);
 		}
@@ -3703,7 +3855,7 @@ export class Room {
 				if (da <= half) inBeam = true;
 			}
 			if (!inBeam) continue;
-			if (e.markT <= this.time || L.mark > e.markMul) e.markMul = L.mark;
+			if (e.markT <= this.time || L.mark > e.markMul) { e.markMul = L.mark; e.markOwner = h; }
 			e.markT = this.time + L.markDur;
 			e.beaconT = e.markT;
 			if ((e.oh?.[key] ?? 0) > this.time) continue;
@@ -3760,7 +3912,7 @@ export class Room {
 		if (!this.heroes.has(h.pid)) return;
 		const gw = h.weapons.get('guide');
 		if (gw && this.lightBudget > 0) {
-			const L = weaponLevel('guide', gw.lvl);
+			const L = attackLevel('guide', gw.lvl, gw.oc, h.mods);
 			const exclude = [e];
 			for (let i = 0; i < L.deathSparks && this.lightBudget > 0; i++, this.lightBudget--) {
 				const t = this.nearestFrom(e, exclude, 260);
@@ -3772,14 +3924,14 @@ export class Room {
 		const lw = h.weapons.get('glow');
 		if (lw && e.burnT > this.time && this.lightBudget > 0) {
 			this.lightBudget--;
-			const L = weaponLevel('glow', lw.lvl);
+			const L = attackLevel('glow', lw.lvl, lw.oc, h.mods);
 			this.addPatch(h, e.x, e.y, L.patchR * h.mods.areaMul, L.patchLife * h.mods.durMul, L.patchDmg * h.mods.dmgMul, L.patchTick, SRC.glow, 0, 'glowp', 12);
 		}
 	}
 
 	// A burning patch of a duo (zk 1); at most `max` of this `tag` per player, the oldest goes.
 	addPatch(h, x, y, r, life, dmg, tick, src, burn, tag, max, extra = null) {
-		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src, burn, tag, ...extra };
+		const z = { id: this.nextId++, owner: h, x, y, r, life, dmg, tick, t: 0, src: this.weaponSource(h, src), burn, tag, ...extra };
 		this.puddles.push(z);
 		const zk = extra?.zk ?? (extra?.mark ? 3 : 1);
 		if (zk) this.fx.push(['zk', z.id, zk]);
@@ -4172,13 +4324,12 @@ export class Room {
 		}
 		const kind = o.kind ?? 0;
 		this.traps.push({
-			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src, shards: o.shards ?? false,
-			blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM, frost: o.frost ?? null,
+			id: this.nextId++, owner: h, x, y, kind, r: o.r, dmg: o.dmg, root: o.root ?? 0, splash: o.splash ?? 0, src: o.src ? this.weaponSource(h, o.src) : o.src, shards: o.shards ?? false,
+			uses: o.uses, rootTargets: o.rootTargets ?? 1, blastR: o.blastR ?? 0, kb: o.kb ?? 0, recharge: o.recharge ?? 0, burn: o.burn ?? null, rearm: o.rearm ?? 0, life: o.life ?? Infinity, armT: this.time + TRAP_ARM, frost: o.frost ?? null,
 		});
 		if (o.max) {
-			let mine = 0;
-			for (const t of this.traps) if (t.owner === h && t.kind === kind) mine++;
-			if (mine > o.max) this.traps.splice(this.traps.findIndex((t) => t.owner === h && t.kind === kind), 1);
+			const source = fieldSource(this.traps.at(-1).src);
+			trimOwned(this.traps, h, o.max, t => t.kind === kind && fieldSource(t.src) === source);
 		}
 	}
 
@@ -4357,7 +4508,8 @@ export class Room {
 	}
 
 	nearestFrom(from, exclude, range) {
-		const near = this.grid.query(from.x, from.y, range, this.q2);
+		// Kill-triggered chains can search while an area attack is iterating q2.
+		const near = this.grid.query(from.x, from.y, range, []);
 		let best = null, bd = range * range;
 		for (const e of near) {
 			if (e.dead || exclude.includes(e)) continue;
@@ -4385,6 +4537,9 @@ export class Room {
 	}
 
 	orbitHits(h, L, dmgMul, areaMul, amount, src = SRC.orbit) {
+		src = this.weaponSource(h, src);
+		// Inherited Orbit and the duo's signature ring each own one clock for all their blades.
+		const key = `${h.pid}:${src.weapon}:${src.component ?? src.weapon}`;
 		const R = L.radius * areaMul;
 		const bladeR = ORBIT_BLADE_R * areaMul;
 		const count = L.count + amount;
@@ -4399,11 +4554,11 @@ export class Room {
 		if (!near.length) return;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.oh && (e.oh[h.pid] ?? 0) > this.time) continue;
+			if (e.oh && (e.oh[key] ?? 0) > this.time) continue;
 			const rr = (bladeR + e.r) * (bladeR + e.r);
 			for (let i = 0; i < bx.length; i++) {
 				if (dist2(e.x, e.y, bx[i], by[i]) < rr) {
-					(e.oh ??= {})[h.pid] = this.time + L.hitCd;
+					(e.oh ??= {})[key] = this.time + L.hitCd;
 					this.hurtEnemy(e, L.dmg * dmgMul, h, src);
 					if (h.mods.armor > 0) h.guard = Math.min(3, h.guard + 1); // Хоровод + Кольчуга
 					break;
@@ -4416,7 +4571,7 @@ export class Room {
 	// opts: x, y (start), src, spike (knife becomes a spike on a miss), trail (ice trail), freezeBack (freeze on the way back).
 	addProjectile(h, kind, ang, speed, dmg, pierce, life, target, outT = 0, opts = {}) {
 		const p = {
-			id: this.nextId++, kind: KIND_INDEX[kind], src: opts.src ?? SRC[kind === 'knife' ? 'knives' : kind], owner: h,
+			id: this.nextId++, kind: KIND_INDEX[kind], src: this.weaponSource(h, opts.src ?? SRC[kind === 'knife' ? 'knives' : kind]), owner: h,
 			x: opts.x ?? h.x, y: opts.y ?? h.y, vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed, speed, dmg, pierce, life, target,
 			hit: [], outT, returns: outT > 0, spike: opts.spike ?? null, trail: opts.trail ?? null, freezeBack: opts.freezeBack ?? 0, anyHit: false,
 			r: opts.r ?? PROJ_R, kb: opts.kb ?? 0, split: opts.split ?? 0, shed: opts.shed ?? null, bond: opts.bond ?? false, onEnd: opts.onEnd ?? null,
@@ -4606,7 +4761,7 @@ export class Room {
 
 	updateTraps(dt) {
 		if (!this.traps.length) return;
-		const near = this.q1;
+		const near = [];
 		const shards = [];
 		let j = 0;
 		for (const t of this.traps) {
@@ -4629,7 +4784,8 @@ export class Room {
 				continue;
 			}
 			const src = t.src ?? SRC.traps;
-			const stays = t.rearm > 0; // Растяжка: traps hold the thread net and re-arm instead of vanishing
+			const stays = t.rearm > 0 && (t.uses === undefined || t.uses > 1);
+			if (t.uses > 0) t.uses--; // Растяжка: traps hold the thread net and re-arm instead of vanishing
 			if (t.kind === 4) {
 				// Wolf pit: a blast that roots everyone around.
 				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src });
@@ -4647,7 +4803,7 @@ export class Room {
 			}
 			this.fx.push(['snap', Math.round(t.x), Math.round(t.y)]);
 			this.root(victim, t.root);
-			this.hurtEnemy(victim, t.dmg, t.owner, src);
+			this.hurtEnemy(victim, t.dmg * (t.uses !== undefined && victim.boss ? 1.5 : 1), t.owner, src);
 			if (t.frost) this.frostWave(t, src);
 			if (stays) {
 				t.armT = this.time + t.rearm;
@@ -4655,9 +4811,13 @@ export class Room {
 			}
 			if (t.shards) shards.push(t);
 			if (t.splash > 0) {
+				let rooted = 1;
 				for (const e of this.grid.query(t.x, t.y, t.splash + MAX_ENEMY_R, near)) {
 					const rr = t.splash + e.r * 0.5;
-					if (e !== victim && !e.dead && dist2(e.x, e.y, t.x, t.y) < rr * rr) this.hurtEnemy(e, t.dmg * SPLASH_FRAC, t.owner, src);
+					if (e !== victim && !e.dead && dist2(e.x, e.y, t.x, t.y) < rr * rr) {
+						this.hurtEnemy(e, t.dmg * SPLASH_FRAC * (t.uses !== undefined && e.boss ? 1.5 : 1), t.owner, src);
+						if (rooted++ < t.rootTargets) this.root(e, t.root);
+					}
 				}
 			}
 		}
@@ -4672,7 +4832,7 @@ export class Room {
 	}
 
 	updatePuddles(dt) {
-		const near = this.q1;
+		const near = [];
 		let j = 0;
 		for (const z of this.puddles) {
 			z.life -= dt;
@@ -4686,6 +4846,14 @@ export class Room {
 					for (const e of near) {
 						const rr = z.r + e.r * 0.5;
 						if (e.dead || dist2(e.x, e.y, z.x, z.y) >= rr * rr) continue;
+						let entry = false;
+						if (z.baseTrail) {
+							const key = z.owner.pid + ':' + z.src.weapon;
+							const previous = e.trailHits?.[key];
+							if (previous && previous.next > this.time) continue;
+							entry = !previous || this.time - previous.last > 0.6;
+							(e.trailHits ??= {})[key] = { next: this.time + z.tick - 1e-8, last: this.time };
+						}
 						if (z.wet) {
 							e.wetT = this.time + WET_HOLD;
 							e.wetZ = z;
@@ -4695,14 +4863,15 @@ export class Room {
 							this.fx.push(['zap', Math.round(e.x), Math.round(e.y - 180), Math.round(e.x), Math.round(e.y)]);
 							this.hurtEnemy(e, z.dmg * 2.4, z.owner, SRC_CHARGED); // wakes no perks (DESIGN: perks only from weapon hits)
 						}
-						this.hurtEnemy(e, z.dmg, z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
+						this.hurtEnemy(e, z.dmg * (entry ? 2.5 : 1), z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
+						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; }
 						if (z.drag && !e.dead && !e.boss) {
 							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
 							e.dragT = this.time + z.tick + 0.1;
 						}
 						if (z.mark && !e.dead) {
-							if (e.markT <= this.time || z.mark > e.markMul) e.markMul = z.mark;
+							if (e.markT <= this.time || z.mark > e.markMul) { e.markMul = z.mark; e.markOwner = z.owner; }
 							e.markT = Math.max(e.markT, this.time + z.tick + 0.3);
 						}
 					}
@@ -4911,7 +5080,7 @@ export class Room {
 			Math.floor(h.xp), xpForNext(h.level, this.heroes.size), h.st, Math.round(h.rev), r2(h.fx), r2(h.fy),
 			// Orbit gets a 3rd field with extra blades (Echo) so clients draw what the server hits with.
 			// v20: an overclocked weapon gets a 4th field with the variant (1 or 2).
-			[...h.weapons].map(([id, w]) => (id === 'orrery' ? [id, w.lvl, h.mods.amount, this.orreryMask(h, w)]
+			[...h.weapons].map(([id, w]) => (DUOS[id] ? [id, w.lvl, h.mods.amount, id === 'orrery' ? this.orreryMask(h, w) : 0, 0, (w.parts ?? DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl) }))).map((part) => [part.id, part.lvl])]
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
@@ -4947,6 +5116,7 @@ export class Room {
 		}
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
+			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar,
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.

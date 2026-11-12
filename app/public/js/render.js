@@ -7,6 +7,13 @@ import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from '
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
 
+// Inherited orbits and auras must remain visible after fusion; HUD still has one duo slot.
+const visualWeapons = (list) => Array.isArray(list) ? list.flatMap(w => {
+	if (!Array.isArray(w) || !DUOS[w[0]]) return [w];
+	const parts = w[5] ?? DUOS[w[0]].parts.map(id => [id, Math.min(5, w[1] + 2)]);
+	return [w, ...parts.map(([id, level]) => [id, level, w[2] ?? 0])];
+}) : [];
+
 const TILE = 96;
 const GEM_COLORS = ['#4fc3f7', '#81c784', '#f06292', '#ffd54f'];
 const GEM_SIZE = [5, 6.5, 8.5, 9.5];
@@ -166,6 +173,7 @@ export class Renderer {
 			this.drawOrbs(ctx, game, now);
 			this.drawThunder(ctx, game, now);
 			this.drawCones(ctx, game);
+			this.drawColdWaves(ctx, game);
 			this.drawCrescents(ctx, game);
 			this.drawLobs(ctx, game, now);
 			this.drawHostile(ctx, game, now);
@@ -1279,7 +1287,7 @@ export class Renderer {
 	drawAuras(ctx, game, now) {
 		const b = game.view.b;
 		for (const row of b.p) {
-			const w = row[P.w];
+			const w = visualWeapons(row[P.w]);
 			if (!Array.isArray(w) || row[P.st] === 1) continue;
 			for (const wl of w) {
 				if (!Array.isArray(wl)) continue;
@@ -1375,7 +1383,7 @@ export class Renderer {
 		ctx.strokeStyle = 'rgba(144,202,249,0.9)';
 		ctx.lineWidth = 2;
 		for (const row of b.p) {
-			const w = row[P.w];
+			const w = visualWeapons(row[P.w]);
 			if (!Array.isArray(w) || row[P.st] === 1) continue;
 			for (const wl of w) {
 				if (!Array.isArray(wl)) continue;
@@ -2400,6 +2408,20 @@ export class Renderer {
 	}
 
 	// Lantern: a warm cone of light toward the densest group.
+	drawColdWaves(ctx, game) {
+		for (const w of game.coldWaves) {
+			const d = w.t * w.speed;
+			ctx.save();
+			ctx.translate(w.x + Math.cos(w.angle) * d, w.y + Math.sin(w.angle) * d); ctx.rotate(w.angle);
+			ctx.globalAlpha = 0.85 * (1 - w.t / w.life * 0.6);
+			ctx.strokeStyle = '#b3e5fc'; ctx.lineWidth = 5;
+			ctx.beginPath(); ctx.moveTo(-16, -w.width); ctx.quadraticCurveTo(24, 0, -16, w.width); ctx.stroke();
+			ctx.strokeStyle = '#64b5f6'; ctx.lineWidth = 2;
+			for (let i = -2; i <= 2; i++) { ctx.beginPath(); ctx.moveTo(-26, i * w.width / 3); ctx.lineTo(-3, i * w.width / 3); ctx.stroke(); }
+			ctx.restore();
+		}
+	}
+
 	drawCones(ctx, game) {
 		for (const c of game.cones) {
 			const p = game.playerPos(c.pid, this.tmp);
@@ -2805,7 +2827,7 @@ export class Renderer {
 			else {
 				if (sprite) this.drawHeroSprite(ctx, sprite, x, y, meta.color, fx || 1, fy || 0, now, me, moving, pid);
 				else drawHero(ctx, x, y, meta.hero, meta.color, fx || 1, fy || 0, now, me);
-				const wl = Array.isArray(row[P.w]) ? row[P.w] : [];
+				const wl = visualWeapons(row[P.w]);
 				this.drawWard(ctx, x, y, row[P.ward] | 0, wl.some((w) => Array.isArray(w) && w[0] === 'bastion'), now);
 				if (row[P.heroShield]) {
 					ctx.strokeStyle = '#a5e5ff';
