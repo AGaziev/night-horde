@@ -912,7 +912,24 @@ export class Room {
 		this.send(h.pid, h.lastReforge);
 		this.runLog?.reforged(this, h, source, result);
 		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
-		if (source !== 'forge' && h.offer && (h.offer.some(c => c.kind === kind && c.id === id)
+		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'duo' && c.parts?.includes(id))) {
+			// Replace the array even if the tier stays the same: inherited part levels changed.
+			h.offerEpochRequired = true;
+			h.offer = h.offer.filter(c => !(c.kind === kind && c.id === id && result.to === weaponMaxLevel(id))
+				&& !(c.kind === 'rare' && c.id === 'forge' && !this.reforgePool(h).length)).map(c => {
+				if (c.kind === 'duo' && c.parts?.includes(id)) {
+					const current = this.currentDuoCard(h, c);
+					if (current) return { ...c, ...current };
+				}
+				if (c.kind === kind && c.id === id) {
+					const rebased = { ...c, level: result.to + 1 };
+					if (c.rar !== undefined) this.setRarity(h, rebased, c.rar);
+					else rebased.desc = upgradeDesc(id, rebased.level);
+					return rebased;
+				}
+				return c;
+			});
+		} else if (source !== 'forge' && h.offer && (h.offer.some(c => c.kind === kind && c.id === id)
 			|| (h.offer.some(c => c.kind === 'rare' && c.id === 'forge') && !this.reforgePool(h).length))) {
 			h.offerEpochRequired = true;
 			if (result.to === (kind === 'weapon' ? weaponMaxLevel(id) : MAX_LEVEL)) h.offer = this.makeChoices(h, true);
@@ -988,6 +1005,14 @@ export class Room {
 			partNames: [WEAPONS[c.a].name, WEAPONS[c.b].name], partIcons: [WEAPONS[c.a].icon, WEAPONS[c.b].icon],
 			loseOvr: this.ovrNames(h, [c.a, c.b]),
 		};
+	}
+
+	currentDuoCard(h, card) {
+		if (!DUOS[card.id] || !Array.isArray(card.parts) || card.parts.length !== 2 || h.weapons.has(card.id) || this.duoCount(h) >= MAX_DUOS) return null;
+		const [a, b] = card.parts, first = h.weapons.get(a), second = h.weapons.get(b);
+		if (DUO_BY_PAIR[duoKey(a, b)] !== card.id || !first || !second || first.imprint || second.imprint
+			|| first.lvl < DUO_MIN_LEVEL || second.lvl < DUO_MIN_LEVEL) return null;
+		return this.duoCard(h, { id: card.id, a, b });
 	}
 
 	// «🔗 с Грозой → Громовой разрез (нужно 3 + 3)» on weapon cards that pair with something already owned.
@@ -1124,8 +1149,9 @@ export class Room {
 
 	// The two parts leave, the duo takes the first part's slot (Map order is the HUD order).
 	fuseDuo(h, card) {
+		const current = this.currentDuoCard(h, card);
+		if (!current || current.level !== card.level) return false;
 		const [a, b] = card.parts;
-		if (!h.weapons.has(a) || !h.weapons.has(b) || this.duoCount(h) >= MAX_DUOS) return false;
 		const next = new Map();
 		for (const [id, w] of h.weapons) {
 			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3,
@@ -1155,6 +1181,18 @@ export class Room {
 		const i = num(msg.i);
 		if (!this.acceptOfferAction(h, msg) || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
+		if (c.kind === 'duo') {
+			const current = this.currentDuoCard(h, c);
+			if (!current || current.level !== c.level) {
+				if (current) {
+					h.offer = h.offer.map(card => card === c ? { ...card, ...current } : card);
+					h.offerEpochRequired = true;
+				}
+				this.sendPassives(h);
+				this.sendOffer(h);
+				return;
+			}
+		}
 		if (c.kind === 'rare' && c.id === 'forge' && !this.reforgePool(h).length) {
 			h.offerEpochRequired = true;
 			h.offer = this.makeChoices(h, true);
@@ -1179,7 +1217,7 @@ export class Room {
 		this.runLog?.choice(this, h, 'pick', c, h.offer);
 		this.deferSkippedDuos(h, c);
 		if (c.kind === 'duo') {
-			this.fuseDuo(h, c);
+			if (!this.fuseDuo(h, c)) return;
 		} else if (c.kind === 'evo') {
 			this.evolve(h, c);
 		} else if (c.kind === 'ovr') {
