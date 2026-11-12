@@ -2216,7 +2216,7 @@ export class Room {
 			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
 		}
 		if (!src.raw && src.markSupport) {
-			// A Flash can carry another target's mark into this hit. Credit that
+			// A reaction can carry another target's mark into this hit. Credit that
 			// inherited gain before the local mark, so their cross term is counted once.
 			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
 			src.markSupport.owner.supportDamage += Math.max(0,
@@ -2321,6 +2321,15 @@ export class Room {
 			{ weapon: src.weapon, tags: ['shock'], coilJumps: jumps - 1, coilPower: src.coilPower ?? 0.66 });
 	}
 
+	// Carry only the primary mark's proportional contribution, excluding fixed
+	// reaction additions. This is accounting metadata; combat damage stays intact.
+	reactionSource(e, src, dmg, fixed = 0) {
+		const markable = dmg - fixed;
+		if (!(e.markT > this.time && e.markOwner && e.markMul > 0 && markable > 0)) return src;
+		const extra = markable - markable / (1 + e.markMul);
+		return { ...src, markSupport: { owner: e.markOwner, fraction: extra / dmg } };
+	}
+
 	// Reactions (5.3): the enemy's states meet the hit's tags; returns the (possibly multiplied) damage.
 	react(e, dmg, h, src, reaction = {}) {
 		const now = this.time, t = src.tags;
@@ -2329,7 +2338,8 @@ export class Room {
 			e.resonanceT = 0;
 			const r = 58;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), r, 1]);
-			this.splash(e.x, e.y, r, dmg * 0.65 * e.resonancePower, h, { weapon: 'tuning', tags: [], react: true }, e);
+			this.splash(e.x, e.y, r, dmg * 0.65 * e.resonancePower, h,
+				this.reactionSource(e, { weapon: 'tuning', tags: [], react: true }, dmg), e);
 		}
 		if (fire && e.rootT > now && t.includes('aoe')) {
 			dmg *= REACT.blastMul;
@@ -2340,19 +2350,14 @@ export class Room {
 			e.frozenT = now;
 			e.thawT = now + FREEZE_IMMUNE;
 			this.reacted('shatter', e.x, e.y, REACT.shatterR);
-			this.splash(e.x, e.y, REACT.shatterR, dmg * REACT.shatterFrac, h, SRC_R.shatter, e);
+			this.splash(e.x, e.y, REACT.shatterR, dmg * REACT.shatterFrac, h, this.reactionSource(e, SRC_R.shatter, dmg), e);
 		}
 		if (shock && e.burnT > now) {
 			e.burnT = 0;
 			this.reacted('flash', e.x, e.y, REACT.flashR);
 			const fixed = REACT.flashBase * (h?.mods.dmgMul ?? 1);
 			const flash = fixed + dmg * REACT.flashFrac;
-			let flashSource = SRC_R.flash;
-			if (e.markT > now && e.markOwner && e.markMul > 0) {
-				const extra = (dmg - dmg / (1 + e.markMul)) * REACT.flashFrac;
-				flashSource = { ...flashSource, markSupport: { owner: e.markOwner, fraction: extra / flash } };
-			}
-			this.splash(e.x, e.y, REACT.flashR, flash, h, flashSource, e);
+			this.splash(e.x, e.y, REACT.flashR, flash, h, this.reactionSource(e, SRC_R.flash, flash, fixed), e);
 			dmg += flash;
 			reaction.fixed = fixed;
 			reaction.flash = flash; // hurtEnemy books this part as r_flash, rather than weapon damage
@@ -2361,7 +2366,7 @@ export class Room {
 			const z = e.wetZ;
 			z.condT = now + REACT.condEvery;
 			this.reacted('cond', z.x, z.y, z.r);
-			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, SRC_R.cond, e);
+			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, this.reactionSource(e, SRC_R.cond, dmg, reaction.fixed), e);
 		}
 		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1))) this.reacted('icing', e.x, e.y, 0);
 		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
