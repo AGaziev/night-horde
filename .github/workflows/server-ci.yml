@@ -1,0 +1,68 @@
+name: Server CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: server-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server-tests:
+    name: Server tests (Node 24, Linux)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Record tested revisions
+        env:
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/server-tests"
+          {
+            printf 'Checkout: %s\n' "$(git rev-parse HEAD)"
+            printf 'Node: %s\n' "$(node --version)"
+            if [[ -n "$PR_HEAD" ]]; then
+              printf 'PR head: %s\nPR base: %s\n' "$PR_HEAD" "$PR_BASE"
+            fi
+          } | tee "$RUNNER_TEMP/server-tests/revisions.txt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Install dependencies
+        working-directory: app
+        run: npm ci
+      - name: Run server suites
+        run: node pm/run-tests.mjs "$RUNNER_TEMP/server-tests"
+      - name: Summarize results
+        if: ${{ !cancelled() }}
+        run: |
+          results="$RUNNER_TEMP/server-tests/results.json"
+          if [[ -f "$results" ]]; then
+            jq -r '
+              .results as $suites |
+              "\nServer suites: \([$suites[] | select(.status == "PASS")] | length)/\($suites | length) passed.",
+              ($suites[] | select(.status == "FAIL") | "- Failed: \(.suite)")
+            ' "$results" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          stress_log="$RUNNER_TEMP/server-tests/sim-test.log"
+          if [[ -f "$stress_log" ]]; then
+            awk '/CPU avg without worst 1%:|^GitHub Actions tick budget:/ { print "- " $0 }' "$stress_log" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: ${{ !cancelled() }}
+        with:
+          name: server-test-logs
+          path: ${{ runner.temp }}/server-tests
+          retention-days: 7
