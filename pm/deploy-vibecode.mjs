@@ -8,7 +8,12 @@ const platformOrigin = 'https://vibecode.bitrix24.tech';
 const appOrigin = 'https://app-0fdbcfb656d3.vibecode.bitrix24.tech';
 const versionPattern = /^v[1-9]\d*$/;
 const versionFile = 'app/public/shared/content.js';
+const requestTimeout = 30_000;
 const deployTimeout = 20 * 60_000;
+const scheduledWaitTimeout = 35 * 60_000;
+const scheduledPollInterval = 10_000;
+const busyTokenTtlSeconds = 600;
+const busyTokenRenewAfter = 8 * 60_000;
 
 function git(cwd, ...args) {
 	try {
@@ -61,7 +66,7 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 	const api = `${platformOrigin}/v1/infra/servers/${serverId}`;
 	const keyHeader = { 'X-Api-Key': key };
 
-	async function request(label, url, { method = 'GET', headers = keyHeader, body, timeout = 30_000 } = {}) {
+	async function request(label, url, { method = 'GET', headers = keyHeader, body, timeout = requestTimeout } = {}) {
 		let response;
 		try {
 			response = await fetch(url, {
@@ -88,8 +93,8 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 	}
 
 	return {
-		async currentSource() {
-			const result = await request('Исходники Vibecode', `${api}/sources`);
+		async currentSource(timeout) {
+			const result = await request('Исходники Vibecode', `${api}/sources`, { timeout });
 			const { currentVersionId, versions } = result?.data ?? {};
 			const source = Array.isArray(versions) && versions.find(source => source?.versionId === currentVersionId);
 			if (result?.success !== true || !versionPattern.test(currentVersionId ?? '') || source?.deployStatus !== 'success') {
@@ -99,7 +104,7 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 		},
 		async withBusy(check) {
 			const result = await request('Выпуск токена', `${api}/access-tokens`, {
-				method: 'POST', body: { mode: 'api-bearer', ttlSeconds: 600 },
+				method: 'POST', body: { mode: 'api-bearer', ttlSeconds: busyTokenTtlSeconds },
 			});
 			const { id, token } = result?.data ?? {};
 			if (typeof id !== 'string' || !id) throw new Error('Vibecode не вернул ID токена для отзыва.');
@@ -107,8 +112,8 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 				if (result?.success !== true || typeof token !== 'string' || !token) {
 					throw new Error('Vibecode не вернул токен для проверки прода.');
 				}
-				return await check(() => request('/api/busy', `${appOrigin}/api/busy`, {
-					headers: { Authorization: `Bearer ${token}` },
+				return await check(timeout => request('/api/busy', `${appOrigin}/api/busy`, {
+					headers: { Authorization: `Bearer ${token}` }, timeout,
 				}));
 			} finally {
 				try {
@@ -159,7 +164,24 @@ async function verifyProduction(client, version, pause) {
 	});
 }
 
-export async function deployVibecode({ cwd, sha, env, fetch = globalThis.fetch, pause = pauseFor }) {
+function hasScheduledStarts(busy, previousVersion) {
+	if (busy?.v !== previousVersion) {
+		throw new Error(`На проде ожидалась версия ${previousVersion}. Выкладка остановлена.`);
+	}
+	if (!Number.isSafeInteger(busy.scheduled) || busy.scheduled < 0) {
+		throw new Error('/api/busy: состояние запланированных стартов неизвестно.');
+	}
+	return busy.scheduled > 0;
+}
+
+function assertReleaseSource(source, previous) {
+	if (source.versionId !== previous.sourceId) {
+		throw new Error(`Текущий исходник Vibecode не соответствует тегу ${previous.tag}. Выкладка остановлена.`);
+	}
+}
+
+export async function deployVibecode({ cwd, sha, env, fetch = globalThis.fetch, pause = pauseFor,
+	now = () => performance.now() }) {
 	if (!/^[a-f0-9]{40}$/.test(sha ?? '') || git(cwd, 'rev-parse', 'HEAD').toString().trim() !== sha) {
 		throw new Error('Checkout не совпадает с проверенным SHA.');
 	}
@@ -185,22 +207,50 @@ export async function deployVibecode({ cwd, sha, env, fetch = globalThis.fetch, 
 
 	const client = vibecodeClient(fetch, env);
 	const source = await client.currentSource();
-	const busy = await client.withBusy(read => read());
-	if (busy?.v === version) {
-		if (source.sha256 !== sha256) throw new Error(`На проде уже ${version} из другого архива.`);
-		if (busy.storage !== true) throw new Error('/api/busy: хранилище прогресса выключено.');
+	const deadline = now() + scheduledWaitTimeout;
+	const remaining = () => {
+		const ms = Math.ceil(deadline - now());
+		if (ms <= 0) throw new Error('Не удалось дождаться завершения запланированных стартов за 35 минут.');
+		return Math.min(ms, requestTimeout);
+	};
+	let firstCheck = true;
+	let savedId;
+	while (savedId === undefined) {
+		remaining();
+		savedId = await client.withBusy(async read => {
+			const renewAt = now() + busyTokenRenewAfter;
+			while (now() < renewAt) {
+				const busy = await read(remaining());
+				if (firstCheck && busy?.v === version) {
+					if (source.sha256 !== sha256) throw new Error(`На проде уже ${version} из другого архива.`);
+					if (busy.storage !== true) throw new Error('/api/busy: хранилище прогресса выключено.');
+					return null;
+				}
+				const scheduled = hasScheduledStarts(busy, previous.tag);
+				if (firstCheck) {
+					assertReleaseSource(source, previous);
+					firstCheck = false;
+				}
+				if (!scheduled) {
+					const current = await client.currentSource(remaining());
+					assertReleaseSource(current, previous);
+					assertMainHead(cwd, sha);
+					if (now() >= renewAt) break;
+					const latest = await read(remaining());
+					if (!hasScheduledStarts(latest, previous.tag)) {
+						remaining();
+						return client.deploy({ archive, sourceId: current.versionId, changelog });
+					}
+				}
+				await pause(Math.min(scheduledPollInterval, remaining()));
+			}
+		});
+	}
+	if (savedId === null) {
 		recordRelease(cwd, sha, version, source.versionId);
 		return `Выкладка ${version} уже подтверждена. Тег восстановлен для ${sha}.`;
 	}
 
-	if (busy?.v !== previous.tag) throw new Error(`На проде ожидалась версия ${previous.tag}. Выкладка остановлена.`);
-	if (source.versionId !== previous.sourceId) {
-		throw new Error(`Текущий исходник Vibecode не соответствует тегу ${previous.tag}. Выкладка остановлена.`);
-	}
-	if (busy.scheduled !== 0) throw new Error('На проде есть запланированный старт или его состояние неизвестно.');
-	assertMainHead(cwd, sha);
-
-	const savedId = await client.deploy({ archive, sourceId: source.versionId, changelog });
 	await verifyProduction(client, version, pause);
 	const deployed = await client.currentSource();
 	if (deployed.versionId !== savedId || deployed.sha256 !== sha256) {
