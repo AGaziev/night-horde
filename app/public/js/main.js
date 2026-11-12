@@ -225,6 +225,11 @@ net.on('s', (msg) => {
 
 net.on('lvl', (msg) => {
 	if (!game.running) return;
+	if (msg.closed || !Array.isArray(msg.choices) || !msg.choices.length) {
+		game.offer = null;
+		ui.hideOffer();
+		return;
+	}
 	game.offer = msg;
 	if (ui.showOffer(msg) && msg.choices?.some((c) => c.rar === 3)) sound.legendary();
 });
@@ -278,6 +283,13 @@ function showOver(msg) {
 	joinInvitedRoom(state.resumeRoom);
 }
 
+net.on('reforge', (msg) => {
+	if (!game.running) return;
+	const r = msg.result;
+	ui.toast(r ? `⚒ Легендарная перековка: ${r.name} ${r.from} → ${r.to} ур. · ${r.bonus}` : '⚒ Перековка: все подходящие предметы уже максимального уровня', 'info');
+	if (r) sound.legendary();
+});
+
 net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
 // v24: the first trigger of an affinity kind in this run.
 net.on('aff', (msg) => {
@@ -296,6 +308,18 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 		case 'chest':
 			ui.banner('Сундук! Всем — улучшение');
 			break;
+		case 'outposts':
+			if (arg === 'arrive') {
+				ui.banner('⚑ Аванпосты противника');
+				ui.toast(`Аванпостов на карте: ${arg2}. Все гарнизоны повержены — команда получит Знамя победителя и по легендарной перековке`, 'info');
+			} else if (arg === 'clear') ui.toast(`Аванпост ${arg2} зачищен. Сундук даст команде опыт и лечение`, 'info');
+			else if (arg === 'chest') ui.toast('Сундук аванпоста: +20% опыта до уровня и +20% здоровья живым союзникам', 'info');
+			else if (arg === 'won') {
+				ui.banner('⚑ Знамя победителя');
+				sound.legendary();
+			} else if (arg === 'closed') ui.toast('Начался финал. Незачищенные аванпосты закрыты, общая награда упущена', 'info');
+			break;
+
 		case 'down':
 			if (arg === state.me) ui.banner('Вы пали!');
 			else ui.toast(`${game.meta(arg).name} пал — поднимите его!`, 'info');

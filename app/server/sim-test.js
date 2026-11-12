@@ -59,7 +59,7 @@ function checkSnapshot(s) {
 	for (let i = 0; i < s.e.length; i += 6) {
 		assert.ok(s.e[i + 1] >= 0 && s.e[i + 1] < ENEMY_TYPES.length);
 		assert.ok(s.e[i + 4] >= 1 && s.e[i + 4] <= 100);
-		const state = s.e[i + 5] & ~(ST.resonance | ST.stormMarked);
+		const state = s.e[i + 5] & ~(ST.resonance | ST.stormMarked | ST.guard);
 		assert.ok(state >= 0 && state < (SHIELD_DIRS << SHIELD_SHIFT), 'state mask');
 		if (state >= 512) assert.ok(state & ST.shield, 'facing bits only with a shield');
 	}
@@ -69,7 +69,7 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'coldwave'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'outposts', 'coldwave'];
 	const arity = {
 		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5, coldwave: 7,
 	};
@@ -515,7 +515,7 @@ console.log('over/again/leave: ok');
 		const low = r.makeChoices(h);
 		assert.equal(low[2].kind, 'heal', 'heal in slot 3 at low hp');
 		h.hp = h.maxHp;
-		// Rare card from a chest-boosted offer, applied: +1 to two weapons.
+		// Rare card from a chest-boosted offer, applied: +1 to one weapon, plus a reroll.
 		h.weapons = new Map([['whip', { lvl: 1, t: 0 }], ['bolt', { lvl: 2, t: 0 }], ['aura', { lvl: 5, t: 0 }]]);
 		let rare = null;
 		for (let k = 0; k < 400 && !rare; k++) {
@@ -525,7 +525,7 @@ console.log('over/again/leave: ok');
 		assert.ok(rare, 'rare card shows up');
 		h.offer = [rare];
 		r.handle(1, { t: 'pick', i: 0 });
-		assert.equal(h.weapons.get('whip').lvl + h.weapons.get('bolt').lvl, 5, 'rare: two weapons +1');
+		assert.equal(h.weapons.get('whip').lvl + h.weapons.get('bolt').lvl, 4, 'rare: one weapon +1');
 		assert.equal(h.weapons.get('aura').lvl, 5);
 		console.log('G4 weighted offers + rare: ok');
 	}

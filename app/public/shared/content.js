@@ -1311,7 +1311,7 @@ export const CHEST_RARE_CHANCE = 0.3;
 export const HEAL_OFFER_HP = 0.5; // below this hp fraction the 3rd card is always healing
 
 // Enemy state bits in snapshot `e` (6th field).
-export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256, resonance: 8192, stormMarked: 16384 };
+export const ST = { burn: 1, chill: 2, frozen: 4, wet: 8, mark: 16, root: 32, elite: 64, shield: 128, windup: 256, resonance: 8192, stormMarked: 16384, guard: 32768 };
 
 // Elites: from ELITE_START every ELITE_EVERY seconds one regular enemy becomes an elite.
 export const ELITE_START = 240;

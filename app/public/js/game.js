@@ -232,7 +232,8 @@ export class Game {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
 	}
-	areaMul() { return 1 + this.passiveVal('area'); }
+	hasVictoryBanner(pid = this.me) { return this.latest()?.trophy?.includes(pid) ?? false; }
+	areaMul(pid = this.me) { return (pid === this.me ? 1 + this.passiveVal('area') : 1) * (this.hasVictoryBanner(pid) ? 1.15 : 1); }
 
 	pick(i, drop) {
 		const offer = this.offer;
@@ -243,7 +244,7 @@ export class Game {
 			if (typeof c.val === 'number') this.pvals[c.id] = this.passiveVal(c.id) + c.val;
 			this.passives[c.id] = c.level || this.passiveLevel(c.id) + 1;
 		}
-		this.net.send({ t: 'pick', i, drop });
+		this.net.send({ t: 'pick', i, drop, offerEpoch: offer.offerEpoch });
 		this.offer = null;
 		return true;
 	}
@@ -252,19 +253,19 @@ export class Game {
 	ban(i) {
 		const c = this.offer?.choices[i];
 		if (!c || !(this.offer.bans > 0) || !canBan(c)) return false;
-		this.net.send({ t: 'ban', i });
+		this.net.send({ t: 'ban', i, offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	reroll() {
 		if (!this.offer || !(this.offer.rerolls > 0)) return false;
-		this.net.send({ t: 'reroll' });
+		this.net.send({ t: 'reroll', offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	skip() {
 		if (!this.offer) return false;
-		this.net.send({ t: 'skip' });
+		this.net.send({ t: 'skip', offerEpoch: this.offer.offerEpoch });
 		this.offer = null;
 		return true;
 	}
@@ -297,6 +298,8 @@ export class Game {
 			at: now,
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
+			op: msg.op && Array.isArray(msg.op.posts) ? msg.op : null,
+			trophy: Array.isArray(msg.trophy) ? msg.trophy : EMPTY,
 			support: Array.isArray(msg.support) ? msg.support : EMPTY,
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
 			pMap: new Map(),
@@ -891,6 +894,9 @@ export class Game {
 			case 'dawn':
 				if (this.hold > 0) this.dawnPending = ev[1] | 0;
 				else this.startDawn(ev[1] | 0);
+				break;
+			case 'outposts':
+				this.onEvent('outposts', ev[1], ev[2]);
 				break;
 			case 'finw':
 				this.onEvent('finw');

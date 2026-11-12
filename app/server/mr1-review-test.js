@@ -20,7 +20,8 @@ function fuse(r, h, id) {
 	const pair = r.updateCombos(h).find((c) => c.id === id && c.ready);
 	assert.ok(pair, `${id}: the actual parts qualify for fusion`);
 	h.offer = [r.duoCard(h, pair)];
-	r.handle(h.pid, { t: 'pick', i: 0 });
+	r.sendOffer(h);
+	r.handle(h.pid, { t: 'pick', i: 0, offerEpoch: h.offerEpoch });
 	return h.weapons.get(id);
 }
 function foe(r, x, y = 0, hp = 10000) {

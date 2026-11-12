@@ -18,6 +18,7 @@ import {
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
+import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -119,7 +120,7 @@ const SHIELD_COS = Math.cos((ENEMIES.shield.arc * Math.PI) / 180);
 const WEAPON_SHORT = { count: 3, frac: 0.4 }; // v29: see makeChoices
 const OVR_REGULAR_MAX = 2; // the overclock pair comes once fewer regular cards than this are left
 const OVR_SPIKE = { frac: 0.25, root: 0.5, life: 4, max: 14 }; // spikes of the «Осколки» and «Шипы» overclocks
-const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: '+1 уровень двум оружиям', level: 0 };
+const FORGE_CARD = { id: 'forge', kind: 'rare', name: 'Кузня удачи', icon: '⚒', desc: 'Случайный предмет: +1 уровень с легендарным бонусом', level: 0 };
 const fieldSource = (src) => (src?.weapon ?? 'other') + ':' + (src?.component ?? 'signature');
 function trimOwned(list, owner, max, match) {
 	let excess = list.filter(item => item.owner === owner && match(item)).length - max;
@@ -330,16 +331,19 @@ export class Room {
 		const hpK = (enemyHpScale(nt, to) / enemyHpScale(nt, from)) * (hpNew / hpOld);
 		const bossK = (bossHpScale(nt, to) / bossHpScale(nt, from)) * (hpNew / hpOld);
 		const dmgK = (enemyDmgScale(nt, to) / enemyDmgScale(nt, from)) * (dmgNew / dmgOld);
+		const cohortNt = this.outposts?.creationNt ?? nt;
+		const guardHpK = (enemyHpScale(cohortNt, to) / enemyHpScale(cohortNt, from)) * (hpNew / hpOld);
+		const guardDmgK = (enemyDmgScale(cohortNt, to) / enemyDmgScale(cohortNt, from)) * (dmgNew / dmgOld);
 		if (this.fin?.lord) this.finDmg = finaleDmgMul(to);
 		for (const e of this.enemies) {
 			if (e.dead) continue;
 			// The finale Lord also follows his own per-group multiplier; the arena keeps its size.
-			const k = e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
+			const k = e.outpost ? guardHpK : e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
 			e.hp *= k;
 			e.maxHp *= k;
 			if (e.barMax) e.barMax *= k;
-			e.dmg *= dmgK;
-			e.dmgMul *= dmgK;
+			e.dmg *= e.outpost ? guardDmgK : dmgK;
+			e.dmgMul *= e.outpost ? guardDmgK : dmgK;
 		}
 		this.runLog?.groupChange(this, from, to);
 	}
@@ -408,6 +412,7 @@ export class Room {
 			if (h) {
 				this.sendEmbers(h);
 				this.sendPassives(h);
+				if (h.lastReforge) this.send(pid, h.lastReforge);
 			}
 			if (h?.offer) this.sendOffer(h);
 		} else if (this.state === 'over' && this.overMsg) {
@@ -473,13 +478,13 @@ export class Room {
 				this.onPick(pid, msg);
 				break;
 			case 'reroll':
-				this.onReroll(pid);
+				this.onReroll(pid, msg);
 				break;
 			case 'ban':
 				this.onBan(pid, msg);
 				break;
 			case 'skip':
-				this.onSkip(pid);
+				this.onSkip(pid, msg);
 				break;
 			case 'kf':
 				this.needKey?.add(pid);
@@ -519,6 +524,7 @@ export class Room {
 		this.bossIdx = 0;
 		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
+		this.outposts = null;
 		this.blasts = [];
 		this.traps = [];
 		this.items = [];
@@ -674,11 +680,35 @@ export class Room {
 	}
 
 	sendOffer(h) {
+		const signature = JSON.stringify(h.offer);
+		if (h.offer !== h.sentOffer || signature !== h.offerSignature) {
+			h.offerEpoch = this.offerSequence = (this.offerSequence ?? 0) + 1;
+			h.sentOffer = h.offer;
+			h.offerSignature = signature;
+		}
 		const swap = h.offer?.[0]?.kind === 'swap';
+		const closed = !h.offer?.length;
 		this.send(h.pid, {
-			t: 'lvl', choices: h.offer, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			t: 'lvl', choices: closed ? null : h.offer, closed: closed || undefined, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
+	}
+
+	// Untokened internal/legacy callers remain compatible until an asynchronous reward
+	// replaces their offer. Browser actions always echo the epoch sent with `lvl`.
+	acceptOfferAction(h, msg = {}) {
+		if (!h) return false;
+		const epoch = msg.offerEpoch;
+		if (h.offer && ((epoch === undefined && !h.offerEpochRequired)
+			|| (Number.isSafeInteger(epoch) && epoch === h.offerEpoch))) {
+			if (epoch !== undefined) h.offerEpochRequired = true;
+			return true;
+		}
+		// Game.pick updates passives optimistically. A stale pick must restore the
+		// authoritative inventory as well as reopening the current card array.
+		this.sendPassives(h);
+		this.sendOffer(h);
+		return false;
 	}
 
 	// Weighted offer (G4): slot 1 — upgrade of something owned, slot 2 — 50/50 upgrade or new, slot 3 — anything.
@@ -810,7 +840,7 @@ export class Room {
 			out[slot3] = { ...heal, desc: `+${HEAL_AMOUNT} здоровья (здоровья меньше ${Math.round(HEAL_OFFER_HP * 100)}%)` };
 		} else {
 			const rare = (boost ? CHEST_RARE_CHANCE : RARE_CHANCE) * (1 + h.mods.luck);
-			if (Math.random() < rare && [...h.weapons].some(([id, w]) => w.lvl < weaponMaxLevel(id))) out[slot3] = { ...FORGE_CARD };
+			if (Math.random() < rare && this.reforgePool(h).length) out[slot3] = { ...FORGE_CARD };
 		}
 		this.rollRarities(h, out, h.offerFloor);
 		return out;
@@ -842,6 +872,75 @@ export class Room {
 			c.val = passiveStep(c.id, rar);
 			c.desc = passiveDesc(c.id, c.val);
 		}
+	}
+
+	// One entry per owned item: slots and item kinds do not bias the random choice.
+	reforgePool(h) {
+		return [...[...h.weapons].filter(([id, w]) => w.lvl < weaponMaxLevel(id)).map(([id]) => ({ id, kind: 'weapon' })),
+			...[...h.passives].filter(([id, lvl]) => lvl < MAX_LEVEL && !PASSIVES[id].noRarity).map(([id]) => ({ id, kind: 'passive' }))];
+	}
+
+	legendaryReforge(h, source = 'forge') {
+		const pool = this.reforgePool(h);
+		const item = pool[Math.floor(Math.random() * pool.length)];
+		if (!item) {
+			h.lastReforge = { t: 'reforge', source, result: null };
+			this.send(h.pid, h.lastReforge);
+			return null;
+		}
+		const { id, kind } = item;
+		const from = kind === 'weapon' ? h.weapons.get(id).lvl : h.passives.get(id);
+		const def = kind === 'weapon' ? weaponDef(id) : PASSIVES[id];
+		const result = { id, kind, name: def.name, from, to: from + 1, rar: 3 };
+		if (kind === 'weapon') {
+			h.weapons.get(id).lvl++;
+			h.rerolls++;
+			result.bonus = '+1 переброс';
+			this.updateCombos(h);
+		} else {
+			const val = passiveStep(id, 3);
+			h.pval[id] = (h.pval[id] ?? passiveValue(id, from)) + val;
+			h.passives.set(id, from + 1);
+			const before = h.maxHp;
+			this.recalcMods(h);
+			if (h.st === 0) h.hp += Math.max(0, h.maxHp - before);
+			result.val = val;
+			result.bonus = passiveDesc(id, val);
+			this.sendPassives(h);
+		}
+		h.lastReforge = { t: 'reforge', source, result };
+		this.send(h.pid, h.lastReforge);
+		this.runLog?.reforged(this, h, source, result);
+		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
+		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'duo' && c.parts?.includes(id))) {
+			// Replace the array even if the tier stays the same: inherited part levels changed.
+			h.offerEpochRequired = true;
+			h.offer = h.offer.filter(c => !(c.kind === kind && c.id === id && result.to === weaponMaxLevel(id))
+				&& !(c.kind === 'rare' && c.id === 'forge' && !this.reforgePool(h).length)).map(c => {
+				if (c.kind === 'duo' && c.parts?.includes(id)) {
+					const current = this.currentDuoCard(h, c);
+					if (current) return { ...c, ...current };
+				}
+				if (c.kind === kind && c.id === id) {
+					const rebased = { ...c, level: result.to + 1 };
+					if (c.rar !== undefined) this.setRarity(h, rebased, c.rar);
+					else rebased.desc = upgradeDesc(id, rebased.level);
+					return rebased;
+				}
+				return c;
+			});
+		} else if (source !== 'forge' && h.offer && (h.offer.some(c => c.kind === kind && c.id === id)
+			|| (h.offer.some(c => c.kind === 'rare' && c.id === 'forge') && !this.reforgePool(h).length))) {
+			h.offerEpochRequired = true;
+			if (result.to === (kind === 'weapon' ? weaponMaxLevel(id) : MAX_LEVEL)) h.offer = this.makeChoices(h, true);
+			else for (const c of h.offer) if (c.kind === kind && c.id === id) {
+				c.level = result.to + 1;
+				if (c.rar !== undefined) this.setRarity(h, c, c.rar);
+				else if (kind === 'weapon') c.desc = upgradeDesc(id, c.level);
+			}
+		}
+		if (source !== 'forge' && h.offer) this.sendOffer(h);
+		return result;
 	}
 
 	fitsBuild(h, card) {
@@ -906,6 +1005,14 @@ export class Room {
 			partNames: [WEAPONS[c.a].name, WEAPONS[c.b].name], partIcons: [WEAPONS[c.a].icon, WEAPONS[c.b].icon],
 			loseOvr: this.ovrNames(h, [c.a, c.b]),
 		};
+	}
+
+	currentDuoCard(h, card) {
+		if (!DUOS[card.id] || !Array.isArray(card.parts) || card.parts.length !== 2 || h.weapons.has(card.id) || this.duoCount(h) >= MAX_DUOS) return null;
+		const [a, b] = card.parts, first = h.weapons.get(a), second = h.weapons.get(b);
+		if (DUO_BY_PAIR[duoKey(a, b)] !== card.id || !first || !second || first.imprint || second.imprint
+			|| first.lvl < DUO_MIN_LEVEL || second.lvl < DUO_MIN_LEVEL) return null;
+		return this.duoCard(h, { id: card.id, a, b });
 	}
 
 	// «🔗 с Грозой → Громовой разрез (нужно 3 + 3)» on weapon cards that pair with something already owned.
@@ -1013,7 +1120,7 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		const i = num(msg.i);
-		if (!h?.offer || h.bans <= 0 || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
+		if (!this.acceptOfferAction(h, msg) || h.bans <= 0 || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
 		if (c.kind !== 'weapon' && c.kind !== 'passive' && c.kind !== 'ovr') return;
 		if (c.kind === 'weapon' && !WEAPONS[c.id]) return;
@@ -1042,8 +1149,9 @@ export class Room {
 
 	// The two parts leave, the duo takes the first part's slot (Map order is the HUD order).
 	fuseDuo(h, card) {
+		const current = this.currentDuoCard(h, card);
+		if (!current || current.level !== card.level) return false;
 		const [a, b] = card.parts;
-		if (!h.weapons.has(a) || !h.weapons.has(b) || this.duoCount(h) >= MAX_DUOS) return false;
 		const next = new Map();
 		for (const [id, w] of h.weapons) {
 			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3,
@@ -1071,8 +1179,27 @@ export class Room {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
 		const i = num(msg.i);
-		if (!h?.offer || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
+		if (!this.acceptOfferAction(h, msg) || i === null || !Number.isInteger(i) || i < 0 || i >= h.offer.length) return;
 		const c = h.offer[i];
+		if (c.kind === 'duo') {
+			const current = this.currentDuoCard(h, c);
+			if (!current || current.level !== c.level) {
+				if (current) {
+					h.offer = h.offer.map(card => card === c ? { ...card, ...current } : card);
+					h.offerEpochRequired = true;
+				}
+				this.sendPassives(h);
+				this.sendOffer(h);
+				return;
+			}
+		}
+		if (c.kind === 'rare' && c.id === 'forge' && !this.reforgePool(h).length) {
+			h.offerEpochRequired = true;
+			h.offer = this.makeChoices(h, true);
+			this.sendPassives(h);
+			this.sendOffer(h);
+			return;
+		}
 		if (c.kind === 'imprint' && !this.imprint(h, c)) return;
 		if (c.kind === 'swap') {
 			if (h.swapUsed || !h.swapPending || !c.replace.some(({ id }) => id === msg.drop)
@@ -1090,7 +1217,7 @@ export class Room {
 		this.runLog?.choice(this, h, 'pick', c, h.offer);
 		this.deferSkippedDuos(h, c);
 		if (c.kind === 'duo') {
-			this.fuseDuo(h, c);
+			if (!this.fuseDuo(h, c)) return;
 		} else if (c.kind === 'evo') {
 			this.evolve(h, c);
 		} else if (c.kind === 'ovr') {
@@ -1103,12 +1230,14 @@ export class Room {
 			if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + (h.maxHp - before) + (EMBERS[c.id].heal ?? 0));
 		} else if (c.kind === 'weapon') {
 			const w = h.weapons.get(c.id);
+			if (w?.lvl >= weaponMaxLevel(c.id)) { this.nextOffer(h); return; }
 			const add = c.add ?? 1;
 			if (w) w.lvl = Math.min(weaponMaxLevel(c.id), w.lvl + add);
 			else h.weapons.set(c.id, { lvl: Math.min(weaponMaxLevel(c.id), add), t: 0.2 });
 			if (c.rerolls) h.rerolls += c.rerolls;
 		} else if (c.kind === 'passive') {
 			const lvl = h.passives.get(c.id) ?? 0;
+			if (lvl >= MAX_LEVEL) { this.nextOffer(h); return; }
 			if (c.val !== undefined) h.pval[c.id] = (h.pval[c.id] ?? passiveValue(c.id, lvl)) + c.val;
 			h.passives.set(c.id, Math.min(MAX_LEVEL, lvl + 1));
 			const before = h.maxHp;
@@ -1116,8 +1245,7 @@ export class Room {
 			if (h.maxHp > before && h.st === 0) h.hp += h.maxHp - before;
 			this.sendPassives(h);
 		} else if (c.kind === 'rare') {
-			const list = shuffle([...h.weapons].filter(([id, w]) => w.lvl < weaponMaxLevel(id)));
-			for (const [, w] of list.slice(0, 2)) w.lvl++;
+			this.legendaryReforge(h);
 		} else if (c.kind === 'heal' && h.st === 0) {
 			h.hp = Math.min(h.maxHp, h.hp + HEAL_AMOUNT);
 		}
@@ -1167,10 +1295,10 @@ export class Room {
 		}
 	}
 
-	onReroll(pid) {
+	onReroll(pid, msg = {}) {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
-		if (!h?.offer || h.rerolls <= 0 || h.offer[0]?.kind === 'swap') return;
+		if (!this.acceptOfferAction(h, msg) || h.rerolls <= 0 || h.offer[0]?.kind === 'swap') return;
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h, true);
@@ -1178,10 +1306,10 @@ export class Room {
 	}
 
 	// Declining the whole offer gives SKIP_XP instead (no junk in slots).
-	onSkip(pid) {
+	onSkip(pid, msg = {}) {
 		if (this.state !== 'play') return;
 		const h = this.heroes.get(pid);
-		if (!h?.offer) return;
+		if (!this.acceptOfferAction(h, msg)) return;
 		this.runLog?.choice(this, h, 'skip', null, h.offer);
 		this.deferSkippedDuos(h, null);
 		const swap = h.offer[0]?.kind === 'swap';
@@ -1202,9 +1330,16 @@ export class Room {
 		m.cdMul = Math.max(0.3, m.cdMul);
 		h.maxHp = h.baseHp + m.maxHp;
 		delete m.maxHp;
+		if (h.victoryBanner) { m.dmgMul *= 1.25; m.areaMul *= 1.15; }
 		h.mods = m;
 		if (!m.brace) h.blockCharge = 0;
 	}
+
+	updateOutposts(alive) { updateOutposts(this, alive); }
+	guardKilled(e) { guardKilled(this, e); }
+	openOutpostChest(p) { return openOutpostChest(this, p); }
+	closeOutposts() { closeOutposts(this); }
+	confineGuard(e) { confineGuard(e); }
 
 	// --- simulation ---
 
@@ -1246,6 +1381,7 @@ export class Room {
 		this.updateTimers();
 		this.updateTraps(dt);
 		this.updatePuddles(dt);
+		for (const e of this.enemies) if (e.outpost) confineGuard(e);
 		this.compactEnemies();
 		this.updateGems(dt, alive);
 		this.updateItems(dt, alive);
@@ -1310,7 +1446,15 @@ export class Room {
 		return e;
 	}
 
+	// Outpost guards own a separate, bounded budget and never thin ordinary encounters.
+	ordinaryEnemyCount() {
+		let n = 0;
+		for (const e of this.enemies) if (!e.dead && !e.outpost) n++;
+		return n;
+	}
+
 	spawn(dt, alive) {
+		this.updateOutposts(alive);
 		const n = this.heroes.size;
 		// v19: downed (and dropped) players do not thin the spawn for the rest, but one lying ally cuts it by one at most.
 		const spawnN = Math.max(alive.length, n - 1);
@@ -1330,28 +1474,33 @@ export class Room {
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
+		let count = this.ordinaryEnemyCount();
 		while (this.spawnAcc >= 1) {
 			this.spawnAcc -= 1;
-			if (this.enemies.length >= cap) {
+			if (count >= cap) {
 				this.spawnAcc = 0;
 				break;
 			}
 			this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			count++;
 		}
 	}
 
 	// v18: snipers and shieldbearers from the middle of the run, a few at a time (SPECIALS).
 	spawnSpecials(alive) {
 		const frac = this.time / this.runLength;
+		let count = this.ordinaryEnemyCount();
 		for (const id of SPECIAL_IDS) {
+			if (count >= MAX_ENEMIES) break;
 			const S = SPECIALS[id];
 			const cap = specialCap(S, frac, this.heroes.size);
 			if (!cap || this.time < this.specialT[id]) continue;
 			this.specialT[id] = this.time + S.every / this.tscale;
 			let n = 0;
-			for (const e of this.enemies) if (!e.dead && e.def === ENEMIES[id]) n++;
+			for (const e of this.enemies) if (!e.dead && !e.outpost && e.def === ENEMIES[id]) n++;
 			if (n >= cap) continue;
 			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
+			count++;
 			this.runLog?.special(this, e, 'spawned');
 		}
 	}
@@ -1412,6 +1561,7 @@ export class Room {
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const left = new Set(alive);
 		let spawned = 0;
+		let ordinary = this.ordinaryEnemyCount();
 		for (const h of alive) {
 			if (!left.has(h)) continue;
 			const group = [...left].filter((o) => dist2(o.x, o.y, h.x, h.y) < R.cluster * R.cluster);
@@ -1420,12 +1570,13 @@ export class Room {
 			const r = R.r + Math.max(...group.map((o) => Math.hypot(o.x - cx, o.y - cy)));
 			const count = Math.round(R.count * spawnRateScale(group.length));
 			this.fx.push(['pring', Math.round(cx), Math.round(cy), Math.round(r)]);
-			for (let i = 0; i < count && this.enemies.length < MAX_ENEMIES + 120; i++) {
+			for (let i = 0; i < count && ordinary < MAX_ENEMIES + 120; i++) {
 				const e = this.spawnEnemy(R.type ?? this.waveType(wave), alive, hpMul);
 				const a = (i / count) * Math.PI * 2;
 				e.x = cx + Math.cos(a) * r;
 				e.y = cy + Math.sin(a) * r;
 				spawned++;
+				ordinary++;
 			}
 		}
 		this.runLog?.peakNote(this, 'spawned', spawned);
@@ -1477,6 +1628,7 @@ export class Room {
 
 	// The ring: centred on the alive hero closest to the middle of the group, starts wide enough for everyone.
 	startFinale(alive) {
+		this.closeOutposts();
 		const all = [...this.heroes.values()];
 		const pool = alive.length ? alive : all;
 		const mx = pool.reduce((s, h) => s + h.x, 0) / (pool.length || 1), my = pool.reduce((s, h) => s + h.y, 0) / (pool.length || 1);
@@ -1610,13 +1762,15 @@ export class Room {
 		if (count <= 0) return;
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		const cap = MAX_ENEMIES + 60;
+		let ordinary = this.ordinaryEnemyCount();
 		for (const h of alive) {
 			this.fx.push(['inv', h.pid, INVASION.radius]);
-			for (let i = 0; i < count && this.enemies.length < cap; i++) {
+			for (let i = 0; i < count && ordinary < cap; i++) {
 				const e = this.spawnEnemy(this.waveType(wave), alive, hpMul);
 				const a = (i / count) * Math.PI * 2;
 				e.x = h.x + Math.cos(a) * INVASION.radius;
 				e.y = h.y + Math.sin(a) * INVASION.radius;
+				ordinary++;
 			}
 		}
 	}
@@ -1635,115 +1789,128 @@ export class Room {
 		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
-			if (e.burnT > now) this.burnTick(e, dt);
-			if (e.dead) continue;
-			let best = null, bd = Infinity;
-			for (const p of alive) {
-				const d = dist2(e.x, e.y, p.x, p.y);
-				if (d < bd) {
-					bd = d;
-					best = p;
+			try {
+				if (e.burnT > now) this.burnTick(e, dt);
+				if (e.dead) continue;
+				if (e.outpost && e.guardReadyAt > now) continue;
+				let best = null, bd = Infinity;
+				for (const p of alive) {
+					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+					const d = dist2(e.x, e.y, p.x, p.y);
+					if (d < bd) {
+						bd = d;
+						best = p;
+					}
 				}
-			}
-			if (bd > FAR_DIST2 && e.ai !== 'flee') {
-				[e.x, e.y] = this.randomRingPos(alive);
-				e.windT = 0;
-				e.bs = 0;
-				continue;
-			}
-			if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
-			if (e.elite) this.eliteTick(e, best, dt);
-			if (e.frozenT > now || e.rootT > now) continue;
-			let dx = best.x - e.x, dy = best.y - e.y;
-			const d = Math.sqrt(bd) || 1;
-			dx /= d;
-			dy /= d;
-			// Stop at contact distance so enemies don't stack on the player.
-			let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
-			if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
-			if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
-			let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
-			if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
-			if (e.ai === 'sniper') {
-				if (this.sniperTick(e, best, d, dt)) continue;
-				const [kmin, kmax] = e.def.keep;
-				if (d < kmin) {
-					dx = -dx;
-					dy = -dy;
-					maxStep = Infinity;
-				} else if (d <= kmax) {
-					const s = Math.sin(e.phase + now * 0.4) >= 0 ? 1 : -1;
-					[dx, dy] = [-dy * s, dx * s];
-					speed *= 0.4;
-				}
-			} else if (e.ai === 'shield') {
-				if (this.dashTick(e, best, d, dt, true)) {
-					if (e.bs === 'aim' || e.bs === 'dash') e.fa = Math.atan2(e.bvy, e.bvx);
+				if (!e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
+					[e.x, e.y] = this.randomRingPos(alive);
+					e.windT = 0;
+					e.bs = 0;
 					continue;
 				}
-				this.turnShield(e, dx, dy, dt);
-			} else if (e.ai === 'flee') {
-				// Loops around the nearest player: mostly sideways (the side flips every `turn` s), away when close,
-				// back when far, so a hero cutting the circle catches up.
-				const F = e.def;
-				const side = Math.floor((now - e.born) / F.turn + e.phase) % 2 ? 1 : -1;
-				const showing = now - e.born < F.show;
-				const out = showing ? 0 : d < F.near ? 1.2 : d > F.far ? -0.8 : 0.2;
-				if (showing) speed *= F.showSpeed;
-				[dx, dy] = [-dy * side - dx * out, dx * side - dy * out];
-				const l = Math.hypot(dx, dy) || 1;
-				dx /= l;
-				dy /= l;
-				maxStep = Infinity;
-			} else if (e.ai === 'ranged') {
-				if (this.rangedTick(e, best, d, dt)) continue;
-				const [kmin, kmax] = e.def.keep;
-				if (d < kmin) {
-					dx = -dx;
-					dy = -dy;
-					maxStep = Infinity;
-				} else if (d <= kmax) {
-					// Strafe around the target inside the keep ring.
-					const s = Math.sin(e.phase) >= 0 ? 1 : -1;
-					[dx, dy] = [-dy * s, dx * s];
-					speed *= 0.5;
+				if (!best && e.outpost) {
+					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
+					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
+					e.x += dx / d * step;
+					e.y += dy / d * step;
+					e.bs = 0;
+					e.windT = 0;
+					continue;
 				}
-			} else if (e.ai === 'exploder' && e.fuseT > 0) {
-				e.fuseT -= dt;
-				if (e.fuseT <= 0) this.killEnemy(e, e.fuseBy, SRC_BLAST);
-				continue;
-			}
-			if (e.zig) {
-				const s = Math.sin(now * 5 + e.phase) * 0.9;
-				const zx = dx - dy * s, zy = dy + dx * s;
-				const l = Math.hypot(zx, zy) || 1;
-				dx = zx / l;
-				dy = zy / l;
-			}
-			const step = Math.min(speed * dt, maxStep);
-			e.x += dx * step;
-			e.y += dy * step;
+				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
+				if (e.elite) this.eliteTick(e, best, dt);
+				if (e.frozenT > now || e.rootT > now) continue;
+				let dx = best.x - e.x, dy = best.y - e.y;
+				const d = Math.sqrt(bd) || 1;
+				dx /= d;
+				dy /= d;
+				// Stop at contact distance so enemies don't stack on the player.
+				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
+				if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
+				let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
+				if (e.bk && this.bossTick(e, best, d, dx, dy, speed, dt)) continue;
+				if (e.ai === 'sniper') {
+					if (this.sniperTick(e, best, d, dt)) continue;
+					const [kmin, kmax] = e.outpost ? OUTPOST.sniperKeep : e.def.keep;
+					if (d < kmin) {
+						dx = -dx;
+						dy = -dy;
+						maxStep = Infinity;
+					} else if (d <= kmax) {
+						const s = Math.sin(e.phase + now * 0.4) >= 0 ? 1 : -1;
+						[dx, dy] = [-dy * s, dx * s];
+						speed *= 0.4;
+					}
+				} else if (e.ai === 'shield') {
+					if (this.dashTick(e, best, d, dt, true)) {
+						if (e.bs === 'aim' || e.bs === 'dash') e.fa = Math.atan2(e.bvy, e.bvx);
+						continue;
+					}
+					this.turnShield(e, dx, dy, dt);
+				} else if (e.ai === 'flee') {
+					// Loops around the nearest player: mostly sideways (the side flips every `turn` s), away when close,
+					// back when far, so a hero cutting the circle catches up.
+					const F = e.def;
+					const side = Math.floor((now - e.born) / F.turn + e.phase) % 2 ? 1 : -1;
+					const showing = now - e.born < F.show;
+					const out = showing ? 0 : d < F.near ? 1.2 : d > F.far ? -0.8 : 0.2;
+					if (showing) speed *= F.showSpeed;
+					[dx, dy] = [-dy * side - dx * out, dx * side - dy * out];
+					const l = Math.hypot(dx, dy) || 1;
+					dx /= l;
+					dy /= l;
+					maxStep = Infinity;
+				} else if (e.ai === 'ranged') {
+					if (this.rangedTick(e, best, d, dt)) continue;
+					const [kmin, kmax] = e.def.keep;
+					if (d < kmin) {
+						dx = -dx;
+						dy = -dy;
+						maxStep = Infinity;
+					} else if (d <= kmax) {
+						// Strafe around the target inside the keep ring.
+						const s = Math.sin(e.phase) >= 0 ? 1 : -1;
+						[dx, dy] = [-dy * s, dx * s];
+						speed *= 0.5;
+					}
+				} else if (e.ai === 'exploder' && e.fuseT > 0) {
+					e.fuseT -= dt;
+					if (e.fuseT <= 0) this.killEnemy(e, e.fuseBy, SRC_BLAST);
+					continue;
+				}
+				if (e.zig) {
+					const s = Math.sin(now * 5 + e.phase) * 0.9;
+					const zx = dx - dy * s, zy = dy + dx * s;
+					const l = Math.hypot(zx, zy) || 1;
+					dx = zx / l;
+					dy = zy / l;
+				}
+				const step = Math.min(speed * dt, maxStep);
+				e.x += dx * step;
+				e.y += dy * step;
 
-			this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
-			let checked = 0;
-			for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
-				const o = near[i];
-				if (o === e) continue;
-				const ox = e.x - o.x, oy = e.y - o.y;
-				const min = e.r + o.r;
-				const dd = ox * ox + oy * oy;
-				if (dd >= min * min) continue;
-				checked++;
-				if (dd < 0.0001) {
-					e.x += (Math.random() - 0.5) * 2;
-					continue;
+				this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
+				let checked = 0;
+				for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
+					const o = near[i];
+					if (o === e) continue;
+					const ox = e.x - o.x, oy = e.y - o.y;
+					const min = e.r + o.r;
+					const dd = ox * ox + oy * oy;
+					if (dd >= min * min) continue;
+					checked++;
+					if (dd < 0.0001) {
+						e.x += (Math.random() - 0.5) * 2;
+						continue;
+					}
+					const l = Math.sqrt(dd);
+					// Heavier enemies (boss) are pushed less.
+					const push = (min - l) * 0.5 * (o.r / (e.r + o.r)) * 2;
+					e.x += (ox / l) * push * 0.5;
+					e.y += (oy / l) * push * 0.5;
 				}
-				const l = Math.sqrt(dd);
-				// Heavier enemies (boss) are pushed less.
-				const push = (min - l) * 0.5 * (o.r / (e.r + o.r)) * 2;
-				e.x += (ox / l) * push * 0.5;
-				e.y += (oy / l) * push * 0.5;
-			}
+			} finally { confineGuard(e); }
 		}
 	}
 
@@ -1844,6 +2011,7 @@ export class Room {
 	bossStep(e, dx, dy, speed, dt) {
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
+		confineGuard(e);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -1927,11 +2095,13 @@ export class Room {
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
 		// v21: in the arena the swarm stays near the packs' cap (weak devices, a crowded ring).
 		const cap = this.fin ? finaleAddCap(this.heroes.size) + FINALE.adds.callOver : MAX_ENEMIES + 60;
-		for (let i = 0; i < count && this.enemies.length < cap; i++) {
+		let ordinary = this.ordinaryEnemyCount();
+		for (let i = 0; i < count && ordinary < cap; i++) {
 			const m = this.spawnEnemy(call.type, alive, hpMul);
 			const a = (i / count) * Math.PI * 2;
 			m.x = x + Math.cos(a) * call.ring;
 			m.y = y + Math.sin(a) * call.ring;
+			ordinary++;
 		}
 	}
 
@@ -1994,6 +2164,7 @@ export class Room {
 			id: this.nextId++, x: e.x, y: e.y, vx: (dx / d) * E.shotSpeed, vy: (dy / d) * E.shotSpeed,
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
+		boundGuardShot(e, s);
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2001,6 +2172,10 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
+		if (e.outpost && e.windT > 0 && e.guardAim && (e.x !== e.guardAim.x || e.y !== e.guardAim.y)) {
+			e.windT = 0;
+			e.shotT = 0;
+		}
 		if (e.windT > 0) {
 			e.windT -= dt;
 			if (e.windT <= 0) {
@@ -2013,6 +2188,7 @@ export class Room {
 						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
+					boundGuardShot(e, s);
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2021,7 +2197,8 @@ export class Room {
 			return true;
 		}
 		e.shotT -= dt;
-		if (e.shotT <= 0 && d < E.keep[1] + 150) {
+		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
+		if (e.shotT <= 0 && d < keep[1] + 150) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
@@ -2031,11 +2208,15 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
+			if (e.outpost) e.guardAim = { x: e.x, y: e.y };
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
-			const len = E.shotSpeed * E.shotLife, a0 = Math.atan2(e.bvy, e.bvx);
+			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
 				const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
-				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + Math.cos(a) * len), Math.round(e.y + Math.sin(a) * len), E.shotR * 2 + 8, round3(E.windup)]);
+				const ca = Math.cos(a), sa = Math.sin(a);
+				const preview = boundGuardShot(e, { x: e.x, y: e.y, vx: ca * E.shotSpeed, vy: sa * E.shotSpeed, life: E.shotLife });
+				const len = E.shotSpeed * preview.life;
+				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + ca * len), Math.round(e.y + sa * len), E.shotR * 2 + 8, round3(E.windup)]);
 			}
 			return true;
 		}
@@ -2065,7 +2246,7 @@ export class Room {
 			s.life -= dt;
 			s.x += s.vx * dt;
 			s.y += s.vy * dt;
-			let done = s.life <= 0;
+			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
@@ -2100,6 +2281,7 @@ export class Room {
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
+			confineGuard(e);
 		}
 	}
 
@@ -2107,7 +2289,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
+			if (e.dead || e.outpost || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -2125,6 +2307,7 @@ export class Room {
 	}
 
 	setElite(e, affix) {
+		if (e.outpost) return;
 		e.elite = affix;
 		e.hp *= ELITE_HP_MUL;
 		e.maxHp *= ELITE_HP_MUL;
@@ -2139,6 +2322,7 @@ export class Room {
 	tauntTarget(e, taunters, best, bd) {
 		let tb = null, td = Infinity;
 		for (const p of taunters) {
+			if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
 			const d = dist2(e.x, e.y, p.x, p.y);
 			if (d < p.trait.taunt * p.trait.taunt && d < td) {
 				td = d;
@@ -2430,7 +2614,9 @@ export class Room {
 	}
 
 	killEnemy(e, h, src = SRC_NONE) {
+		if (e.dead) return;
 		e.dead = true;
+		if (e.outpost) this.guardKilled(e);
 		this.kills++;
 		if (h) {
 			h.kills++;
@@ -2458,7 +2644,7 @@ export class Room {
 			// Killed by a player: short fuse at the spot; fuse burnt out: blows up right away.
 			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, E.blastEnemyDmg, h, 1, e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
 		}
-		if (e.elite) {
+		if (e.elite && !e.outpost) {
 			if (e.elite === 'volatile') this.addBlast(e.x, e.y, VOLATILE_R, ENEMIES.bloater.blastDmg, ENEMIES.bloater.blastEnemyDmg, h, 2, ENEMIES.bloater.fuse);
 			if (Math.random() < ELITE_CHEST_CHANCE * (1 + luck)) this.dropItem('chest', e.x, e.y);
 			else this.dropGem(e.x + 12, e.y, e.xp * GOLD_GEM_MUL, true);
@@ -2739,7 +2925,7 @@ export class Room {
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of near) {
-				if (e.dead) continue;
+				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
 				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
@@ -2752,7 +2938,7 @@ export class Room {
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -3522,6 +3708,7 @@ export class Room {
 				const force = Math.min(0.65, 52 / Math.max(1, Math.hypot(e.x - x, e.y - y)));
 				e.x += (x - e.x) * force;
 				e.y += (y - e.y) * force;
+				confineGuard(e);
 				pulled++;
 			}
 		}
@@ -4076,6 +4263,7 @@ export class Room {
 			const step = Math.min(d - ring, L.pull * (e.ai === 'shield' ? 0.5 : 1) * dt);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
+			confineGuard(e);
 		}
 		this.orbitHits(h, { count: L.count, radius: L.ring, rps: L.rps, hitCd: L.hitCd, dmg: L.bladeDmg }, dmgMul, areaMul, amount, SRC.whirlwind);
 		w.t -= dt;
@@ -4204,6 +4392,7 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
+		confineGuard(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
@@ -5051,7 +5240,7 @@ export class Room {
 
 	enemyState(en) {
 		const t = this.time;
-		let st = 0;
+		let st = en.outpost ? ST.guard : 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
 		if (stormMarked(en, t)) st |= ST.stormMarked;
@@ -5117,7 +5306,7 @@ export class Room {
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
-			fx: this.fx, boss: bossBar,
+			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
