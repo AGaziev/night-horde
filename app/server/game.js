@@ -2210,9 +2210,17 @@ export class Room {
 			}
 		}
 		const dealt = Math.min(dmg, e.hp);
+		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			const unmarked = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
-			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, unmarked));
+			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+		}
+		if (!src.raw && src.markSupport) {
+			// A Flash can carry another target's mark into this hit. Credit that
+			// inherited gain before the local mark, so their cross term is counted once.
+			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
+			src.markSupport.owner.supportDamage += Math.max(0,
+				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
 		}
 		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
@@ -2339,7 +2347,12 @@ export class Room {
 			this.reacted('flash', e.x, e.y, REACT.flashR);
 			const fixed = REACT.flashBase * (h?.mods.dmgMul ?? 1);
 			const flash = fixed + dmg * REACT.flashFrac;
-			this.splash(e.x, e.y, REACT.flashR, flash, h, SRC_R.flash, e);
+			let flashSource = SRC_R.flash;
+			if (e.markT > now && e.markOwner && e.markMul > 0) {
+				const extra = (dmg - dmg / (1 + e.markMul)) * REACT.flashFrac;
+				flashSource = { ...flashSource, markSupport: { owner: e.markOwner, fraction: extra / flash } };
+			}
+			this.splash(e.x, e.y, REACT.flashR, flash, h, flashSource, e);
 			dmg += flash;
 			reaction.fixed = fixed;
 			reaction.flash = flash; // hurtEnemy books this part as r_flash, rather than weapon damage
