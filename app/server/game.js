@@ -2172,6 +2172,10 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
+		if (e.outpost && e.windT > 0 && e.guardAim && (e.x !== e.guardAim.x || e.y !== e.guardAim.y)) {
+			e.windT = 0;
+			e.shotT = 0;
+		}
 		if (e.windT > 0) {
 			e.windT -= dt;
 			if (e.windT <= 0) {
@@ -2204,6 +2208,7 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
+			if (e.outpost) e.guardAim = { x: e.x, y: e.y };
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
 			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
