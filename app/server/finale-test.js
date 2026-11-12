@@ -164,6 +164,10 @@ assert.equal(PROTO, 23);
 
 // --- 4. absorbing the horde ---
 {
+	// Seed 41 leaves a bloater with an armed fuse in the last tick before this fixture snapshot.
+	const random = Math.random;
+	let seed = 41;
+	Math.random = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
 	const r = room(2);
 	toPrelude(r, 6);
 	run(r, 6 + FINALE.prelude - 0.3);
@@ -173,7 +177,9 @@ assert.equal(PROTO, 23);
 	// disarm them and drop whatever still flies, burns or waits, so only the absorption itself is measured.
 	for (const h of r.heroes.values()) h.weapons.clear();
 	r.projectiles.length = r.puddles.length = r.traps.length = r.blasts.length = 0;
-	for (const e of r.enemies) e.burnT = 0;
+	// Already armed bloater fuses are combat deaths too. Fresh contact fuses need 0.5 s,
+	// longer than the remaining 0.3 s until absorption, so cancel only the pending ones.
+	for (const e of r.enemies) { e.burnT = 0; e.fuseT = 0; }
 	const before = { enemies: r.enemies.filter((e) => !e.dead).length, kills: r.kills, gems: r.gems.length, bossKills: r.bossKills, lvl: alive(r).map((h) => h.level) };
 	assert.ok(before.enemies > 20);
 	run(r, 1, () => r.fin.lord);
@@ -200,6 +206,7 @@ assert.equal(PROTO, 23);
 	run(r, 0.4);
 	assert.ok(r.hurtEnemy(lord, 100, h) > 0, 'takes damage afterwards');
 	assert.equal(r.snapshot().fin[0], 2);
+	Math.random = random;
 	console.log('4 absorb: OK');
 }
 

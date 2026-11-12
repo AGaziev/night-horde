@@ -1904,15 +1904,21 @@ console.log('over/again/leave: ok');
 		r.grantOffer(h, false, CHEST_FLOOR.boss);
 		assert.ok(best(h.offer) >= 2, 'boss chest: at least epic');
 	}
-	// Fortune (Клевер) raises the share of rare cards.
-	const share = (fortune) => {
-		let hi = 0, all = 0;
-		h.mods.fortune = fortune;
-		for (let k = 0; k < 2000; k++) for (const c of r.makeChoices(h).filter(plain)) { all++; if (c.rar >= 2) hi++; }
-		return hi / all;
-	};
-	assert.ok(share(1) > share(0) * 2, 'clover: more epic+ cards');
-	h.mods.fortune = 0;
+	// The same draw crosses the epic threshold only when the offer uses Fortune.
+	const random = Math.random;
+	try {
+		Math.random = () => 0.9;
+		h.mods.fortune = 0;
+		const ordinary = r.makeChoices(h).filter(plain);
+		h.mods.fortune = 1;
+		const lucky = r.makeChoices(h).filter(plain);
+		assert.ok(ordinary.length > 0 && ordinary.every((c) => c.rar === 1), 'clover: the control draw is rare');
+		assert.equal(lucky.length, ordinary.length, 'clover: same number of regular cards');
+		assert.ok(lucky.every((c) => c.rar === 2), 'clover: the same draw becomes epic');
+	} finally {
+		Math.random = random;
+		h.mods.fortune = 0;
+	}
 	// Run log counts rarity seen and taken.
 	h.offer = null;
 	h.passives = new Map();

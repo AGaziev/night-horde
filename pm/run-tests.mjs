@@ -17,4 +17,5 @@ for(const suite of fs.readdirSync(path.join(app,'server')).filter(name=>name.end
 }
 if(directory)fs.writeFileSync(path.join(directory,'results.json'),JSON.stringify({node:process.version,results},null,2)+'\n');
 console.log(`${results.filter(r=>r.status==='PASS').length}/${results.length} suites passed on ${process.version}`);
-if(results.some(r=>r.status!=='PASS'))process.exitCode=1;
+if (!results.length) console.error('No server test suites found.');
+if (!results.length || results.some(r => r.status !== 'PASS')) process.exitCode = 1;

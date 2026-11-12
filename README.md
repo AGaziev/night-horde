@@ -16,6 +16,10 @@ node server/server.js            # http://localhost:3000
 for t in server/*-test.js; do node "$t"; done
 ```
 
+[Server CI](.github/workflows/server-ci.yml) запускает все серверные тесты на Linux с Node.js 24 при обновлении PR в `main` и при push в `main`. В сводке указан проверенный SHA. Для PR это обычно результат пробного слияния, поэтому сводка также показывает SHA ветки и базы. В артефакте `server-test-logs` доступны логи тестов и `results.json`.
+
+Тот же прогон с логами можно запустить из корня после `npm ci` в `app/` командой `node pm/run-tests.mjs /tmp/horde-server-tests`.
+
 ## Правила совместной работы
 - Работаем через ветки и pull request в `main`; `main` = то, что выкладывается.
 - Тег `vN` = версия, которая стоит или стояла на проде. `GAME_VERSION` в `content.js` поднимаем на каждую выкладку и не занимаем чужие номера.
