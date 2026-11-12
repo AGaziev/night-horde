@@ -2205,10 +2205,13 @@ export class Room {
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
-			const len = E.shotSpeed * E.shotLife, a0 = Math.atan2(e.bvy, e.bvx);
+			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
 				const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
-				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + Math.cos(a) * len), Math.round(e.y + Math.sin(a) * len), E.shotR * 2 + 8, round3(E.windup)]);
+				const ca = Math.cos(a), sa = Math.sin(a);
+				const preview = boundGuardShot(e, { x: e.x, y: e.y, vx: ca * E.shotSpeed, vy: sa * E.shotSpeed, life: E.shotLife });
+				const len = E.shotSpeed * preview.life;
+				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + ca * len), Math.round(e.y + sa * len), E.shotR * 2 + 8, round3(E.windup)]);
 			}
 			return true;
 		}
