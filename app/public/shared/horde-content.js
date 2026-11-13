@@ -6,8 +6,7 @@ export const HORDE_BOSS_AT = 12 * 60;
 export const HORDE_BOSS_TYPE = 'boss';
 export const HORDE_ARENA = Object.freeze({ minX: -1800, maxX: 1800, minY: -1200, maxY: 1200 });
 export const HORDE_LIMITS = Object.freeze({ ambient: 120, manual: 180, total: 350, queued: 3, spawnDistance: 600, birthDistance: 200, warning: 1.5, preparation: 0.5, retireDistance: 1900 });
-// Legacy upgrade fields stay available while the server and controls migrate to the draft.
-export const HORDE_ECONOMY = Object.freeze({ start: 80, cap: 180, perSecond: 5, upgradeCosts: Object.freeze([70, 130]), upgradeAt: Object.freeze([180, 480]) });
+export const HORDE_ECONOMY = Object.freeze({ start: 80, cap: 180, perSecond: 5 });
 export const HORDE_UPGRADE = Object.freeze({ hpPerLevel: 0.16, damagePerLevel: 0.08 });
 export const HORDE_BUILD = Object.freeze({ packSlots: 4, weaponSlots: 4, artifactSlots: 6, packMax: 5, weaponMax: 3, artifactMax: 3, rankEvery: 40, maxPicks: 22, rerolls: 2 });
 export const HORDE_COMBAT = Object.freeze({ maxProcsPerTick: 3, maxHostile: 220, slowCap: 0.22, poisonStacks: 3, warning: 1.2 });
@@ -40,7 +39,7 @@ export const HORDE_ARTIFACTS = Object.freeze({
 	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'За уровень: +5% урона оружия. Снаряд может дать вторичный разряд соседнему герою; общий откат 3 секунды' },
 	hunter: { id: 'hunter', name: 'Глаз охотника', icon: '◈', tags: ['poison', 'control'], requiresWeaponTags: ['poison', 'control'], desc: 'За уровень: +15% урона оружия по отравленным или замедленным героям' },
 	tether: { id: 'tether', name: 'Узы легиона', icon: '∞', tags: ['support', 'frontline'], requiresWeapon: true, requiresPacks: 2, desc: 'Оружие сильнее рядом с другим семейством: +6% за уровень и семейство, до трёх семейств' },
-	brood: { id: 'brood', name: 'Матка роя', icon: '♧', tags: ['swarm'], desc: 'За уровень: один дополнительный боец при покупке пачки. Учитывается в населении и очереди' },
+	brood: { id: 'brood', name: 'Матка роя', icon: '♧', tags: ['swarm'], desc: 'За уровень: один дополнительный боец сопровождения при покупке пачки. Учитывается в населении и очереди' },
 	carapace: { id: 'carapace', name: 'Хитиновый панцирь', icon: '⛨', tags: ['frontline', 'guard'], desc: 'За уровень: новые бойцы получают барьер на 12% здоровья. Барьер не восстанавливается' },
 	march: { id: 'march', name: 'Барабан марша', icon: '♬', tags: ['fast', 'support'], requiresPacks: 2, desc: 'За уровень: +6% скорости рядом с другим ручным семейством; несколько барабанов не складываются' },
 	supply: { id: 'supply', name: 'Военный обоз', icon: '▣', tags: ['economy'], desc: 'За уровень: пачки дешевле на 5%, запас ресурса больше на 20. Урон не усиливает' },
@@ -69,7 +68,4 @@ export function clampHordePosition(x, y, padding = 0) {
 	return { x: Math.max(HORDE_ARENA.minX + padding, Math.min(HORDE_ARENA.maxX - padding, x)), y: Math.max(HORDE_ARENA.minY + padding, Math.min(HORDE_ARENA.maxY - padding, y)) };
 }
 
-export function hordeUpgradePrice(level) {
-	return HORDE_ECONOMY.upgradeCosts[level] ?? null;
-}
 
