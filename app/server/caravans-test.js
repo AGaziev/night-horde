@@ -7,7 +7,7 @@ function setup(n, mode) {
 	for (let i = 1; i <= n; i++) r.addPlayer(i, 'P' + i, 'knight');
 	r.start(); return { r, hs: [...r.heroes.values()] };
 }
-for (const mode of ['lunch', 'night']) for (const n of [1, 2, 4, 8]) {
+for (const mode of ['lunch', 'night']) for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
 	const { r, hs } = setup(n, mode);
 	r.time = r.runLength * CARAVAN.from - .01; updateCaravan(r, hs, 1 / 30); assert.equal(r.caravan, null);
 	r.time += .01; updateCaravan(r, hs, 1 / 30); const c = r.caravan; assert.ok(c);
@@ -50,3 +50,12 @@ for (const mode of ['lunch', 'night']) for (const n of [1, 2, 4, 8]) {
 	r.setPaused(false); r.fin = {}; updateCaravan(r, hs, 1); assert.equal(c.status, 'expired');
 }
 console.log('Caravan: both modes, 1–8 heroes, finite escort, leash, reward-once, expiry and pause OK');
+
+{
+ const { r, hs } = setup(2, 'lunch'); r.time = 210; updateCaravan(r, hs, 1 / 30);
+ const snapshot = r.snapshot();
+ assert.equal(snapshot.p[0].length, 15, 'caravan metadata preserves the original player row');
+ assert.deepEqual(snapshot.cv, caravanSnapshot(r));
+ assert.equal(snapshot.mob, undefined, 'caravan has no dependency on dash metadata');
+ const c = r.caravan; r.resync(1); assert.equal(r.caravan, c, 'reconnect does not create a second caravan');
+}
