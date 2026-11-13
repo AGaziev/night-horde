@@ -56,11 +56,23 @@
 					<button id="lobby-leave" class="btn btn-ghost btn-small">Выйти</button>
 				</div>
 			</div>
-			<h2>Режим</h2>
-			<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
-			<p id="lobby-mode-hint" class="muted small mode-hint"></p>
-			<h2>Выберите героя</h2>
-			<div id="lobby-heroes" class="hero-grid"></div>
+			<h2>Правила игры</h2>
+			<div id="lobby-ruleset" class="mode-pick" role="radiogroup" aria-label="Правила игры"></div>
+			<p id="lobby-ruleset-hint" class="muted small mode-hint"></p>
+			<div id="lobby-pve-mode">
+				<h2>Режим</h2>
+				<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
+				<p id="lobby-mode-hint" class="muted small mode-hint"></p>
+			</div>
+			<div id="lobby-role-box" hidden>
+				<h2>Ваша сторона</h2>
+				<div id="lobby-role" class="mode-pick" role="radiogroup" aria-label="Ваша сторона"></div>
+				<p id="lobby-role-hint" class="muted small mode-hint" role="status"></p>
+			</div>
+			<div id="lobby-hero-box">
+				<h2>Выберите героя</h2>
+				<div id="lobby-heroes" class="hero-grid"></div>
+			</div>
 			<h2>Игроки <span id="lobby-count" class="muted"></span></h2>
 			<ul id="lobby-players" class="player-list"></ul>
 			<div class="lobby-actions">

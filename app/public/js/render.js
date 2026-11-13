@@ -2923,7 +2923,7 @@ export class Renderer {
 			}
 		}
 		// The own hero is drawn even before the first snapshot that contains it.
-		if (!mineDrawn && game.me !== null && game.running && !b.pMap.has(game.me)) {
+		if (!mineDrawn && game.me !== null && game.running && !game.isDirector() && !b.pMap.has(game.me)) {
 			const meta = game.meta(game.me);
 			const sprite = this.sprites.ready ? this.sprites.tinted(meta.hero, meta.color) : null;
 			if (sprite) this.drawHeroSprite(ctx, sprite, game.local.x, game.local.y, meta.color, game.local.fx, game.local.fy, now, true, false, game.me);

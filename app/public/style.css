@@ -196,6 +196,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 	min-width: 0;
 }
 .room-list .empty { justify-content: center; color: var(--muted); border-style: dashed; }
+.room-list li { flex-wrap: wrap; }
+.director-mark { color: #ffab91; font-size: 1.25rem; width: 22px; text-align: center; }
 .room-code-sm { font-family: var(--mono); font-weight: 700; letter-spacing: 0.08em; color: var(--accent); }
 .grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 

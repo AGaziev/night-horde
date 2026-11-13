@@ -1,5 +1,6 @@
 // DOM screens, HUD, level-up panel, toasts.
 import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
+import { HORDE_RULESET, HORDE_MAX_HEROES } from '/shared/horde-content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -131,8 +132,14 @@ export class UI {
 			const li = el('li');
 			li.appendChild(el('span', 'room-code-sm', r.code));
 			li.appendChild(el('span', 'grow', r.host ? `хост: ${r.host}` : ''));
-			li.appendChild(el('span', 'tag tag-mode', modeOf(r.mode).short));
-			li.appendChild(el('span', 'tag', `${r.players ?? '?'}/${MAX_PLAYERS}`));
+			if (r.ruleset === HORDE_RULESET) {
+				li.appendChild(el('span', 'tag tag-mode', 'Орда · 15 мин'));
+				li.appendChild(el('span', 'tag', `Герои ${r.heroCount ?? 0}/${HORDE_MAX_HEROES}`));
+				li.appendChild(el('span', 'tag', r.directorPresent ? 'Орда занята' : 'Орда свободна'));
+			} else {
+				li.appendChild(el('span', 'tag tag-mode', modeOf(r.mode).short));
+				li.appendChild(el('span', 'tag', `${r.players ?? '?'}/${MAX_PLAYERS}`));
+			}
 			const btn = el('button', 'btn btn-small', 'Войти');
 			btn.addEventListener('click', () => onJoin(r.code));
 			li.appendChild(btn);
@@ -306,16 +313,22 @@ export class UI {
 		this.lastLobby = [lobby, me];
 		$('lobby-code').textContent = lobby.code || '—';
 		const players = Array.isArray(lobby.players) ? lobby.players : [];
-		$('lobby-count').textContent = `${players.length}/${MAX_PLAYERS}`;
+		const horde = lobby.ruleset === HORDE_RULESET;
+		const heroes = players.filter((p) => p.role !== 'director');
+		const director = players.find((p) => p.role === 'director');
+		const mine = players.find((p) => p.pid === me);
+		$('lobby-count').textContent = horde ? `${heroes.length}/${HORDE_MAX_HEROES} героев · ${director ? 1 : 0}/1 за орду` : `${players.length}/${MAX_PLAYERS}`;
 		const list = $('lobby-players');
 		list.textContent = '';
 		let myReady = false;
 		for (const p of players) {
 			const li = el('li');
-			li.appendChild(heroMark(p.hero, p.color));
+			const isDirector = horde && p.role === 'director';
+			li.appendChild(isDirector ? el('span', 'director-mark', '☠') : heroMark(p.hero, p.color));
 			li.appendChild(el('span', 'grow', p.name));
 			const hero = HEROES[p.hero];
-			if (hero) li.appendChild(el('span', 'tag', hero.name));
+			if (isDirector) li.appendChild(el('span', 'tag tag-mode', 'За орду'));
+			else if (hero) li.appendChild(el('span', 'tag', hero.name));
 			if (p.pid === lobby.host) li.appendChild(el('span', 'tag tag-host', 'хост'));
 			if (p.pid === me) li.appendChild(el('span', 'tag tag-me', 'вы'));
 			if (p.pid === me && this.lords > 0) {
@@ -327,21 +340,66 @@ export class UI {
 			list.appendChild(li);
 			if (p.pid === me) {
 				myReady = !!p.ready;
-				this.selectHero(p.hero, p.color);
+				if (!isDirector) this.selectHero(p.hero, p.color);
 			}
 		}
 		const isHost = lobby.host === me;
+		this.renderRuleset(horde, isHost);
+		$('lobby-pve-mode').hidden = horde;
+		$('lobby-role-box').hidden = !horde;
+		$('lobby-hero-box').hidden = horde && mine?.role === 'director';
+		$('duo-book').hidden = horde && mine?.role === 'director';
+		if (horde) this.renderRole(mine?.role || 'hero', director, heroes.length, me);
 		this.renderMode(lobby.mode, isHost);
 		this.renderDuoBook();
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
 		readyBtn.classList.toggle('btn-on', myReady);
 		$('lobby-start').hidden = !isHost;
+		const rolesReady = !horde || (!!director && heroes.length >= 1 && heroes.length <= HORDE_MAX_HEROES);
+		$('lobby-start').disabled = !rolesReady;
 		const notReady = players.filter((p) => !p.ready).length;
-		$('lobby-hint').textContent = isHost
+		$('lobby-hint').textContent = !rolesReady ? 'Для начала нужен один игрок за орду и от 1 до 4 героев.' : isHost
 			? (notReady ? `Не готовы: ${notReady}. Можно начать и так.` : 'Все готовы — начинайте!')
 			: 'Игру запускает хост.';
 		return myReady;
+	}
+
+	renderRuleset(horde, isHost) {
+		const box = $('lobby-ruleset');
+		if (!box.childElementCount) {
+			for (const [id, name, desc] of [['pve', 'Вместе против ночи', 'Обычный забег против компьютерной орды'], [HORDE_RULESET, 'Орда против героев', 'Один игрок за орду против 1–4 героев · 15 минут']]) {
+				const b = el('button', 'btn mode-btn');
+				b.type = 'button'; b.dataset.ruleset = id; b.setAttribute('role', 'radio');
+				b.append(el('b', '', name), el('span', '', desc));
+				b.addEventListener('click', () => this.onRuleset?.(id));
+				box.appendChild(b);
+			}
+		}
+		for (const b of box.children) {
+			const on = (b.dataset.ruleset === HORDE_RULESET) === horde;
+			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.disabled = !isHost;
+		}
+		$('lobby-ruleset-hint').textContent = horde ? 'Герои побеждают, убив босса или продержавшись 15 минут. Орда побеждает, если все герои падут.' : (isHost ? 'Правила выбирает хост комнаты.' : 'Правила игры выбирает хост.');
+	}
+
+	renderRole(role, director, heroCount, me) {
+		const box = $('lobby-role');
+		if (!box.childElementCount) {
+			for (const [id, name, desc] of [['hero', 'Герой', 'Двигайтесь, собирайте опыт и улучшайте оружие'], ['director', 'За орду', 'Выбирайте отряды, места атаки и улучшения']]) {
+				const b = el('button', 'btn mode-btn');
+				b.type = 'button'; b.dataset.role = id; b.setAttribute('role', 'radio');
+				b.append(el('b', '', name), el('span', '', desc));
+				b.addEventListener('click', () => this.onRole?.(id));
+				box.appendChild(b);
+			}
+		}
+		for (const b of box.children) {
+			const on = b.dataset.role === role;
+			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on));
+			b.disabled = !on && (b.dataset.role === 'director' ? !!director && director.pid !== me : heroCount >= HORDE_MAX_HEROES);
+		}
+		$('lobby-role-hint').textContent = `${director ? `За орду: ${director.name}` : 'Место за орду свободно'} · героев ${heroCount}/${HORDE_MAX_HEROES}.`;
 	}
 
 	renderMode(mode, isHost) {

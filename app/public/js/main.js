@@ -10,6 +10,7 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
+import { HORDE_RULESET, HORDE_SECONDS } from '/shared/horde-content.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -73,7 +74,7 @@ function goGame() {
 		ui.resetHud();
 		ui.show('game');
 	}
-	input.setEnabled(true);
+	input.setEnabled(!game.isDirector());
 	sound.setMode('game');
 }
 
@@ -181,15 +182,16 @@ net.on('start', (msg) => {
 	state.urlRoom = '';
 	clearTimeout(overTimer);
 	game.begin(msg);
-	const len = +msg.len || modeOf(msg.mode).seconds;
-	ui.modeText = `${modeOf(msg.mode).name} · до ${fmtTime(len)}`;
+	const horde = game.ruleset === HORDE_RULESET;
+	const len = +msg.len || (horde ? HORDE_SECONDS : modeOf(msg.mode).seconds);
+	ui.modeText = `${horde ? `Орда · ${game.isDirector() ? 'вы за орду' : 'вы герой'}` : modeOf(msg.mode).name} · до ${fmtTime(len)}`;
 	goGame();
 	ui.showPause(game.menuPause);
 	if (invitedElsewhere) ui.toast('Откройте приглашение после текущего забега.', 'info');
 });
 
 net.on('pause', (msg) => {
-	if (!game.running) return;
+	if (!game.running || game.ruleset === HORDE_RULESET) return;
 	game.setPause(msg.on, msg.menu);
 	ui.showPause(game.menuPause);
 	input.setEnabled(!game.menuPause);
@@ -224,7 +226,7 @@ net.on('s', (msg) => {
 });
 
 net.on('lvl', (msg) => {
-	if (!game.running) return;
+	if (!game.running || game.isDirector()) return;
 	if (msg.closed || !Array.isArray(msg.choices) || !msg.choices.length) {
 		game.offer = null;
 		ui.hideOffer();
@@ -255,6 +257,7 @@ net.on('over', (msg) => {
 
 // Adds this run's stats to the browser's totals and returns heroes opened by it.
 function takeAchievements(msg) {
+	if (msg.ruleset === HORDE_RULESET || game.ruleset === HORDE_RULESET) return [];
 	const mine = (Array.isArray(msg.stats) ? msg.stats : []).find((s) => s.pid === state.me);
 	// The server resends `over` on reconnect: a run counts once.
 	if (!mine?.ach || (msg.runId && store.get('nh.achRun') === msg.runId)) return [];
@@ -474,6 +477,8 @@ ui.onHero = (id) => {
 	ui.selectHero(id, state.lobby?.players?.find((p) => p.pid === state.me)?.color || '#90a4ae');
 };
 ui.onMode = (id) => net.send({ t: 'mode', mode: id });
+ui.onRuleset = (id) => net.send({ t: 'ruleset', id });
+ui.onRole = (role) => net.send({ t: 'role', role });
 ui.buildHeroCards(state.hero);
 ui.setUnlocks(unlocked(), ach.stats);
 ui.setLords(ach.stats?.lords);

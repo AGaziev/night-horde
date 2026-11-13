@@ -1,5 +1,6 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
 import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
+import { HORDE_RULESET, HORDE_ARENA } from '/shared/horde-content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -53,6 +54,9 @@ export class Game {
 		this.net = net;
 		this.me = null;
 		this.running = false;
+		this.ruleset = 'pve';
+		this.directorPid = null;
+		this.arena = null;
 		this.players = new Map(); // pid -> {pid, name, hero, color}
 		this.snaps = [];
 		this.resetClock();
@@ -152,6 +156,10 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.players.clear();
+		this.ruleset = msg.ruleset === HORDE_RULESET ? HORDE_RULESET : 'pve';
+		this.directorPid = this.ruleset === HORDE_RULESET ? msg.directorPid : null;
+		this.arena = this.ruleset === HORDE_RULESET ? (msg.arena || HORDE_ARENA) : null;
 		this.running = true;
 		this.frozen = msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
@@ -192,10 +200,12 @@ export class Game {
 
 	// One hero in the run: Esc / ⏸ pause and level-up offers stop the server.
 	solo() {
-		if (!this.running) return false;
+		if (!this.running || this.ruleset === HORDE_RULESET) return false;
 		const s = this.latest();
 		return (s ? s.p.length : this.count) === 1;
 	}
+
+	isDirector() { return this.ruleset === HORDE_RULESET && this.directorPid === this.me; }
 
 	// Server pause state. After a pause the snapshot clock restarts, so the world does not jump.
 	setPause(on, menu) {
@@ -236,6 +246,7 @@ export class Game {
 	areaMul(pid = this.me) { return (pid === this.me ? 1 + this.passiveVal('area') : 1) * (this.hasVictoryBanner(pid) ? 1.15 : 1); }
 
 	pick(i, drop) {
+		if (this.isDirector()) return false;
 		const offer = this.offer;
 		if (!offer || !offer.choices[i]) return false;
 		const c = offer.choices[i];
@@ -251,6 +262,7 @@ export class Game {
 
 	// v20 «Изгнать»: the card leaves the pool for the rest of the run; the server answers with a new offer.
 	ban(i) {
+		if (this.isDirector()) return false;
 		const c = this.offer?.choices[i];
 		if (!c || !(this.offer.bans > 0) || !canBan(c)) return false;
 		this.net.send({ t: 'ban', i, offerEpoch: this.offer.offerEpoch });
@@ -258,12 +270,14 @@ export class Game {
 	}
 
 	reroll() {
+		if (this.isDirector()) return false;
 		if (!this.offer || !(this.offer.rerolls > 0)) return false;
 		this.net.send({ t: 'reroll', offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	skip() {
+		if (this.isDirector()) return false;
 		if (!this.offer) return false;
 		this.net.send({ t: 'skip', offerEpoch: this.offer.offerEpoch });
 		this.offer = null;
@@ -400,7 +414,7 @@ export class Game {
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
 		const still = this.frozen || (this.offer && this.solo());
-		if (this.running && !still) {
+		if (this.running && !still && !this.isDirector()) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
