@@ -2257,7 +2257,8 @@ export class Room {
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
-					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
+					const from = h.dashPath ?? h;
+					if (h.st !== 0 || segmentDistance2(s.x, s.y, from.x, from.y, h.x, h.y) >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;

@@ -21,3 +21,18 @@ g.acceptDash({ ok: false, epoch: 1 }); assert.equal(g.dashWaiting, 0);
 g.frozen = true; assert.equal(g.requestDash(input), false);
 g.reset(); assert.equal(g.moveEpoch, 0); assert.equal(g.dashTravel, null);
 console.log('Mobility client: action, server acceptance, cooldown, reset and epoch OK');
+
+{
+ const game = new Game({ send() {} }); game.me = 1;
+ game.begin({ players: [{ pid: 1, hero: 'knight', x: 0, y: 0 }] });
+ game.acceptDash({ ok: true, epoch: 1, x: 0, y: 0, dx: 1, dy: 0, readyAt: 12 });
+ for (let i = 0; i < 5; i++) game.update(1 / 30, { vector: () => ({ x: 0, y: 0 }) });
+ game.onSnapshot({ tm: 0.05, p: [[1, 0, 0, 100, 100, 1, 0, 10, 0]], mob: [[1, 0, 0]] });
+ assert.equal(game.local.x, 180, 'pre-dash snapshot cannot undo an accepted dash');
+ assert.equal(game.dashReadyAt, 12, 'pre-dash snapshot cannot reset the cooldown');
+ game.onSnapshot({ tm: 0.1, p: [[1, 0, 0, 100, 100, 1, 0, 10, 0]], mob: [[1, 1, 12]] });
+ assert.equal(game.local.x, 180, 'intermediate snapshot cannot rewind completed local travel');
+ game.onSnapshot({ tm: 0.2, p: [[1, 0, 0, 0, 100, 1, 0, 10, 1]], mob: [[1, 1, 12]] });
+ assert.equal(game.local.x, 0, 'authoritative down state still corrects position');
+ assert.equal(game.dashTravel, null);
+}

@@ -58,3 +58,17 @@ for (const mode of ['night', 'lunch']) for (const n of [1, 2, 4, 8]) {
 	assert.ok(h.hp < hp, 'crossing an enemy takes contact damage even when endpoint is clear');
 }
 console.log('Mobility: bounded travel, authority, cooldown, pause, packet epochs and swept contact OK');
+
+{
+ const { r, h } = setup();
+ const hp = h.hp;
+ r.hostile.push({ id: 9001, x: 100, y: 0, vx: 0, vy: 0, life: 5, dmg: 9, r: 6, from: 'test' });
+ requestDash(r, 1, { x: 1, y: 0 }); stepMobility(r, 1);
+ r.updateHostile(1 / 30);
+ assert.equal(h.hp, hp - 9, 'dash cannot cross a projectile endpoint without damage');
+ assert.equal(r.hostile.length, 0);
+ assert.equal(r.snapshot().p[0].length, 15, 'mobility metadata does not change the player row');
+ const before = h.moveEpoch;
+ r.resync(1);
+ assert.equal(h.moveEpoch, before, 'reconnect preserves the server-owned dash epoch');
+}

@@ -107,6 +107,7 @@ export class Game {
 	reset() {
 		this.moveEpoch = 0;
 		this.dashReadyAt = 0;
+		this.dashSyncAt = 0;
 		this.dashTravel = null;
 		this.dashWaiting = 0;
 		this.snaps.length = 0;
@@ -339,14 +340,16 @@ export class Game {
 
 		const mine = snap.pMap.get(this.me);
 		const mobility = snap.mob.find(r => r[0] === this.me);
-		if (mobility) {
+		const staleDash = mobility && mobility[1] < (this.moveEpoch ?? 0);
+		if (mobility && !staleDash) {
 			this.dashReadyAt = mobility[2];
 			if (mobility[1] > (this.moveEpoch ?? 0) && !this.dashWaiting && !this.dashTravel) {
 				this.moveEpoch = mobility[1];
 				if (mine) { this.local.x = mine[P.x]; this.local.y = mine[P.y]; }
 			}
 		}
-		if (mine) {
+		if (mine && !staleDash && (mine[P.st] === 1 || snap.tm >= this.dashSyncAt)) {
+			if (mine[P.st] === 1) { this.dashTravel = null; this.dashWaiting = 0; }
 			const sx = +mine[P.x], sy = +mine[P.y];
 			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
 				this.local.x = sx;
@@ -421,6 +424,7 @@ export class Game {
 		this.local.fx = msg.dx; this.local.fy = msg.dy;
 		this.dashTravel = { x: msg.dx, y: msg.dy, left: DASH.duration };
 		this.dashReadyAt = msg.readyAt;
+		this.dashSyncAt = msg.readyAt - DASH.cooldown + DASH.duration;
 	}
 
 	update(dt, input) {
