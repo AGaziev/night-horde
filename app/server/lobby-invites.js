@@ -51,7 +51,11 @@ export function createLobbyInvites({ key, serverId, origin, fetcher = fetch }) {
 		]);
 		if (server?.accessPolicy !== 'NAMED_USERS' || !Array.isArray(access?.users)) throw new Error('Unexpected access policy');
 		const owner = server?.access?.via === 'collaborator' ? null : identity?.owner;
-		warning = bitrixUid(owner?.userId) ? '' : 'Платформа не сообщила владельца приложения. Его может не быть в списке приглашений.';
+		warning = bitrixUid(owner?.userId) ? '' : server?.access?.via === 'collaborator'
+			? 'Подключение разработчика не сообщает ID владельца сервера. Владелец появится здесь, если он есть в списке доступа приложения.'
+			: identity?.type === 'oauth_app'
+				? 'Подключение приложения не сообщает ID владельца сервера. Владелец появится здесь, если он есть в списке доступа приложения.'
+				: 'Не удалось определить владельца сервера. Его может не быть в списке приглашений.';
 		const byId = new Map();
 		for (const entry of [...access.users, ...(owner ? [{ userId: owner.userId, userName: owner.name }] : [])]) {
 			const id = bitrixUid(String(entry.userId));
