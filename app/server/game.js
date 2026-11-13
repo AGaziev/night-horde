@@ -2161,6 +2161,7 @@ export class Room {
 		for (let i = 0; i < n; i++) {
 			const a = a0 + (i / n) * Math.PI * 2;
 			const s = { id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, dmg: dmg * e.dmgMul, from: enemyKey(e) + ':shot' };
+			s.bornAt = this.time;
 			this.hostile.push(s);
 			this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 		}
@@ -2217,6 +2218,7 @@ export class Room {
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		boundGuardShot(e, s);
+		s.bornAt = this.time;
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2241,6 +2243,7 @@ export class Room {
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
+					s.bornAt = this.time;
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2295,18 +2298,25 @@ export class Room {
 	updateHostile(dt) {
 		let j = 0;
 		for (const s of this.hostile) {
-			const ox=s.x, oy=s.y, step=Math.min(dt,Math.max(0,s.life));
-			s.life -= dt; s.x += s.vx * step; s.y += s.vy * step;
-			let target=null, impact=Infinity;
+			const start = Math.max(this.time - dt, s.bornAt ?? this.time - dt);
+			const elapsed = Math.max(0, this.time - start), step = Math.min(elapsed, Math.max(0, s.life));
+			const ox = s.x, oy = s.y;
+			s.life -= elapsed; s.x += s.vx * step; s.y += s.vy * step;
+			let target = null, impact = Infinity;
+			const fromFraction = dt > 0 ? (start - (this.time - dt)) / dt : 1;
+			const toFraction = dt > 0 ? Math.min(1, fromFraction + step / dt) : 1;
 			for (const h of this.heroes.values()) {
-				if(h.st !== 0) continue;
-				const prev=h.dashPath ?? h.hostilePos ?? h;
-				const t=movingCircleImpact(ox,oy,s.x,s.y,prev.x,prev.y,h.x,h.y,(s.r ?? HOSTILE_R)+PLAYER_RADIUS);
-				if(t !== null && t < impact){impact=t;target=h;}
+				if (h.st !== 0) continue;
+				const prev = h.dashPath ?? h.hostilePos ?? h;
+				const hx0 = prev.x + (h.x - prev.x) * fromFraction, hy0 = prev.y + (h.y - prev.y) * fromFraction;
+				const hx1 = prev.x + (h.x - prev.x) * toFraction, hy1 = prev.y + (h.y - prev.y) * toFraction;
+				const t = movingCircleImpact(ox, oy, s.x, s.y, hx0, hy0, hx1, hy1, (s.r ?? HOSTILE_R) + PLAYER_RADIUS);
+				if (t !== null && t < impact) { impact = t; target = h; }
 			}
-			if(target && target.iframes <= 0) this.hurtPlayer(target,s.dmg,s.from);
-			const done=target || s.life<=0 || (s.outpost && dist2(s.x,s.y,s.outpost.x,s.outpost.y)>OUTPOST.shotRange**2);
-			if(done) this.fx.push(['epend',s.id,round3(this.time-dt+(target?impact*step:step))]);
+			if (target && target.iframes <= 0) this.hurtPlayer(target, s.dmg, s.from);
+			const done = target || s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
+			if (done) this.fx.push(['epend', s.id, round3(start + (target ? impact * step : step)),
+				round3(ox + s.vx * (target ? impact * step : step)), round3(oy + s.vy * (target ? impact * step : step)), target ? 1 : 0]);
 			else this.hostile[j++]=s;
 		}
 		this.hostile.length=j;

@@ -616,7 +616,10 @@ export class Game {
 			}
 			case 'epend': {
 				const s = this.hostile.get(ev[1]);
-				if (s) s.end = Math.max(s.st, +ev[2] || 0);
+				if (s) {
+					s.end = Math.max(s.st, +ev[2] || 0);
+					if (ev[5] === 1 && Number.isFinite(ev[3]) && Number.isFinite(ev[4])) s.impact = { x: ev[3], y: ev[4] };
+				}
 				break;
 			}
 			case 'lob':
@@ -709,6 +712,7 @@ export class Game {
 		const vt = this.view.tm;
 		for (const [id, s] of this.hostile) {
 			if (vt >= s.end) {
+				if (s.impact) this.rings.push({ ...s.impact, t: 0, life: .16, r0: 5, r1: 21, color: '#ffb06d' });
 				this.hostile.delete(id);
 				continue;
 			}

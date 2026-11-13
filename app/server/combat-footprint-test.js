@@ -28,3 +28,17 @@ const {Game}=await import('data:text/javascript;base64,'+Buffer.from(client).toS
 const g=new Game({send(){}});g.effect(['slash',1,-1,100,40,25,-8,10]);
 assert.deepEqual([g.slashes[0].x,g.slashes[0].y,g.slashes[0].impactAt],[25,-8,10]);
 g.shotEvent(['eshot',9,0,0,600,0,1,10]);g.shotEvent(['epend',9,10.02]);assert.equal(g.hostile.get(9).end,10.02,'client never prolongs a collided hostile');
+{
+ const room=new Room('BORN',()=>{});room.addPlayer(1,'P','ranger');room.start();room.time=100;
+ const hero=room.heroes.get(1);hero.x=hero.y=0;hero.hp=100;hero.ward=0;hero.perk.readyAt=Infinity;
+ const spitter=room.spawnEnemy('spitter',[hero],1);spitter.x=-25;spitter.y=0;
+ room.fireHostile(spitter,hero);const born=room.fx.findLast(e=>e[0]==='eshot');
+ room.updateHostile(1/30);assert.equal(hero.hp,100,'new shot cannot travel before its advertised birth');
+ assert.equal(room.hostile[0].x,-25);room.time+=1/30;room.updateHostile(1/30);
+ const end=room.fx.findLast(e=>e[0]==='epend');assert.ok(end[2]>=born[7]);assert.ok(hero.hp<100);
+ const client=new Game({send(){}});client.shotEvent(born);client.shotEvent(end);client.view.tm=end[2];client.advanceHostile();
+ assert.equal(client.hostile.size,0);assert.equal(client.rings.length,1,'short-lived hit remains visible as impact, never a ghost projectile');
+ hero.hp=100;hero.iframes=0;hero.x=0;hero.dashPath={x:100,y:0};
+ room.hostile=[{id:999,x:0,y:0,vx:0,vy:0,life:.003,dmg:10}];
+ room.time+=1/30;room.updateHostile(1/30);assert.equal(hero.hp,100,'hero cannot collide after the projectile has expired');
+}
