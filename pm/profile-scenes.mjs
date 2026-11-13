@@ -29,9 +29,9 @@ const page=await browser.newPage({viewport:{width:1440,height:900},deviceScaleFa
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
 await page.goto(`http://127.0.0.1:${port}/`);
 await page.evaluate(async(ablation)=>{
-	const {Game}=await import('/js/game.js');const {Renderer}=await import('/js/render.js');const {SnapshotDecoder}=await import('/js/snapshot-codec.js');
+	const {Game}=await import('/js/game.js');const {Renderer}=await import('/js/render.js');const {DprController}=await import('/js/display.js');const {SnapshotDecoder}=await import('/js/snapshot-codec.js');
 	const decoder=new SnapshotDecoder();const g=new Game({send(msg){if(ws.readyState===1)ws.send(JSON.stringify(msg));}});g.me=1;const renderer=new Renderer(document.getElementById('game'));
-	window.probe={g,renderer,frames:[],updates:[],methods:{},arrivals:[],tms:[],latency:[],backwards:[],localX:[],move:false,start:0};
+	window.probe={g,renderer,DprController,dprTimeline:[],frames:[],updates:[],methods:{},arrivals:[],tms:[],latency:[],backwards:[],localX:[],move:false,start:0};
 	for(const name of Object.getOwnPropertyNames(Renderer.prototype))if(name.startsWith('draw')||name==='updateMinimap'){
 		const fn=renderer[name].bind(renderer);renderer[name]=(...args)=>{const a=performance.now();const result=fn(...args);(window.probe.methods[name]??=[]).push(performance.now()-a);return result;};
 	}
@@ -43,7 +43,7 @@ await page.evaluate(async(ablation)=>{
 	const ws=new WebSocket(`ws://${location.host}`);ws.onmessage=e=>{const msg=JSON.parse(e.data);if(msg.t==='s'||msg.t==='k'||msg.t==='d'){
 		const snap=decoder.decode(msg);if(snap){probe.arrivals.push(performance.now());probe.tms.push(snap.tm);probe.latency.push(Date.now()-msg.__at);const before=g.local.x;g.onSnapshot(snap);if(g.local.x<before-20)probe.backwards.push({before,after:g.local.x,at:performance.now(),tm:snap.tm});}
 	}};
-	let last=performance.now();function draw(now){const dt=Math.min(.05,(now-last)/1000);if(g.running){probe.frames.push(now-last);let a=performance.now();g.update(dt,{vector:()=>({x:probe.move?1:0,y:0})});probe.updates.push(performance.now()-a);renderer.draw(g,dt);probe.localX.push({at:now,x:g.local.x});}last=now;requestAnimationFrame(draw);}requestAnimationFrame(draw);
+	let last=performance.now();function draw(now){const dt=Math.min(.05,(now-last)/1000);if(g.running){probe.frames.push(now-last);let a=performance.now();g.update(dt,{vector:()=>({x:probe.move?1:0,y:0})});probe.updates.push(performance.now()-a);renderer.draw(g,dt);probe.dprTimeline.push({at:now,dpr:renderer.dpr});probe.localX.push({at:now,x:g.local.x});}last=now;requestAnimationFrame(draw);}requestAnimationFrame(draw);
 },process.env.PERF_ABLATION||'');
 for(let i=0;i<100&&!socket;i++)await delay(10);
 const interval=setInterval(()=>{
@@ -55,7 +55,8 @@ const interval=setInterval(()=>{
 const results=[];
 try{
 	const planned=JSON.parse(process.env.PERF_CELLS||'null')||[1,4,8].flatMap(n=>['packed','spread'].flatMap(group=>['ranged','support'].flatMap(build=>[300,588].map(time=>({n,group,build,time})))));
-	const cells=process.env.PERF_TIME?planned.filter(c=>c.time===Number(process.env.PERF_TIME)):planned;
+	const selected=process.env.PERF_TIME?planned.filter(c=>c.time===Number(process.env.PERF_TIME)):planned;
+	const cells=selected.flatMap(cell=>Array.from({length:Number(process.env.PERF_REPEATS)||1},(_,repeat)=>({...cell,repeat:repeat+1}))); 
 	for(const cell of cells){
 		rng=seed;tickCost=[];snapCost=[];delivery=[];tickIntervals=[];previousTick=0;
 		room=new Room('PERF',(pid,msg,json)=>{if(pid===1&&msg.t==='s'&&socket?.readyState===1){const data=json??JSON.stringify(msg);delivery.push({at:performance.now(),tm:msg.tm,bytes:Buffer.byteLength(data)});const envelope=JSON.parse(data);envelope.__at=Date.now();setTimeout(()=>{if(socket?.readyState===1)socket.send(JSON.stringify(envelope));},Number(process.env.NETWORK_DELAY_MS)||0);}});
@@ -66,14 +67,21 @@ try{
 		if(cell.time>=room.finPlan.lord){room.startFinale(heroes);room.finaleLord(heroes,room.bossAt.length-1);room.fin.lord.hp=room.fin.lord.maxHp=10000000;room.bossIdx=room.bossAt.length;room.fin.fightAt=room.finPlan.lord;room.fin.lord.immuneT=room.time-1;}
 		const types=['ghoul','skel','brute','spitter','sniper'];for(let i=0;i<(cell.time>=540?90:450);i++){const e=room.spawnEnemy(types[i%types.length],heroes,1);const h=heroes[i%heroes.length];const a=i*2.399963;e.x=h.x+Math.cos(a)*(160+i%500);e.y=h.y+Math.sin(a)*(160+i%500);e.hp=e.maxHp=100000;}
 		room.rebuildGrid();const original=room.snapshot.bind(room);room.snapshot=()=>{const t=performance.now();const s=original();snapCost.push(performance.now()-t);return s;};
-		await page.evaluate(({heroes,cell,move})=>{probe.g.begin({players:heroes});probe.frames=[];probe.updates=[];probe.methods={};probe.arrivals=[];probe.tms=[];probe.latency=[];probe.backwards=[];probe.localX=[];probe.move=move;}, {heroes:heroes.map(h=>({pid:h.pid,name:h.name,hero:h.hero,x:h.x,y:h.y})),cell,move:process.env.MOVE==='1'});
+		await page.evaluate(({heroes,cell,move,dpr})=>{probe.renderer.dprCtl=new probe.DprController(()=>probe.renderer.resize());probe.renderer.dprCtl.lock(dpr);probe.dprTimeline=[];probe.g.begin({players:heroes});probe.frames=[];probe.updates=[];probe.methods={};probe.arrivals=[];probe.tms=[];probe.latency=[];probe.backwards=[];probe.localX=[];probe.move=move;}, {heroes:heroes.map(h=>({pid:h.pid,name:h.name,hero:h.hero,x:h.x,y:h.y})),cell,move:process.env.MOVE==='1',dpr:Number(process.env.PERF_DPR)||0});
+		const warmup=Number(process.env.PERF_WARMUP_MS)||0;
+		if(warmup){
+			await delay(warmup);
+			await page.evaluate(()=>{probe.frames=[];probe.updates=[];probe.methods={};probe.arrivals=[];probe.tms=[];probe.latency=[];probe.backwards=[];probe.localX=[];});
+			tickCost=[];snapCost=[];delivery=[];tickIntervals=[];previousTick=0;
+		}
 		await delay(Number(process.env.PERF_DURATION_MS)||2500);
-		const client=await page.evaluate(()=>{const p=probe;const out={frames:p.frames,updates:p.updates,methods:p.methods,arrivals:p.arrivals,tms:p.tms,entities:p.g.latest()?.e.length/6,dpr:p.renderer.dpr,latency:p.latency,backwards:p.backwards,localX:p.localX};p.g.stop();return out;});
+		const client=await page.evaluate(()=>{const p=probe;const out={frames:p.frames,updates:p.updates,methods:p.methods,arrivals:p.arrivals,tms:p.tms,entities:p.g.latest()?.e.length/6,visibleEnemies:[...p.renderer.ecount].reduce((a,b)=>a+b,0)+p.renderer.elites.length,hostile:p.g.hostile.size,warnings:p.g.warns.length,spritesReady:p.renderer.sprites.ready,dpr:p.renderer.dpr,latency:p.latency,backwards:p.backwards,localX:p.localX,dprTimeline:p.dprTimeline};p.g.stop();return out;});
+		if(process.env.PERF_SCREENSHOT)await page.screenshot({path:process.env.PERF_SCREENSHOT.replace('.png',`-${cell.repeat}.png`)});
 		const gaps=client.arrivals.slice(1).map((x,i)=>x-client.arrivals[i]);
-		const result={...cell,serverTick:stats(tickCost),serverInterval:stats(tickIntervals),snapshot:stats(snapCost),networkGap:stats(gaps),frame:stats(client.frames),update:stats(client.updates),draw:stats(client.methods.draw||[]),methods:Object.fromEntries(Object.entries(client.methods).map(([k,v])=>[k,stats(v)])),entities:client.entities,dpr:client.dpr,networkLatency:stats(client.latency),backwards:client.backwards,movement:client.localX,snapshots:delivery.length,bytes:stats(delivery.map(x=>x.bytes)),drops:client.tms.slice(1).filter((x,i)=>x-client.tms[i]>.15).length};
-		results.push(result);room=null;console.log(JSON.stringify({...cell,tickP95:result.serverTick.p95,frameP95:result.frame.p95,drawP95:result.draw.p95,gapP95:result.networkGap.p95,entities:result.entities}));
+		const result={...cell,serverTick:stats(tickCost),serverInterval:stats(tickIntervals),snapshot:stats(snapCost),networkGap:stats(gaps),frame:stats(client.frames),update:stats(client.updates),draw:stats(client.methods.draw||[]),methods:Object.fromEntries(Object.entries(client.methods).map(([k,v])=>[k,stats(v)])),entities:client.entities,visibleEnemies:client.visibleEnemies,hostile:client.hostile,warnings:client.warnings,spritesReady:client.spritesReady,dpr:client.dpr,dprTimeline:client.dprTimeline,frameRaw:client.frames,slowFrameRatio:client.frames.filter(x=>x>25).length/(client.frames.length||1),networkLatency:stats(client.latency),backwards:client.backwards,movement:client.localX,snapshots:delivery.length,bytes:stats(delivery.map(x=>x.bytes)),drops:client.tms.slice(1).filter((x,i)=>x-client.tms[i]>.15).length};
+		results.push(result);room=null;console.log(JSON.stringify({...cell,dpr:result.dpr,frameMean:result.frame.mean,slowFrameRatio:result.slowFrameRatio,tickP95:result.serverTick.p95,frameP95:result.frame.p95,drawP95:result.draw.p95,gapP95:result.networkGap.p95,entities:result.entities}));
 	}
 }finally{clearInterval(interval);await browser.close();wss.close();await new Promise(r=>http.close(r));}
-const output={sha:runtimeSha,node:process.version,seed,ablation:process.env.PERF_ABLATION||null,at:new Date().toISOString(),viewport:'1440x900@2x Chromium headless --mute-audio',results,errors};
+const output={sha:runtimeSha,node:process.version,seed,warmupMs:Number(process.env.PERF_WARMUP_MS)||0,fixedDpr:Number(process.env.PERF_DPR)||0,repeat:Number(process.env.PERF_REPEATS)||1,ablation:process.env.PERF_ABLATION||null,at:new Date().toISOString(),viewport:'1440x900@2x Chromium headless --mute-audio',results,errors};
 if(process.env.OUTPUT){mkdirSync(path.dirname(process.env.OUTPUT),{recursive:true});writeFileSync(process.env.OUTPUT,JSON.stringify(output,null,2)+'\n');}
 console.log(JSON.stringify({sha:output.sha,cells:results.length,errors}));
