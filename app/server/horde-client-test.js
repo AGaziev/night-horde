@@ -15,6 +15,8 @@ const uiUrl = moduleUrl(browserSource('ui.js')
 	.replace("'./game.js'", JSON.stringify(gameUrl)));
 const { UI } = await import(uiUrl);
 const { setupLobbyInvites } = await import(moduleUrl(browserSource('lobby-invites.js').replace("'./ui.js'", JSON.stringify(uiUrl))));
+const { historyResult, renderHordeHistory } = await import(moduleUrl(browserSource('run-history.js')
+	.replace("'./ui.js'", JSON.stringify(uiUrl)).replace("import { renderResults } from './results.js';", '')));
 
 test('a full horde lobby can release and transfer its director role without removing a participant', (t) => {
 	const button = (role) => ({ dataset: { role }, classList: { toggle() {} }, setAttribute() {}, disabled: false });
@@ -62,4 +64,31 @@ test('horde slowing is capped, expires and is cleared when the next run starts',
 	assert.equal(game.hordeStatuses.size, 0);
 	game.onHordeStatus({ time: 14, effects: [{ pid: 1, chillUntil: 30, slow: 0.2 }] });
 	assert.equal(game.speedMul(), 1, 'horde frames cannot change an ordinary PvE run');
+});
+
+test('horde archive renders its own outcome and army build without a PvE results card', (t) => {
+	class Element {
+		constructor() { this.children = []; this.hidden = true; this.text = ''; }
+		append(...children) { this.children.push(...children); }
+		replaceChildren() { this.children = []; }
+		set textContent(value) { this.text = value; this.children = []; }
+		get textContent() { return this.text + this.children.map((c) => c.textContent).join(' '); }
+	}
+	const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: () => new Element() } });
+	t.after(() => { if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document; });
+	const log = { ruleset: 'horde', win: false, reason: 'wipe', time: 120,
+		director: { name: 'Commander', build: { packs: { swarm: 2 }, weapons: { venom: 1 }, artifacts: { censer: 1 } } },
+		team: [{ name: 'Hero', hero: 'knight', level: 3 }] };
+	const container = new Element();
+	assert.equal(historyResult(log), 'Орда победила', 'history names the winning side instead of falsely calling the director a loser');
+	assert.equal(historyResult({ ...log, win: true }), 'Герои победили');
+	assert.equal(renderHordeHistory(container, log), true);
+	assert.equal(container.hidden, false);
+	assert.match(container.textContent, /Чумной жезл 1 ур\./);
+	assert.match(container.textContent, /Чумная кадильница 1 ур\./);
+	assert.match(container.textContent, /Матч без рейтинга/);
+	assert.match(container.textContent, /Hero/);
+	assert.equal(historyResult({ win: true, grade: 1 }), 'Победа', 'ordinary PvE history keeps its label');
+	assert.equal(renderHordeHistory(container, { ...log, ruleset: 'pve' }), false);
 });
