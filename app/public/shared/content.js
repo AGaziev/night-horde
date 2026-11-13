@@ -90,7 +90,7 @@ export const MODES = {
 	// Single-signature fusions remove the old component casts. Keep solo pressure; recalibrate group encounters.
 	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 1.8, 2.16, 2.25], dmgMul: [0.75, 0.54, 0.448, 0.48] },
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 1.8, 2.16, 2.16], dmgMul: [0.75, 0.54, 0.4, 0.48] },
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 1.8, 2.16, 2.16], dmgMul: [0.75, 0.54, 0.45, 0.48] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
