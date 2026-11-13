@@ -91,6 +91,12 @@ function checkSnapshot(s) {
 // Snapshots go through the client decoder, as in the browser (wire format: snapshot-codec.js).
 function makeHub(onMsg) {
 	const decoders = new Map();
+	const wrapped = new WeakSet(), pending = [];
+	let ticking = 0;
+	const pick = (pid) => {
+		const h = hub.players.get(pid)?.room?.heroes.get(pid);
+		if (h?.offer) hub.handle(pid, { t: 'pick', i: 0, offerEpoch: h.offerEpoch });
+	};
 	const hub = new Hub((pid, msg, json) => {
 		if (json) msg = JSON.parse(json);
 		if (msg.t === 's') {
@@ -99,7 +105,24 @@ function makeHub(onMsg) {
 			assert.ok(msg, 'snapshot chain is unbroken');
 		}
 		onMsg(pid, msg, json);
-		if (msg.t === 'lvl') hub.handle(pid, { t: 'pick', i: 0 });
+		if (msg.t === 'start') {
+			const room = hub.players.get(pid)?.room;
+			if (room && !wrapped.has(room)) {
+				wrapped.add(room);
+				const tick = room.tick;
+				room.tick = function (...args) {
+					ticking++;
+					try { tick.apply(this, args); } finally { ticking--; }
+					// Like a WS/SSE response, a bot choice runs after the current server tick.
+					// It cannot replace effect arrays from inside their active compaction loops.
+					if (!ticking) while (pending.length) pick(pending.shift());
+				};
+			}
+		}
+		if (msg.t === 'lvl') {
+			if (ticking) pending.push(pid);
+			else pick(pid);
+		}
 	});
 	return hub;
 }
