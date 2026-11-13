@@ -760,9 +760,10 @@ export class UI {
 
 		this.set('hud-kills', 'text', String(snap.k));
 		const row = snap.pMap.get(game.me);
-		const support = snap.support?.find(([pid]) => pid === game.me)?.[1] ?? 0;
-		this.set('hud-support', 'hidden', support <= 0);
-		this.set('hud-support', 'text', `Метки: +${support.toLocaleString('ru-RU')} урона`);
+		const support = snap.support?.find(([pid]) => pid === game.me);
+		const parts = support ? [[support[5], 'Метки союзникам'], [support[2], 'Лечение'], [support[3], 'Блок'], [support[4], 'Контроль, с']].filter(([n])=>n>0).map(([n,label])=>`${label}: ${Math.round(n).toLocaleString('ru-RU')}`) : [];
+		this.set('hud-support', 'hidden', !parts.length);
+		this.set('hud-support', 'text', parts.join(' · '));
 		if (row) {
 			const xpNext = row[P.xpNext] || 1;
 			this.set('hud-xp-fill', 'width', `${Math.min(100, (row[P.xp] / xpNext) * 100).toFixed(1)}%`);
