@@ -18,7 +18,10 @@ export function setupLobbyInvites(net, toast) {
 	const cancel = $('lobby-cancel-start');
 	const start = $('lobby-start');
 	let lobby, clock, load, sending = false, employees = [], slots = 0;
+	let retryAt = null;
 	const selected = new Set();
+	const employeeNames = new Map();
+	const submit = form.querySelector('[type=submit]');
 
 	function url(code) {
 		return '/api/lobby/invites?' + new URLSearchParams({ sid: net.sid, room: code });
@@ -56,6 +59,22 @@ export function setupLobbyInvites(net, toast) {
 		updateCount();
 	}
 
+	function showDelivery(data) {
+		const byId = employeeNames;
+		const lines = data.recipients.map((r) => `${byId.get(r.id) || 'Сотрудник ' + r.id}: ${r.status === 'sent' ? 'доставлено' : r.error}`);
+		status.textContent = (data.active ? 'Отсчёт идёт. ' : 'Отсчёт остановлен. ') + lines.join(' ');
+		retryAt = data.active ? data.startsAt : null;
+		const failed = new Set(data.recipients.filter((r) => r.status === 'failed').map((r) => r.id));
+		employees = employees.filter((e) => failed.has(e.id));
+		selected.clear();
+		for (const e of employees.slice(0, slots)) selected.add(e.id);
+		fields.disabled = false;
+		form.elements.minutes.disabled = retryAt !== null;
+		submit.textContent = retryAt !== null ? 'Повторить недоставленные' : 'Запустить отсчёт';
+		submit.disabled = failed.size === 0;
+		showEmployees();
+	}
+
 	function updateCount() {
 		count.textContent = slots === 0 ? 'В комнате нет свободных мест.'
 			: employees.length === 0 ? 'Все доступные сотрудники уже в комнате.'
@@ -69,6 +88,10 @@ export function setupLobbyInvites(net, toast) {
 		load = new AbortController();
 		const { signal } = load;
 		selected.clear();
+		retryAt = null;
+		form.elements.minutes.disabled = false;
+		submit.disabled = false;
+		submit.textContent = 'Запустить отсчёт';
 		search.value = '';
 		searchField.hidden = true;
 		list.replaceChildren();
@@ -80,11 +103,16 @@ export function setupLobbyInvites(net, toast) {
 			const data = await request(url(code), { signal });
 			if (signal.aborted) return;
 			employees = data.employees;
+			for (const employee of employees) employeeNames.set(employee.id, employee.name);
 			slots = data.slots;
 			searchField.hidden = employees.length < 6;
-			status.textContent = '';
+			status.textContent = data.warning || '';
 			fields.disabled = false;
-			showEmployees();
+			if (data.delivery) showDelivery({ ...data.delivery, active: true, startsAt: data.startsAt });
+			else if (data.startsAt !== null) {
+				status.textContent = 'Отсчёт уже идёт. Дождитесь результата отправки или отмените отсчёт.';
+				fields.disabled = true;
+			} else showEmployees();
 		} catch (error) {
 			if (!signal.aborted) status.textContent = error.message;
 		}
@@ -99,13 +127,18 @@ export function setupLobbyInvites(net, toast) {
 		fields.disabled = true;
 		status.textContent = 'Запускаем отсчёт…';
 		try {
-			const { active, sent, failed } = await request(url(lobby.code), {
+			const data = await request(url(lobby.code), {
 				method: 'POST', headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ids: [...selected], minutes }),
+				body: JSON.stringify({ ids: [...selected], minutes, startsAt: retryAt }),
 			});
-			dialog.close();
-			const delivery = sent || failed ? ` Отправлено ${sent}${failed ? `, не доставлено ${failed}` : ''}.` : '';
-			toast((active ? 'Отсчёт запущен.' : 'Отсчёт остановлен.') + delivery);
+if (data.failed || data.unknown) {
+				// The lobby broadcast may arrive before the HTTP delivery result; keep the errors reviewable.
+				if (!dialog.open && lobby) dialog.showModal();
+				showDelivery(data);
+			} else {
+				dialog.close();
+				toast((data.active ? 'Отсчёт запущен.' : 'Отсчёт остановлен.') + ` Доставлено ${data.sent}.`);
+			}
 		} catch (error) {
 			if (dialog.open) status.textContent = error.message;
 			else toast(error.message);
@@ -122,8 +155,8 @@ export function setupLobbyInvites(net, toast) {
 			lobby = next;
 			const active = next?.startsAt != null;
 			const isHost = !!next && next.host === me;
-			if (changedRoom || !isHost || active) dialog.close();
-			open.hidden = !net.invites || !isHost || active;
+			if (changedRoom || !isHost) dialog.close();
+			open.hidden = !net.invites || !isHost;
 			start.disabled = active;
 			countdown.hidden = !active;
 			cancel.hidden = !isHost;
