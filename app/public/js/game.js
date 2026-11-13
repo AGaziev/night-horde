@@ -12,7 +12,6 @@ const CLOCK_MARGIN = 0.02;
 const CLOCK_SLEW = 0.12; // max playback speed deviation while catching up
 const CLOCK_GAIN = 2;
 const CLOCK_SNAP = 0.5; // jump instead of slewing when this far off
-const FX_STEP_MAX = 0.25; // the longest frame the render clock slews over (updateView)
 const MAX_EXTRAPOLATE = 0.2;
 // An enemy that moved farther than this between two snapshots is placed, not slid across the map.
 const TELEPORT_DIST = 200;
@@ -81,6 +80,9 @@ export class Game {
 		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
 		this.warns = [];
 		this.blines = []; // boss charge lanes {x1, y1, x2, y2, w, t, life}
+		this.teleWait = []; // telegraphs of a snapshot the telegraph clock has not reached yet: [list, item]
+		this.teleTm = null; // telegraph clock this frame (teleClock)
+		this.fxTm = null; // server time of the snapshot whose effects are being applied
 		this.broken = new Set(); // broken prop tiles, key tx * 100003 + ty
 		this.eliteAffix = new Map(); // enemy id -> index in ELITE_AFFIXES
 		this.orbs = new Map(); // ball lightning id -> {x0, y0, x1, y1, speed, st, life, r}
@@ -129,8 +131,7 @@ export class Game {
 		this.dawnPending = null;
 		this.hostile.clear();
 		this.lobs.clear();
-		this.warns.length = 0;
-		this.blines.length = 0;
+		this.clearTelegraphs();
 		this.broken.clear();
 		this.eliteAffix.clear();
 		this.orbs.clear();
@@ -182,7 +183,6 @@ export class Game {
 		this.clockRef = null;
 		this.renderTm = null;
 		this.lastNow = 0;
-		this.effectsNow = null;
 	}
 
 	stop() {
@@ -288,6 +288,7 @@ export class Game {
 			this.shots.clear();
 			this.hostile.clear();
 			this.lobs.clear();
+			this.clearTelegraphs();
 		}
 		const prevTm = this.snaps.length ? this.snaps[this.snaps.length - 1].tm : null;
 		if (prevTm !== null && tm <= prevTm) {
@@ -330,7 +331,15 @@ export class Game {
 		snap.bIdx = indexFlat(snap.b, 5);
 		snap.gIdx = indexFlat(snap.g, 4);
 		this.snaps.push(snap);
-		if (this.snaps.length > MAX_SNAPS) this.snaps.shift();
+		if (this.snaps.length > MAX_SNAPS) {
+			// Frames stopped (a hidden tab): a snapshot leaves unplayed, but its warnings may still be under way.
+			const old = this.snaps.shift();
+			if (!old.applied) {
+				this.fxTm = old.tm;
+				for (const ev of old.fx) if (Array.isArray(ev)) this.telegraphEvent(ev);
+				this.fxTm = null;
+			}
+		}
 
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
@@ -388,12 +397,6 @@ export class Game {
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
-		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames. After a
-		// longer gap (a hidden tab) the warnings already on screen age by all of it before the ones that came meanwhile
-		// are added; those age by at most FX_STEP_MAX, so a windup still under way shows before its volley.
-		const gap = this.effectsNow === null ? dt : Math.max(0, now - this.effectsNow);
-		const wall = Math.min(FX_STEP_MAX, gap);
-		this.effectsNow = now;
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
 			this.hold -= dt;
@@ -402,7 +405,7 @@ export class Game {
 			this.dawnPending = null;
 		}
 		this.updateView(now);
-		if (gap > wall) this.ageTelegraphs(gap - wall);
+		this.teleTm = this.teleClock();
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
@@ -444,7 +447,7 @@ export class Game {
 			}
 		}
 
-		this.updateEffects(dt, wall);
+		this.updateEffects(dt);
 	}
 
 	updateView(now) {
@@ -458,7 +461,7 @@ export class Game {
 		const target = now - this.clockRef;
 		const dt = now - this.lastNow;
 		this.lastNow = now;
-		if (this.renderTm === null || dt < 0 || dt > FX_STEP_MAX || Math.abs(target - this.renderTm) > CLOCK_SNAP) {
+		if (this.renderTm === null || dt < 0 || dt > 0.25 || Math.abs(target - this.renderTm) > CLOCK_SNAP) {
 			this.renderTm = target;
 		} else {
 			const err = target - this.renderTm;
@@ -676,8 +679,43 @@ export class Game {
 			// Effects play when the render clock reaches their snapshot; never lag more than two snapshots.
 			if (s.applied || (s.tm > rt + 0.001 && i >= n - 2)) continue;
 			s.applied = true;
+			this.fxTm = s.tm;
 			for (const ev of s.fx) if (Array.isArray(ev)) this.effect(ev);
+			this.fxTm = null;
 		}
+	}
+
+	// Server time the telegraphs count in: the render clock, but never past the newest snapshot. A telegraph's age is
+	// this clock minus its snapshot's time, so it stands still while the server is paused (also when the pause starts
+	// and ends between two frames), keeps pace at any frame rate and is right on the first frame after frames stop.
+	teleClock() {
+		const last = this.latest();
+		return last && this.renderTm !== null ? Math.min(this.renderTm, last.tm) : null;
+	}
+
+	// Warnings of a snapshot are as old as its server time says; without one (no clock yet) they start fresh.
+	addTelegraph(list, item) {
+		if (this.fxTm !== null && this.teleTm !== null) {
+			item.born = this.fxTm;
+			if (this.teleTm < item.born) {
+				this.teleWait.push([list, item]);
+				return;
+			}
+			item.t = this.teleTm - item.born;
+			if (item.t >= item.life) return;
+		}
+		list.push(item);
+	}
+
+	telegraphEvent(ev) {
+		if (ev[0] === 'bline') this.addTelegraph(this.blines, { x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
+		else if (ev[0] === 'warn') this.addTelegraph(this.warns, { x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+	}
+
+	clearTelegraphs() {
+		this.warns.length = 0;
+		this.blines.length = 0;
+		this.teleWait.length = 0;
 	}
 
 	effect(ev) {
@@ -753,10 +791,8 @@ export class Game {
 				break;
 			}
 			case 'bline':
-				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
-				break;
 			case 'warn':
-				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+				this.telegraphEvent(ev);
 				break;
 			case 'frost': {
 				// v28: a wave at a point (Ледяные силки: ['frost', pid, r, x, y]) instead of around the hero.
@@ -982,14 +1018,7 @@ export class Game {
 		}
 	}
 
-	// Telegraphs count down the server's windups, and the server stands still while paused.
-	ageTelegraphs(t) {
-		const tdt = this.frozen ? 0 : t;
-		compact(this.warns, (w) => (w.t += tdt) < w.life);
-		compact(this.blines, (l) => (l.t += tdt) < l.life);
-	}
-
-	updateEffects(dt, wall = dt) {
+	updateEffects(dt) {
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
 		if (this.dawn) this.dawn.t += dt;
@@ -1008,7 +1037,13 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		this.ageTelegraphs(wall);
+		// Telegraphs count down the server's windups on the telegraph clock (teleClock); those added without it count
+		// frame time, and the server stands still while paused.
+		const tc = this.teleTm, tdt = this.frozen ? 0 : dt;
+		if (tc !== null) compact(this.teleWait, ([list, item]) => tc < item.born || void list.push(item));
+		const age = (w) => (w.born === undefined ? (w.t += tdt) : (w.t = tc === null ? w.t : Math.max(0, tc - w.born))) < w.life;
+		compact(this.warns, age);
+		compact(this.blines, age);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);

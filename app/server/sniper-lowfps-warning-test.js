@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { Room } from './game.js';
+import { Room, Hub } from './game.js';
 import { packFx } from './snapshot-codec.js';
-import { unpackFx } from '../public/js/snapshot-codec.js';
+import { PROTO, unpackFx } from '../public/js/snapshot-codec.js';
 import { ENEMIES, enemyHpScale, SNAPSHOT_HZ, TICK_HZ } from '../public/shared/content.js';
 
-// Issue #23, PR #33 review: a late Иней whose freeze outlasts the Трубач windup. The server lets the windup run out
-// with the lanes and aims anew after the thaw, so the client must drop the old lanes by then even when it renders
-// slowly (main.js caps a frame's dt at 50 ms). Real path: Room ticks → 10 Hz snapshots through the fx codec → the
-// client Game on its render clock at 15/30/60 FPS. One fan on screen at a time; every volley flies along the last one.
+// Issue #23, PR #33 reviews: one Трубач fan on screen at a time, and every volley along lanes shown before it, when
+// frames come slowly (main.js caps a frame's dt at 50 ms), stop for a while (a hidden tab) or stop over a pause that
+// starts and ends between two frames. Real path in wall time: Room ticks at 30 Hz → 10 Hz snapshots through the fx
+// codec, 60 ms late → the client Game on its own frames, with the pause messages of the server.
 let seed = 1;
 Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 let wall = 0;
@@ -17,8 +17,8 @@ const file = new URL('../public/js/game.js', import.meta.url);
 const source = fs.readFileSync(file, 'utf8').replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
-const S = ENEMIES.sniper, W = S.windup, FAN = S.fan, dt = 1 / TICK_HZ, EVERY = Math.round(TICK_HZ / SNAPSHOT_HZ);
-const LATENCY = 0.06, eps = 1e-6, idle = { vector: () => ({ x: 0, y: 0 }) };
+const S = ENEMIES.sniper, FAN = S.fan, dt = 1 / TICK_HZ, EVERY = Math.round(TICK_HZ / SNAPSHOT_HZ);
+const LATENCY = 0.06, T0 = 100, eps = 1e-6, idle = { vector: () => ({ x: 0, y: 0 }) };
 
 function arena(kind, mode) {
 	const r = new Room('LOWFPS', () => {}); r.setMode(mode); r.addPlayer(1, 'One', 'knight'); r.start();
@@ -41,122 +41,139 @@ function arena(kind, mode) {
 }
 
 const angle = (l) => Math.atan2(l.y2 - l.y1, l.x2 - l.x1);
-function run({ kind, mode, fps, phase, at, dur }) {
+const along = (a, fan) => fan.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.03);
+
+// One run in wall time from T0. The sniper aims `warm` s in (out of range before, so the client clock settles).
+// Times below are seconds after that aim: `freeze` {at, dur} with the hero moving away meanwhile, `hide` [from, to]
+// without frames, `pause` [from, to] on the server (the client gets it LATENCY later). `fps` of the frames.
+function run({ kind = 'ordinary', mode = 'lunch', fps = 60, warm = 2, freeze, hide, pause, until = 2.5, label }) {
+	seed = 1;
 	const { r, h, e } = arena(kind, mode);
-	const label = `${mode} ${kind} ${fps} FPS, snapshot phase ${phase}, Иней ${dur} s at ${at} s of the windup`;
-	wall = 100;
+	wall = T0;
 	const g = new Game({ send() {} }); g.me = 1;
 	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: h.x, y: h.y }] });
-	const seenOrb = new Set();
-	const inbox = [];
-	let fx = [], ticks = phase, lastFan = null, volleys = 0, fans = 0, firstVolleyFans = 0, freezeAt = null;
-	const t0 = r.time, end = t0 + at + dur + 2.5 * W;
-	let nextFrame = wall + LATENCY + 0.5 / fps;
-	while (r.time < end) {
-		r.time += dt; r.fx.length = 0;
-		if (freezeAt === null && e.windT > 0 && r.time - t0 >= at) { assert.ok(r.freeze(e, dur)); freezeAt = r.time; }
-		if (freezeAt !== null && r.time < freezeAt + dur) h.y += 220 * dt; // the hero moves away during the control
-		r.moveEnemies(dt, [h]);
-		fans += r.fx.filter(ev => ev[0] === 'bline').length / FAN;
-		if (r.fx.some(ev => ev[0] === 'eorb')) {
-			firstVolleyFans ||= fans;
-			r.hostile.length = 0; // the hero stays unhurt
+	const near = e.x - h.x; // the arena's distance, in range
+	e.x = h.x + 3000; e.shotT = 1e9;
+	const aim = T0 + warm, end = aim + until;
+	const at = (t) => aim + t; // wall time of a moment after the aim
+	const queue = []; // client-side arrivals {at, kind, msg | on}
+	let fx = [], ticks = 0, tickAt = T0, frameAt = T0 + LATENCY, freezeAt = null, lastFrame = null, gapEnd = T0;
+	let lastFan = null, fanSeenAt = -Infinity, volleys = 0, reaimed = 0, fans = 0, lanesAfterPause = null, lanesBeforeHide = 0;
+	const orbs = new Set();
+	const paused = (t) => pause && t >= at(pause[0]) && t < at(pause[1]);
+	if (pause) queue.push({ at: at(pause[0]) + LATENCY, kind: 'pause', on: true }, { at: at(pause[1]) + LATENCY, kind: 'pause', on: false });
+	while (Math.min(tickAt, frameAt) < end) {
+		if (tickAt <= frameAt) {
+			const now = tickAt;
+			tickAt += dt;
+			if (paused(now)) continue;
+			r.time += dt; r.fx.length = 0;
+			if (e.shotT > 1e8 && now >= aim - eps) { e.x = h.x + near; e.shotT = 0; }
+			if (freeze && freezeAt === null && e.windT > 0 && now >= at(freeze.at) - eps) { assert.ok(r.freeze(e, freeze.dur)); freezeAt = r.time; }
+			if (freezeAt !== null && r.time < freezeAt + freeze.dur) h.y += 220 * dt;
+			r.moveEnemies(dt, [h]);
+			if (r.fx.some(ev => ev[0] === 'bline') && fans++ && !volleys) reaimed++;
+			if (r.fx.some(ev => ev[0] === 'eorb')) { volleys++; r.hostile.length = 0; }
+			fx.push(...r.fx);
+			if (++ticks % EVERY) continue;
+			const tm = Math.round(r.time * 100) / 100, packed = packFx(fx, Math.round(tm * 1000));
+			queue.push({ at: now + LATENCY, kind: 'snap', msg: { t: 's', tm, fx: unpackFx(packed.f, packed.fv, packed.fn, Math.round(tm * 1000)) } });
+			fx = [];
+			continue;
 		}
-		fx.push(...r.fx);
-		if (++ticks % EVERY) continue;
-		const tm = Math.round(r.time * 100) / 100, packed = packFx(fx, Math.round(tm * 1000));
-		inbox.push({ arrive: 100 + (r.time - t0) + LATENCY, msg: { t: 's', tm, fx: unpackFx(packed.f, packed.fv, packed.fn, Math.round(tm * 1000)) } });
-		fx = [];
-		// Render every frame up to the newest server time, with the frame cap of main.js.
-		while (nextFrame <= 100 + (r.time - t0) + LATENCY) {
-			while (inbox.length && inbox[0].arrive <= nextFrame) g.onSnapshot(inbox.shift().msg);
-			const raw = nextFrame - wall;
-			wall = nextFrame;
-			g.update(Math.min(0.05, Math.max(0, raw)), idle);
-			const lanes = g.blines.length;
-			assert.ok(lanes === 0 || lanes === FAN, `${label}: one fan on screen, not ${lanes} lanes`);
-			const now = lanes ? g.blines.map(angle) : null;
-			for (const [id, o] of g.hostile) if (o.show && o.r && !seenOrb.has(id)) {
-				// An orb shows up on the client: it flies along the lanes still on screen, or the ones just gone.
-				seenOrb.add(id);
-				const shown = now ?? lastFan, a = Math.atan2(o.vy, o.vx);
-				assert.ok(shown, `${label}: a volley never comes without lanes`);
-				assert.ok(shown.some(b => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b))) < 0.03), `${label}: orb along the fan last shown`);
-				volleys += 1 / FAN;
-			}
-			if (now) lastFan = now;
-			nextFrame += 1 / fps;
+		const now = frameAt;
+		frameAt += 1 / fps;
+		queue.sort((a, b) => a.at - b.at);
+		while (queue.length && queue[0].at <= now) {
+			const m = queue.shift();
+			wall = m.at; // messages arrive between frames
+			if (m.kind === 'snap') g.onSnapshot(m.msg); else g.setPause(m.on, true);
 		}
+		if (hide && now > at(hide[0]) && now < at(hide[1])) continue;
+		if (lastFrame !== null && now - lastFrame > 1.5 / fps) gapEnd = now;
+		const raw = lastFrame === null ? 1 / fps : now - lastFrame;
+		wall = now; lastFrame = now;
+		g.update(Math.min(0.05, Math.max(0, raw)), idle);
+		const lanes = g.blines.length;
+		assert.ok(lanes === 0 || lanes === FAN, `${label}: one fan on screen, not ${lanes} lanes`);
+		if (pause && lanesAfterPause === null && now > at(pause[1]) + LATENCY) lanesAfterPause = lanes;
+		if (hide && now <= at(hide[0])) lanesBeforeHide = lanes;
+		const fan = lanes ? g.blines.map(angle) : null;
+		for (const [id, o] of g.hostile) if (o.show && o.r && !orbs.has(id)) {
+			orbs.add(id);
+			// With frames for a while before it, the volley shows along the fan on screen a moment ago.
+			if (now - gapEnd < 0.1) continue;
+			// (the lanes may end a tick and a frame early: a windup takes 0.9 s or one tick more on the server)
+			assert.ok(fan || now - fanSeenAt < 2 / fps + dt + eps, `${label}: a volley never comes without lanes`);
+			assert.ok(along(Math.atan2(o.vy, o.vx), fan ?? lastFan), `${label}: orb along the fan last shown`);
+		}
+		if (fan) { lastFan = fan; fanSeenAt = now; }
 	}
-	assert.ok(freezeAt !== null && volleys >= 1, `${label}: frozen, then fires`);
-	return { reaimed: firstVolleyFans > 1 }; // the windup ran out in the freeze, a new fan came after it
+	return { volleys, reaimed, orbs: orbs.size / FAN, lanesAfterPause, lanesBeforeHide };
 }
 
+// 1. A late Иней at 12/15/30/60 FPS: the windup runs out in the freeze, a new fan comes after it.
 let cases = 0, reaimed = 0;
-for (const mode of ['lunch', 'night']) for (const kind of ['guard', 'ordinary']) for (const fps of [15, 30, 60])
-	for (const phase of [0, 1, 2]) for (const at of [0.5, 0.7, 0.85]) for (const dur of [0.25, 0.45, 0.65]) {
-		reaimed += run({ kind, mode, fps, phase, at, dur }).reaimed;
+for (const mode of ['lunch', 'night']) for (const kind of ['guard', 'ordinary']) for (const fps of [12, 15, 30, 60])
+	for (const warm of [2, 2 + 1 / 30, 2 + 2 / 30]) for (const at of [0.5, 0.7, 0.85]) for (const dur of [0.25, 0.45, 0.65]) {
+		const label = `${mode} ${kind} ${fps} FPS, Иней ${dur} s at ${at} s of the windup (phase ${Math.round((warm - 2) * 30)})`;
+		const res = run({ kind, mode, fps, warm, freeze: { at, dur }, until: 3, label });
+		assert.ok(res.volleys >= 1 && res.orbs >= 1, `${label}: the sniper fires`);
+		reaimed += res.reaimed > 0;
 		cases++;
 	}
 assert.ok(reaimed >= cases / 3, `the windup ran out in the freeze in ${reaimed}/${cases} cases`);
-console.log(`late Иней at 15/30/60 FPS, ${cases} cases (${reaimed} aimed anew after the thaw): never more than one fan on screen, every volley along it: OK`);
+console.log(`late Иней at 12/15/30/60 FPS, ${cases} cases (${reaimed} aimed anew after the thaw): one fan on screen, volleys along it: OK`);
 
-// A hidden tab renders no frames while snapshots keep coming. On return the lanes of a windup still under way show
-// before its volley, and lanes shown before the tab was hidden do not linger beside the next fan.
-const WARM = 12; // s of frames before the sniper aims, longer than any hide below
-function hidden({ hide, back }) {
-	seed = 1;
-	const { r, h, e } = arena('ordinary', 'lunch');
-	wall = 100;
-	const g = new Game({ send() {} }); g.me = 1;
-	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: h.x, y: h.y }] });
-	const inbox = [], t0 = r.time, aimAt = t0 + WARM + dt;
-	const shownAt = 100 + WARM + dt + LATENCY + back, hideFrom = shownAt - hide; // wall clock of the tab's return
-	let fx = [], ticks = 0, lanes = false, orbAt = null, maxLanes = 0, nextFrame = wall + LATENCY;
-	e.x = h.x + 3000; e.shotT = 1e9; // out of range while the client clock settles
-	while (r.time < aimAt + back + 2 * W) {
-		r.time += dt; r.fx.length = 0;
-		if (e.shotT > 1e8 && r.time >= aimAt - eps) { e.x = h.x + 500; e.shotT = 0; }
-		r.moveEnemies(dt, [h]);
-		if (r.fx.some(ev => ev[0] === 'eorb')) r.hostile.length = 0;
-		fx.push(...r.fx);
-		if (++ticks % EVERY) continue;
-		const tm = Math.round(r.time * 100) / 100, packed = packFx(fx, Math.round(tm * 1000));
-		inbox.push({ arrive: 100 + (r.time - t0) + LATENCY, msg: { t: 's', tm, fx: unpackFx(packed.f, packed.fv, packed.fn, Math.round(tm * 1000)) } });
-		fx = [];
-		while (nextFrame <= 100 + (r.time - t0) + LATENCY) {
-			while (inbox.length && inbox[0].arrive <= nextFrame) {
-				const m = inbox.shift(), frame = wall;
-				wall = m.arrive; g.onSnapshot(m.msg); wall = frame; // snapshots arrive between frames
-			}
-			if (nextFrame > hideFrom && nextFrame < shownAt) { nextFrame += 1 / 60; continue; }
-			const raw = nextFrame - wall;
-			wall = nextFrame;
-			g.update(Math.min(0.05, Math.max(0, raw)), idle);
-			if (wall >= shownAt) {
-				maxLanes = Math.max(maxLanes, g.blines.length);
-				if (g.blines.length && orbAt === null) lanes = true;
-			}
-			for (const o of g.hostile.values()) if (o.show && o.r && orbAt === null && wall >= shownAt) orbAt = wall;
-			nextFrame += 1 / 60;
-		}
+// 2. A hidden tab (no frames, snapshots keep coming) around a late Иней, back at any moment: the warnings that came
+// meanwhile are as old as their server time, so the old fan is gone before the new one and a windup under way shows.
+cases = 0;
+for (const kind of ['guard', 'ordinary']) for (const at of [0.5, 0.7, 0.85]) for (const dur of [0.25, 0.45, 0.65])
+	for (const from of [-1.5, -0.2, 0.3]) for (const back of [0.55, 0.85, 1.0, 1.15, 1.3, 1.6, 2.0]) {
+		const label = `${kind} tab hidden ${from}…${back} s around a windup, Иней ${dur} s at ${at} s`;
+		run({ kind, warm: 2, freeze: { at, dur }, hide: [from, back], until: 3.5, label });
+		cases++;
 	}
-	return { lanes, orbAt, maxLanes };
+// Hidden long, back during a later windup.
+for (const hide of [3.6, 3.8, 4.0, 4.2, 10]) {
+	run({ warm: 12, hide: [0.3, 0.3 + hide], until: hide + 2, label: `hidden ${hide} s from 0.3 s into a windup` });
+	cases++;
 }
-let hiddenCases = 0;
-// Back mid-windup: hidden before it started.
-for (const hide of [0.3, 2, 10]) for (const back of [0.25, 0.45, 0.6, 0.75]) {
-	const { lanes, orbAt, maxLanes } = hidden({ hide, back });
-	const label = `hidden ${hide} s, back ${back} s into the windup`;
-	assert.ok(orbAt !== null, `${label}: the volley comes after the return`);
-	assert.ok(lanes, `${label}: its lanes show before the volley`);
-	assert.ok(maxLanes <= FAN, `${label}: one fan on screen, not ${maxLanes} lanes`);
-	hiddenCases++;
+console.log(`hidden tab around late Иней and windups, ${cases} cases: one fan on screen, volleys along the lanes shown: OK`);
+
+// 3. A pause that starts and ends between two frames keeps the lanes: the server stood still meanwhile.
+cases = 0;
+for (const kind of ['guard', 'ordinary']) for (const fps of [15, 60]) for (const from of [0.35, 0.5, 0.7]) for (const len of [0.3, 1.5, 4]) {
+	const label = `${kind} ${fps} FPS, pause ${len} s at ${from} s of the windup between two frames`;
+	const res = run({ kind, fps, warm: 2, pause: [from, from + len], hide: [from - 0.05, from + len + 0.2], until: len + 2.5, label });
+	assert.equal(res.lanesBeforeHide, FAN, `${label}: the lanes were on screen before the frames stopped`);
+	assert.equal(res.lanesAfterPause, FAN, `${label}: the lanes are on screen after the pause`);
+	assert.ok(res.orbs >= 1, `${label}: the volley comes`);
+	cases++;
 }
-// Hidden 0.3 s into a windup, back during the next one (shotCd later): the old lanes are gone by then.
-for (const hide of [3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2]) {
-	const { maxLanes } = hidden({ hide, back: 0.3 + hide });
-	assert.ok(maxLanes <= FAN, `hidden ${hide} s from 0.3 s into a windup: one fan on screen after the return, not ${maxLanes} lanes`);
-	hiddenCases++;
+console.log(`pause between frames, ${cases} cases: lanes kept over it, the volley along them: OK`);
+
+// 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
+{
+	assert.equal(PROTO, 25);
+	const netFile = new URL('../public/js/net.js', import.meta.url);
+	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
+	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
+	const oldSource = 'const PROTO = 24;\n' + netSource.replace('import { PROTO, SnapshotDecoder }', 'import { SnapshotDecoder }');
+	const { Net: OldNet } = await import('data:text/javascript;base64,' + Buffer.from(oldSource).toString('base64'));
+	const { Net } = await import('data:text/javascript;base64,' + Buffer.from(netSource).toString('base64'));
+	let welcome;
+	const hub = new Hub((pid, msg) => { if (msg.t === 'welcome') welcome = msg; });
+	hub.addPlayer(1, 'One'); hub.welcome(1);
+	const storage = new Map();
+	let reloads = 0, emitted = 0;
+	Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } });
+	Object.defineProperty(globalThis, 'location', { configurable: true, value: { reload() { reloads++; } } });
+	const old = Object.create(OldNet.prototype); old.emit = () => emitted++; old.dispatch(welcome);
+	assert.equal(reloads, 1, 'a PROTO 24 page reloads to the client that ages lanes on server time');
+	assert.equal(emitted, 0, 'the old page does not go on with this welcome');
+	const current = Object.create(Net.prototype); current.emit = () => emitted++; current.dispatch(welcome);
+	assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
+	delete globalThis.sessionStorage; delete globalThis.location;
+	console.log('PROTO 25: a page opened before the fix reloads on the welcome, the current one goes on: OK');
 }
-console.log(`tab hidden 0.3–10 s around Трубач windups, ${hiddenCases} cases: lanes show before the volley, one fan at a time: OK`);
