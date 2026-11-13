@@ -24,6 +24,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { movingCircleImpact } from '../public/shared/combat-geometry.js';
 import { newSupport, supportStats, healSupport, controlTick } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 import { requestDash, stepMobility, mobilitySnapshot } from './mobility.js';
@@ -2259,23 +2260,22 @@ export class Room {
 	updateHostile(dt) {
 		let j = 0;
 		for (const s of this.hostile) {
-			s.life -= dt;
-			s.x += s.vx * dt;
-			s.y += s.vy * dt;
-			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
-			if (!done) {
-				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				for (const h of this.heroes.values()) {
-					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
-					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
-					done = true;
-					break;
-				}
+			const ox=s.x, oy=s.y, step=Math.min(dt,Math.max(0,s.life));
+			s.life -= dt; s.x += s.vx * step; s.y += s.vy * step;
+			let target=null, impact=Infinity;
+			for (const h of this.heroes.values()) {
+				if(h.st !== 0) continue;
+				const prev=h.dashPath ?? h.hostilePos ?? h;
+				const t=movingCircleImpact(ox,oy,s.x,s.y,prev.x,prev.y,h.x,h.y,(s.r ?? HOSTILE_R)+PLAYER_RADIUS);
+				if(t !== null && t < impact){impact=t;target=h;}
 			}
-			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
-			else this.hostile[j++] = s;
+			if(target && target.iframes <= 0) this.hurtPlayer(target,s.dmg,s.from);
+			const done=target || s.life<=0 || (s.outpost && dist2(s.x,s.y,s.outpost.x,s.outpost.y)>OUTPOST.shotRange**2);
+			if(done) this.fx.push(['epend',s.id,round3(this.time-dt+(target?impact*step:step))]);
+			else this.hostile[j++]=s;
 		}
-		this.hostile.length = j;
+		this.hostile.length=j;
+		for(const h of this.heroes.values()) h.hostilePos={x:h.x,y:h.y};
 	}
 
 	eliteTick(e, target, dt) {
@@ -4190,7 +4190,7 @@ export class Room {
 		const dir = target.x >= h.x ? 1 : -1;
 		const hit = [];
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			this.slashHits(h, d, range, width, L.dmg * h.mods.dmgMul, SRC.riposte, hit);
 			this.breakAround(h.x + (d * range) / 2, h.y, range / 2, h);
 		}
@@ -4236,8 +4236,8 @@ export class Room {
 			if (e.dead || dist2(e.x, e.y, t.x, t.y) >= rr * rr) continue;
 			this.hurtEnemy(e, f.dmg, t.owner, src);
 			if (e.dead) continue;
-			this.slowEnemy(e, f.slow, f.dur, h);
-			if (!e.boss) this.freeze(e, f.freeze, h);
+			this.slowEnemy(e, f.slow, f.dur, t.owner);
+			if (!e.boss) this.freeze(e, f.freeze, t.owner);
 		}
 	}
 
@@ -4248,7 +4248,7 @@ export class Room {
 		if (!target) return false;
 		const dir = target.x >= h.x ? 1 : -1, now = this.time;
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			const cx = h.x + (d * range) / 2;
 			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
 			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
@@ -4737,7 +4737,7 @@ export class Room {
 	}
 
 	slash(h, dir, range, width, dmg) {
-		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width)]);
+		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 		const cx = h.x + dir * range / 2;
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
