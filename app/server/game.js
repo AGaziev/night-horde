@@ -16,7 +16,7 @@ import {
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, attackLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
-	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
+	DUO_SIGNATURE_POWER, duoPartLevel, duoLineagePower,
 } from '../public/shared/content.js';
 import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
@@ -1161,7 +1161,12 @@ export class Room {
 		h.weapons = next;
 		h.fused.add(a);
 		h.fused.add(b);
-		this.traps = this.traps.filter((t) => t.owner !== h); // trap-based parts start a fresh field
+		// Consumed attacks end at fusion; unrelated weapons keep their own fields and missiles.
+		const consumed = (effect) => effect.owner === h && card.parts.includes(effect.src?.weapon);
+		for (const [key, kind] of [['projectiles', 0], ['blasts', 1], ['coldWaves', 2], ['orbs', 3]]) {
+			for (const effect of this[key]) if (consumed(effect) && effect.id !== undefined) this.fx.push(['cancel', kind, effect.id]);
+		}
+		for (const key of ['projectiles', 'coldWaves', 'puddles', 'traps', 'blasts', 'orbs']) this[key] = this[key].filter(effect => !consumed(effect));
 		this.fx.push(['duo', h.pid, card.id]);
 		this.runLog?.fused(this, h, 'duo', card.id);
 		this.updateSynergy();
@@ -3047,15 +3052,11 @@ export class Room {
 			w.parts ??= DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl), t: 0.2 }));
 			const previous = this.weaponContext;
 			try {
-				for (const part of w.parts) {
-					part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
-					this.weaponContext = { h, weapon: id, part: part.id, scale: DUOS[id].inheritPower ?? DUO_INHERIT_POWER };
-					if (part.id === 'ward') this.wardBash(h, part, attackLevel('ward', part.lvl, 0, h.mods), dt);
-					else if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && part.t <= dt && canRepeatCast(part.id)) repeatCast(this, h, part.id, part, dt);
-					else this.castWeapon(h, part.id, part, dt);
-				}
-				this.weaponContext = { h, weapon: id, part: id, scale: DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER };
-				this.castWeapon(h, id, w, dt);
+				for (const part of w.parts) part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
+				this.weaponContext = { h, weapon: id, part: id,
+					scale: (DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER) * duoLineagePower(w.lvl, w.parts) };
+				if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && w.t <= dt && canRepeatCast(id)) repeatCast(this, h, id, w, dt);
+				else this.castWeapon(h, id, w, dt);
 			} finally { this.weaponContext = previous; }
 			return;
 		}
@@ -3152,7 +3153,7 @@ export class Room {
 				w.p = (w.p ?? L.pulse) - dt;
 				if (w.p <= 0) {
 					w.p = L.pulse * cdMul;
-					this.auroraPulse(h, id === 'aurora' ? { ...L, radius: WEAPONS.aura.levels[duoPartLevel(w.lvl) - 1].radius } : L, 1);
+					this.auroraPulse(h, L, 1);
 				}
 				break;
 			case 'tocsin':
@@ -3293,11 +3294,11 @@ export class Room {
 				const target = this.densestPoints(h, 1, L.radius * areaMul)[0];
 				if (!target) { w.t = 0.2; return; }
 				const a = Math.atan2(target.y - h.y, target.x - h.x);
-				const wave = { owner: h, x: h.x, y: h.y, dx: Math.cos(a), dy: Math.sin(a), distance: 0,
+				const wave = { id: this.nextId++, owner: h, x: h.x, y: h.y, dx: Math.cos(a), dy: Math.sin(a), distance: 0,
 					range: L.radius * areaMul, width: L.width * areaMul, speed: 420, dmg, src, hit: new Set(),
 					slow: L.slow, dur: L.dur * durMul, freeze: L.freeze * h.mods.ctrlMul * durMul };
 				this.coldWaves.push(wave);
-				this.fx.push(['coldwave', Math.round(h.x), Math.round(h.y), round3(a), Math.round(wave.range), Math.round(wave.width), wave.speed]);
+				this.fx.push(['coldwave', Math.round(h.x), Math.round(h.y), round3(a), Math.round(wave.range), Math.round(wave.width), wave.speed, wave.id]);
 				if (w.imprint === 'sickle') for (const off of [-0.55, 0, 0.55])
 					this.addProjectile(h, 'sickle', a + off, 320, dmg * 0.55, Infinity, 1.7, null, 0.46, { src });
 				w.t = L.cd * cdMul;
@@ -3844,19 +3845,17 @@ export class Room {
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
-		const w = h.weapons.get(id);
+		const w = h.weapons.get(id), previous = this.weaponContext;
+		if(DUOS[id]) this.weaponContext={h,weapon:id,part:id,scale:(DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER)*duoLineagePower(w.lvl,w.parts)};
+		try { this.wardAnswer(h,id,w); } finally { this.weaponContext=previous; }
+	}
+
+	wardAnswer(h, id, w) {
 		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
-		if (DUOS[id]?.parts.includes('ward')) {
-			const inherited = w.parts?.find((part) => part.id === 'ward');
-			const base = attackLevel('ward', inherited?.lvl ?? duoPartLevel(w.lvl), 0, h.mods);
-			this.explode({ x: h.x, y: h.y, r: base.burstR * h.mods.areaMul, pdmg: 0,
-				edmg: base.burstDmg * h.mods.dmgMul, owner: h, kind: 7,
-				src: { weapon: id, component: 'ward', tags: ['aoe'], scale: DUO_INHERIT_POWER, lineage: true }, kb: base.kb });
-		}
 		if (DUOS[id]?.effect === 'sonicShield') {
 			this.tuningWave(h, L, L.dmg * 1.8 * h.mods.dmgMul, SRC[id]);
 			return;
@@ -4450,8 +4449,9 @@ export class Room {
 			pts.push({ x: pts[0].x + Math.cos(a) * step, y: pts[0].y + Math.sin(a) * step });
 		}
 		for (const p of pts) {
-			this.fx.push(['lob', this.nextId++, Math.round(h.x), Math.round(h.y), Math.round(p.x), Math.round(p.y), round3(fuse), round3(this.time), lobKind]);
-			this.blasts.push({ ...blast(p.x, p.y), t: this.time + fuse });
+			const id = this.nextId++;
+			this.fx.push(['lob', id, Math.round(h.x), Math.round(h.y), Math.round(p.x), Math.round(p.y), round3(fuse), round3(this.time), lobKind]);
+			this.blasts.push({ ...blast(p.x, p.y), id, t: this.time + fuse });
 		}
 		return true;
 	}

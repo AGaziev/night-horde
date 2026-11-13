@@ -7,6 +7,8 @@ export function castConfluence(room, h, L, src, effect) {
   if (!center) return false;
   if (effect.endsWith('Beam')) {
     const angle = Math.atan2(center.y-h.y,center.x-h.x), seen = new Set();
+    // Spend the focused damage once, leaving side beams and every chain at their own budget.
+    const focus=L.focusMul ? room.nearestEnemies(center.x,center.y,1,range)[0] : null;
     const nearby = room.grid.query(h.x,h.y,range+80,[]);
     const spread = [-0.34,0,0.34];
     for (let i=0;i<Math.min(2,h.mods.amount);i++) spread.push(i ? 0.6 : -0.6);
@@ -17,7 +19,7 @@ export function castConfluence(room, h, L, src, effect) {
         if(e.dead||seen.has(e))continue;
         const x=e.x-h.x,y=e.y-h.y,along=x*dx+y*dy;
         if(along<0||along>range||Math.abs(x*dy-y*dx)>L.width*h.mods.areaMul+e.r)continue;
-        seen.add(e);room.hurtEnemy(e,damage,h,src);
+        seen.add(e);room.hurtEnemy(e,damage*(e===focus ? L.focusMul : 1),h,src);
         if(e.dead)continue;
         if(effect==='resonanceBeam'){e.resonanceT=room.time+L.dur*h.mods.durMul;e.resonancePower=1.3;}
         if(effect==='markBeam' && (!(e.markT>room.time)||e.markMul<=L.mark)){
