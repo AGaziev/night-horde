@@ -24,7 +24,7 @@ import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
-import { requestDash, stepMobility, mobilitySnapshot } from './mobility.js';
+import { requestDash, stepMobility, mobilitySnapshot, dashShotDistance2 } from './mobility.js';
 import { segmentDistance2 } from '../public/shared/mobility.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -2250,6 +2250,7 @@ export class Room {
 	updateHostile(dt) {
 		let j = 0;
 		for (const s of this.hostile) {
+			const sx = s.x, sy = s.y;
 			s.life -= dt;
 			s.x += s.vx * dt;
 			s.y += s.vy * dt;
@@ -2257,8 +2258,8 @@ export class Room {
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
-					const from = h.dashPath ?? h;
-					if (h.st !== 0 || segmentDistance2(s.x, s.y, from.x, from.y, h.x, h.y) >= min * min) continue;
+					const distance = h.dashPath ? dashShotDistance2(h, sx, sy, s.x, s.y, dt) : dist2(s.x, s.y, h.x, h.y);
+					if (h.st !== 0 || distance >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;

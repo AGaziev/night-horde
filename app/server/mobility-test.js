@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { Room } from './game.js';
-import { requestDash, stepMobility } from './mobility.js';
+import { requestDash, stepMobility, dashShotDistance2 } from './mobility.js';
 import { DASH } from '../public/shared/mobility.js';
-import { PLAYER_RADIUS } from '../public/shared/content.js';
+import { PLAYER_RADIUS, HOSTILE_R, ENEMIES } from '../public/shared/content.js';
 
 function setup(n = 1, mode = 'night') {
 	const sent = [], r = new Room('DASH', (pid, m) => sent.push({ pid, m }));
@@ -56,6 +56,23 @@ for (const mode of ['night', 'lunch']) for (const n of [1, 2, 4, 8]) {
 	requestDash(r, 1, { x: 1, y: 0 }); stepMobility(r, 1);
 	r.rebuildGrid(); r.updatePlayers(1 / 30, [h]);
 	assert.ok(h.hp < hp, 'crossing an enemy takes contact damage even when endpoint is clear');
+}
+
+for (const endY of [22, 30]) {
+	const { r, h } = setup();
+	const dt = 1 / 30, hp = h.hp, speed = ENEMIES.spitter.shotSpeed;
+	h.perk.readyAt = Infinity;
+	r.hostile.push({ id: 9002, x: 30, y: endY - speed * dt, vx: 0, vy: speed, life: 5, dmg: 9, from: 'spitter:shot' });
+	requestDash(r, 1, { x: 1, y: 0 }); stepMobility(r, dt);
+	r.updateHostile(dt);
+	assert.equal(h.hp, hp - (endY === 22 ? 9 : 0), 'moving shot crossing is hit; a nearby separated path stays clear');
+	assert.equal(r.hostile.length, endY === 22 ? 0 : 1);
+}
+{
+	// Travel ends halfway through the tick; the rest is a stationary hero.
+	const h = { x: 20, y: 0, dashPath: { x: 0, y: 0, duration: 0.5 } };
+	assert.equal(dashShotDistance2(h, 20, 30, 20, -10, 1), 0);
+	assert.ok(dashShotDistance2(h, 60, 0, 45, 0, 1) > (PLAYER_RADIUS + HOSTILE_R) ** 2);
 }
 console.log('Mobility: bounded travel, authority, cooldown, pause, packet epochs and swept contact OK');
 
