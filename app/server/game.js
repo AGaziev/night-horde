@@ -25,7 +25,7 @@ import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, 
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec.js';
 import { HordeMode } from './horde-mode.js';
-import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, clampHordePosition } from '../public/shared/horde-content.js';
+import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_COMBAT, clampHordePosition } from '../public/shared/horde-content.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -2804,7 +2804,9 @@ export class Room {
 			e.exploded = true;
 			const E = e.def;
 			// Killed by a player: short fuse at the spot; fuse burnt out: blows up right away.
-			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, E.blastEnemyDmg, h, 1, e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
+			// In PvP every actual zone warns independently; friendly splash cannot start an unannounced recursive chain.
+			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, this.isHorde ? 0 : E.blastEnemyDmg, h, 1,
+				this.isHorde ? Math.max(HORDE_COMBAT.warning, E.fuse) : e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
 		}
 		if (e.elite && !e.outpost) {
 			if (e.elite === 'volatile') this.addBlast(e.x, e.y, VOLATILE_R, ENEMIES.bloater.blastDmg, ENEMIES.bloater.blastEnemyDmg, h, 2, ENEMIES.bloater.fuse);
