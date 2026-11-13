@@ -191,3 +191,27 @@ test('real onPick/fuseDuo events in PvP do not grow the fresh PvE book; PvE disc
 	}
 	assert.equal(banners.length, 2, 'both modes retain gameplay announcements');
 });
+
+test('both lobby roles learn the scheduled boss before start, and the HUD retains the server schedule on late resync', (t) => {
+	const nodes = new Map();
+	const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: (id) => {
+		if (!nodes.has(id)) nodes.set(id, { childElementCount: 1, children: [], style: {} });
+		return nodes.get(id);
+	} } });
+	t.after(() => { if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document; });
+	for (const isHost of [true, false]) {
+		const ui = Object.assign(Object.create(UI.prototype), { cache: {} });
+		ui.renderRuleset(true, isHost, { type: 'boss', at: 720 });
+		assert.match(nodes.get('lobby-ruleset-hint').textContent, /Владыка ночи.*12:00/);
+		const game = new Game({ send() {} }); game.me = isHost ? 2 : 1;
+		game.begin({ ruleset: 'horde', roundId: 'boss-round', directorPid: 2, bossSchedule: { type: 'boss', at: 720 }, players: [] });
+		ui.updateHud(game);
+		assert.equal(nodes.get('hud-horde-boss').hidden, false);
+		assert.match(nodes.get('hud-horde-boss').textContent, /Владыка ночи.*12:00/);
+		game.begin({ ruleset: 'horde', roundId: 'boss-round', directorPid: 2, bossSchedule: { type: 'boss', at: 720 }, players: [] });
+		game.onHordeResync({ roundId: 'boss-round', time: 600, warnings: [], shots: [], lanes: [] });
+		ui.updateHud(game);
+		assert.match(nodes.get('hud-horde-boss').textContent, /Владыка ночи.*12:00/);
+	}
+});

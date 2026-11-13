@@ -1,6 +1,6 @@
 // DOM screens, HUD, level-up panel, toasts.
 import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
-import { HORDE_RULESET, HORDE_MAX_HEROES } from '/shared/horde-content.js';
+import { HORDE_RULESET, HORDE_MAX_HEROES, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from '/shared/horde-content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -40,6 +40,12 @@ function el(tag, cls, text) {
 export function fmtTime(sec) {
 	const s = Math.max(0, Math.floor(sec));
 	return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function scheduledBoss(schedule) {
+	const type = schedule?.type || HORDE_BOSS_TYPE;
+	const at = Number.isFinite(schedule?.at) ? schedule.at : HORDE_BOSS_AT;
+	return `Босс: ${ENEMIES[type]?.name || ENEMIES[HORDE_BOSS_TYPE].name} · ${fmtTime(at)}`;
 }
 
 // HUD pill of the active Wave 4 event; the phase changes what the group should do now.
@@ -344,7 +350,7 @@ export class UI {
 			}
 		}
 		const isHost = lobby.host === me;
-		this.renderRuleset(horde, isHost);
+		this.renderRuleset(horde, isHost, lobby.bossSchedule);
 		$('lobby-pve-mode').hidden = horde;
 		$('lobby-role-box').hidden = !horde;
 		$('lobby-hero-box').hidden = horde && mine?.role === 'director';
@@ -365,7 +371,7 @@ export class UI {
 		return myReady;
 	}
 
-	renderRuleset(horde, isHost) {
+	renderRuleset(horde, isHost, bossSchedule) {
 		const box = $('lobby-ruleset');
 		if (!box.childElementCount) {
 			for (const [id, name, desc] of [['pve', 'Вместе против ночи', 'Обычный забег против компьютерной орды'], [HORDE_RULESET, 'Орда против героев', 'Один игрок за орду против 1–4 героев · 15 минут']]) {
@@ -380,7 +386,7 @@ export class UI {
 			const on = (b.dataset.ruleset === HORDE_RULESET) === horde;
 			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.disabled = !isHost;
 		}
-		$('lobby-ruleset-hint').textContent = horde ? 'Герои побеждают, убив босса или продержавшись 15 минут. Орда побеждает, если все герои падут.' : (isHost ? 'Правила выбирает хост комнаты.' : 'Правила игры выбирает хост.');
+		$('lobby-ruleset-hint').textContent = horde ? `${scheduledBoss(bossSchedule)}. Герои побеждают, убив босса или продержавшись 15 минут. Орда побеждает, если все герои падут.` : (isHost ? 'Правила выбирает хост комнаты.' : 'Правила игры выбирает хост.');
 	}
 
 	renderRole(role, director, heroCount, me) {
@@ -797,6 +803,8 @@ export class UI {
 		const snap = game.latest();
 		this.set('hud-time', 'text', fmtTime(game.view.tm));
 		this.set('hud-mode', 'text', this.modeText || '');
+		this.set('hud-horde-boss', 'hidden', !game.bossSchedule);
+		this.set('hud-horde-boss', 'text', game.bossSchedule ? scheduledBoss(game.bossSchedule) : '');
 		this.set('hud-pause', 'hidden', !game.solo());
 		const status = game.hordeStatus(game.me), statusParts = [];
 		if (status?.poisonLeft > 0) statusParts.push(`☣ Яд · ${Math.ceil(status.poisonLeft)} с`);
@@ -935,6 +943,7 @@ export class UI {
 		$('hud-outposts').hidden = true;
 		$('hud-trophy').hidden = true;
 		$('hud-horde-status').hidden = true;
+		$('hud-horde-boss').hidden = true;
 		$('banner').hidden = true;
 	}
 

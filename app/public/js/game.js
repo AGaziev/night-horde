@@ -1,6 +1,6 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
 import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
-import { HORDE_RULESET, HORDE_ARENA, HORDE_COMBAT } from '/shared/horde-content.js';
+import { HORDE_RULESET, HORDE_ARENA, HORDE_COMBAT, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from '/shared/horde-content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -58,6 +58,7 @@ export class Game {
 		this.running = false;
 		this.ruleset = 'pve';
 		this.roundId = null;
+		this.bossSchedule = null;
 		this.directorPid = null;
 		this.arena = null;
 		this.directorCamera = { x: 0, y: 0, zoom: 0.65 };
@@ -172,6 +173,10 @@ export class Game {
 		this.players.clear();
 		this.ruleset = msg.ruleset === HORDE_RULESET ? HORDE_RULESET : 'pve';
 		this.roundId = this.ruleset === HORDE_RULESET && typeof msg.roundId === 'string' ? msg.roundId : null;
+		this.bossSchedule = this.ruleset === HORDE_RULESET ? {
+			type: msg.bossSchedule?.type || HORDE_BOSS_TYPE,
+			at: Number.isFinite(msg.bossSchedule?.at) ? msg.bossSchedule.at : HORDE_BOSS_AT,
+		} : null;
 		this.directorPid = this.ruleset === HORDE_RULESET ? msg.directorPid : null;
 		this.arena = this.ruleset === HORDE_RULESET ? (msg.arena || HORDE_ARENA) : null;
 		this.running = true;
