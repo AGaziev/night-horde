@@ -388,9 +388,11 @@ export class Game {
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
-		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames. A longer
-		// gap (a hidden tab) is cut as the render clock's jump is, so warnings that arrived meanwhile still show.
-		const wall = this.effectsNow === null ? dt : Math.min(FX_STEP_MAX, Math.max(0, now - this.effectsNow));
+		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames. After a
+		// longer gap (a hidden tab) the warnings already on screen age by all of it before the ones that came meanwhile
+		// are added; those age by at most FX_STEP_MAX, so a windup still under way shows before its volley.
+		const gap = this.effectsNow === null ? dt : Math.max(0, now - this.effectsNow);
+		const wall = Math.min(FX_STEP_MAX, gap);
 		this.effectsNow = now;
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
@@ -400,6 +402,7 @@ export class Game {
 			this.dawnPending = null;
 		}
 		this.updateView(now);
+		if (gap > wall) this.ageTelegraphs(gap - wall);
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
@@ -979,6 +982,13 @@ export class Game {
 		}
 	}
 
+	// Telegraphs count down the server's windups, and the server stands still while paused.
+	ageTelegraphs(t) {
+		const tdt = this.frozen ? 0 : t;
+		compact(this.warns, (w) => (w.t += tdt) < w.life);
+		compact(this.blines, (l) => (l.t += tdt) < l.life);
+	}
+
 	updateEffects(dt, wall = dt) {
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
@@ -998,10 +1008,7 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		// Telegraphs count down the server's windups, and the server stands still while paused.
-		const tdt = this.frozen ? 0 : wall;
-		compact(this.warns, (w) => (w.t += tdt) < w.life);
-		compact(this.blines, (l) => (l.t += tdt) < l.life);
+		this.ageTelegraphs(wall);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);

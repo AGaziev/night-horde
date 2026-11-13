@@ -102,18 +102,19 @@ assert.ok(reaimed >= cases / 3, `the windup ran out in the freeze in ${reaimed}/
 console.log(`late Иней at 15/30/60 FPS, ${cases} cases (${reaimed} aimed anew after the thaw): never more than one fan on screen, every volley along it: OK`);
 
 // A hidden tab renders no frames while snapshots keep coming. On return the lanes of a windup still under way show
-// before its volley: the long gap does not age them away in the first frame.
+// before its volley, and lanes shown before the tab was hidden do not linger beside the next fan.
+const WARM = 12; // s of frames before the sniper aims, longer than any hide below
 function hidden({ hide, back }) {
 	seed = 1;
 	const { r, h, e } = arena('ordinary', 'lunch');
 	wall = 100;
 	const g = new Game({ send() {} }); g.me = 1;
 	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: h.x, y: h.y }] });
-	const inbox = [], t0 = r.time, aimAt = t0 + 3 + dt;
-	const shownAt = 100 + 3 + dt + LATENCY + back, hideFrom = shownAt - hide; // wall clock of the tab's return
-	let fx = [], ticks = 0, lanes = false, orbAt = null, nextFrame = wall + LATENCY;
+	const inbox = [], t0 = r.time, aimAt = t0 + WARM + dt;
+	const shownAt = 100 + WARM + dt + LATENCY + back, hideFrom = shownAt - hide; // wall clock of the tab's return
+	let fx = [], ticks = 0, lanes = false, orbAt = null, maxLanes = 0, nextFrame = wall + LATENCY;
 	e.x = h.x + 3000; e.shotT = 1e9; // out of range while the client clock settles
-	while (r.time < t0 + 3 + back + 2 * W) {
+	while (r.time < aimAt + back + 2 * W) {
 		r.time += dt; r.fx.length = 0;
 		if (e.shotT > 1e8 && r.time >= aimAt - eps) { e.x = h.x + 500; e.shotT = 0; }
 		r.moveEnemies(dt, [h]);
@@ -132,18 +133,30 @@ function hidden({ hide, back }) {
 			const raw = nextFrame - wall;
 			wall = nextFrame;
 			g.update(Math.min(0.05, Math.max(0, raw)), idle);
-			if (wall >= shownAt && g.blines.length) lanes = true;
-			for (const o of g.hostile.values()) if (o.show && o.r && orbAt === null) orbAt = wall;
+			if (wall >= shownAt) {
+				maxLanes = Math.max(maxLanes, g.blines.length);
+				if (g.blines.length && orbAt === null) lanes = true;
+			}
+			for (const o of g.hostile.values()) if (o.show && o.r && orbAt === null && wall >= shownAt) orbAt = wall;
 			nextFrame += 1 / 60;
 		}
 	}
-	return { lanes, orbAt, shownAt };
+	return { lanes, orbAt, maxLanes };
 }
 let hiddenCases = 0;
+// Back mid-windup: hidden before it started.
 for (const hide of [0.3, 2, 10]) for (const back of [0.25, 0.45, 0.6, 0.75]) {
-	const { lanes, orbAt, shownAt } = hidden({ hide, back });
-	assert.ok(orbAt !== null && orbAt > shownAt, `hidden ${hide} s, back ${back} s into the windup: the volley comes after the return`);
-	assert.ok(lanes, `hidden ${hide} s, back ${back} s into the windup: its lanes show before the volley`);
+	const { lanes, orbAt, maxLanes } = hidden({ hide, back });
+	const label = `hidden ${hide} s, back ${back} s into the windup`;
+	assert.ok(orbAt !== null, `${label}: the volley comes after the return`);
+	assert.ok(lanes, `${label}: its lanes show before the volley`);
+	assert.ok(maxLanes <= FAN, `${label}: one fan on screen, not ${maxLanes} lanes`);
 	hiddenCases++;
 }
-console.log(`tab hidden 0.3/2/10 s and back mid-windup, ${hiddenCases} cases: the lanes show before the volley: OK`);
+// Hidden 0.3 s into a windup, back during the next one (shotCd later): the old lanes are gone by then.
+for (const hide of [3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2]) {
+	const { maxLanes } = hidden({ hide, back: 0.3 + hide });
+	assert.ok(maxLanes <= FAN, `hidden ${hide} s from 0.3 s into a windup: one fan on screen after the return, not ${maxLanes} lanes`);
+	hiddenCases++;
+}
+console.log(`tab hidden 0.3–10 s around Трубач windups, ${hiddenCases} cases: lanes show before the volley, one fan at a time: OK`);
