@@ -105,7 +105,7 @@ test('завершённый забег сохраняет участников 
 		assert.equal(rows.personal, true);
 		assert.deepEqual(rows.mine, rows.recent.slice(0, 1));
 		assert.deepEqual(rows.mine[0], {
-			id: log.id, at: log.at, v: log.v, mode: 'lunch', win: false, grade: 0, time: 91,
+			id: log.id, at: log.at, v: log.v, mode: 'lunch', ruleset: 'pve', win: false, grade: 0, time: 91,
 			players: [{ name: 'Аня', hero: 'witch', level: 1 }],
 		});
 	}

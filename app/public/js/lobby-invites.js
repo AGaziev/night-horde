@@ -16,7 +16,6 @@ export function setupLobbyInvites(net, toast) {
 	const countdown = $('lobby-countdown');
 	const timer = $('lobby-countdown-time');
 	const cancel = $('lobby-cancel-start');
-	const start = $('lobby-start');
 	let lobby, clock, load, sending = false, employees = [], slots = 0;
 	const selected = new Set();
 
@@ -124,7 +123,6 @@ export function setupLobbyInvites(net, toast) {
 			const isHost = !!next && next.host === me;
 			if (changedRoom || !isHost || active) dialog.close();
 			open.hidden = !net.invites || !isHost || active;
-			start.disabled = active;
 			countdown.hidden = !active;
 			cancel.hidden = !isHost;
 			clearInterval(clock);

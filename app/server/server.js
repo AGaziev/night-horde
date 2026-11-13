@@ -9,7 +9,7 @@ import { runStore, logText } from './runlog.js';
 import { readFeedback, saveFeedback } from './feedback.js';
 import { createLobbyInvites } from './lobby-invites.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
-import { TICK_HZ, GAME_VERSION, MAX_PLAYERS } from '../public/shared/content.js';
+import { TICK_HZ, GAME_VERSION } from '../public/shared/content.js';
 import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
 
 const PORT = Number(process.env.PORT) || 3000;
@@ -158,6 +158,14 @@ function protoOf(url) {
 }
 
 function attach(s, conn, proto) {
+	const p = hub.players.get(s.pid);
+	if (proto !== PROTO && p?.room?.isHorde) {
+		// An incompatible reconnect must not take over a compatible session or receive Horde state.
+		conn.send(JSON.stringify({ t: 'welcome', v: PROTO, pid: s.pid, name: p.name, room: p.room.code }), false);
+		conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
+		conn.close();
+		return;
+	}
 	const old = s.conn;
 	s.conn = conn;
 	clearTimeout(s.timer);
@@ -167,7 +175,7 @@ function attach(s, conn, proto) {
 	hub.setOffline(s.pid, false);
 	hub.welcome(s.pid);
 	conn.send(JSON.stringify(progressMsg(store, s.uid ? store.record(s.uid) : null)), false);
-	if (proto < PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
+	if (proto !== PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
 }
 
 function detach(s, conn) {
@@ -425,21 +433,22 @@ async function handleLobbyInvites(req, res, url) {
 			const employees = await lobbyInvites.list();
 			if (hub.hostLobby(session.pid, code) !== room) return reject(409, 'Комната изменилась. Откройте форму ещё раз.');
 			const members = new Set([...room.members.values()].map((member) => member.uid));
-			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: MAX_PLAYERS - room.size });
+			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: room.maxMembers - room.size });
 		}
 		const input = await readSmallJson(req, res);
 		if (res.writableEnded) return;
-		if (!START_DELAYS.has(input?.minutes) || !Array.isArray(input?.ids) || input.ids.length > MAX_PLAYERS - 1
+		if (!START_DELAYS.has(input?.minutes) || !Array.isArray(input?.ids) || input.ids.length > room.maxMembers - 1
 			|| input.ids.some((id) => !bitrixUid(id))) {
 			return reject(400, 'Проверьте время старта и список сотрудников.');
 		}
 		const ids = [...new Set(input.ids)];
 		if (room.startsAt !== null) return reject(409, 'Отсчёт уже идёт.');
 		const employees = await lobbyInvites.list(true);
+		if (hub.hostLobby(session.pid, code) !== room || room.startsAt !== null) return reject(409, 'Комната изменилась. Откройте форму ещё раз.');
 		const allowed = new Set(employees.map(({ id }) => id));
 		if (ids.some((id) => !allowed.has(id))) return reject(409, 'Список доступа изменился. Откройте форму ещё раз.');
 		const members = new Set([...room.members.values()].map((member) => member.uid));
-		if (ids.includes(uid) || ids.filter((id) => !members.has(id)).length > MAX_PLAYERS - room.size) {
+		if (ids.includes(uid) || ids.filter((id) => !members.has(id)).length > room.maxMembers - room.size) {
 			return reject(409, 'В комнате изменилось число свободных мест. Откройте форму ещё раз.');
 		}
 		const now = Date.now();
@@ -537,7 +546,7 @@ server.on('upgrade', (req, socket, head) => {
 			ws.ping();
 		}, WS_PING_MS);
 		ws.on('message', (data, isBinary) => {
-			if (isBinary) return;
+			if (isBinary || s.conn !== conn) return;
 			dispatch(s, parseJson(data.toString('utf8')));
 		});
 		ws.on('close', () => {

@@ -56,11 +56,23 @@
 					<button id="lobby-leave" class="btn btn-ghost btn-small">Выйти</button>
 				</div>
 			</div>
-			<h2>Режим</h2>
-			<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
-			<p id="lobby-mode-hint" class="muted small mode-hint"></p>
-			<h2>Выберите героя</h2>
-			<div id="lobby-heroes" class="hero-grid"></div>
+			<h2>Правила игры</h2>
+			<div id="lobby-ruleset" class="mode-pick" role="radiogroup" aria-label="Правила игры"></div>
+			<p id="lobby-ruleset-hint" class="muted small mode-hint"></p>
+			<div id="lobby-pve-mode">
+				<h2>Режим</h2>
+				<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
+				<p id="lobby-mode-hint" class="muted small mode-hint"></p>
+			</div>
+			<div id="lobby-role-box" hidden>
+				<h2>Ваша сторона</h2>
+				<div id="lobby-role" class="mode-pick" role="radiogroup" aria-label="Ваша сторона"></div>
+				<p id="lobby-role-hint" class="muted small mode-hint" role="status"></p>
+			</div>
+			<div id="lobby-hero-box">
+				<h2>Выберите героя</h2>
+				<div id="lobby-heroes" class="hero-grid"></div>
+			</div>
 			<h2>Игроки <span id="lobby-count" class="muted"></span></h2>
 			<ul id="lobby-players" class="player-list"></ul>
 			<div class="lobby-actions">
@@ -174,6 +186,7 @@
 		<div class="hud-top">
 			<div class="hud-left">
 				<div class="hud-hp"><div id="hud-hp-fill"></div><span id="hud-hp-text"></span></div>
+				<div id="hud-horde-status" class="hud-horde-status" role="status" hidden></div>
 				<div id="hud-weapons" class="hud-icons"></div>
 				<div id="hud-passives" class="hud-icons hud-icons-small"></div>
 				<div id="hud-embers" class="hud-embers" hidden></div>
@@ -184,6 +197,7 @@
 			<div class="hud-center">
 				<div id="hud-time" class="hud-time">00:00</div>
 				<div id="hud-mode" class="hud-mode"></div>
+				<div id="hud-horde-boss" class="hud-mode hud-horde-boss" hidden></div>
 				<div id="hud-peak" class="hud-peak" hidden></div>
 				<div id="hud-event" class="hud-peak hud-event" hidden></div>
 				<div id="hud-outposts" class="hud-outposts" hidden aria-live="polite" title="Зачистите все аванпосты: Знамя победителя и легендарная перековка каждому. Каждый сундук даёт команде опыт и лечение."></div>
@@ -191,6 +205,10 @@
 			</div>
 			<div class="hud-right">
 				<button id="hud-pause" class="hud-pause" type="button" aria-label="Пауза" title="Пауза (Esc)" hidden>⏸</button>
+				<div id="horde-exit" class="horde-exit" hidden>
+					<button id="horde-leave" class="btn btn-small" type="button">Покинуть матч</button>
+					<span id="horde-exit-hint"></span>
+				</div>
 				<ul id="hud-allies" class="hud-allies"></ul>
 			</div>
 		</div>
@@ -201,6 +219,47 @@
 		<div id="hud-down" class="hud-down" hidden>Вы повержены — ждите, пока союзник поднимет вас</div>
 		<div id="banner" class="banner" hidden></div>
 	</div>
+
+	<section id="horde-controls" class="horde-controls" aria-label="Управление ордой" hidden>
+		<div class="horde-toolbar">
+			<div><b>☠ Орда</b> · <strong id="horde-resource">…</strong> <small id="horde-income"></small></div>
+			<div class="horde-camera" role="group" aria-label="Камера">
+				<button id="horde-zoom-out" class="btn btn-small" type="button" aria-label="Отдалить камеру">−</button>
+				<button id="horde-center" class="btn btn-small" type="button">К героям</button>
+				<button id="horde-zoom-in" class="btn btn-small" type="button" aria-label="Приблизить камеру">+</button>
+			</div>
+		</div>
+		<div id="horde-population" class="horde-population"></div>
+		<div class="horde-rank-bar">
+			<div><b id="horde-rank">Развитие орды</b><small id="horde-next-rank"></small></div>
+			<button id="horde-draft-toggle" class="btn btn-small" type="button" aria-expanded="false" aria-controls="horde-draft">Выбрать улучшение</button>
+		</div>
+		<div id="horde-packs" class="horde-packs"></div>
+		<div class="horde-command-hint">
+			<span id="horde-status" role="status" aria-live="polite"></span>
+			<button id="horde-cancel" class="btn btn-small btn-ghost" type="button" hidden>Отмена</button>
+		</div>
+		<div id="horde-draft" class="horde-draft" hidden>
+			<div class="horde-draft-head">
+				<div><h3>Улучшение для новых отрядов</h3><small id="horde-draft-pending"></small></div>
+				<button id="horde-draft-close" class="btn btn-small btn-ghost" type="button">Свернуть выбор</button>
+			</div>
+			<div id="horde-draft-choices" class="horde-draft-choices"></div>
+			<div class="horde-draft-actions">
+				<button id="horde-draft-reroll" class="btn btn-small" type="button">⟳ Перебросить</button>
+				<span>Матч продолжается. Выбор не пропадёт при сворачивании.</span>
+			</div>
+		</div>
+		<button id="horde-build-toggle" class="btn btn-small horde-build-toggle" type="button" aria-expanded="false" aria-controls="horde-build">Сборка</button>
+		<p id="horde-synergy-summary" class="horde-help"></p>
+		<div id="horde-build" class="horde-build" hidden>
+			<div id="horde-build-tabs" class="horde-build-tabs" role="tablist" aria-label="Сборка орды"></div>
+			<div id="horde-build-content" class="horde-build-content" role="tabpanel" tabindex="0"></div>
+			<div id="horde-synergies" class="horde-synergies"></div>
+		</div>
+		<p class="horde-future">Для новых отрядов: выбранные уровни, оружие и артефакты закрепляются при покупке. Очередь и бойцы на поле сохраняют свою сборку.</p>
+		<p class="horde-help">1–4 — отряд; затем нажмите на поле за красными окружностями. Камера: перетаскивание, WASD / стрелки.</p>
+	</section>
 
 	<!-- Level-up -->
 	<div id="levelup" class="levelup" hidden>

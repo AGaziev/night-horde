@@ -1,0 +1,199 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { test, beforeEach } from 'node:test';
+const pendingStorage = new Map();
+globalThis.sessionStorage = { getItem: (key) => pendingStorage.get(key) ?? null, setItem: (key, value) => pendingStorage.set(key, value), removeItem: (key) => pendingStorage.delete(key) };
+beforeEach(() => pendingStorage.clear());
+import { Hub } from './game.js';
+import { HORDE_PACKS } from '../public/shared/horde-content.js';
+
+const source = (name) => fs.readFileSync(new URL('../public/js/' + name, import.meta.url), 'utf8')
+	.replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
+const moduleUrl = (text) => 'data:text/javascript;base64,' + Buffer.from(text).toString('base64');
+const { Net } = await import(moduleUrl(source('net.js').replace("'./snapshot-codec.js'", JSON.stringify(new URL('../public/js/snapshot-codec.js', import.meta.url).href))));
+const { HordeUI } = await import(moduleUrl(source('horde-ui.js').replace("import { P } from './game.js';", 'const P = { st: 8, x: 1, y: 2 };')
+	.replace("import { fmtTime } from './ui.js';", 'const fmtTime = String;')));
+
+function transport() {
+	return Object.assign(Object.create(Net.prototype), { sid: 'client-transport-test', connected: true, transport: 'SSE', outbox: [], posting: null,
+		attempt: 1, handlers: new Map(), failedAttempts: 0, reconnectTimer: 0 });
+}
+function controls(net, roundId = 'round-1') {
+	return Object.assign(Object.create(HordeUI.prototype), { net, game: { running: true, roundId, isDirector: () => true }, enabled: true,
+		ready: true, state: { roundId, lastSeq: 0 }, inflight: null, paint() {}, cancelPointer() {} });
+}
+function retry(ui) { ui.inflight.sentAt -= 4000; ui.retryPending(); }
+const settle = () => new Promise((resolve) => queueMicrotask(resolve));
+
+test('a lost SSE POST retries the identical round, sequence and payload until private acknowledgement', async (t) => {
+	const net = transport(), ui = controls(net), delivered = [];
+	t.mock.method(globalThis, 'fetch', async (url, options) => { delivered.push(JSON.parse(options.body)); if (delivered.length === 1) throw Error('lost request'); return new Response('ok'); });
+	ui.command('pick', { offerId: 'offer-1', choice: 2 }); await settle(); await settle();
+	const pending = ui.inflight;
+	ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 0 });
+	assert.equal(ui.inflight, pending, 'ordinary private frames must retain an unacknowledged command');
+	assert.equal(ui.canCommand(), false);
+	retry(ui); await settle(); await settle();
+	assert.equal(delivered.length, 2);
+	assert.deepEqual(delivered[1], delivered[0]);
+	assert.equal(delivered[0].roundId, 'round-1');
+	ui.denied();
+	assert.equal(ui.inflight, pending, 'an unrelated error is not a command acknowledgement');
+	ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 1 });
+	assert.equal(ui.inflight, null); assert.equal(ui.canCommand(), true);
+});
+
+test('lost response and lost SSE acknowledgement recover without paying for a troop twice', async (t) => {
+	let ui; let hideAck = true;
+	const hub = new Hub((pid, msg) => { if (!hideAck && pid === 1 && msg.t === 'horde') ui.receive(msg); });
+	hub.addPlayer(1, 'Director'); hub.addPlayer(2, 'Hero');
+	hub.handle(1, { t: 'create', ruleset: 'horde', hero: 'ranger' });
+	const room = hub.players.get(1).room;
+	hub.handle(2, { t: 'join', code: room.code, hero: 'ranger' }); hub.handle(1, { t: 'start' });
+	const roundId = room.horde.roundId || room.horde.offerPrefix;
+	const net = transport(); ui = controls(net, roundId);
+	const wallet = room.horde.resource, posts = [];
+	t.mock.method(globalThis, 'fetch', async (url, options) => {
+		const msg = JSON.parse(options.body); posts.push(msg); hub.handle(1, msg);
+		if (posts.length === 1) throw Error('response lost after server accepted');
+		return new Response('ok');
+	});
+	ui.command('spawn', { pack: 'swarm', x: 1100, y: 0 }); await settle(); await settle();
+	assert.equal(room.horde.resource, wallet - HORDE_PACKS.swarm.cost);
+	assert.ok(ui.inflight);
+	hideAck = false; retry(ui); await settle(); await settle();
+	assert.deepEqual(posts[1], posts[0]);
+	assert.equal(room.horde.resource, wallet - HORDE_PACKS.swarm.cost);
+	assert.equal(room.horde.pending.length, 1);
+	assert.equal(ui.inflight, null, 'the duplicate command obtains a fresh authoritative ack');
+});
+
+test('HTTP failure is reported, while ordinary PvE commands are never replayed', async (t) => {
+	const net = transport(), errors = []; let calls = 0;
+	net.on('send-error', (msg) => errors.push(msg));
+	t.mock.method(globalThis, 'fetch', async () => { calls++; return new Response('no', { status: 503 }); });
+	net.outbox.push({ t: 'reroll', offerEpoch: 1 }); await net.flush(); await settle();
+	assert.equal(errors.length, 1); assert.equal(calls, 1); assert.equal(net.outbox.length, 0);
+});
+
+test('a stalled POST response body is aborted within the timeout, allowing queued POSTs to proceed', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const net = transport(); let aborted = false, resolveBody, calls = 0;
+	t.mock.method(globalThis, 'fetch', async (url, options) => {
+		calls++;
+		if (calls > 1) return new Response('ok');
+		options.signal?.addEventListener('abort', () => { aborted = true; resolveBody?.(); });
+		return { ok: true, text: () => new Promise((resolve) => { resolveBody = resolve; }) };
+	});
+	net.outbox.push({ t: 'horde', roundId: 'old', seq: 1 }); const request = net.flush(); await settle();
+	net.send({ t: 'ping' }); t.mock.timers.tick(5000); await settle();
+	assert.equal(aborted, true, 'timeout must also bound reading the response body');
+	resolveBody?.(); await request; await settle();
+	assert.equal(calls, 2);
+});
+
+test('disconnect cancels active and queued POSTs; a late completion cannot release a newer request', async (t) => {
+	t.mock.timers.enable({ apis: ['setTimeout'] });
+	const net = transport(); let oldSignal, finishOld, finishNew;
+	t.mock.method(globalThis, 'fetch', (url, options) => new Promise((resolve) => {
+		if (!oldSignal) { oldSignal = options.signal; finishOld = () => resolve(new Response('ok')); }
+		else finishNew = () => resolve(new Response('ok'));
+	}));
+	net.outbox.push({ t: 'horde', roundId: 'old', seq: 1 }); const oldRequest = net.flush();
+	net.outbox.push({ t: 'horde', roundId: 'old', seq: 2 }); net.onDisconnected(true);
+	assert.equal(oldSignal?.aborted, true); assert.equal(net.outbox.length, 0);
+	net.connected = true; net.attempt++; net.outbox.push({ t: 'ping' }); const nextRequest = net.flush(), active = net.posting;
+	finishOld(); await oldRequest;
+	assert.equal(net.posting, active, 'stale request finalization must not clear a newer POST');
+	finishNew(); await nextRequest;
+});
+
+test('fresh private state is required after reconnect and old-round frames cannot acknowledge new commands', () => {
+	const sent = [], net = { sid: 'client-transport-test', connected: true, send: (msg) => sent.push(msg) }, ui = controls(net);
+	ui.command('reroll', { offerId: 'old-offer' }); ui.connection();
+	assert.ok(ui.inflight); assert.equal(ui.canCommand(), false);
+	ui.game.roundId = 'round-2'; ui.state = null;
+	ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 10 });
+	assert.equal(ui.ready, false);
+	ui.receive({ t: 'horde', roundId: 'round-2', lastSeq: 0 });
+	ui.command('pick', { offerId: 'new-offer', choice: 0 });
+	ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 1 });
+	assert.ok(ui.inflight); assert.equal(sent.at(-1).roundId, 'round-2');
+	assert.notEqual(sent.at(-1).offerId, sent[0].offerId);
+});
+
+test('Space on a focused card preserves native button activation; field Space still recenters the camera', (t) => {
+	const handlers = new Map();
+	const node = () => ({ dataset: {}, appendChild() {}, addEventListener() {}, setAttribute() {} });
+	const nodes = new Map();
+	const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	const previousListener = Object.getOwnPropertyDescriptor(globalThis, 'addEventListener');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+		createElement: node, getElementById(id) { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); },
+	} });
+	Object.defineProperty(globalThis, 'addEventListener', { configurable: true, value: (event, fn) => handlers.set(event, fn) });
+	t.after(() => {
+		for (const [key, previous] of [['document', previousDocument], ['addEventListener', previousListener]]) {
+			if (previous) Object.defineProperty(globalThis, key, previous); else delete globalThis[key];
+		}
+	});
+	const ui = new HordeUI({ game: {}, net: {}, renderer: {}, canvas: node(), ui: {} });
+	let centered = 0, prevented = 0;
+	ui.active = () => true; ui.center = () => centered++;
+	const key = { code: 'Space', target: { matches: () => false, closest: () => ({ tagName: 'BUTTON' }) }, preventDefault: () => prevented++ };
+	handlers.get('keydown')(key);
+	assert.equal(centered, 0, 'focused interactive controls must keep their native Space handling');
+	assert.equal(prevented, 0);
+	handlers.get('keydown')({ ...key, target: { matches: () => false, closest: () => null } });
+	assert.equal(centered, 1); assert.equal(prevented, 1);
+});
+
+
+test('same-round reconnect cannot reuse the delayed command sequence for a different spawn', () => {
+	const sent = [], net = { sid: 'persistent-sid', connected: true, send: (msg) => sent.push(msg) }, ui = controls(net);
+	ui.command('spawn', { pack: 'swarm', x: 1100, y: 0 });
+	const original = sent[0];
+	ui.connection(); ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 0 });
+	ui.command('spawn', { pack: 'swarm', x: -1100, y: 0 });
+	assert.equal(sent.length, 1, 'a newer payload must remain blocked until the original outcome is known');
+	retry(ui); assert.deepEqual(sent[1], original);
+	ui.receive({ t: 'horde', roundId: 'round-1', lastSeq: 1 });
+	ui.command('spawn', { pack: 'swarm', x: -1100, y: 0 });
+	assert.equal(sent.at(-1).seq, 2); assert.equal(sent.at(-1).x, -1100);
+});
+
+test('reload restores the sid/round-bound pending command before fresh private state, and ack clears durable pending', () => {
+	const sent = [], net = { sid: 'reload-sid', connected: true, send: (msg) => sent.push(msg), cancelHordeCommands() {} }, before = controls(net);
+	before.command('pick', { offerId: 'offer-reload', choice: 2 });
+	const saved = pendingStorage.get('nh.hordeCommand'); assert.ok(saved, 'persist before submitting the command');
+	const after = controls(net); after.inflight = null; after.ready = false; after.panel = {}; after.begin();
+	assert.equal(after.canCommand(), false);
+	assert.deepEqual(after.inflight.message, before.inflight.message);
+	after.receive({ t: 'horde', roundId: 'round-1', lastSeq: 0 });
+	after.command('reroll', { offerId: 'offer-reload' }); assert.equal(sent.length, 1);
+	retry(after); assert.deepEqual(sent[1], sent[0]);
+	after.receive({ t: 'horde', roundId: 'round-1', lastSeq: 1 });
+	assert.equal(after.inflight, null); assert.equal(pendingStorage.get('nh.hordeCommand'), undefined);
+});
+
+test('a new round, a new session and a terminal stop discard old durable commands', () => {
+	const net = { sid: 'scope-sid', connected: true, send() {}, cancelHordeCommands() {} };
+	const ui = controls(net); ui.panel = { hidden: false }; ui.canvas = { classList: { remove() {} } };
+	ui.command('spawn', { pack: 'swarm', x: 1100, y: 0 });
+	ui.game.roundId = 'round-2'; ui.restorePending();
+	assert.equal(ui.inflight, null); assert.equal(pendingStorage.size, 0);
+	ui.state = { roundId: 'round-2', lastSeq: 0 }; ui.command('reroll', { offerId: 'offer' });
+	net.sid = 'new-sid'; ui.connection();
+	assert.equal(ui.inflight, null); assert.equal(pendingStorage.size, 0);
+	ui.ready = true; ui.command('pick', { offerId: 'offer', choice: 0 });
+	ui.stop(); assert.equal(pendingStorage.size, 0);
+});
+
+
+test('a command is not delivered if durable browser storage fails before submission', (t) => {
+	const sent = [], notices = [], net = { sid: 'save-failure-sid', connected: true, send: (msg) => sent.push(msg) }, ui = controls(net);
+	ui.ui = { toast: (text) => notices.push(text) };
+	t.mock.method(sessionStorage, 'setItem', () => { throw Error('storage unavailable'); });
+	ui.command('spawn', { pack: 'swarm', x: 1100, y: 0 });
+	assert.equal(sent.length, 0); assert.equal(ui.inflight, null); assert.equal(notices.length, 1);
+});

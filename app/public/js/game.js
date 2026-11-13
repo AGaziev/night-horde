@@ -1,5 +1,6 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
 import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
+import { HORDE_RULESET, HORDE_ARENA, HORDE_COMBAT, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from '/shared/horde-content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -20,6 +21,8 @@ const RECONCILE_DIST = 150;
 const MAX_SNAPS = 8;
 const MAX_PARTICLES = 700;
 const MAX_NUMBERS = 90;
+const HORDE_FX_KINDS = new Set(['venom', 'frost', 'storm', 'ember', 'reaper', 'arbalest', 'barrier', 'conductor', 'heal']);
+const MAX_HORDE_FX = 80;
 // Enemies are flat records of E_STRIDE: [id, type, x, y, hpPct, stateBits].
 export const E_STRIDE = 6;
 const SICKLE_CATCH = 24;
@@ -53,6 +56,20 @@ export class Game {
 		this.net = net;
 		this.me = null;
 		this.running = false;
+		this.ruleset = 'pve';
+		this.roundId = null;
+		this.bossSchedule = null;
+		this.directorPid = null;
+		this.arena = null;
+		this.directorCamera = { x: 0, y: 0, zoom: 0.65 };
+		this.hordeState = null;
+		this.hordeTarget = null;
+		this.hordeSelected = null;
+		this.hordeStatuses = new Map();
+		this.hordeStatusTime = -Infinity;
+		this.hordeStatusAt = 0;
+		this.hordeResyncTime = -Infinity; this.hordeResyncAt = 0; this.hordeQueuedFx = null;
+		this.hordeFx = [];
 		this.players = new Map(); // pid -> {pid, name, hero, color}
 		this.snaps = [];
 		this.resetClock();
@@ -105,6 +122,7 @@ export class Game {
 	}
 
 	reset() {
+		this.clearHordeCombat();
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
@@ -152,8 +170,17 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.players.clear();
+		this.ruleset = msg.ruleset === HORDE_RULESET ? HORDE_RULESET : 'pve';
+		this.roundId = this.ruleset === HORDE_RULESET && typeof msg.roundId === 'string' ? msg.roundId : null;
+		this.bossSchedule = this.ruleset === HORDE_RULESET ? {
+			type: msg.bossSchedule?.type || HORDE_BOSS_TYPE,
+			at: Number.isFinite(msg.bossSchedule?.at) ? msg.bossSchedule.at : HORDE_BOSS_AT,
+		} : null;
+		this.directorPid = this.ruleset === HORDE_RULESET ? msg.directorPid : null;
+		this.arena = this.ruleset === HORDE_RULESET ? (msg.arena || HORDE_ARENA) : null;
 		this.running = true;
-		this.frozen = msg.paused === true;
+		this.frozen = this.ruleset !== HORDE_RULESET && msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
 		this.count = Array.isArray(msg.players) ? msg.players.length : 1;
 		const br = Array.isArray(msg.broken) ? msg.broken : EMPTY;
@@ -171,6 +198,7 @@ export class Game {
 				this.local.y = +p.y || 0;
 				this.local.fx = 1;
 				this.local.fy = 0;
+				this.clampLocal();
 			}
 		});
 	}
@@ -184,6 +212,7 @@ export class Game {
 	}
 
 	stop() {
+		this.clearHordeCombat();
 		this.running = false;
 		this.offer = null;
 		this.frozen = false;
@@ -192,13 +221,16 @@ export class Game {
 
 	// One hero in the run: Esc / ⏸ pause and level-up offers stop the server.
 	solo() {
-		if (!this.running) return false;
+		if (!this.running || this.ruleset === HORDE_RULESET) return false;
 		const s = this.latest();
 		return (s ? s.p.length : this.count) === 1;
 	}
 
+	isDirector() { return this.ruleset === HORDE_RULESET && this.directorPid === this.me; }
+
 	// Server pause state. After a pause the snapshot clock restarts, so the world does not jump.
 	setPause(on, menu) {
+		if (this.ruleset === HORDE_RULESET) return;
 		const was = this.frozen;
 		this.frozen = !!on;
 		this.menuPause = !!on && !!menu;
@@ -210,7 +242,9 @@ export class Game {
 	}
 
 	setLobbyPlayers(list) {
+		this.players.clear();
 		for (const p of list || EMPTY) {
+			if (p.role === 'director') continue;
 			this.players.set(p.pid, { pid: p.pid, name: p.name, hero: p.hero, color: p.color });
 		}
 	}
@@ -227,7 +261,83 @@ export class Game {
 	passiveLevel(id) { return this.passives[id] || 0; }
 	// Accumulated artifact value: card rarity makes it differ from perLevel × level (server recalcMods does the same).
 	passiveVal(id) { return this.pvals[id] ?? PASSIVES[id].perLevel * this.passiveLevel(id); }
-	speedMul() { return 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
+	speedMul() {
+		const speed = 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0);
+		return this.ruleset === HORDE_RULESET ? speed * (1 - (this.hordeStatus(this.me)?.slow || 0)) : speed;
+	}
+
+	clearHordeCombat() {
+		this.hordeStatuses.clear(); this.hordeFx.length = 0;
+		this.hordeStatusTime = -Infinity; this.hordeStatusAt = 0;
+		this.hordeResyncTime = -Infinity; this.hordeResyncAt = 0; this.hordeQueuedFx = null;
+	}
+
+	onHordeStatus(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !Number.isFinite(msg.time) || !Array.isArray(msg.effects)) return;
+		if (msg.time < this.hordeStatusTime) return;
+		this.hordeStatusTime = msg.time; this.hordeStatusAt = performance.now() / 1000;
+		this.hordeStatuses.clear();
+		for (const effect of msg.effects) {
+			if (!effect || !this.players.has(effect.pid)) continue;
+			this.hordeStatuses.set(effect.pid, {
+				poisonUntil: Number.isFinite(effect.poisonUntil) ? effect.poisonUntil : 0,
+				chillUntil: Number.isFinite(effect.chillUntil) ? effect.chillUntil : 0,
+				slow: Number.isFinite(effect.slow) ? Math.max(0, Math.min(HORDE_COMBAT.slowCap, effect.slow)) : 0,
+			});
+		}
+	}
+
+	onHordeResync(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !this.roundId || msg.roundId !== this.roundId
+			|| !Number.isFinite(msg.time) || msg.time <= this.hordeResyncTime) return;
+		this.hordeResyncTime = msg.time; this.hordeResyncAt = performance.now() / 1000;
+		this.hordeQueuedFx = new Map();
+		for (const ev of msg.fxBefore || []) {
+			const key = JSON.stringify(ev);
+			this.hordeQueuedFx.set(key, (this.hordeQueuedFx.get(key) || 0) + 1);
+		}
+		const live = (row, fields) => row && Number.isFinite(row.remaining) && row.remaining > 0 && fields.every((key) => Number.isFinite(row[key]));
+		const timing = (row) => ({ t: 0, life: row.remaining, serverStart: msg.time });
+		this.warns = (msg.warnings || []).filter((row) => live(row, ['x', 'y', 'r']))
+			.map((row) => ({ x: row.x, y: row.y, r: row.r, ...timing(row) }));
+		this.blines = (msg.lanes || []).filter((row) => live(row, ['x1', 'y1', 'x2', 'y2', 'w']))
+			.map((row) => ({ x1: row.x1, y1: row.y1, x2: row.x2, y2: row.y2, w: row.w, ...timing(row) }));
+		this.hostile.clear();
+		for (const row of msg.shots || []) {
+			if (!live(row, ['id', 'x', 'y', 'vx', 'vy'])) continue;
+			this.hostile.set(row.id, { x0: row.x, y0: row.y, x: row.x, y: row.y, vx: row.vx, vy: row.vy,
+				st: msg.time, end: msg.time + row.remaining, r: row.r, show: true, authoritative: true });
+		}
+	}
+
+	hordeTime() {
+		const snap = this.latest(), now = performance.now() / 1000;
+		return Math.max(this.view.tm,
+			snap ? snap.tm + Math.max(0, now - snap.at) : -Infinity,
+			this.hordeStatusTime + Math.max(0, now - this.hordeStatusAt),
+			this.hordeResyncTime + Math.max(0, now - this.hordeResyncAt));
+	}
+
+	hordeStatus(pid) {
+		if (!this.running || this.ruleset !== HORDE_RULESET) return null;
+		const state = this.hordeStatuses.get(pid);
+		if (!state || this.latest()?.pMap.get(pid)?.[P.st] === 1) return null;
+		const time = this.hordeTime();
+		const poisonLeft = Math.max(0, state.poisonUntil - time), chillLeft = Math.max(0, state.chillUntil - time);
+		return poisonLeft || chillLeft ? { poisonLeft, chillLeft, slow: chillLeft > 0 ? state.slow : 0 } : null;
+	}
+
+	onHordeFx(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !HORDE_FX_KINDS.has(msg.kind)) return;
+		if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
+		const paired = Number.isFinite(msg.x2) && Number.isFinite(msg.y2);
+		if (this.hordeFx.length >= MAX_HORDE_FX) this.hordeFx.shift();
+		this.hordeFx.push({
+			kind: msg.kind, x: msg.x, y: msg.y, x2: paired ? msg.x2 : msg.x, y2: paired ? msg.y2 : msg.y,
+			r: Number.isFinite(msg.r) ? Math.max(0, Math.min(500, msg.r)) : 24,
+			life: Number.isFinite(msg.duration) ? Math.max(0.08, Math.min(3, msg.duration)) : 0.4, t: 0,
+		});
+	}
 	inBanner() {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
@@ -236,6 +346,7 @@ export class Game {
 	areaMul(pid = this.me) { return (pid === this.me ? 1 + this.passiveVal('area') : 1) * (this.hasVictoryBanner(pid) ? 1.15 : 1); }
 
 	pick(i, drop) {
+		if (this.isDirector()) return false;
 		const offer = this.offer;
 		if (!offer || !offer.choices[i]) return false;
 		const c = offer.choices[i];
@@ -251,6 +362,7 @@ export class Game {
 
 	// v20 «Изгнать»: the card leaves the pool for the rest of the run; the server answers with a new offer.
 	ban(i) {
+		if (this.isDirector()) return false;
 		const c = this.offer?.choices[i];
 		if (!c || !(this.offer.bans > 0) || !canBan(c)) return false;
 		this.net.send({ t: 'ban', i, offerEpoch: this.offer.offerEpoch });
@@ -258,12 +370,14 @@ export class Game {
 	}
 
 	reroll() {
+		if (this.isDirector()) return false;
 		if (!this.offer || !(this.offer.rerolls > 0)) return false;
 		this.net.send({ t: 'reroll', offerEpoch: this.offer.offerEpoch });
 		return true;
 	}
 
 	skip() {
+		if (this.isDirector()) return false;
 		if (!this.offer) return false;
 		this.net.send({ t: 'skip', offerEpoch: this.offer.offerEpoch });
 		this.offer = null;
@@ -271,6 +385,18 @@ export class Game {
 	}
 
 	onSnapshot(msg) {
+		// Room.snapshot rounds its clock to centiseconds; resync carries the full simulation time.
+		const resyncSnapshotTime = Math.round(this.hordeResyncTime * 100) / 100;
+		if (this.ruleset === HORDE_RULESET && msg.tm < resyncSnapshotTime) return;
+		if (this.hordeQueuedFx && msg.tm >= resyncSnapshotTime) {
+			const queued = this.hordeQueuedFx;
+			this.hordeQueuedFx = null;
+			msg = { ...msg, fx: (msg.fx || []).filter((ev) => {
+				const key = JSON.stringify(ev), count = queued.get(key) || 0;
+				if (!count) return true;
+				queued.set(key, count - 1); return false;
+			}) };
+		}
 		if (msg.gap) {
 			// Delta without its base (net.js asked for a key): only projectile events are usable.
 			for (const ev of msg.fx) if (Array.isArray(ev)) this.shotEvent(ev);
@@ -380,8 +506,16 @@ export class Game {
 	}
 
 	isAlive() {
+		if (this.isDirector()) return false;
 		const r = this.myRow();
 		return !r || r[P.st] !== 1;
+	}
+
+	clampLocal() {
+		const a = this.arena;
+		if (!a) return;
+		this.local.x = Math.max(a.minX + PLAYER_RADIUS, Math.min(a.maxX - PLAYER_RADIUS, this.local.x));
+		this.local.y = Math.max(a.minY + PLAYER_RADIUS, Math.min(a.maxY - PLAYER_RADIUS, this.local.y));
 	}
 
 	update(dt, input) {
@@ -397,10 +531,14 @@ export class Game {
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
+		if (this.isDirector()) {
+			// Spatial effects and sound use a view anchor, without creating a hero or sending its position.
+			this.local.x = this.directorCamera.x; this.local.y = this.directorCamera.y;
+		}
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
 		const still = this.frozen || (this.offer && this.solo());
-		if (this.running && !still) {
+		if (this.running && !still && !this.isDirector()) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
@@ -417,6 +555,7 @@ export class Game {
 				// The finale wall: the same projection the server applies (a standing hero is pushed by the closing ring too).
 				const fin = this.finale();
 				if (fin) [this.local.x, this.local.y] = clampToRing(this.local.x, this.local.y, fin.cx, fin.cy, fin.r - PLAYER_RADIUS);
+				this.clampLocal();
 				this.posTimer -= dt;
 				if (this.posTimer <= 0 && this.me !== null) {
 					this.posTimer += 1 / POS_HZ;
@@ -488,6 +627,7 @@ export class Game {
 	// Interpolated position of another player; returns null if unknown.
 	playerPos(pid, out) {
 		const { a, b, et: t } = this.view;
+		if (pid === this.me && this.isDirector()) return null;
 		if (pid === this.me && this.running) {
 			out.x = this.local.x;
 			out.y = this.local.y;
@@ -624,12 +764,13 @@ export class Game {
 	advanceHostile() {
 		const vt = this.view.tm;
 		for (const [id, s] of this.hostile) {
-			if (vt >= s.end) {
+			const time = s.authoritative ? Math.max(vt, this.hordeTime()) : vt;
+			if (time >= s.end) {
 				this.hostile.delete(id);
 				continue;
 			}
-			s.show = vt >= s.st;
-			const k = Math.max(0, vt - s.st);
+			s.show = time >= s.st;
+			const k = Math.max(0, time - s.st);
 			s.x = s.x0 + s.vx * k;
 			s.y = s.y0 + s.vy * k;
 		}
@@ -974,6 +1115,7 @@ export class Game {
 	}
 
 	updateEffects(dt) {
+		compact(this.hordeFx, (fx) => (fx.t += dt) < fx.life);
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
 		if (this.dawn) this.dawn.t += dt;
@@ -992,8 +1134,12 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		compact(this.warns, (w) => (w.t += dt) < w.life);
-		compact(this.blines, (l) => (l.t += dt) < l.life);
+		const advanceWarning = (w) => {
+			w.t = w.serverStart === undefined ? w.t + dt : Math.max(0, this.hordeTime() - w.serverStart);
+			return w.t < w.life;
+		};
+		compact(this.warns, advanceWarning);
+		compact(this.blines, advanceWarning);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);

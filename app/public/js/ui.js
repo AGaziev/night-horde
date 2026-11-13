@@ -1,5 +1,6 @@
 // DOM screens, HUD, level-up panel, toasts.
 import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
+import { HORDE_RULESET, HORDE_MAX_HEROES, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from '/shared/horde-content.js';
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
@@ -39,6 +40,12 @@ function el(tag, cls, text) {
 export function fmtTime(sec) {
 	const s = Math.max(0, Math.floor(sec));
 	return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+function scheduledBoss(schedule) {
+	const type = schedule?.type || HORDE_BOSS_TYPE;
+	const at = Number.isFinite(schedule?.at) ? schedule.at : HORDE_BOSS_AT;
+	return `Босс: ${ENEMIES[type]?.name || ENEMIES[HORDE_BOSS_TYPE].name} · ${fmtTime(at)}`;
 }
 
 // HUD pill of the active Wave 4 event; the phase changes what the group should do now.
@@ -131,8 +138,14 @@ export class UI {
 			const li = el('li');
 			li.appendChild(el('span', 'room-code-sm', r.code));
 			li.appendChild(el('span', 'grow', r.host ? `хост: ${r.host}` : ''));
-			li.appendChild(el('span', 'tag tag-mode', modeOf(r.mode).short));
-			li.appendChild(el('span', 'tag', `${r.players ?? '?'}/${MAX_PLAYERS}`));
+			if (r.ruleset === HORDE_RULESET) {
+				li.appendChild(el('span', 'tag tag-mode', 'Орда · 15 мин'));
+				li.appendChild(el('span', 'tag', `Герои ${r.heroCount ?? 0}/${HORDE_MAX_HEROES}`));
+				li.appendChild(el('span', 'tag', r.directorPresent ? 'Орда занята' : 'Орда свободна'));
+			} else {
+				li.appendChild(el('span', 'tag tag-mode', modeOf(r.mode).short));
+				li.appendChild(el('span', 'tag', `${r.players ?? '?'}/${MAX_PLAYERS}`));
+			}
 			const btn = el('button', 'btn btn-small', 'Войти');
 			btn.addEventListener('click', () => onJoin(r.code));
 			li.appendChild(btn);
@@ -306,16 +319,22 @@ export class UI {
 		this.lastLobby = [lobby, me];
 		$('lobby-code').textContent = lobby.code || '—';
 		const players = Array.isArray(lobby.players) ? lobby.players : [];
-		$('lobby-count').textContent = `${players.length}/${MAX_PLAYERS}`;
+		const horde = lobby.ruleset === HORDE_RULESET;
+		const heroes = players.filter((p) => p.role !== 'director');
+		const director = players.find((p) => p.role === 'director');
+		const mine = players.find((p) => p.pid === me);
+		$('lobby-count').textContent = horde ? `${heroes.length}/${HORDE_MAX_HEROES} героев · ${director ? 1 : 0}/1 за орду` : `${players.length}/${MAX_PLAYERS}`;
 		const list = $('lobby-players');
 		list.textContent = '';
 		let myReady = false;
 		for (const p of players) {
 			const li = el('li');
-			li.appendChild(heroMark(p.hero, p.color));
+			const isDirector = horde && p.role === 'director';
+			li.appendChild(isDirector ? el('span', 'director-mark', '☠') : heroMark(p.hero, p.color));
 			li.appendChild(el('span', 'grow', p.name));
 			const hero = HEROES[p.hero];
-			if (hero) li.appendChild(el('span', 'tag', hero.name));
+			if (isDirector) li.appendChild(el('span', 'tag tag-mode', 'За орду'));
+			else if (hero) li.appendChild(el('span', 'tag', hero.name));
 			if (p.pid === lobby.host) li.appendChild(el('span', 'tag tag-host', 'хост'));
 			if (p.pid === me) li.appendChild(el('span', 'tag tag-me', 'вы'));
 			if (p.pid === me && this.lords > 0) {
@@ -327,21 +346,67 @@ export class UI {
 			list.appendChild(li);
 			if (p.pid === me) {
 				myReady = !!p.ready;
-				this.selectHero(p.hero, p.color);
+				if (!isDirector) this.selectHero(p.hero, p.color);
 			}
 		}
 		const isHost = lobby.host === me;
+		this.renderRuleset(horde, isHost, lobby.bossSchedule);
+		$('lobby-pve-mode').hidden = horde;
+		$('lobby-role-box').hidden = !horde;
+		$('lobby-hero-box').hidden = horde && mine?.role === 'director';
+		$('duo-book').hidden = horde && mine?.role === 'director';
+		if (horde) this.renderRole(mine?.role || 'hero', director, heroes.length, me);
 		this.renderMode(lobby.mode, isHost);
 		this.renderDuoBook();
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
 		readyBtn.classList.toggle('btn-on', myReady);
 		$('lobby-start').hidden = !isHost;
+		const rolesReady = !horde || (!!director && heroes.length >= 1 && heroes.length <= HORDE_MAX_HEROES);
+		$('lobby-start').disabled = !rolesReady || lobby.startsAt != null;
 		const notReady = players.filter((p) => !p.ready).length;
-		$('lobby-hint').textContent = isHost
+		$('lobby-hint').textContent = !rolesReady ? 'Для начала нужен один игрок за орду и от 1 до 4 героев.' : isHost
 			? (notReady ? `Не готовы: ${notReady}. Можно начать и так.` : 'Все готовы — начинайте!')
 			: 'Игру запускает хост.';
 		return myReady;
+	}
+
+	renderRuleset(horde, isHost, bossSchedule) {
+		const box = $('lobby-ruleset');
+		if (!box.childElementCount) {
+			for (const [id, name, desc] of [['pve', 'Вместе против ночи', 'Обычный забег против компьютерной орды'], [HORDE_RULESET, 'Орда против героев', 'Один игрок за орду против 1–4 героев · 15 минут']]) {
+				const b = el('button', 'btn mode-btn');
+				b.type = 'button'; b.dataset.ruleset = id; b.setAttribute('role', 'radio');
+				b.append(el('b', '', name), el('span', '', desc));
+				b.addEventListener('click', () => this.onRuleset?.(id));
+				box.appendChild(b);
+			}
+		}
+		for (const b of box.children) {
+			const on = (b.dataset.ruleset === HORDE_RULESET) === horde;
+			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on)); b.disabled = !isHost;
+		}
+		$('lobby-ruleset-hint').textContent = horde ? `${scheduledBoss(bossSchedule)}. Герои побеждают, убив босса или продержавшись 15 минут. Орда побеждает, если все герои падут.` : (isHost ? 'Правила выбирает хост комнаты.' : 'Правила игры выбирает хост.');
+	}
+
+	renderRole(role, director, heroCount, me) {
+		const box = $('lobby-role');
+		if (!box.childElementCount) {
+			for (const [id, name, desc] of [['hero', 'Герой', 'Двигайтесь, собирайте опыт и улучшайте оружие'], ['director', 'За орду', 'Выбирайте отряды, места атаки и улучшения']]) {
+				const b = el('button', 'btn mode-btn');
+				b.type = 'button'; b.dataset.role = id; b.setAttribute('role', 'radio');
+				b.append(el('b', '', name), el('span', '', desc));
+				b.addEventListener('click', () => this.onRole?.(id));
+				box.appendChild(b);
+			}
+		}
+		for (const b of box.children) {
+			const on = b.dataset.role === role;
+			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on));
+			// A director may temporarily become the fifth hero so a full lobby can transfer the vacant role.
+			b.disabled = !on && b.dataset.role === 'director' && !!director && director.pid !== me;
+		}
+		$('lobby-role-hint').textContent = `${director ? `За орду: ${director.name}` : 'Место за орду свободно'} · героев ${heroCount}/${HORDE_MAX_HEROES}.`;
 	}
 
 	renderMode(mode, isHost) {
@@ -656,6 +721,9 @@ export class UI {
 		const title = $('over-title');
 		// v21: grade 2 — the Lord is slain (gold), 1 — lived to the dawn, 0 — the group fell.
 		const grade = msg.grade ?? (msg.win ? 1 : 0);
+		const horde = msg.ruleset === HORDE_RULESET;
+		const director = horde && msg.directorPid === me;
+		const ownWin = director ? msg.directorWin === true : msg.win;
 		const fin = msg.fin && typeof msg.fin === 'object' ? msg.fin : null;
 		title.textContent = grade === 2 ? 'Владыка повержен' : msg.win ? 'Ночь пережита' : 'Орда победила';
 		title.className = 'over-title ' + (grade === 2 ? 'gold' : msg.win ? 'win' : 'lose');
@@ -665,11 +733,17 @@ export class UI {
 		if (grade === 2 && fin) sub = `${modeOf(msg.mode).name} · рассвет наступил на ${fmtTime(Math.max(0, len - msg.time))} раньше срока · бой ${Math.round(fin.sec)} с${fin.lastHit ? ` · последний удар: ${fin.lastHit}` : ''}`;
 		else if (grade === 1 && fin) sub = `${modeOf(msg.mode).name} · Владыка ушёл в тень — у него оставалось ${left}% здоровья`;
 		else if (fin) sub += ` · Владыке оставалось ${left}%`;
+		if (horde) {
+			title.textContent = ownWin ? (director ? 'Орда победила — вы выиграли' : 'Герои победили — вы выиграли') : (director ? 'Герои победили' : 'Орда победила');
+			title.className = 'over-title ' + (ownWin ? 'win' : 'lose');
+			const reason = { boss: 'Герои повергли босса', time: 'Герои продержались 15 минут', wipe: 'Все герои пали', 'director-left': 'Игрок за орду покинул матч', 'heroes-left': 'Все герои покинули матч' }[msg.reason];
+			sub = `Орда против героев · ${director ? 'Вы играли за орду' : 'Вы играли за героя'} · ${fmtTime(msg.time)}${reason ? ` · ${reason}` : ''}`;
+		}
 		$('over-sub').textContent = sub;
 		const share = new Map((fin?.by ?? []).map((b) => [b.pid, b.share]));
 		$('over-lord-th').hidden = !fin;
 		const box = $('over-unlock');
-		const fresh = Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
+		const fresh = !horde && Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
 		box.hidden = !fresh.length;
 		box.textContent = '';
 		if (fresh.length) {
@@ -700,7 +774,7 @@ export class UI {
 			body.appendChild(tr);
 		}
 		// v23: the results card (group, awards, finale, a tab per player) replaces the plain table when the server sent one.
-		this.card = msg.card && typeof msg.card === 'object' ? msg.card : null;
+		this.card = !horde && msg.card && typeof msg.card === 'object' ? msg.card : null;
 		this.cardColors = new Map(stats.map((s) => [s.pid, s.color || '#90a4ae']));
 		const shown = renderResults($('over-card'), this.card, me, this.cardColors);
 		$('over-table').hidden = shown;
@@ -729,7 +803,14 @@ export class UI {
 		const snap = game.latest();
 		this.set('hud-time', 'text', fmtTime(game.view.tm));
 		this.set('hud-mode', 'text', this.modeText || '');
+		this.set('hud-horde-boss', 'hidden', !game.bossSchedule);
+		this.set('hud-horde-boss', 'text', game.bossSchedule ? scheduledBoss(game.bossSchedule) : '');
 		this.set('hud-pause', 'hidden', !game.solo());
+		const status = game.hordeStatus(game.me), statusParts = [];
+		if (status?.poisonLeft > 0) statusParts.push(`☣ Яд · ${Math.ceil(status.poisonLeft)} с`);
+		if (status?.chillLeft > 0) statusParts.push(`❄ Замедление −${Math.round(status.slow * 100)}% · ${Math.ceil(status.chillLeft)} с`);
+		this.set('hud-horde-status', 'hidden', !statusParts.length);
+		this.set('hud-horde-status', 'text', statusParts.join(' / '));
 		const pk = game.peak();
 		// v21 finale: its own line instead of the peak's — the closing ring, then the time left until the dawn.
 		const fin = game.finale();
@@ -861,6 +942,8 @@ export class UI {
 		$('hud-down').hidden = true;
 		$('hud-outposts').hidden = true;
 		$('hud-trophy').hidden = true;
+		$('hud-horde-status').hidden = true;
+		$('hud-horde-boss').hidden = true;
 		$('banner').hidden = true;
 	}
 

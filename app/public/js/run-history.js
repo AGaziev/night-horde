@@ -1,9 +1,42 @@
 import { HEROES, modeOf } from '/shared/content.js';
 import { fmtTime } from './ui.js';
 import { renderResults } from './results.js';
+import { HORDE_RULESET, HORDE_SYNERGIES, hordeCardDef } from '/shared/horde-content.js';
 
 const dateTime = new Intl.DateTimeFormat('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 const $ = (part) => document.getElementById(part ? `run-history-${part}` : 'run-history');
+
+export function historyResult(run, details = false) {
+	if (run.ruleset === HORDE_RULESET) return run.win ? 'Герои победили' : 'Орда победила';
+	if (run.grade === 2) return 'Владыка повержен';
+	return run.win ? (details ? 'Ночь пережита' : 'Победа') : (details ? 'Орда победила' : 'Поражение');
+}
+
+const historyMode = (run) => run.ruleset === HORDE_RULESET ? 'Орда против героев' : modeOf(run.mode).name;
+
+export function renderHordeHistory(container, log) {
+	if (log?.ruleset !== HORDE_RULESET || !Array.isArray(log.team)) return false;
+	container.replaceChildren();
+	const line = (tag, text) => {
+		const node = document.createElement(tag); node.textContent = text; container.append(node); return node;
+	};
+	const reasons = { boss: 'Босс повержен', time: 'Герои выжили 15 минут', wipe: 'Все герои пали',
+		'director-left': 'Полководец покинул матч', 'heroes-left': 'Герои покинули матч' };
+	line('p', `Матч без рейтинга · ${reasons[log.reason] || historyResult(log)} · ${fmtTime(log.time)}`);
+	line('h4', `Полководец: ${log.director?.name || 'Неизвестен'}`);
+	// Older asymmetric logs contain pack levels but no arsenal draft yet.
+	const build = log.director?.build || { packs: log.director?.levels || {}, weapons: {}, artifacts: {} };
+	for (const [kind, key, label] of [['pack', 'packs', 'Отряды'], ['weapon', 'weapons', 'Оружие'], ['artifact', 'artifacts', 'Артефакты']]) {
+		const items = Object.entries(build[key] || {}).map(([id, level]) => `${hordeCardDef(kind, id)?.name || id} ${level} ур.`);
+		line('p', `${label}: ${items.join(', ') || 'нет'}`);
+	}
+	const synergies = HORDE_SYNERGIES.filter((s) => log.director?.synergies?.includes(s.id));
+	if (synergies.length) line('p', `Сочетания: ${synergies.map((s) => s.name).join(', ')}`);
+	line('h4', 'Герои');
+	for (const player of log.team) line('p', `${player.name} · ${HEROES[player.hero]?.name || player.hero} · ${player.level} ур.`);
+	container.hidden = false;
+	return true;
+}
 
 export function setupRunHistory() {
 	const dialog = $('');
@@ -39,10 +72,10 @@ export function setupRunHistory() {
 			const row = document.createElement('li');
 			const info = document.createElement('div');
 			const result = document.createElement('strong');
-			result.textContent = run.grade === 2 ? 'Владыка повержен' : run.win ? 'Победа' : 'Поражение';
-			result.className = run.win ? 'run-history-win' : 'run-history-loss';
+			result.textContent = historyResult(run);
+			result.className = run.ruleset === HORDE_RULESET ? '' : run.win ? 'run-history-win' : 'run-history-loss';
 			const time = document.createElement('span');
-			time.textContent = ` · ${modeOf(run.mode).name} · ${fmtTime(run.time)}`;
+			time.textContent = ` · ${historyMode(run)} · ${fmtTime(run.time)}`;
 			const date = document.createElement('time');
 			date.dateTime = run.at;
 			date.textContent = dateTime.format(new Date(run.at));
@@ -65,8 +98,8 @@ export function setupRunHistory() {
 		index.hidden = true;
 		details.hidden = false;
 		renderResults(card, null);
-		heading.textContent = run.grade === 2 ? 'Владыка повержен' : run.win ? 'Ночь пережита' : 'Орда победила';
-		date.textContent = `${modeOf(run.mode).name} · ${dateTime.format(new Date(run.at))} · #${run.id}`;
+		heading.textContent = historyResult(run, true);
+		date.textContent = `${historyMode(run)} · ${dateTime.format(new Date(run.at))} · #${run.id}`;
 		const url = `/api/runs/${encodeURIComponent(run.id)}`;
 		download.href = `${url}.txt`;
 		download.download = `забег-${run.id}.txt`;
@@ -76,11 +109,11 @@ export function setupRunHistory() {
 		openLog = new AbortController();
 		const { signal } = openLog;
 		try {
-			const response = await fetch(`${url}.card`, { signal });
+			const response = await fetch(`${url}${run.ruleset === HORDE_RULESET ? '.json' : '.card'}`, { signal });
 			if (!response.ok) throw new Error();
 			const result = await response.json();
 			if (signal.aborted) return;
-			if (!renderResults(card, result)) throw new Error();
+			if (!(run.ruleset === HORDE_RULESET ? renderHordeHistory(card, result) : renderResults(card, result))) throw new Error();
 			logStatus.textContent = '';
 			download.hidden = false;
 		} catch {

@@ -3,6 +3,7 @@ import { PROTO, SnapshotDecoder } from './snapshot-codec.js';
 
 const SID_KEY = 'nh.sid';
 const WS_OPEN_TIMEOUT = 3000;
+const POST_TIMEOUT = 3000;
 const KEY_REQUEST_MS = 300;
 const RELOAD_KEY = 'nh.protoReload';
 const RELOAD_GUARD_MS = 60_000;
@@ -30,7 +31,7 @@ export class Net {
 		this.ws = null;
 		this.es = null;
 		this.outbox = [];
-		this.posting = false;
+		this.posting = null;
 		this.failedAttempts = 0;
 		this.reconnectTimer = 0;
 		this.attempt = 0;
@@ -74,6 +75,7 @@ export class Net {
 	}
 
 	connect() {
+		this.cancelPosts();
 		clearTimeout(this.reconnectTimer);
 		const id = ++this.attempt;
 		if (this.forceSse) this.connectSse(id);
@@ -102,6 +104,7 @@ export class Net {
 
 		ws.onopen = () => { opened = true; };
 		ws.onmessage = (ev) => {
+			if (id !== this.attempt) return;
 			if (!gotMessage) {
 				gotMessage = true;
 				this.onConnected('WS');
@@ -162,7 +165,7 @@ export class Net {
 
 	onDisconnected(hadMessages) {
 		this.connected = false;
-		this.outbox.length = 0;
+		this.cancelPosts();
 		this.emit('status', { connected: false, transport: this.transport });
 		if (!hadMessages) this.failedAttempts++;
 		// Several silent failures in a row usually mean the server forgot our sid.
@@ -175,6 +178,9 @@ export class Net {
 	}
 
 	async resetSession() {
+		this.connected = false;
+		this.cancelPosts();
+		this.emit('status', { connected: false, transport: this.transport });
 		this.failedAttempts = 0;
 		this.sid = null;
 		writeSid(null);
@@ -246,19 +252,45 @@ export class Net {
 		}
 	}
 
-	// POSTs are chained so messages keep their order; whatever queues meanwhile goes as one batch.
+	cancelPosts() {
+		this.outbox.length = 0;
+		this.posting?.controller.abort();
+		this.posting = null;
+	}
+
+	cancelHordeCommands() {
+		this.outbox = this.outbox.filter((msg) => msg.t !== 'horde');
+		if (this.posting?.batch.some((msg) => msg.t === 'horde')) {
+			this.posting.controller.abort();
+			this.posting = null;
+			if (this.connected && this.outbox.length) queueMicrotask(() => this.flush());
+		}
+	}
+
+	// Only HordeUI retries its immutable, sequenced commands. Other actions are never replayed here.
+	// Chained POSTs keep their order, but a stalled response cannot hold the queue forever.
 	async flush() {
-		if (this.posting || !this.outbox.length) return;
-		this.posting = true;
-		const batch = this.outbox.splice(0);
+		if (!this.connected || this.posting || !this.outbox.length) return;
+		const request = { controller: new AbortController(), batch: this.outbox.splice(0), attempt: this.attempt };
+		this.posting = request;
+		const timeout = setTimeout(() => request.controller.abort(), POST_TIMEOUT);
 		try {
-			await fetch(`/api/send?sid=${encodeURIComponent(this.sid)}`, {
+			const res = await fetch(`/api/send?sid=${encodeURIComponent(this.sid)}`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(batch.length === 1 ? batch[0] : batch),
+				body: JSON.stringify(request.batch.length === 1 ? request.batch[0] : request.batch),
+				signal: request.controller.signal,
 			});
-		} catch { /* lost; the next snapshot will tell */ }
-		this.posting = false;
-		if (this.outbox.length) this.flush();
+			if (!res.ok) throw new Error('HTTP ' + res.status);
+			await res.text();
+		} catch {
+			if (this.posting === request && request.attempt === this.attempt) this.emit('send-error', { messages: request.batch });
+		} finally {
+			clearTimeout(timeout);
+			if (this.posting === request) {
+				this.posting = null;
+				if (this.connected && this.outbox.length) this.flush();
+			}
+		}
 	}
 }
