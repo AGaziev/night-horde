@@ -914,28 +914,57 @@ input[type="text"]:focus { border-color: var(--accent); }
 .horde-camera { display: flex; gap: 4px; flex-shrink: 0; }
 .horde-camera .btn { min-height: 40px; min-width: 40px; }
 .horde-population { color: #cfd8dc; font-size: 0.78rem; margin: 6px 0; }
-.horde-packs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.horde-packs { display: grid; grid-template-columns: repeat(auto-fit, minmax(135px, 1fr)); gap: 8px; }
 .horde-pack { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .horde-pack-select { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px; padding: 10px 8px; white-space: normal; }
 .horde-pack-select b { font-size: 0.9rem; }
 .horde-pack-select span { font-size: 0.8rem; color: var(--accent); }
 .horde-pack-select small { font-size: 0.72rem; line-height: 1.35; color: #b0b4c8; font-weight: 400; }
 .horde-pack.selected .horde-pack-select { border-color: var(--accent); background: rgba(255, 183, 77, 0.15); }
-.horde-pack-upgrade { min-height: 44px; white-space: normal; font-size: 0.76rem; }
 .horde-command-hint { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 40px; margin-top: 5px; font-size: 0.8rem; }
 .horde-help { margin: 3px 0 0; font-size: 0.72rem; line-height: 1.35; color: var(--muted); }
+.horde-future { margin: 7px 0 0; font-size: 0.72rem; line-height: 1.4; color: #ffcc80; }
+.horde-rank-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 8px 0; font-size: 0.82rem; }
+.horde-rank-bar small { display: block; color: #b0b4c8; margin-top: 3px; font-size: 0.72rem; }
+.horde-rank-bar .btn, .horde-draft .btn, .horde-build-toggle, .horde-build-tabs .btn { min-height: 44px; white-space: normal; }
+.horde-draft { border-top: 1px solid var(--panel-border); margin-top: 8px; padding-top: 10px; }
+.horde-draft-head, .horde-draft-actions { display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.horde-draft-head h3 { margin: 0; font-size: 0.9rem; }
+.horde-draft-head small { font-size: 0.72rem; color: #cfd8dc; }
+.horde-draft-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0; }
+.horde-draft-card { display: flex; flex-direction: column; gap: 7px; text-align: left; align-items: flex-start; justify-content: flex-start; padding: 12px; }
+.horde-draft-card b { font-size: 0.95rem; }
+.horde-card-kind, .horde-card-note { font-size: 0.68rem; color: #b8bed3; font-weight: 400; }
+.horde-card-level { font-size: 0.76rem; color: #ffcc80; }
+.horde-card-desc { font-size: 0.78rem; color: #e0e3ed; font-weight: 400; line-height: 1.4; }
+.horde-draft-actions span { font-size: 0.72rem; color: #b8bed3; max-width: 270px; }
+.horde-build-toggle { width: 100%; margin-top: 8px; font-size: 0.76rem; }
+.horde-build { margin-top: 8px; }
+.horde-build-tabs { display: flex; gap: 6px; }
+.horde-build-tabs .btn { flex: 1; padding: 6px; font-size: 0.75rem; }
+.horde-build-content { max-height: 180px; overflow-y: auto; margin-top: 5px; }
+.horde-build-item { display: flex; flex-direction: column; gap: 3px; padding: 7px 3px; border-bottom: 1px solid var(--panel-border); font-size: 0.78rem; }
+.horde-build-item span { font-size: 0.72rem; color: #c1c7d8; line-height: 1.4; }
+.horde-synergies .horde-build-item b { color: #a5d6a7; }
 .horde-aiming { cursor: crosshair; }
 @media (max-width: 560px) {
 	.horde-controls { padding: 8px; }
 	.horde-toolbar { gap: 6px; font-size: 0.8rem; }
 	.horde-toolbar small { display: block; margin: 2px 0 0; font-size: 0.65rem; }
 	.horde-camera .btn { min-height: 44px; min-width: 36px; padding: 6px 8px; font-size: 0.72rem; }
-	.horde-packs { gap: 5px; }
+	.horde-packs { gap: 5px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 	.horde-pack-select { padding: 8px 4px; }
 	.horde-pack-select b { font-size: 0.78rem; }
-	.horde-pack-select span, .horde-pack-select small, .horde-pack-upgrade { font-size: 0.65rem; }
+	.horde-pack-select span, .horde-pack-select small { font-size: 0.7rem; }
 	.horde-population, .horde-command-hint { font-size: 0.7rem; }
 	.horde-help { font-size: 0.65rem; }
+	.horde-draft-choices { grid-template-columns: 1fr; gap: 6px; }
+	.horde-draft-card { padding: 10px; gap: 5px; }
+	.horde-draft-head, .horde-draft-actions { align-items: flex-start; }
+	.horde-draft-head .btn { min-width: 86px; font-size: 0.68rem; padding: 6px; }
+	.horde-rank-bar { font-size: 0.75rem; }
+	.horde-rank-bar .btn { max-width: 48%; padding: 6px; font-size: 0.72rem; }
+	.horde-future { font-size: 0.68rem; }
 	.horde-exit { max-width: 115px; }
 	.horde-exit .btn { min-height: 44px; font-size: 0.68rem; padding: 6px; }
 	.horde .hud-allies { width: 105px; }

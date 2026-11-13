@@ -1,4 +1,4 @@
-import { HORDE_PACKS, HORDE_LIMITS, HORDE_ECONOMY, HORDE_UPGRADE } from '/shared/horde-content.js';
+import { HORDE_PACKS, HORDE_LIMITS, HORDE_BUILD, HORDE_UPGRADE, HORDE_SYNERGIES, hordeCardDef } from '/shared/horde-content.js';
 import { P } from './game.js';
 import { fmtTime } from './ui.js';
 
@@ -6,6 +6,17 @@ const $ = (id) => document.getElementById(id);
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 const number = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
 const write = (node, text) => { if (node.textContent !== text) node.textContent = text; };
+const el = (tag, cls, text) => {
+	const node = document.createElement(tag);
+	if (cls) node.className = cls;
+	if (text !== undefined) node.textContent = text;
+	return node;
+};
+const BUILD_GROUPS = {
+	pack: { key: 'packs', label: 'Отряды', slots: HORDE_BUILD.packSlots, max: HORDE_BUILD.packMax },
+	weapon: { key: 'weapons', label: 'Оружие', slots: HORDE_BUILD.weaponSlots, max: HORDE_BUILD.weaponMax },
+	artifact: { key: 'artifacts', label: 'Артефакты', slots: HORDE_BUILD.artifactSlots, max: HORDE_BUILD.artifactMax },
+};
 // Keep a whole server troop ring (radius 64) and its edge clearance inside the arena.
 const PACK_RADIUS = 64;
 const PLACEMENT_INSET = PACK_RADIUS + 24;
@@ -22,26 +33,26 @@ export class HordeUI {
 		this.selected = null;
 		this.pointer = null;
 		this.paintIn = 0;
-		$('horde-upgrade-hint').textContent = `Каждое усиление: +${Math.round(HORDE_UPGRADE.hpPerLevel * 100)}% здоровья и +${Math.round(HORDE_UPGRADE.damagePerLevel * 100)}% урона будущим бойцам.`;
 		this.cards = new Map();
-		for (const pack of Object.values(HORDE_PACKS)) {
-			const card = document.createElement('div');
-			card.className = 'horde-pack';
-			const choose = document.createElement('button');
-			choose.type = 'button'; choose.className = 'btn horde-pack-select';
-			choose.setAttribute('aria-pressed', 'false');
-			const name = document.createElement('b');
-			name.textContent = `${pack.icon} ${pack.name}`;
-			const price = document.createElement('span');
-			const detail = document.createElement('small');
-			choose.append(name, price, detail);
-			choose.addEventListener('click', () => this.select(pack.id));
-			const upgrade = document.createElement('button');
-			upgrade.type = 'button'; upgrade.className = 'btn btn-small horde-pack-upgrade';
-			upgrade.addEventListener('click', () => this.command('upgrade', pack.id));
-			card.append(choose, upgrade);
-			$('horde-packs').appendChild(card);
-			this.cards.set(pack.id, { card, choose, price, detail, upgrade });
+		this.draftOpen = true;
+		this.buildOpen = false;
+		this.buildTab = 'pack';
+		this.offerKey = '';
+		this.loadoutKey = '';
+		this.draftButtons = [];
+		$('horde-draft-toggle').addEventListener('click', () => { this.draftOpen = !this.draftOpen; this.paint(); });
+		$('horde-draft-close').addEventListener('click', () => { this.draftOpen = false; this.paint(); });
+		$('horde-build-toggle').addEventListener('click', () => { this.buildOpen = !this.buildOpen; this.paint(); });
+		$('horde-draft-reroll').addEventListener('click', () => {
+			const offer = this.state?.offer;
+			if (offer && this.state.rerolls > 0) this.command('reroll', { offerId: offer.id });
+		});
+		for (const [kind, group] of Object.entries(BUILD_GROUPS)) {
+			const tab = el('button', 'btn btn-small', group.label);
+			tab.type = 'button'; tab.id = `horde-tab-${kind}`; tab.dataset.kind = kind;
+			tab.setAttribute('role', 'tab'); tab.setAttribute('aria-controls', 'horde-build-content');
+			tab.addEventListener('click', () => { this.buildTab = kind; this.loadoutKey = ''; this.paint(); });
+			$('horde-build-tabs').appendChild(tab);
 		}
 		$('horde-cancel').addEventListener('click', () => this.select(null));
 		$('horde-center').addEventListener('click', () => this.center());
@@ -62,8 +73,8 @@ export class HordeUI {
 		addEventListener('keydown', (e) => {
 			if (!this.active() || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
 			if (e.target?.matches('input,textarea,select,[contenteditable="true"]')) return;
-			const digit = /^(?:Digit|Numpad)([1-3])$/.exec(e.code);
-			if (digit) this.select(Object.keys(HORDE_PACKS)[+digit[1] - 1]);
+			const digit = /^(?:Digit|Numpad)([1-4])$/.exec(e.code);
+			if (digit) this.select([...this.cards.keys()][+digit[1] - 1]);
 			else if (e.code === 'Escape') this.select(null);
 			else if (e.code === 'Space') this.center();
 			else if (e.code === 'Equal' || e.code === 'NumpadAdd') this.zoom(1.2);
@@ -80,6 +91,8 @@ export class HordeUI {
 		const keepCamera = this.enabled;
 		this.enabled = this.game.isDirector();
 		this.ready = false; this.state = null; this.inflight = null; this.selected = null;
+		this.offerKey = ''; this.loadoutKey = '';
+		if (!keepCamera) { this.draftOpen = true; this.buildOpen = false; this.buildTab = 'pack'; }
 		this.game.hordeState = null; this.game.hordeTarget = null;
 		this.cancelPointer();
 		this.panel.hidden = !this.enabled;
@@ -128,12 +141,12 @@ export class HordeUI {
 		this.paint();
 	}
 
-	command(action, pack, point = {}) {
+	command(action, payload = {}) {
 		if (!this.canCommand()) return;
 		const seq = this.state.lastSeq + 1;
 		if (!Number.isSafeInteger(seq)) return;
-		this.inflight = { seq, action, pack };
-		this.net.send({ t: 'horde', action, pack, ...point, seq });
+		this.inflight = { seq, action };
+		this.net.send({ t: 'horde', action, ...payload, seq });
 		this.paint();
 	}
 
@@ -216,7 +229,7 @@ export class HordeUI {
 			this.ui.toast('Выберите точку внутри арены, дальше от её края и за красными окружностями героев.');
 			return;
 		}
-		this.command('spawn', this.selected, { x: Math.round(point.x), y: Math.round(point.y) });
+		this.command('spawn', { pack: this.selected, x: Math.round(point.x), y: Math.round(point.y) });
 	}
 
 	cancelPointer() { this.pointer = null; this.game.hordeTarget = null; }
@@ -233,27 +246,114 @@ export class HordeUI {
 		if (this.paintIn <= 0) { this.paintIn = 0.2; this.paint(); }
 	}
 
+	syncPacks() {
+		const owned = (this.state?.packs || []).filter((p) => HORDE_PACKS[p.id]).slice(0, HORDE_BUILD.packSlots);
+		const ids = owned.map((p) => p.id);
+		if (ids.join('|') === [...this.cards.keys()].join('|')) return;
+		this.cards.clear(); $('horde-packs').textContent = '';
+		for (const [i, p] of owned.entries()) {
+			const def = HORDE_PACKS[p.id];
+			const card = el('div', 'horde-pack');
+			const choose = el('button', 'btn horde-pack-select');
+			choose.type = 'button'; choose.setAttribute('aria-pressed', 'false');
+			const name = el('b', '', `${i + 1}. ${def.icon} ${def.name}`);
+			const price = el('span'), detail = el('small');
+			choose.append(name, price, detail);
+			choose.title = def.desc;
+			choose.addEventListener('click', () => this.select(p.id));
+			card.appendChild(choose); $('horde-packs').appendChild(card);
+			this.cards.set(p.id, { card, choose, price, detail });
+		}
+		if (!this.cards.has(this.selected)) this.selected = null;
+	}
+
+	paintDraft() {
+		const s = this.state, offer = s?.offer;
+		const pending = Math.max(0, number(s?.choicesPending));
+		const now = this.game.latest()?.tm || 0;
+		write($('horde-rank'), s ? `Ранг ${number(s.rank)} / ${HORDE_BUILD.maxPicks}` : 'Развитие орды');
+		write($('horde-next-rank'), !s ? '…' : s.nextRankAt === null ? 'Все ранги получены' : `Следующий выбор через ${fmtTime(Math.max(0, number(s.nextRankAt) - now))}`);
+		write($('horde-draft-toggle'), pending ? `${this.draftOpen ? 'Свернуть' : 'Выбрать улучшение'} · ${pending}` : 'Нет новых выборов');
+		$('horde-draft-toggle').disabled = !offer;
+		$('horde-draft-toggle').setAttribute('aria-expanded', String(this.draftOpen && !!offer));
+		$('horde-draft-toggle').classList.toggle('btn-primary', pending > 0);
+		$('horde-draft').hidden = !offer || !this.draftOpen;
+		write($('horde-draft-pending'), pending > 1 ? `Ещё выборов после этого: ${pending - 1}` : 'Один выбор из трёх');
+		write($('horde-draft-reroll'), `⟳ Перебросить (${number(s?.rerolls)})`);
+		$('horde-draft-reroll').disabled = !this.canCommand() || !offer || !(s?.rerolls > 0);
+		const key = JSON.stringify(offer || null);
+		if (key !== this.offerKey) {
+			this.offerKey = key; this.draftButtons = [];
+			const box = $('horde-draft-choices'); box.textContent = '';
+			for (const [index, choice] of (offer?.choices || []).entries()) {
+				const def = hordeCardDef(choice.kind, choice.id), group = BUILD_GROUPS[choice.kind];
+				if (!def || !group) continue;
+				const card = el('button', 'btn horde-draft-card'); card.type = 'button';
+				const isNew = !(s?.build?.[group.key]?.[choice.id] > 0);
+				card.append(el('span', 'horde-card-kind', `${group.label} · ${isNew ? 'Новый предмет' : 'Улучшение'}`),
+					el('b', '', `${def.icon} ${def.name}`), el('span', 'horde-card-level', `Уровень ${choice.level} / ${group.max}`), el('span', 'horde-card-desc', def.desc));
+				if (choice.kind === 'pack') card.appendChild(el('small', 'horde-card-note', `Каждый уровень после первого: +${Math.round(HORDE_UPGRADE.hpPerLevel * 100)}% здоровья и +${Math.round(HORDE_UPGRADE.damagePerLevel * 100)}% урона.`));
+				card.addEventListener('click', () => {
+					if (this.state?.offer?.id === offer.id) this.command('pick', { offerId: offer.id, choice: index });
+				});
+				box.appendChild(card); this.draftButtons.push(card);
+			}
+		}
+		for (const card of this.draftButtons) card.disabled = !this.canCommand();
+	}
+
+	paintBuild() {
+		const s = this.state, build = s?.build || {};
+		const counts = Object.fromEntries(Object.entries(BUILD_GROUPS).map(([kind, group]) => [kind, Object.values(build[group.key] || {}).filter((v) => v > 0).length]));
+		write($('horde-build-toggle'), `${this.buildOpen ? 'Свернуть сборку' : 'Сборка'} · отряды ${counts.pack}/${HORDE_BUILD.packSlots} · оружие ${counts.weapon}/${HORDE_BUILD.weaponSlots} · артефакты ${counts.artifact}/${HORDE_BUILD.artifactSlots}`);
+		$('horde-build-toggle').setAttribute('aria-expanded', String(this.buildOpen));
+		$('horde-build').hidden = !this.buildOpen;
+		const key = JSON.stringify([build, s?.synergies, this.buildTab]);
+		if (key === this.loadoutKey) return;
+		this.loadoutKey = key;
+		for (const tab of $('horde-build-tabs').children) {
+			const kind = tab.dataset.kind, group = BUILD_GROUPS[kind];
+			write(tab, `${group.label} ${counts[kind]}/${group.slots}`);
+			tab.classList.toggle('btn-on', kind === this.buildTab);
+			tab.setAttribute('aria-selected', String(kind === this.buildTab));
+		}
+		const box = $('horde-build-content'); box.textContent = '';
+		box.setAttribute('aria-labelledby', `horde-tab-${this.buildTab}`);
+		const group = BUILD_GROUPS[this.buildTab];
+		for (const [id, level] of Object.entries(build[group.key] || {})) {
+			const def = hordeCardDef(this.buildTab, id);
+			if (!def || !(level > 0)) continue;
+			const row = el('div', 'horde-build-item');
+			row.append(el('b', '', `${def.icon} ${def.name} · ${level}/${group.max}`), el('span', '', def.desc));
+			box.appendChild(row);
+		}
+		if (!box.childElementCount) box.appendChild(el('p', 'muted small', 'Пока нет. Новые предметы появляются в выборе улучшений.'));
+		const synergies = HORDE_SYNERGIES.filter((synergy) => s?.synergies?.includes(synergy.id));
+		write($('horde-synergy-summary'), synergies.length ? `Активные сочетания: ${synergies.map((a) => a.name).join(' · ')}` : 'Сочетания появятся из выбранного оружия и артефактов.');
+		const list = $('horde-synergies'); list.textContent = '';
+		for (const synergy of synergies) {
+			const row = el('div', 'horde-build-item');
+			row.append(el('b', '', `≈ ${synergy.name}`), el('span', '', synergy.desc)); list.appendChild(row);
+		}
+	}
+
 	paint() {
 		if (!this.active()) return;
 		const s = this.state;
 		write($('horde-resource'), s ? `${Math.floor(number(s.resource))} / ${number(s.resourceCap)}` : '…');
 		write($('horde-income'), s ? `+${number(s.income)} в секунду` : 'Ждём состояние орды');
 		write($('horde-population'), s ? `Бойцы ${number(s.population)} / ${number(s.populationCap)} · в очереди ${number(s.queued)} / ${HORDE_LIMITS.queued}` : 'Загрузка отрядов…');
-		const now = this.game.latest()?.tm || 0;
+		this.syncPacks();
 		for (const [id, card] of this.cards) {
-			const p = this.pack(id), def = HORDE_PACKS[id], level = number(s?.levels?.[id]);
-			const cost = number(p?.cost, def.cost), upgradeCost = p?.upgradeCost;
-			const at = number(p?.upgradeAt, HORDE_ECONOMY.upgradeAt[level] || 0);
-			write(card.price, p?.available ? `${cost} ресурса · ${def.units.length} бойцов` : `Доступен с ${fmtTime(def.at)}`);
-			write(card.detail, `${def.desc} · усиление ${level}/${HORDE_ECONOMY.upgradeCosts.length}`);
-			card.choose.disabled = !this.canCommand() || !p?.available || number(s?.resource) < cost || number(s?.queued) >= HORDE_LIMITS.queued || number(s?.population) + def.units.length > number(s?.populationCap);
+			const p = this.pack(id), def = HORDE_PACKS[id];
+			const cost = number(p?.cost, def.cost), count = number(p?.count, def.units.length), level = number(p?.level, s?.build?.packs?.[id] || 1);
+			write(card.price, p?.available ? `${cost} ресурса · ${count} бойцов` : `Доступен с ${fmtTime(def.at)}`);
+			write(card.detail, `Уровень ${level}/${HORDE_BUILD.packMax}`);
+			card.choose.disabled = !this.canCommand() || !p?.available || number(s?.resource) < cost || number(s?.queued) >= HORDE_LIMITS.queued || number(s?.population) + count > number(s?.populationCap);
 			card.choose.setAttribute('aria-pressed', String(this.selected === id));
 			card.card.classList.toggle('selected', this.selected === id);
-			const maxed = level >= HORDE_ECONOMY.upgradeCosts.length;
-			write(card.upgrade, maxed ? 'Усилено до предела' : `↑ ${level + 1}: ${number(upgradeCost, HORDE_ECONOMY.upgradeCosts[level])} ресурса${now < at ? ` · с ${fmtTime(at)}` : ''}`);
-			card.upgrade.title = `Будущие бойцы: +${Math.round(HORDE_UPGRADE.hpPerLevel * 100)}% здоровья и +${Math.round(HORDE_UPGRADE.damagePerLevel * 100)}% урона за усиление.`;
-			card.upgrade.disabled = !this.canCommand() || !p?.available || maxed || now < at || number(s?.resource) < number(upgradeCost, HORDE_ECONOMY.upgradeCosts[level]);
 		}
+		this.paintDraft(); this.paintBuild();
 		const selection = this.selected ? `${HORDE_PACKS[this.selected].name}: нажмите на поле, чтобы вызвать отряд.` : 'Выберите отряд, затем нажмите на поле.';
 		write($('horde-status'), !this.net.connected ? 'Нет связи. Приказы недоступны.' : !this.ready ? 'Восстанавливаем ресурс и приказы…' : this.inflight ? 'Приказ отправлен. Ждём подтверждение…' : selection);
 		$('horde-cancel').hidden = !this.selected;

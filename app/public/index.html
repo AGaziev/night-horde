@@ -228,13 +228,35 @@
 			</div>
 		</div>
 		<div id="horde-population" class="horde-population"></div>
+		<div class="horde-rank-bar">
+			<div><b id="horde-rank">Развитие орды</b><small id="horde-next-rank"></small></div>
+			<button id="horde-draft-toggle" class="btn btn-small" type="button" aria-expanded="false" aria-controls="horde-draft">Выбрать улучшение</button>
+		</div>
 		<div id="horde-packs" class="horde-packs"></div>
 		<div class="horde-command-hint">
 			<span id="horde-status" role="status" aria-live="polite"></span>
 			<button id="horde-cancel" class="btn btn-small btn-ghost" type="button" hidden>Отмена</button>
 		</div>
-		<p class="horde-help">Перетаскивайте поле или двигайте камеру WASD / стрелками. Призывайте за красными окружностями героев.</p>
-		<p id="horde-upgrade-hint" class="horde-help"></p>
+		<div id="horde-draft" class="horde-draft" hidden>
+			<div class="horde-draft-head">
+				<div><h3>Улучшение для новых отрядов</h3><small id="horde-draft-pending"></small></div>
+				<button id="horde-draft-close" class="btn btn-small btn-ghost" type="button">Свернуть выбор</button>
+			</div>
+			<div id="horde-draft-choices" class="horde-draft-choices"></div>
+			<div class="horde-draft-actions">
+				<button id="horde-draft-reroll" class="btn btn-small" type="button">⟳ Перебросить</button>
+				<span>Матч продолжается. Выбор не пропадёт при сворачивании.</span>
+			</div>
+		</div>
+		<button id="horde-build-toggle" class="btn btn-small horde-build-toggle" type="button" aria-expanded="false" aria-controls="horde-build">Сборка</button>
+		<p id="horde-synergy-summary" class="horde-help"></p>
+		<div id="horde-build" class="horde-build" hidden>
+			<div id="horde-build-tabs" class="horde-build-tabs" role="tablist" aria-label="Сборка орды"></div>
+			<div id="horde-build-content" class="horde-build-content" role="tabpanel" tabindex="0"></div>
+			<div id="horde-synergies" class="horde-synergies"></div>
+		</div>
+		<p class="horde-future">Для новых отрядов: выбранные уровни, оружие и артефакты закрепляются при покупке. Очередь и бойцы на поле сохраняют свою сборку.</p>
+		<p class="horde-help">1–4 — отряд; затем нажмите на поле за красными окружностями. Камера: перетаскивание, WASD / стрелки.</p>
 	</section>
 
 	<!-- Level-up -->
