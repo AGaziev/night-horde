@@ -215,3 +215,13 @@ test('both lobby roles learn the scheduled boss before start, and the HUD retain
 		assert.match(nodes.get('hud-horde-boss').textContent, /Владыка ночи.*12:00/);
 	}
 });
+
+test('resync dedup uses the snapshot centisecond boundary even when room time has more precision', () => {
+	const game = new Game({ send() {} });
+	game.begin({ ruleset: 'horde', roundId: 'precise-round', players: [] });
+	const shot = ['eshot', 7, 100, 0, 20, 0, 4, 39];
+	game.onHordeResync({ roundId: 'precise-round', time: 42.2533333, warnings: [], lanes: [], shots: [], fxBefore: [shot] });
+	game.onSnapshot({ tm: 42.25, p: [], fx: [shot, ['eshot', 8, 200, 0, 20, 0, 4, 42.25]] });
+	assert.equal(game.hostile.has(7), false, 'queued old shot is skipped');
+	assert.equal(game.hostile.has(8), true, 'new same-tick shot must survive time rounding');
+});

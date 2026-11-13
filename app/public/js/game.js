@@ -385,8 +385,10 @@ export class Game {
 	}
 
 	onSnapshot(msg) {
-		if (this.ruleset === HORDE_RULESET && msg.tm < this.hordeResyncTime) return;
-		if (this.hordeQueuedFx && msg.tm >= this.hordeResyncTime) {
+		// Room.snapshot rounds its clock to centiseconds; resync carries the full simulation time.
+		const resyncSnapshotTime = Math.round(this.hordeResyncTime * 100) / 100;
+		if (this.ruleset === HORDE_RULESET && msg.tm < resyncSnapshotTime) return;
+		if (this.hordeQueuedFx && msg.tm >= resyncSnapshotTime) {
 			const queued = this.hordeQueuedFx;
 			this.hordeQueuedFx = null;
 			msg = { ...msg, fx: (msg.fx || []).filter((ev) => {
