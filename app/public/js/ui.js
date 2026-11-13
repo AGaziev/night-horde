@@ -357,7 +357,7 @@ export class UI {
 		readyBtn.classList.toggle('btn-on', myReady);
 		$('lobby-start').hidden = !isHost;
 		const rolesReady = !horde || (!!director && heroes.length >= 1 && heroes.length <= HORDE_MAX_HEROES);
-		$('lobby-start').disabled = !rolesReady;
+		$('lobby-start').disabled = !rolesReady || lobby.startsAt != null;
 		const notReady = players.filter((p) => !p.ready).length;
 		$('lobby-hint').textContent = !rolesReady ? 'Для начала нужен один игрок за орду и от 1 до 4 героев.' : isHost
 			? (notReady ? `Не готовы: ${notReady}. Можно начать и так.` : 'Все готовы — начинайте!')

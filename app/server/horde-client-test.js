@@ -8,11 +8,13 @@ const browserSource = (name) => fs.readFileSync(new URL('../public/js/' + name, 
 const moduleUrl = (source) => 'data:text/javascript;base64,' + Buffer.from(source).toString('base64');
 const gameUrl = moduleUrl(browserSource('game.js'));
 const { Game } = await import(gameUrl);
-const { UI } = await import(moduleUrl(browserSource('ui.js')
+const uiUrl = moduleUrl(browserSource('ui.js')
 	.replace("import { drawHeroPreview } from './render.js';", '')
 	.replace("import { sprites } from './sprites.js';", '')
 	.replace("import { renderResults } from './results.js';", '')
-	.replace("'./game.js'", JSON.stringify(gameUrl))));
+	.replace("'./game.js'", JSON.stringify(gameUrl)));
+const { UI } = await import(uiUrl);
+const { setupLobbyInvites } = await import(moduleUrl(browserSource('lobby-invites.js').replace("'./ui.js'", JSON.stringify(uiUrl))));
 
 test('a full horde lobby can release and transfer its director role without removing a participant', (t) => {
 	const button = (role) => ({ dataset: { role }, classList: { toggle() {} }, setAttribute() {}, disabled: false });
@@ -28,6 +30,21 @@ test('a full horde lobby can release and transfer its director role without remo
 	assert.equal(director.disabled, true, 'a second director cannot occupy an already taken role');
 	ui.renderRole('hero', null, 5, 2);
 	assert.equal(director.disabled, false, 'a hero can take the now-vacant director role');
+});
+
+test('invite countdown updates cannot enable Start after role validation disabled it', (t) => {
+	const nodes = new Map();
+	const node = (id) => {
+		if (!nodes.has(id)) nodes.set(id, { disabled: false, addEventListener() {}, close() {} });
+		return nodes.get(id);
+	};
+	const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: node } });
+	t.after(() => { if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document; });
+	const invites = setupLobbyInvites({ invites: false, send() {} }, () => {});
+	node('lobby-start').disabled = true;
+	invites.update({ code: 'FULL', host: 1, startsAt: null }, 1);
+	assert.equal(node('lobby-start').disabled, true, 'countdown rendering preserves the role/start validator result');
 });
 
 test('horde slowing is capped, expires and is cleared when the next run starts', () => {
