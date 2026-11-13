@@ -24,6 +24,8 @@ import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
+import { requestDash, stepMobility, mobilitySnapshot } from './mobility.js';
+import { segmentDistance2 } from '../public/shared/mobility.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -474,6 +476,9 @@ export class Room {
 			case 'pos':
 				this.onPos(pid, msg);
 				break;
+			case 'dash':
+				requestDash(this, pid, msg);
+				break;
 			case 'pick':
 				this.onPick(pid, msg);
 				break;
@@ -621,6 +626,7 @@ export class Room {
 		if (this.state !== 'play' || this.frozen) return;
 		const h = this.heroes.get(pid);
 		if (!h || h.st !== 0) return;
+		if (h.dash || (msg.epoch ?? 0) !== (h.moveEpoch ?? 0)) return;
 		const x = num(msg.x), y = num(msg.y);
 		if (x !== null && y !== null) {
 			const tx = clamp(x, -WORLD_LIMIT, WORLD_LIMIT), ty = clamp(y, -WORLD_LIMIT, WORLD_LIMIT);
@@ -1362,6 +1368,7 @@ export class Room {
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
+		stepMobility(this, dt);
 
 		this.updatePeaks(alive);
 		this.updateFinale(dt, alive);
@@ -2923,11 +2930,12 @@ export class Room {
 			h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
-			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
+			const from = h.dashPath ?? h;
+			this.grid.query((h.x + from.x) / 2, (h.y + from.y) / 2, PLAYER_RADIUS + MAX_ENEMY_R + Math.hypot(h.x - from.x, h.y - from.y) / 2, near);
 			for (const e of near) {
 				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
-				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
+				if (segmentDistance2(e.x, e.y, from.x, from.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
 					if (e.fuseT <= 0) {
 						e.fuseT = e.def.fuse;
@@ -5305,6 +5313,7 @@ export class Room {
 		}
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
+			mob: mobilitySnapshot(this),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
