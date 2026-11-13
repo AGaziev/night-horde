@@ -671,9 +671,12 @@ function frame(now) {
 		if (ui.screen === 'game') {
 			ui.updateHud(game);
 			const left = Math.ceil(game.dashRemaining()), dash = $('hud-dash');
-			dash.disabled = !game.isAlive() || game.frozen || !!game.offer || !!game.dashWaiting || !!game.dashTravel || left > 0;
-			dash.textContent = left ? `Рывок · ${left}` : 'Рывок · пробел';
-			dash.setAttribute('aria-label', left ? `Рывок, перезарядка ${left} с` : 'Рывок готов');
+			const disabled = !game.isAlive() || game.frozen || !!game.offer || !!game.dashWaiting || !!game.dashTravel || left > 0;
+			const label = left ? `Рывок · ${left}` : 'Рывок · пробел';
+			const accessible = left ? `Рывок, перезарядка ${left} с` : 'Рывок готов';
+			if (dash.disabled !== disabled) dash.disabled = disabled;
+			if (dash.textContent !== label) dash.textContent = label;
+			if (dash.getAttribute('aria-label') !== accessible) dash.setAttribute('aria-label', accessible);
 		}
 	} catch (err) {
 		// Keep the loop alive on unexpected data.
