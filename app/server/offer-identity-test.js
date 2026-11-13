@@ -101,7 +101,7 @@ try {
   const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
   assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
   assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
-  assert.equal(welcome.v,24,'server and current browser announce the new offer-action protocol');
+  assert.equal(welcome.v,28,'server and current browser announce the current action protocol');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
   assert.equal(reloads,1,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
