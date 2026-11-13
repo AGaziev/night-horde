@@ -20,9 +20,16 @@ export function loadVisual(storage) {
 	try { return parseVisual((storage ?? globalThis.localStorage)?.getItem(VISUAL_KEY)); } catch { return { ...DEFAULT_VISUAL }; }
 }
 
-export function saveVisual(v, storage) {
+// Writes only the changed fields over what is stored now, so another tab's choice of the other field survives.
+// Returns the merged settings; when storage is blocked they are `current` with the change applied.
+export function saveVisual(change, current = DEFAULT_VISUAL, storage) {
+	let merged = parseVisual(JSON.stringify({ ...current, ...change }));
 	try {
-		(storage ?? globalThis.localStorage)?.setItem(VISUAL_KEY, JSON.stringify({ numbers: v.numbers, effects: v.effects }));
+		const store = storage ?? globalThis.localStorage;
+		const raw = store?.getItem(VISUAL_KEY);
+		if (raw) merged = parseVisual(JSON.stringify({ ...parseVisual(raw), ...change }));
+		store?.setItem(VISUAL_KEY, JSON.stringify(merged));
 	} catch { /* storage blocked */ }
+	return merged;
 }
 

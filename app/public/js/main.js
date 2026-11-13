@@ -10,7 +10,7 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
-import { loadVisual, saveVisual } from './visual.js';
+import { VISUAL_KEY, loadVisual, saveVisual, parseVisual } from './visual.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -660,8 +660,7 @@ for (const kind of ['numbers', 'effects']) {
 	for (const el of document.getElementsByName('vfx-' + kind)) {
 		el.addEventListener('change', () => {
 			if (!el.checked) return;
-			game.setVisual({ ...game.visual, [kind]: el.value });
-			saveVisual(game.visual);
+			game.setVisual(saveVisual({ [kind]: el.value }, game.visual));
 			renderVisual();
 			// A mouse or touch pick gives the keys back to the hero; keyboard users keep focus in the group.
 			if (!el.matches(':focus-visible')) el.blur();
@@ -669,6 +668,12 @@ for (const kind of ['numbers', 'effects']) {
 	}
 }
 renderVisual();
+// Another tab changed the settings: follow it.
+addEventListener('storage', (e) => {
+	if (e.key !== VISUAL_KEY) return;
+	game.setVisual(parseVisual(e.newValue));
+	renderVisual();
+});
 addEventListener('pointerdown', (e) => {
 	if (!$('snd').contains(e.target)) toggleSoundPanel(false);
 });

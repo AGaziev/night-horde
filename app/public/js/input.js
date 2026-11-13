@@ -107,8 +107,11 @@ export class Input {
 	}
 }
 
-function isTyping(e) {
+// Keys that belong to the focused field, not to the game. A focused radio group (visual settings) keeps the arrows
+// to switch its option; WASD and the other game keys still reach the hero.
+export function isTyping(e) {
 	const t = e.target;
-	// Radio buttons (visual settings) do not take text: movement keys still drive the hero.
-	return t && ((t.tagName === 'INPUT' && t.type !== 'radio') || t.tagName === 'TEXTAREA' || t.isContentEditable);
+	if (!t) return false;
+	if (t.tagName === 'INPUT' && t.type === 'radio') return e.code.startsWith('Arrow');
+	return t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || !!t.isContentEditable;
 }

@@ -11,12 +11,25 @@ assert.deepEqual(parseVisual('{"numbers":"crits"}'), { numbers: 'crits', effects
 
 const mem = new Map();
 const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)) };
-saveVisual({ numbers: 'off', effects: 'lite', junk: 1 }, storage);
+saveVisual({ numbers: 'off', effects: 'lite', junk: 1 }, DEFAULT_VISUAL, storage);
 assert.deepEqual(JSON.parse(mem.get(VISUAL_KEY)), { numbers: 'off', effects: 'lite' }, 'only known fields are stored');
 assert.deepEqual(loadVisual(storage), { numbers: 'off', effects: 'lite' }, 'stored choice survives a reload');
 const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
 assert.deepEqual(loadVisual(broken), DEFAULT_VISUAL, 'storage that throws (private mode): defaults');
-assert.doesNotThrow(() => saveVisual({ numbers: 'off', effects: 'lite' }, broken));
+assert.deepEqual(saveVisual({ effects: 'lite' }, { numbers: 'crits', effects: 'full' }, broken), { numbers: 'crits', effects: 'lite' },
+	'storage that throws: the change is applied over this tab\'s settings');
+
+// Two tabs: each writes only the field it changed over what is stored now.
+mem.clear();
+const tabA = saveVisual({ numbers: 'crits' }, DEFAULT_VISUAL, storage); // tab A loaded defaults
+const tabB = saveVisual({ effects: 'lite' }, DEFAULT_VISUAL, storage); // tab B also loaded defaults, then changed effects
+assert.deepEqual(tabA, { numbers: 'crits', effects: 'full' });
+assert.deepEqual(tabB, { numbers: 'crits', effects: 'lite' }, 'tab B keeps tab A\'s «crits»');
+assert.deepEqual(loadVisual(storage), { numbers: 'crits', effects: 'lite' }, 'stored: both changes');
+mem.set(VISUAL_KEY, '{broken');
+assert.deepEqual(saveVisual({ effects: 'lite' }, { numbers: 'off', effects: 'full' }, storage), { numbers: 'all', effects: 'lite' },
+	'broken stored value: defaults plus the change');
+
 // Blocked site data: the localStorage getter itself throws (Chrome «block all cookies», sandboxed iframe).
 const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('SecurityError'); } });
@@ -27,6 +40,15 @@ try {
 	if (had) Object.defineProperty(globalThis, 'localStorage', had);
 	else delete globalThis.localStorage;
 }
+
+// Keys on a focused radio group: arrows switch the option, WASD and other game keys reach the hero.
+const { isTyping } = await import('../public/js/input.js');
+const radio = { tagName: 'INPUT', type: 'radio' };
+for (const code of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) assert.equal(isTyping({ target: radio, code }), true, code);
+for (const code of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Digit1', 'KeyM']) assert.equal(isTyping({ target: radio, code }), false, code);
+assert.equal(isTyping({ target: { tagName: 'INPUT', type: 'text' }, code: 'KeyW' }), true, 'text field keeps every key');
+assert.equal(isTyping({ target: { tagName: 'TEXTAREA' }, code: 'KeyW' }), true);
+assert.equal(isTyping({ target: { tagName: 'CANVAS' }, code: 'ArrowRight' }), false, 'canvas: arrows move the hero');
 
 // The real browser state module; only its browser-root imports are adapted for Node.
 const url = (p) => JSON.stringify(new URL(p, import.meta.url).href);
