@@ -1,7 +1,9 @@
 // Isolated contribution scenarios using real server casts/HP/marks, not DPS-only projections.
 import {Room} from '../app/server/game.js';
+const seeded=(seed)=>()=>{seed=(seed+0x6d2b79f5)>>>0;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};
 const rows=[];
 for(const players of [1,2,3,4,5,6,7,8]) {
+ Math.random=seeded(1);
  const r=new Room('SUPPORT',()=>{});for(let p=1;p<=players;p++)r.addPlayer(p,'P'+p,p===1?'herald':'ranger');r.start();
  r.time=100;r.enemies=[];const hs=[...r.heroes.values()],h=hs[0];for(const a of hs){a.x=a.y=0;a.hp=70;a.maxHp=100;a.weapons.clear();a.perk.readyAt=0;}
  h.weapons=new Map([['tocsin',{lvl:1,t:0}],['lantern',{lvl:3,t:0}],['frost',{lvl:3,t:0}],['bastion',{lvl:1,t:0}]]);

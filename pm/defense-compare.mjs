@@ -1,8 +1,10 @@
 // Real block/heal events for defensive signatures and their separate components.
 const APP=process.env.APP??new URL('../app',import.meta.url).pathname;
 const {Room}=await import(APP+'/server/game.js');const {DUOS}=await import(APP+'/public/shared/content.js');
+const seeded=(seed)=>()=>{seed=(seed+0x6d2b79f5)>>>0;let t=seed;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};
 const ids=Object.keys(DUOS).filter(id=>DUOS[id].parts.includes('ward')||id==='censer');const rows=[];
 for(const id of ids)for(const setup of ['parts','fusion']) {
+ Math.random=seeded(1);
  const r=new Room('DEF',()=>{});r.addPlayer(1,'Support','knight');r.addPlayer(2,'Ally','ranger');r.start();r.time=100;r.enemies=[];
  const h=r.heroes.get(1),ally=r.heroes.get(2);Object.assign(h,{x:0,y:0,hp:1000,maxHp:1000});Object.assign(ally,{x:0,y:0,hp:500,maxHp:1000});h.perk.readyAt=ally.perk.readyAt=Infinity;
  h.weapons=new Map((setup==='fusion'?[[id,1]]:DUOS[id].parts.map(p=>[p,3])).map(([w,lvl])=>[w,{lvl,t:0}]));
