@@ -217,7 +217,8 @@ if (CHECK) {
 		dispatchEvent(new StorageEvent('storage', { key: 'nh.vfx', newValue: '{"numbers":"all","effects":"full"}' }));
 		return [localStorage.getItem('nh.vfx'), window.__nh.game.visual];
 	});
-	check(late[1].numbers === 'crits' && late[1].effects === 'lite', `two tabs: a late storage event does not roll back ${late[0]}`);
+	check(late[0] === '{"numbers":"crits","effects":"lite"}', `two tabs: second change stored ${late[0]}`);
+	check(late[1].numbers === 'crits' && late[1].effects === 'lite', 'two tabs: a late storage event does not roll back');
 	await tabB.close();
 	await page.evaluate(() => localStorage.removeItem('bench.keep'));
 	await page.keyboard.press('Escape');

@@ -47,11 +47,15 @@ mem.clear();
 const staleEvent = JSON.stringify(saveVisual({ numbers: 'crits' }, DEFAULT_VISUAL, storage)); // tab A writes crits/full
 const tabBNow = saveVisual({ effects: 'lite' }, DEFAULT_VISUAL, storage); // tab B writes crits/lite before A's event reaches it
 assert.deepEqual(parseVisual(staleEvent), { numbers: 'crits', effects: 'full' }, 'the event carries the older value');
-assert.deepEqual(syncVisual(tabBNow, storage), { numbers: 'crits', effects: 'lite' }, 'late event does not roll the tab back');
+assert.deepEqual(tabBNow, { numbers: 'crits', effects: 'lite' });
+// Tab A applied its own choice; then B's newer write lands and A's handler runs: A must take crits/lite, not keep full.
+assert.deepEqual(syncVisual(parseVisual(staleEvent), storage), { numbers: 'crits', effects: 'lite' }, 'late event: the tab follows storage, not the event');
 assert.deepEqual(syncVisual({ numbers: 'off', effects: 'full' }, storage), { numbers: 'crits', effects: 'lite' }, 'other tab: takes the stored value');
 mem.set(VISUAL_KEY, '{"numbers":"off","effects":7}');
 assert.deepEqual(syncVisual({ numbers: 'crits', effects: 'lite' }, storage), { numbers: 'off', effects: 'lite' }, 'broken stored field stays as in this tab');
 assert.deepEqual(syncVisual({ numbers: 'crits', effects: 'lite' }, broken), { numbers: 'crits', effects: 'lite' }, 'unreadable storage: tab unchanged');
+mem.delete(VISUAL_KEY);
+assert.deepEqual(syncVisual({ numbers: 'crits', effects: 'lite' }, storage), DEFAULT_VISUAL, 'key removed in another tab: defaults, as after a reload');
 
 // Blocked site data: the localStorage getter itself throws (Chrome «block all cookies», sandboxed iframe).
 const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');

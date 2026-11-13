@@ -45,8 +45,14 @@ export function saveVisual(change, current = DEFAULT_VISUAL, storage) {
 }
 
 // Another tab changed the settings. Its storage event may arrive after newer writes,
-// so the value is read from storage now instead of the event; missing or broken fields stay as in this tab.
+// so the value is read from storage now instead of the event. A removed key means defaults, as after a reload;
+// broken fields stay as in this tab.
 export function syncVisual(current = DEFAULT_VISUAL, storage) {
 	const own = normalize(current);
-	try { return normalize(readJson((storage ?? globalThis.localStorage)?.getItem(VISUAL_KEY)), own); } catch { return own; }
+	try {
+		const raw = (storage ?? globalThis.localStorage)?.getItem(VISUAL_KEY);
+		return raw == null ? { ...DEFAULT_VISUAL } : normalize(readJson(raw), own);
+	} catch {
+		return own;
+	}
 }
