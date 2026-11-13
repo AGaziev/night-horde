@@ -29,6 +29,10 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
+input.onDash = () => game.requestDash(input);
+net.on('dash', msg => game.acceptDash(msg));
+$('hud-dash').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); input.onDash(); });
+$('hud-dash').addEventListener('click', e => { if (e.detail === 0) input.onDash(); });
 
 // Hero unlocks live in this browser: totals of per-run stats the server sends in `over`.
 // ?unlockall=1 opens everyone (debug, remembered); ?unlockall=0 turns it off.
@@ -656,7 +660,13 @@ function frame(now) {
 	try {
 		game.update(dt, input);
 		renderer.draw(game, dt);
-		if (ui.screen === 'game') ui.updateHud(game);
+		if (ui.screen === 'game') {
+			ui.updateHud(game);
+			const left = Math.ceil(game.dashRemaining()), dash = $('hud-dash');
+			dash.disabled = !game.isAlive() || game.frozen || !!game.offer || !!game.dashWaiting || !!game.dashTravel || left > 0;
+			dash.textContent = left ? `Рывок · ${left}` : 'Рывок · пробел';
+			dash.setAttribute('aria-label', left ? `Рывок, перезарядка ${left} с` : 'Рывок готов');
+		}
 	} catch (err) {
 		// Keep the loop alive on unexpected data.
 		console.error(err);
