@@ -7,6 +7,7 @@ export const HORDE_BOSS_TYPE = 'boss';
 export const HORDE_ARENA = Object.freeze({ minX: -1800, maxX: 1800, minY: -1200, maxY: 1200 });
 export const HORDE_LIMITS = Object.freeze({ ambient: 120, manual: 180, total: 350, queued: 3, spawnDistance: 600, warning: 1.5, preparation: 0.5, retireDistance: 1900 });
 export const HORDE_ECONOMY = Object.freeze({ start: 80, cap: 180, perSecond: 5, upgradeCosts: Object.freeze([70, 130]), upgradeAt: Object.freeze([180, 480]) });
+export const HORDE_UPGRADE = Object.freeze({ hpPerLevel: 0.20, damagePerLevel: 0.10 });
 
 export const HORDE_PACKS = Object.freeze({
 	swarm: Object.freeze({ id: 'swarm', name: 'Стая', icon: '🦇', cost: 24, at: 0, units: Object.freeze(['bat', 'bat', 'bat', 'bat', 'bat', 'bat', 'bat', 'bat', 'ghoul', 'ghoul', 'ghoul', 'ghoul']), desc: 'Быстрая стая и лёгкая пехота' }),
