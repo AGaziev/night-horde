@@ -143,16 +143,29 @@ test('#24: Ливень — the first Гроза strike leaves a puddle, the nex
 	r.updatePuddles(0.05);
 	assert.ok(a.wetT > r.time, 'the puddle soaks the enemy');
 
-	const b = foe(r, a.x + puddle.r * 0.5, a.y), hpB = b.hp;
+	const b = foe(r, a.x + puddle.r * 0.5, a.y);
 	b.wetT = 0;
 	r.updatePuddles(0.55);
 	assert.ok(b.wetT > r.time);
-	const before = r.fx.length;
+	// Count every hit by its source: Гроза and the puddle reach b too, only `r_cond` is the conduction.
+	const hits = [], hurt = r.hurtEnemy;
+	r.hurtEnemy = function (e, dmg, owner, src) {
+		const hp = e.hp, out = hurt.apply(this, arguments);
+		hits.push({ e, src: src?.weapon, dealt: hp - e.hp });
+		return out;
+	};
+	const condBefore = h.dmgBy.r_cond ?? 0;
 	h.weapons.get('lightning').t = 0;
 	r.updateWeapon(h, 'lightning', h.weapons.get('lightning'), 0.05);
+	r.hurtEnemy = hurt;
 	assert.ok(puddle.condT > r.time, 'a strike on a soaked enemy conducts through the puddle');
-	assert.ok(r.fx.length > before);
-	assert.ok(b.hp < hpB, 'the conduction reaches the enemy standing in the puddle');
+	const cond = hits.filter(x => x.src === 'r_cond' && x.dealt > 0);
+	assert.ok(cond.length > 0 && cond.every(x => x.e === a || x.e === b), 'the conduction itself damages an enemy in the puddle');
+	const struck = hits.find(x => x.src === 'lightning')?.e;
+	assert.ok(struck === a || struck === b, 'Гроза strikes one of the two');
+	assert.ok(cond.every(x => x.e !== struck), 'the second enemy is reached through the puddle, not by the strike');
+	assert.ok(h.dmgBy.r_cond - condBefore > 0, 'conduction damage is booked to the hero');
+	assert.equal(Math.round(h.dmgBy.r_cond - condBefore), Math.round(cond.reduce((s2, x) => s2 + x.dealt, 0)));
 
 	// Without the imprint Гроза leaves no puddle.
 	const plain = arena([['lightning', 3]]);
