@@ -7,7 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
 import { readFeedback, saveFeedback } from './feedback.js';
-import { createLobbyInvites, inviteCapacity } from './lobby-invites.js';
+import { createLobbyInvites, inviteCapacity, inviteDelivery } from './lobby-invites.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
 import { TICK_HZ, GAME_VERSION, MAX_PLAYERS } from '../public/shared/content.js';
 import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
@@ -464,10 +464,13 @@ async function handleLobbyInvites(req, res, url) {
 		}
 		try {
 			const membersNow = new Set([...room.members.values()].map((member) => member.uid));
-			const recipients = delivery.ids.filter((id) => !membersNow.has(id));
-			delivery.result = await lobbyInvites.send(recipients, authorization, {
+			const recipients = (retry ? ids : delivery.ids).filter((id) => !membersNow.has(id));
+			const result = await lobbyInvites.send(recipients, authorization, {
 				code, startsAt, minutes: delivery.minutes, host: session.portalName || 'Хост',
 			}, delivery.result?.recipients);
+			const outcomes = new Map((delivery.result?.recipients ?? []).map((r) => [r.id, r]));
+			for (const recipient of result.recipients) outcomes.set(recipient.id, recipient);
+			delivery.result = inviteDelivery([...outcomes.values()]);
 		} finally { delivery.sending = false; }
 		// A complete, confirmed rejection should not leave a scheduled empty lobby behind.
 		if (delivery.result.failed > 0 && delivery.result.sent === 0 && delivery.result.unknown === 0) {

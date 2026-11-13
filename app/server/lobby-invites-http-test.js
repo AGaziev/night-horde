@@ -67,4 +67,34 @@ test('HTTP: состав, владелец, частичная доставка 
 	for (let i = 0; i < 50 && !messages.some((m) => m.t === 'start'); i++) await delay(10);
 	assert.ok(messages.some((m) => m.t === 'start'));
 	assert.equal((await fetch(route, { headers })).status, 403, 'started room is no longer an invitation lobby');
+	if (process.env.HORDE_BROWSER_CHECK === '1') {
+		const { chromium } = await import('/Users/s.konev/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
+		const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
+		try {
+			const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { ...headers, 'X-Vibe-User-Id': '104' } });
+			await page.goto(base); await page.locator('#menu-create').click();
+			await page.locator('#lobby-invite').click();
+			await page.locator('#lobby-invite-search').fill('еж 119');
+			await page.locator('#lobby-invite-list').getByText('Ёж 119').waitFor();
+			await page.locator('#lobby-invite-search').fill('Владелец');
+			await page.locator('#lobby-invite-list').getByText('Владелец').waitFor();
+			await page.locator('#lobby-invite-search').fill('Борис');
+			await page.locator('#lobby-invite-list input').check();
+			await page.locator('#lobby-invite-search').fill('Вера');
+			await page.locator('#lobby-invite-list input').check();
+			await page.locator('#lobby-invite-search').fill('');
+			retry = false; const countBefore = calls.length;
+			await page.locator('#lobby-invite-form [type=submit]').click();
+			await page.waitForFunction(() => document.querySelector('#lobby-invite-status').textContent.includes('Уведомление не создано'));
+			assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), true);
+			if (process.env.HORDE_BROWSER_ARTIFACT) await page.screenshot({ path: process.env.HORDE_BROWSER_ARTIFACT });
+			retry = true;
+			await page.locator('#lobby-invite-form [type=submit]').click();
+			await page.waitForFunction(() => !document.querySelector('#lobby-invite-dialog').open);
+			assert.deepEqual(calls.slice(countBefore).map((x) => x.userId), [102, 103, 103]);
+			await page.locator('#lobby-cancel-start').click();
+			await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden);
+		} finally { await browser.close(); }
+	}
+
 });
