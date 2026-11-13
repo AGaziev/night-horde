@@ -2528,8 +2528,14 @@ export class Room {
 				reaction.flash *= m;
 			}
 		}
+		const beforeBarrier = dmg;
 		dmg = this.horde?.combat.barrier(e, dmg) ?? dmg;
 		if (dmg <= 0) return 0;
+		if (dmg < beforeBarrier) {
+			const remaining = dmg / beforeBarrier;
+			reaction.fixed *= remaining;
+			reaction.flash *= remaining;
+		}
 		const dealt = Math.min(dmg, e.hp);
 		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
