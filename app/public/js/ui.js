@@ -397,7 +397,8 @@ export class UI {
 		for (const b of box.children) {
 			const on = b.dataset.role === role;
 			b.classList.toggle('selected', on); b.setAttribute('aria-checked', String(on));
-			b.disabled = !on && (b.dataset.role === 'director' ? !!director && director.pid !== me : heroCount >= HORDE_MAX_HEROES);
+			// A director may temporarily become the fifth hero so a full lobby can transfer the vacant role.
+			b.disabled = !on && b.dataset.role === 'director' && !!director && director.pid !== me;
 		}
 		$('lobby-role-hint').textContent = `${director ? `За орду: ${director.name}` : 'Место за орду свободно'} · героев ${heroCount}/${HORDE_MAX_HEROES}.`;
 	}
