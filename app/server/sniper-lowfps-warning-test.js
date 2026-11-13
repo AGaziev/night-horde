@@ -179,6 +179,34 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 	console.log('new run while the tab is hidden: its lanes show with their own age: OK');
 }
 
+// Snapshots in order but late by 0–0.8 s (the render clock runs well behind the newest one): a 0.5 s warn circle
+// still shows, its age taken on the render clock.
+{
+	let shown = 0, runs = 0;
+	for (let k = 0; k < 60; k++) {
+		seed = 7 + k;
+		wall = T0;
+		const g = new Game({ send() {} }); g.me = 1;
+		g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: 0, y: 0 }] });
+		const arrivals = [];
+		let prev = 0;
+		for (let i = 1; i <= 60; i++) {
+			const tm = i / 10;
+			prev = Math.max(prev, T0 + tm + LATENCY + Math.random() * 0.8);
+			arrivals.push({ at: prev, tm, fx: i === 20 + (k % 35) ? [['warn', 0, 0, 80, 0.5]] : [] });
+		}
+		let seen = false;
+		for (let f = T0; f < T0 + 7.5; f += 1 / 60) {
+			while (arrivals.length && arrivals[0].at <= f) { const a = arrivals.shift(); wall = a.at; g.onSnapshot({ t: 's', tm: a.tm, fx: a.fx }); }
+			wall = f; g.update(1 / 60, idle);
+			if (g.warns.length) seen = true;
+		}
+		shown += seen; runs++;
+	}
+	assert.equal(shown, runs, `a 0.5 s warn shows with snapshots late by up to 0.8 s: ${shown}/${runs}`);
+	console.log(`snapshots late by 0–0.8 s, ${runs} runs: a 0.5 s warn circle shows: OK`);
+}
+
 // 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
 {
 	assert.equal(PROTO, 25);
