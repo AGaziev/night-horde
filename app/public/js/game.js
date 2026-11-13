@@ -57,6 +57,7 @@ export class Game {
 		this.me = null;
 		this.running = false;
 		this.ruleset = 'pve';
+		this.roundId = null;
 		this.directorPid = null;
 		this.arena = null;
 		this.directorCamera = { x: 0, y: 0, zoom: 0.65 };
@@ -169,6 +170,7 @@ export class Game {
 		this.reset();
 		this.players.clear();
 		this.ruleset = msg.ruleset === HORDE_RULESET ? HORDE_RULESET : 'pve';
+		this.roundId = this.ruleset === HORDE_RULESET && typeof msg.roundId === 'string' ? msg.roundId : null;
 		this.directorPid = this.ruleset === HORDE_RULESET ? msg.directorPid : null;
 		this.arena = this.ruleset === HORDE_RULESET ? (msg.arena || HORDE_ARENA) : null;
 		this.running = true;

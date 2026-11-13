@@ -19,6 +19,7 @@ const BUILD_GROUPS = {
 };
 // Keep a whole server troop ring (radius 64) and its edge clearance inside the arena.
 const PACK_RADIUS = 64;
+const COMMAND_RETRY_MS = 2500;
 const PLACEMENT_INSET = PACK_RADIUS + 24;
 
 // Director controls live outside the hero input/offer flow. All purchases wait for a private server frame.
@@ -88,6 +89,7 @@ export class HordeUI {
 	canCommand() { return this.active() && this.net.connected && this.ready && !this.inflight; }
 
 	begin() {
+		this.net.cancelHordeCommands();
 		const keepCamera = this.enabled;
 		this.enabled = this.game.isDirector();
 		this.ready = false; this.state = null; this.inflight = null; this.selected = null;
@@ -104,6 +106,7 @@ export class HordeUI {
 	}
 
 	stop() {
+		this.net.cancelHordeCommands();
 		this.enabled = false; this.ready = false; this.inflight = null; this.selected = null;
 		this.cancelPointer(); this.panel.hidden = true;
 		this.game.hordeState = null; this.game.hordeTarget = null;
@@ -111,13 +114,13 @@ export class HordeUI {
 	}
 
 	connection() {
-		// An unacknowledged command is never retried: reconnect supplies the authoritative lastSeq and wallet.
+		// Reconnect supplies a fresh authoritative round, lastSeq and wallet before accepting new input.
 		this.ready = false; this.inflight = null;
 		this.cancelPointer(); this.paint();
 	}
 
 	receive(msg) {
-		if (!this.active() || !Number.isSafeInteger(msg.lastSeq) || msg.lastSeq < 0) return;
+		if (!this.active() || !this.game.roundId || msg.roundId !== this.game.roundId || !Number.isSafeInteger(msg.lastSeq) || msg.lastSeq < 0) return;
 		if (this.state && msg.lastSeq < this.state.lastSeq) return;
 		this.state = msg; this.ready = true;
 		this.game.hordeState = { ...msg, receivedAt: performance.now() / 1000 };
@@ -126,8 +129,7 @@ export class HordeUI {
 	}
 
 	denied() {
-		if (!this.inflight) return;
-		this.inflight = null; this.ready = false;
+		// Error messages are not acknowledgements; failed commands also receive a private lastSeq.
 		this.paint();
 	}
 
@@ -145,9 +147,19 @@ export class HordeUI {
 		if (!this.canCommand()) return;
 		const seq = this.state.lastSeq + 1;
 		if (!Number.isSafeInteger(seq)) return;
-		this.inflight = { seq, action };
-		this.net.send({ t: 'horde', action, ...payload, seq });
+		const message = Object.freeze({ ...payload, t: 'horde', action, seq, roundId: this.state.roundId });
+		this.inflight = { seq, message, sentAt: performance.now() };
+		this.net.send(message);
 		this.paint();
+	}
+
+	retryPending() {
+		const pending = this.inflight;
+		if (!pending || !this.active() || !this.net.connected || !this.ready
+			|| pending.message.roundId !== this.game.roundId || performance.now() - pending.sentAt < COMMAND_RETRY_MS) return;
+		// A missing POST or private frame is ambiguous. The server deduplicates this exact sequence.
+		pending.sentAt = performance.now();
+		this.net.send(pending.message);
 	}
 
 	center() {
@@ -236,6 +248,7 @@ export class HordeUI {
 
 	update(dt, input) {
 		if (!this.active()) return;
+		this.retryPending();
 		const v = input.vector(), cam = this.game.directorCamera;
 		if (v.x || v.y) {
 			cam.x += v.x * 1000 * dt; cam.y += v.y * 1000 * dt;
