@@ -12,7 +12,11 @@ b.hp=b.maxHp-2;r.healSupport(h,b,20);assert.equal(h.support.healing,2,'overheal 
 const e=r.spawnEnemy('ghoul',[h],1);Object.assign(e,{x:200,y:0,speed:20,dmg:0});r.root(e,2,h);r.freeze(e,2,a);r.slowEnemy(e,.5,2,b);
 r.moveEnemies(.1,[h,a,b,c]);assert.equal(h.support.control+a.support.control+b.support.control,.1,'overlapping control is one enemy-second union');
 const boss=r.spawnEnemy('brute',[h],1);boss.boss=true;r.freeze(boss,2,h);r.root(boss,2,h);r.slowEnemy(boss,.9,2,h);
-assert.ok(boss.frozenT<=r.time&&boss.rootT<=r.time);assert.equal(boss.slow,.25,'boss slow capped');
+assert.ok(boss.frozenT<=r.time&&boss.rootT<=r.time);assert.equal(boss.slow,.4,'boss slow capped');
+for(const slow of [.3,.35,.4,.5,.9]) {
+ boss.slowT=0;r.slowEnemy(boss,slow,2,h);
+ assert.equal(boss.slow,Math.min(slow,.4),'ordinary frost and puddle slows survive the boss limit');
+}
 const row=r.snapshot().support.find(p=>p[0]===h.pid);assert.equal(row[3],40);
 console.log('support: effective healing, bounded shared shields, union control and boss caps');
 // Shared healing field cap includes repeated/overlapping casts from different owners.
@@ -45,5 +49,5 @@ assert.ok(!JSON.stringify(log).includes('sharedWard'),'owner object graph is nev
  assert.equal(target.slowOwner,a,'the time-sand collector owns the replacement slow');
  r.time+=1;r.moveEnemies(.1,[h,a,b,c]);
  assert.equal(h.support.control,beforeH);assert.ok(a.support.control>beforeA);
- target.boss=true;target.slowT=0;r.useItem(a,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h,a,b,c]);assert.equal(target.slow,.25,'item control follows the same boss limit');
+ target.boss=true;target.slowT=0;r.useItem(a,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h,a,b,c]);assert.equal(target.slow,.4,'item control follows the same boss limit');
 }

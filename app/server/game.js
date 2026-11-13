@@ -2615,7 +2615,7 @@ export class Room {
 	}
 
 	slowEnemy(e, slow, dur, owner) {
-		slow = Math.min(e.boss ? 0.25 : 0.7, Math.max(0, slow));
+		slow = Math.min(e.boss ? 0.4 : 0.7, Math.max(0, slow));
 		if (e.slowT <= this.time || slow >= e.slow) { e.slow = slow; e.slowOwner = owner; }
 		e.slowT = Math.max(e.slowT, this.time + dur);
 	}
