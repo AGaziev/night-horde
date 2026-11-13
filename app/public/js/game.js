@@ -995,8 +995,10 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		compact(this.warns, (w) => (w.t += dt) < w.life);
-		compact(this.blines, (l) => (l.t += dt) < l.life);
+		// Telegraphs count down the server's windups, and the server stands still while paused.
+		const tdt = this.frozen ? 0 : dt;
+		compact(this.warns, (w) => (w.t += tdt) < w.life);
+		compact(this.blines, (l) => (l.t += tdt) < l.life);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);
