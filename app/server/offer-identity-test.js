@@ -4,7 +4,7 @@ import { Room } from './game.js';
 import { passiveValue } from '../public/shared/content.js';
 
 const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8')
- .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+ .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href)).replaceAll("'/shared/daily.js'", JSON.stringify(new URL('../public/shared/daily.js', import.meta.url).href));
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const random=Math.random;
 Math.random=()=>0;
@@ -116,7 +116,7 @@ try {
 {
  const gameUrl='data:text/javascript;base64,'+Buffer.from(source).toString('base64');
  const uiSource=fs.readFileSync(new URL('../public/js/ui.js',import.meta.url),'utf8')
-  .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href))
+  .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href)).replaceAll("'/shared/daily.js'", JSON.stringify(new URL('../public/shared/daily.js', import.meta.url).href))
   .replace("import { drawHeroPreview } from './render.js';",'')
   .replace("import { sprites } from './sprites.js';",'')
   .replace("import { renderResults } from './results.js';",'')

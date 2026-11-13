@@ -722,7 +722,7 @@ export class RunStore {
 		return {
 			personal: !!uid, ...lists(scoped(false)),
 			daily: { ...lists(scoped(true)), best: uid ? [...this.dailyBest.values()].filter(r => r.uid === uid)
-				.sort((a, b) => b.best.daily.day.localeCompare(a.best.daily.day)).map(({ best, completed }) => ({ ...best, completed, detailsAvailable: this.index.has(best.id) })) : [] },
+				.sort((a, b) => b.best.daily.day.localeCompare(a.best.daily.day)).slice(0, 12).map(({ best, completed }) => ({ ...best, completed, detailsAvailable: this.index.has(best.id) })) : [] },
 		};
 	}
 
@@ -759,29 +759,29 @@ export class RunStore {
 
 	// Personal daily records survive pruning of full logs. Keep 90 challenge dates.
 	validDaily(daily) {
-	 return daily && Number.isInteger(daily.version) && /^\d{4}-\d{2}-\d{2}$/.test(daily.day)
-	  && ['lunch', 'night'].includes(daily.mode) && Number.isInteger(daily.players) && daily.players >= 1 && daily.players <= 8;
+		return daily && Number.isInteger(daily.version) && /^\d{4}-\d{2}-\d{2}$/.test(daily.day)
+			&& ['lunch', 'night'].includes(daily.mode) && Number.isInteger(daily.players) && daily.players >= 1 && daily.players <= 8;
 	}
 
 	rememberDaily(row, uids) {
-	 if (!this.validDaily(row.daily)) return;
-	 for (const uid of uids) {
-	  const key = uid + ':' + dailyKey(row.daily), old = this.dailyBest.get(key);
-	  this.dailyBest.set(key, { uid, best: !old || compareDaily(row, old.best) > 0 ? row : old.best,
-	   completed: !!(old?.completed || row.win) });
-	 }
-	 const days = [...new Set([...this.dailyBest.values()].map(r => r.best.daily.day))].sort().reverse();
-	 const keep = new Set(days.slice(0, 90));
-	 for (const [key, record] of this.dailyBest) if (!keep.has(record.best.daily.day)) this.dailyBest.delete(key);
+		if (!this.validDaily(row.daily)) return;
+		for (const uid of uids) {
+			const key = uid + ':' + dailyKey(row.daily), old = this.dailyBest.get(key);
+			this.dailyBest.set(key, { uid, best: !old || compareDaily(row, old.best) > 0 ? row : old.best,
+				completed: !!(old?.completed || row.win) });
+		}
+		const days = [...new Set([...this.dailyBest.values()].map(r => r.best.daily.day))].sort().reverse();
+		const keep = new Set(days.slice(0, 90));
+		for (const [key, record] of this.dailyBest) if (!keep.has(record.best.daily.day)) this.dailyBest.delete(key);
 	}
 
 	writeDaily() {
-	 if (!this.dir) return;
-	 const file = path.join(this.dir, '.daily-best'), tmp = file + '.tmp';
-	 try {
-	  fs.writeFileSync(tmp, JSON.stringify([...this.dailyBest.values()]), { mode: 0o600, flush: true });
-	  fs.renameSync(tmp, file);
-	 } finally { fs.rmSync(tmp, { force: true }); }
+		if (!this.dir) return;
+		const file = path.join(this.dir, '.daily-best'), tmp = file + '.tmp';
+		try {
+			fs.writeFileSync(tmp, JSON.stringify([...this.dailyBest.values()]), { mode: 0o600, flush: true });
+			fs.renameSync(tmp, file);
+		} finally { fs.rmSync(tmp, { force: true }); }
 	}
 
 	files(dir) {

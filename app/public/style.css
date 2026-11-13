@@ -888,3 +888,15 @@ input[type="text"]:focus { border-color: var(--accent); }
 .hud-outposts { max-width: 250px; color: #ffcc80; font-size: 0.72rem; line-height: 1.35; text-shadow: 0 1px 4px #000; }
 .hud-trophy { color: #ffe082; font-size: 0.7rem; line-height: 1.4; text-shadow: 0 1px 4px #000; border-left: 2px solid #ffc107; padding-left: 6px; }
 @media (max-width: 600px) { .hud-outposts { max-width: 145px; font-size: 0.62rem; } .hud-trophy { font-size: 0.6rem; } }
+
+/* The daily choice stays readable on touch screens and during a scheduled start. */
+.daily-pick { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px 14px; margin: 12px 0 18px; }
+.daily-toggle { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; cursor: pointer; }
+.daily-toggle input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
+.daily-pick p { margin: 5px 0; }
+.daily-title { color: var(--accent); font-weight: 600; }
+.daily-result { border-left: 3px solid var(--accent); padding: 8px 12px; margin: 0 0 14px; }
+
+.daily-records { border-bottom: 1px solid var(--panel-border); padding-bottom: 10px; margin-bottom: 14px; }
+.daily-records ul { padding-left: 20px; max-height: 220px; overflow: auto; }
+.daily-records li { margin: 8px 0; }
