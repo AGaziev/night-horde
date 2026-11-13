@@ -1819,7 +1819,11 @@ export class Room {
 				}
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
-				if (e.frozenT > now || e.rootT > now) continue;
+				if (e.frozenT > now || e.rootT > now) {
+					// The lanes fade on the client while the sniper is locked: aim again with fresh lanes after it.
+					if (e.ai === 'sniper' && e.windT > 0) e.windT = e.shotT = 0;
+					continue;
+				}
 				let dx = best.x - e.x, dy = best.y - e.y;
 				const d = Math.sqrt(bd) || 1;
 				dx /= d;
@@ -2172,7 +2176,7 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
-		if (e.outpost && e.windT > 0 && e.guardAim && (e.x !== e.guardAim.x || e.y !== e.guardAim.y)) {
+		if (e.windT > 0 && e.aimFrom && (e.x !== e.aimFrom.x || e.y !== e.aimFrom.y)) {
 			e.windT = 0;
 			e.shotT = 0;
 		}
@@ -2208,7 +2212,7 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
-			if (e.outpost) e.guardAim = { x: e.x, y: e.y };
+			e.aimFrom = { x: e.x, y: e.y };
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
 			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
