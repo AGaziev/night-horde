@@ -1,0 +1,64 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { VISUAL_KEY, DEFAULT_VISUAL, parseVisual, loadVisual, saveVisual } from '../public/js/visual.js';
+
+// Issue #11: damage numbers «all / crits / off» and effects «full / lite», kept in localStorage.
+
+assert.deepEqual(parseVisual(null), DEFAULT_VISUAL, 'nothing stored: defaults');
+assert.deepEqual(parseVisual('{broken'), DEFAULT_VISUAL, 'broken JSON: defaults');
+assert.deepEqual(parseVisual('{"numbers":"loud","effects":7}'), DEFAULT_VISUAL, 'unknown values: defaults');
+assert.deepEqual(parseVisual('{"numbers":"crits"}'), { numbers: 'crits', effects: 'full' }, 'missing field keeps its default');
+
+const mem = new Map();
+const storage = { getItem: (k) => mem.get(k) ?? null, setItem: (k, v) => mem.set(k, String(v)) };
+saveVisual({ numbers: 'off', effects: 'lite', junk: 1 }, storage);
+assert.deepEqual(JSON.parse(mem.get(VISUAL_KEY)), { numbers: 'off', effects: 'lite' }, 'only known fields are stored');
+assert.deepEqual(loadVisual(storage), { numbers: 'off', effects: 'lite' }, 'stored choice survives a reload');
+const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
+assert.deepEqual(loadVisual(broken), DEFAULT_VISUAL, 'storage that throws (private mode): defaults');
+assert.doesNotThrow(() => saveVisual({ numbers: 'off', effects: 'lite' }, broken));
+
+// The real browser state module; only its browser-root imports are adapted for Node.
+const url = (p) => JSON.stringify(new URL(p, import.meta.url).href);
+const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8')
+	.replace("'/shared/content.js'", url('../public/shared/content.js'));
+const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
+
+function play(visual) {
+	const g = new Game({ send() {} });
+	g.me = 1;
+	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: 0, y: 0 }] });
+	g.visual = visual;
+	g.effect(['hit', 10, 10, 12]);
+	g.effect(['hit', 20, 20, 40, 1, 1]);
+	g.effect(['die', 30, 30, 0]);
+	g.effect(['warn', 50, 50, 70, 0.6]);
+	g.effect(['bline', 0, 0, 100, 0, 60, 0.8]);
+	g.shotEvent(['eshot', 7, 0, 0, 10, 0, 1, 0]);
+	return g;
+}
+
+const full = play({ numbers: 'all', effects: 'full' });
+assert.deepEqual(full.numbers.map((n) => n.crit), [false, true], '«all» shows both numbers');
+assert.deepEqual(play({ numbers: 'crits', effects: 'full' }).numbers.map((n) => n.crit), [true], '«crits» keeps only the crit');
+assert.equal(play({ numbers: 'off', effects: 'full' }).numbers.length, 0, '«off» hides every number');
+
+const lite = play({ numbers: 'off', effects: 'lite' });
+assert.ok(lite.particles.length > 0 && lite.particles.length * 3 < full.particles.length,
+	`lite keeps a fraction of particles (${lite.particles.length} of ${full.particles.length})`);
+const boss = (effects) => {
+	const g = play({ numbers: 'all', effects });
+	g.particles.length = 0;
+	g.burst(0, 0, '#fff', 60, 10);
+	g.burst(0, 0, '#fff', 3, 10);
+	return g.particles.length;
+};
+assert.equal(boss('full'), 63);
+assert.equal(boss('lite'), 15 + 1, 'lite: a quarter of a burst, at least one particle');
+for (const g of [full, lite]) {
+	assert.equal(g.warns.length, 1, 'attack warning circle is kept at every setting');
+	assert.equal(g.blines.length, 1, 'charge line is kept at every setting');
+	assert.equal(g.hostile.size, 1, 'enemy shot is kept at every setting');
+}
+
+console.log(`Visual settings: storage, numbers all/crits/off, lite particles ${lite.particles.length}/${full.particles.length}, warnings kept: OK`);

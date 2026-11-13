@@ -10,6 +10,7 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
+import { loadVisual, saveVisual } from './visual.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -29,6 +30,7 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
+game.visual = loadVisual();
 
 // Hero unlocks live in this browser: totals of per-run stats the server sends in `over`.
 // ?unlockall=1 opens everyone (debug, remembered); ?unlockall=0 turns it off.
@@ -637,6 +639,32 @@ for (const kind of ['music', 'sfx']) {
 		el.blur();
 	});
 }
+
+// Visual settings (Issue #11): stored in this browser, applied at once.
+const VFX_HINT = {
+	full: 'Частицы, вспышки и тряска экрана.',
+	lite: 'Меньше частиц, без вспышек и тряски. Предупреждения атак видны всегда.',
+};
+function renderVisual() {
+	for (const kind of ['numbers', 'effects']) {
+		for (const el of document.getElementsByName('vfx-' + kind)) el.checked = el.value === game.visual[kind];
+	}
+	$('vfx-hint').textContent = VFX_HINT[game.visual.effects];
+}
+for (const kind of ['numbers', 'effects']) {
+	for (const el of document.getElementsByName('vfx-' + kind)) {
+		el.addEventListener('change', () => {
+			if (!el.checked) return;
+			game.visual = { ...game.visual, [kind]: el.value };
+			if (kind === 'numbers' && el.value !== 'all') game.numbers = game.numbers.filter((n) => el.value === 'crits' && n.crit);
+			saveVisual(game.visual);
+			renderVisual();
+			// A mouse or touch pick gives the keys back to the hero; keyboard users keep focus in the group.
+			if (!el.matches(':focus-visible')) el.blur();
+		});
+	}
+}
+renderVisual();
 addEventListener('pointerdown', (e) => {
 	if (!$('snd').contains(e.target)) toggleSoundPanel(false);
 });
