@@ -37,7 +37,7 @@ export const HORDE_ARTIFACTS = Object.freeze({
 	lens: { id: 'lens', name: 'Треснувшая линза', icon: '◉', tags: ['projectile', 'siege'], requiresWeapon: true, desc: 'За уровень: +12% дальности оружия и +8% скорости снарядов' },
 	hourglass: { id: 'hourglass', name: 'Песочные часы', icon: '⌛', tags: ['duration', 'poison', 'control'], requiresWeaponTags: ['duration'], desc: 'За уровень: +20% длительности яда и замедления' },
 	powder: { id: 'powder', name: 'Пороховая урна', icon: '⚱', tags: ['area', 'death', 'blast'], requiresWeaponTags: ['area'], desc: 'За уровень: +15% радиуса взрывов, удара серпа и цепного перескока' },
-	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'Снаряды оружия могут дать вторичный разряд соседнему герою; общий откат 3 секунды' },
+	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'За уровень: +5% урона оружия. Снаряд может дать вторичный разряд соседнему герою; общий откат 3 секунды' },
 	hunter: { id: 'hunter', name: 'Глаз охотника', icon: '◈', tags: ['poison', 'control'], requiresWeaponTags: ['poison', 'control'], desc: 'За уровень: +15% урона оружия по отравленным или замедленным героям' },
 	tether: { id: 'tether', name: 'Узы легиона', icon: '∞', tags: ['support', 'frontline'], requiresWeapon: true, requiresPacks: 2, desc: 'Оружие сильнее рядом с другим семейством: +6% за уровень и семейство, до трёх семейств' },
 	brood: { id: 'brood', name: 'Матка роя', icon: '♧', tags: ['swarm'], desc: 'За уровень: один дополнительный боец при покупке пачки. Учитывается в населении и очереди' },
@@ -45,12 +45,12 @@ export const HORDE_ARTIFACTS = Object.freeze({
 	march: { id: 'march', name: 'Барабан марша', icon: '♬', tags: ['fast', 'support'], requiresPacks: 2, desc: 'За уровень: +6% скорости рядом с другим ручным семейством; несколько барабанов не складываются' },
 	supply: { id: 'supply', name: 'Военный обоз', icon: '▣', tags: ['economy'], desc: 'За уровень: пачки дешевле на 5%, запас ресурса больше на 20. Урон не усиливает' },
 	idol: { id: 'idol', name: 'Кровавый идол', icon: '♦', tags: ['frontline', 'melee'], requiresWeapon: true, desc: 'За уровень: +15% урона оружия, если у бойца-носителя меньше половины здоровья' },
-	censer: { id: 'censer', name: 'Чумная кадильница', icon: '♨', tags: ['poison', 'area'], requiresWeapons: ['venom'], desc: 'Яд при попадании заражает ещё одного соседнего героя ослабленной дозой; не порождает цепь заражений' },
+	censer: { id: 'censer', name: 'Чумная кадильница', icon: '♨', tags: ['poison', 'area'], requiresWeapons: ['venom'], desc: 'За уровень: +10% длительности яда. Ослабленная доза заражает одного соседа в радиусе 160 / 180 / 200; дальше не распространяется' },
 });
 
 export const HORDE_SYNERGIES = Object.freeze([
 	{ id: 'fever', name: 'Лихорадка', weapons: ['venom', 'frost'], desc: 'Яд наносит на 35% больше урона замедленной цели' },
-	{ id: 'conduit', name: 'Живая цепь', weapons: ['storm'], artifacts: ['conductor'], desc: 'Грозовой разряд может поразить ещё одного героя без повторных попаданий' },
+	{ id: 'conduit', name: 'Живая цепь', weapons: ['storm'], artifacts: ['conductor'], desc: 'Разряд перескакивает ещё раз; против одного живого героя зона удара шире на 25%' },
 	{ id: 'cremation', name: 'Крематорий', weapons: ['ember'], artifacts: ['powder'], desc: 'После взрыва возникает второй предупреждённый импульс с 45% урона' },
 	{ id: 'pursuit', name: 'Дикая охота', weapons: ['reaper'], artifacts: ['march'], desc: 'Дальность серпа +60, его откат короче на 20%' },
 	{ id: 'volley', name: 'Костяной ливень', weapons: ['arbalest'], artifacts: ['lens'], desc: 'Ещё одна стрела в залпе; урон каждой стрелы 80%' },
