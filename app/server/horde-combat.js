@@ -1,5 +1,5 @@
 import { PLAYER_RADIUS } from '../public/shared/content.js';
-import { HORDE_COMBAT, HORDE_WEAPONS, hordeSynergies } from '../public/shared/horde-content.js';
+import { HORDE_COMBAT, HORDE_WEAPONS, HORDE_UPGRADE, hordeSynergies } from '../public/shared/horde-content.js';
 
 const FAMILY_RADIUS = 220;
 const HEAL_RADIUS = 240;
@@ -76,7 +76,7 @@ export class HordeCombat {
 	attack(e, id) {
 		const build = e.hordeBuild, level = build.weapons[id], def = HORDE_WEAPONS[id];
 		const synergies = new Set(hordeSynergies(build).map((s) => s.id));
-		let damage = def.damage * (1 + 0.35 * (level - 1));
+		let damage = def.damage * (1 + HORDE_UPGRADE.weaponDamagePerLevel * (level - 1));
 		damage *= 1 + 0.05 * artifact(build, 'conductor');
 		damage *= 1 + 0.06 * artifact(build, 'tether') * Math.min(3, this.families(e).size);
 		if (e.hp < e.maxHp * 0.5) damage *= 1 + 0.15 * artifact(build, 'idol');

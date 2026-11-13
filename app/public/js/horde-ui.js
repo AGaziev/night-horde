@@ -293,6 +293,7 @@ export class HordeUI {
 				card.append(el('span', 'horde-card-kind', `${group.label} · ${isNew ? 'Новый предмет' : 'Улучшение'}`),
 					el('b', '', `${def.icon} ${def.name}`), el('span', 'horde-card-level', `Уровень ${choice.level} / ${group.max}`), el('span', 'horde-card-desc', def.desc));
 				if (choice.kind === 'pack') card.appendChild(el('small', 'horde-card-note', `Каждый уровень после первого: +${Math.round(HORDE_UPGRADE.hpPerLevel * 100)}% здоровья и +${Math.round(HORDE_UPGRADE.damagePerLevel * 100)}% урона.`));
+				if (choice.kind === 'weapon') card.appendChild(el('small', 'horde-card-note', `Каждый уровень после первого: +${Math.round(HORDE_UPGRADE.weaponDamagePerLevel * 100)}% урона от базового значения.`));
 				card.addEventListener('click', () => {
 					if (this.state?.offer?.id === offer.id) this.command('pick', { offerId: offer.id, choice: index });
 				});

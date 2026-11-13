@@ -7,7 +7,7 @@ export const HORDE_BOSS_TYPE = 'boss';
 export const HORDE_ARENA = Object.freeze({ minX: -1800, maxX: 1800, minY: -1200, maxY: 1200 });
 export const HORDE_LIMITS = Object.freeze({ ambient: 120, manual: 180, total: 350, queued: 3, spawnDistance: 600, birthDistance: 200, warning: 1.5, preparation: 0.5, retireDistance: 1900 });
 export const HORDE_ECONOMY = Object.freeze({ start: 80, cap: 180, perSecond: 5 });
-export const HORDE_UPGRADE = Object.freeze({ hpPerLevel: 0.16, damagePerLevel: 0.08 });
+export const HORDE_UPGRADE = Object.freeze({ hpPerLevel: 0.16, damagePerLevel: 0.08, weaponDamagePerLevel: 0.35 });
 export const HORDE_BUILD = Object.freeze({ packSlots: 4, weaponSlots: 4, artifactSlots: 6, packMax: 5, weaponMax: 3, artifactMax: 3, rankEvery: 40, maxPicks: 22, rerolls: 2 });
 export const HORDE_COMBAT = Object.freeze({ maxProcsPerTick: 3, maxHostile: 220, slowCap: 0.22, poisonStacks: 3, warning: 1.2 });
 
@@ -35,8 +35,8 @@ export const HORDE_WEAPONS = Object.freeze({
 export const HORDE_ARTIFACTS = Object.freeze({
 	lens: { id: 'lens', name: 'Треснувшая линза', icon: '◉', tags: ['projectile', 'siege'], requiresWeapon: true, desc: 'За уровень: +12% дальности оружия и +8% скорости снарядов' },
 	hourglass: { id: 'hourglass', name: 'Песочные часы', icon: '⌛', tags: ['duration', 'poison', 'control'], requiresWeaponTags: ['duration'], desc: 'За уровень: +20% длительности яда и замедления' },
-	powder: { id: 'powder', name: 'Пороховая урна', icon: '⚱', tags: ['area', 'death', 'blast'], requiresWeaponTags: ['area'], desc: 'За уровень: +15% радиуса взрывов, удара серпа и цепного перескока' },
-	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'За уровень: +5% урона оружия. Снаряд может дать вторичный разряд соседнему герою; общий откат 3 секунды' },
+	powder: { id: 'powder', name: 'Пороховая урна', icon: '⚱', tags: ['area', 'death', 'blast'], requiresWeaponTags: ['area'], desc: 'За уровень: +15% радиуса взрывов, удара серпа, зоны разряда и цепного перескока' },
+	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'За уровень: +5% урона оружия. Снаряд даёт разряд соседнему герою с шансом 25 / 40 / 55%; общий откат 3 секунды' },
 	hunter: { id: 'hunter', name: 'Глаз охотника', icon: '◈', tags: ['poison', 'control'], requiresWeaponTags: ['poison', 'control'], desc: 'За уровень: +15% урона оружия по отравленным или замедленным героям' },
 	tether: { id: 'tether', name: 'Узы легиона', icon: '∞', tags: ['support', 'frontline'], requiresWeapon: true, requiresPacks: 2, desc: 'Оружие сильнее рядом с другим семейством: +6% за уровень и семейство, до трёх семейств' },
 	brood: { id: 'brood', name: 'Матка роя', icon: '♧', tags: ['swarm'], desc: 'За уровень: один дополнительный боец сопровождения при покупке пачки. Учитывается в населении и очереди' },
@@ -67,5 +67,3 @@ export function hordeCardDef(kind, id) {
 export function clampHordePosition(x, y, padding = 0) {
 	return { x: Math.max(HORDE_ARENA.minX + padding, Math.min(HORDE_ARENA.maxX - padding, x)), y: Math.max(HORDE_ARENA.minY + padding, Math.min(HORDE_ARENA.maxY - padding, y)) };
 }
-
-
