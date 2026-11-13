@@ -11,3 +11,15 @@ for(const [id,d] of Object.entries(DUOS)) {
  assert.equal(h.weapons.size,1);
 }
 console.log('signature dispatch: all duos, one slot, no component casts');
+{
+ const r=new Room('LIVE',()=>{});r.addPlayer(1,'A','knight');r.start();const h=r.heroes.get(1);
+ h.weapons=new Map([['bolt',{lvl:3,t:0}],['lightning',{lvl:3,t:0}],['knives',{lvl:3,t:0}]]);
+ r.addProjectile(h,'bolt',0,400,10,1,2,null);
+ r.addProjectile(h,'knife',0,400,10,1,2,null);
+ r.puddles=[{owner:h,src:{weapon:'bolt'}},{owner:h,src:{weapon:'knives'}}];
+ assert.equal(r.fuseDuo(h,{id:'orb',parts:['bolt','lightning'],level:1}),true);
+ assert.equal(r.projectiles.length,1,'consumed missile ends, independent knife remains');
+ assert.equal(r.projectiles[0].src.weapon,'knives');assert.equal(r.puddles[0].src.weapon,'knives');
+ assert.equal(h.weapons.size,2,'one slot freed beside the independent weapon');
+ assert.equal(r.fuseDuo(h,{id:'orb',parts:['bolt','lightning'],level:1}),false,'cannot fuse twice');
+}

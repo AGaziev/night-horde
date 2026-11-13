@@ -1200,7 +1200,10 @@ export class Room {
 		h.weapons = next;
 		h.fused.add(a);
 		h.fused.add(b);
-		this.traps = this.traps.filter((t) => t.owner !== h); // trap-based parts start a fresh field
+		// Consumed attacks end at fusion; unrelated weapons keep their own fields and missiles.
+		const consumed = (effect) => effect.owner === h && card.parts.includes(effect.src?.weapon);
+		for (const p of this.projectiles) if(consumed(p)) this.endProjectile(p);
+		for (const key of ['projectiles', 'coldWaves', 'puddles', 'traps', 'blasts', 'orbs']) this[key] = this[key].filter(effect => !consumed(effect));
 		this.fx.push(['duo', h.pid, card.id]);
 		this.runLog?.fused(this, h, 'duo', card.id);
 		this.updateSynergy();
@@ -3905,7 +3908,12 @@ export class Room {
 			this.fx.push(['ward', h.pid, h.ward]); return;
 		}
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
-		const w = h.weapons.get(id);
+		const w = h.weapons.get(id), previous = this.weaponContext;
+		if(DUOS[id]) this.weaponContext={h,weapon:id,part:id,scale:(DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER)*duoLineagePower(w.lvl,w.parts)};
+		try { this.wardAnswer(h,id,w); } finally { this.weaponContext=previous; }
+	}
+
+	wardAnswer(h, id, w) {
 		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
