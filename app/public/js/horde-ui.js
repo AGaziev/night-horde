@@ -73,7 +73,7 @@ export class HordeUI {
 		addEventListener('blur', () => this.cancelPointer());
 		addEventListener('keydown', (e) => {
 			if (!this.active() || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-			if (e.target?.matches('input,textarea,select,[contenteditable="true"]')) return;
+			if (e.target?.closest?.('input,textarea,select,button,a[href],[contenteditable="true"]')) return;
 			const digit = /^(?:Digit|Numpad)([1-4])$/.exec(e.code);
 			if (digit) this.select([...this.cards.keys()][+digit[1] - 1]);
 			else if (e.code === 'Escape') this.select(null);

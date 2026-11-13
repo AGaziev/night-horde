@@ -118,3 +118,29 @@ test('fresh private state is required after reconnect and old-round frames canno
 	assert.ok(ui.inflight); assert.equal(sent.at(-1).roundId, 'round-2');
 	assert.notEqual(sent.at(-1).offerId, sent[0].offerId);
 });
+
+test('Space on a focused card preserves native button activation; field Space still recenters the camera', (t) => {
+	const handlers = new Map();
+	const node = () => ({ dataset: {}, appendChild() {}, addEventListener() {}, setAttribute() {} });
+	const nodes = new Map();
+	const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	const previousListener = Object.getOwnPropertyDescriptor(globalThis, 'addEventListener');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+		createElement: node, getElementById(id) { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); },
+	} });
+	Object.defineProperty(globalThis, 'addEventListener', { configurable: true, value: (event, fn) => handlers.set(event, fn) });
+	t.after(() => {
+		for (const [key, previous] of [['document', previousDocument], ['addEventListener', previousListener]]) {
+			if (previous) Object.defineProperty(globalThis, key, previous); else delete globalThis[key];
+		}
+	});
+	const ui = new HordeUI({ game: {}, net: {}, renderer: {}, canvas: node(), ui: {} });
+	let centered = 0, prevented = 0;
+	ui.active = () => true; ui.center = () => centered++;
+	const key = { code: 'Space', target: { matches: () => false, closest: () => ({ tagName: 'BUTTON' }) }, preventDefault: () => prevented++ };
+	handlers.get('keydown')(key);
+	assert.equal(centered, 0, 'focused interactive controls must keep their native Space handling');
+	assert.equal(prevented, 0);
+	handlers.get('keydown')({ ...key, target: { matches: () => false, closest: () => null } });
+	assert.equal(centered, 1); assert.equal(prevented, 1);
+});
