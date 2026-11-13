@@ -1,4 +1,5 @@
 // Reproducible local performance probe. No platform key, external traffic, or production state.
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
@@ -7,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 const app = path.resolve(process.env.APP || new URL('../app', import.meta.url).pathname);
 const runtimeSha=process.env.PERF_SHA||execFileSync('git',['-C',app,'rev-parse','HEAD'],{encoding:'utf8'}).trim();
+const sourceHashes=Object.fromEntries(['public/js/display.js','public/js/game.js','public/js/render.js','public/js/snapshot-codec.js','public/shared/content.js','server/game.js'].map(file=>[file,createHash('sha256').update(readFileSync(path.join(app,file))).digest('hex')]));
 const { Room } = await import(pathToFileURL(path.join(app, 'server/game.js')));
 const { TICK_HZ, ENEMY_TYPES } = await import(pathToFileURL(path.join(app, 'public/shared/content.js')));
 const { WebSocketServer } = await import(pathToFileURL(path.join(app, 'node_modules/ws/wrapper.mjs')));
@@ -56,7 +58,7 @@ const results=[];
 try{
 	const planned=JSON.parse(process.env.PERF_CELLS||'null')||[1,4,8].flatMap(n=>['packed','spread'].flatMap(group=>['ranged','support'].flatMap(build=>[300,588].map(time=>({n,group,build,time})))));
 	const selected=process.env.PERF_TIME?planned.filter(c=>c.time===Number(process.env.PERF_TIME)):planned;
-	const cells=selected.flatMap(cell=>Array.from({length:Number(process.env.PERF_REPEATS)||1},(_,repeat)=>({...cell,repeat:repeat+1}))); 
+	const cells=selected.flatMap(cell=>Array.from({length:Number(process.env.PERF_REPEATS)||1},(_,repeat)=>({...cell,repeat:repeat+1})));
 	for(const cell of cells){
 		rng=seed;tickCost=[];snapCost=[];delivery=[];tickIntervals=[];previousTick=0;
 		room=new Room('PERF',(pid,msg,json)=>{if(pid===1&&msg.t==='s'&&socket?.readyState===1){const data=json??JSON.stringify(msg);delivery.push({at:performance.now(),tm:msg.tm,bytes:Buffer.byteLength(data)});const envelope=JSON.parse(data);envelope.__at=Date.now();setTimeout(()=>{if(socket?.readyState===1)socket.send(JSON.stringify(envelope));},Number(process.env.NETWORK_DELAY_MS)||0);}});
@@ -83,6 +85,6 @@ try{
 		results.push(result);room=null;console.log(JSON.stringify({...cell,dpr:result.dpr,frameMean:result.frame.mean,slowFrameRatio:result.slowFrameRatio,tickP95:result.serverTick.p95,frameP95:result.frame.p95,drawP95:result.draw.p95,gapP95:result.networkGap.p95,entities:result.entities}));
 	}
 }finally{clearInterval(interval);await browser.close();wss.close();await new Promise(r=>http.close(r));}
-const output={sha:runtimeSha,node:process.version,seed,warmupMs:Number(process.env.PERF_WARMUP_MS)||0,fixedDpr:Number(process.env.PERF_DPR)||0,repeat:Number(process.env.PERF_REPEATS)||1,ablation:process.env.PERF_ABLATION||null,at:new Date().toISOString(),viewport:'1440x900@2x Chromium headless --mute-audio',results,errors};
+const output={sha:runtimeSha,sourceHashes,node:process.version,seed,warmupMs:Number(process.env.PERF_WARMUP_MS)||0,fixedDpr:Number(process.env.PERF_DPR)||0,repeat:Number(process.env.PERF_REPEATS)||1,ablation:process.env.PERF_ABLATION||null,at:new Date().toISOString(),viewport:'1440x900@2x Chromium headless --mute-audio',results,errors};
 if(process.env.OUTPUT){mkdirSync(path.dirname(process.env.OUTPUT),{recursive:true});writeFileSync(process.env.OUTPUT,JSON.stringify(output,null,2)+'\n');}
 console.log(JSON.stringify({sha:output.sha,cells:results.length,errors}));
