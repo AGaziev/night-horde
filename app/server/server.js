@@ -125,7 +125,7 @@ function sendProgress(uid) {
 // Totals and weekly records at the end of a run (called by the room, synchronously, before `over`).
 hub.onRunEnd = (info) => {
 	const tot = new Map();
-	if (!store.enabled) return tot;
+	if (!store.enabled || info.daily) return tot;
 	for (const st of info.stats) {
 		const s = byPid.get(st.pid);
 		if (!s?.uid) continue;
