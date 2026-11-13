@@ -2487,6 +2487,7 @@ export class Room {
 
 	// The single damage entry point: mark → crit → reactions → armor → hp → burn.
 	hurtEnemy(e, dmg, h, src = SRC_NONE) {
+		this.lastCrit = false;
 		if (e.dead || dmg <= 0) return 0;
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
@@ -2547,6 +2548,8 @@ export class Room {
 			}
 		}
 		const beforeBarrier = dmg;
+		const fixedBeforeBarrier = reaction.fixed;
+		this.lastCrit = crit;
 		dmg = this.horde?.combat.barrier(e, dmg) ?? dmg;
 		if (dmg <= 0) return 0;
 		if (dmg < beforeBarrier) {
@@ -2555,15 +2558,18 @@ export class Room {
 			reaction.flash *= remaining;
 		}
 		const dealt = Math.min(dmg, e.hp);
+		const absorbed = beforeBarrier - dmg;
+		let withoutLocalMarkBeforeBarrier = beforeBarrier;
 		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			withoutLocalMarkBeforeBarrier = fixedBeforeBarrier + (beforeBarrier - fixedBeforeBarrier) / (1 + e.markMul);
+			withoutLocalMark = Math.max(0, withoutLocalMarkBeforeBarrier - absorbed);
 			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
 		}
 		if (!src.raw && src.markSupport) {
 			// A reaction can carry another target's mark into this hit. Credit that
 			// inherited gain before the local mark, so their cross term is counted once.
-			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
+			const withoutEitherMark = Math.max(0, withoutLocalMarkBeforeBarrier * (1 - src.markSupport.fraction) - absorbed);
 			src.markSupport.owner.supportDamage += Math.max(0,
 				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
 		}
