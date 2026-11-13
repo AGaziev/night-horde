@@ -6,6 +6,7 @@ import {
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
+import { HORDE_LIMITS, HORDE_PACKS } from '/shared/horde-content.js';
 
 // Inherited orbits and auras must remain visible after fusion; HUD still has one duo slot.
 const visualWeapons = (list) => Array.isArray(list) ? list.flatMap(w => {
@@ -114,13 +115,14 @@ export class Renderer {
 		this.h = window.innerHeight;
 		this.canvas.width = Math.round(this.w * this.dpr);
 		this.canvas.height = Math.round(this.h * this.dpr);
-		this.zoom = Math.min(1.1, Math.max(0.6, Math.min(this.w, this.h) / 720));
+		this.baseZoom = Math.min(1.1, Math.max(0.6, Math.min(this.w, this.h) / 720));
+		this.zoom = this.baseZoom;
 	}
 
 	draw(game, dt) {
 		const ctx = this.ctx;
 		const { w, h, dpr } = this;
-		const z = this.zoom;
+		const z = this.zoom = this.baseZoom * (game.isDirector() ? game.directorCamera.zoom : 1);
 		const now = performance.now() / 1000;
 		this.dt = dt;
 		const view = game.view;
@@ -128,8 +130,9 @@ export class Renderer {
 		this.game = game;
 
 		if (inGame) {
-			this.camX = game.local.x;
-			this.camY = game.local.y;
+			const anchor = game.isDirector() ? game.directorCamera : game.local;
+			this.camX = anchor.x;
+			this.camY = anchor.y;
 		} else {
 			this.idle += dt;
 			this.camX = this.idle * 18;
@@ -151,6 +154,7 @@ export class Renderer {
 		ctx.setTransform(this.k, 0, 0, this.k, this.ox, this.oy);
 		ctx.imageSmoothingEnabled = false;
 		this.drawGround(ctx, vx0, vy0, vx1, vy1);
+		if (inGame && game.arena) this.drawArena(ctx, game.arena);
 
 		if (inGame) {
 			const tm = view.tm;
@@ -182,6 +186,7 @@ export class Renderer {
 			this.drawEffects(ctx, game);
 			this.drawReactions(ctx, game);
 			this.drawFinale(ctx, game, now, vx0, vy0, vx1, vy1);
+			if (game.isDirector()) this.drawHordeOrders(ctx, game, now);
 		}
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -203,6 +208,62 @@ export class Renderer {
 		out.x = (x - this.camX) * this.zoom + this.w / 2;
 		out.y = (y - this.camY) * this.zoom + this.h / 2;
 		return out;
+	}
+
+	toWorld(x, y, out) {
+		out.x = this.camX + (x - this.w / 2) / this.zoom;
+		out.y = this.camY + (y - this.h / 2) / this.zoom;
+		return out;
+	}
+
+	drawArena(ctx, arena) {
+		ctx.save();
+		ctx.beginPath();
+		ctx.rect(this.vx0 - 60, this.vy0 - 60, this.vx1 - this.vx0 + 120, this.vy1 - this.vy0 + 120);
+		ctx.rect(arena.minX, arena.minY, arena.maxX - arena.minX, arena.maxY - arena.minY);
+		ctx.fillStyle = 'rgba(3, 4, 10, 0.82)';
+		ctx.fill('evenodd');
+		ctx.strokeStyle = '#ff8a65'; ctx.lineWidth = 3 / this.zoom;
+		ctx.strokeRect(arena.minX, arena.minY, arena.maxX - arena.minX, arena.maxY - arena.minY);
+		ctx.strokeStyle = 'rgba(255, 183, 77, 0.3)'; ctx.lineWidth = 10;
+		ctx.strokeRect(arena.minX + 8, arena.minY + 8, arena.maxX - arena.minX - 16, arena.maxY - arena.minY - 16);
+		ctx.restore();
+	}
+
+	drawHordeOrders(ctx, game, now) {
+		ctx.save();
+		if (game.hordeSelected) {
+			// The preview is guidance only; the server rechecks the actual placement and all spending limits.
+			ctx.strokeStyle = 'rgba(255, 112, 95, 0.38)'; ctx.lineWidth = 1.5 / this.zoom;
+			ctx.setLineDash([12 / this.zoom, 10 / this.zoom]);
+			for (const row of game.view.b.p) {
+				ctx.beginPath(); ctx.arc(row[P.x], row[P.y], HORDE_LIMITS.spawnDistance + 64, 0, TAU); ctx.stroke();
+			}
+			ctx.setLineDash([]);
+		}
+		const privateState = game.hordeState;
+		for (const order of privateState?.pending ?? []) {
+			const age = Math.max(0, now - privateState.receivedAt);
+			const left = Math.max(0, order.remaining - age);
+			const r = (25 + Math.sin(now * 5) * 3) / this.zoom;
+			ctx.strokeStyle = '#ffcc80'; ctx.lineWidth = 2 / this.zoom;
+			ctx.fillStyle = 'rgba(255, 167, 38, 0.12)';
+			ctx.beginPath(); ctx.arc(order.x, order.y, r, 0, TAU); ctx.fill(); ctx.stroke();
+			ctx.font = `600 ${12 / this.zoom}px system-ui, sans-serif`; ctx.textAlign = 'center';
+			ctx.lineWidth = 3 / this.zoom; ctx.strokeStyle = '#080a10';
+			const text = `${HORDE_PACKS[order.pack]?.name || 'Отряд'} · ${left.toFixed(1)} с`;
+			ctx.strokeText(text, order.x, order.y - r - 10 / this.zoom);
+			ctx.fillStyle = '#ffcc80'; ctx.fillText(text, order.x, order.y - r - 10 / this.zoom);
+		}
+		const target = game.hordeTarget;
+		if (target && game.hordeSelected) {
+			const r = 16 / this.zoom;
+			ctx.strokeStyle = target.valid ? '#a5d6a7' : '#ff7060'; ctx.lineWidth = 2 / this.zoom;
+			ctx.beginPath(); ctx.arc(target.x, target.y, r, 0, TAU);
+			ctx.moveTo(target.x - r * 1.5, target.y); ctx.lineTo(target.x + r * 1.5, target.y);
+			ctx.moveTo(target.x, target.y - r * 1.5); ctx.lineTo(target.x, target.y + r * 1.5); ctx.stroke();
+		}
+		ctx.restore();
 	}
 
 	drawGround(ctx, x0, y0, x1, y1) {
@@ -3329,6 +3390,11 @@ export class Renderer {
 		ctx.fill();
 		ctx.clip();
 		const mx = this.camX, my = this.camY;
+		if (game.arena) {
+			const a = game.arena;
+			ctx.strokeStyle = '#ff8a65'; ctx.lineWidth = 1;
+			ctx.strokeRect(c + (a.minX - mx) * sc, c + (a.minY - my) * sc, (a.maxX - a.minX) * sc, (a.maxY - a.minY) * sc);
+		}
 		// View frame.
 		const hw = (this.w / 2 / this.zoom) * sc, hh = (this.h / 2 / this.zoom) * sc;
 		ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';

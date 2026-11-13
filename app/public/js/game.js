@@ -57,6 +57,10 @@ export class Game {
 		this.ruleset = 'pve';
 		this.directorPid = null;
 		this.arena = null;
+		this.directorCamera = { x: 0, y: 0, zoom: 0.65 };
+		this.hordeState = null;
+		this.hordeTarget = null;
+		this.hordeSelected = null;
 		this.players = new Map(); // pid -> {pid, name, hero, color}
 		this.snaps = [];
 		this.resetClock();
@@ -161,7 +165,7 @@ export class Game {
 		this.directorPid = this.ruleset === HORDE_RULESET ? msg.directorPid : null;
 		this.arena = this.ruleset === HORDE_RULESET ? (msg.arena || HORDE_ARENA) : null;
 		this.running = true;
-		this.frozen = msg.paused === true;
+		this.frozen = this.ruleset !== HORDE_RULESET && msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
 		this.count = Array.isArray(msg.players) ? msg.players.length : 1;
 		const br = Array.isArray(msg.broken) ? msg.broken : EMPTY;
@@ -179,6 +183,7 @@ export class Game {
 				this.local.y = +p.y || 0;
 				this.local.fx = 1;
 				this.local.fy = 0;
+				this.clampLocal();
 			}
 		});
 	}
@@ -209,6 +214,7 @@ export class Game {
 
 	// Server pause state. After a pause the snapshot clock restarts, so the world does not jump.
 	setPause(on, menu) {
+		if (this.ruleset === HORDE_RULESET) return;
 		const was = this.frozen;
 		this.frozen = !!on;
 		this.menuPause = !!on && !!menu;
@@ -220,7 +226,9 @@ export class Game {
 	}
 
 	setLobbyPlayers(list) {
+		this.players.clear();
 		for (const p of list || EMPTY) {
+			if (p.role === 'director') continue;
 			this.players.set(p.pid, { pid: p.pid, name: p.name, hero: p.hero, color: p.color });
 		}
 	}
@@ -394,8 +402,16 @@ export class Game {
 	}
 
 	isAlive() {
+		if (this.isDirector()) return false;
 		const r = this.myRow();
 		return !r || r[P.st] !== 1;
+	}
+
+	clampLocal() {
+		const a = this.arena;
+		if (!a) return;
+		this.local.x = Math.max(a.minX + PLAYER_RADIUS, Math.min(a.maxX - PLAYER_RADIUS, this.local.x));
+		this.local.y = Math.max(a.minY + PLAYER_RADIUS, Math.min(a.maxY - PLAYER_RADIUS, this.local.y));
 	}
 
 	update(dt, input) {
@@ -411,6 +427,10 @@ export class Game {
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
+		if (this.isDirector()) {
+			// Spatial effects and sound use a view anchor, without creating a hero or sending its position.
+			this.local.x = this.directorCamera.x; this.local.y = this.directorCamera.y;
+		}
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
 		const still = this.frozen || (this.offer && this.solo());
@@ -431,6 +451,7 @@ export class Game {
 				// The finale wall: the same projection the server applies (a standing hero is pushed by the closing ring too).
 				const fin = this.finale();
 				if (fin) [this.local.x, this.local.y] = clampToRing(this.local.x, this.local.y, fin.cx, fin.cy, fin.r - PLAYER_RADIUS);
+				this.clampLocal();
 				this.posTimer -= dt;
 				if (this.posTimer <= 0 && this.me !== null) {
 					this.posTimer += 1 / POS_HZ;
@@ -502,6 +523,7 @@ export class Game {
 	// Interpolated position of another player; returns null if unknown.
 	playerPos(pid, out) {
 		const { a, b, et: t } = this.view;
+		if (pid === this.me && this.isDirector()) return null;
 		if (pid === this.me && this.running) {
 			out.x = this.local.x;
 			out.y = this.local.y;

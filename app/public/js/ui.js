@@ -714,6 +714,9 @@ export class UI {
 		const title = $('over-title');
 		// v21: grade 2 — the Lord is slain (gold), 1 — lived to the dawn, 0 — the group fell.
 		const grade = msg.grade ?? (msg.win ? 1 : 0);
+		const horde = msg.ruleset === HORDE_RULESET;
+		const director = horde && msg.directorPid === me;
+		const ownWin = director ? msg.directorWin === true : msg.win;
 		const fin = msg.fin && typeof msg.fin === 'object' ? msg.fin : null;
 		title.textContent = grade === 2 ? 'Владыка повержен' : msg.win ? 'Ночь пережита' : 'Орда победила';
 		title.className = 'over-title ' + (grade === 2 ? 'gold' : msg.win ? 'win' : 'lose');
@@ -723,11 +726,17 @@ export class UI {
 		if (grade === 2 && fin) sub = `${modeOf(msg.mode).name} · рассвет наступил на ${fmtTime(Math.max(0, len - msg.time))} раньше срока · бой ${Math.round(fin.sec)} с${fin.lastHit ? ` · последний удар: ${fin.lastHit}` : ''}`;
 		else if (grade === 1 && fin) sub = `${modeOf(msg.mode).name} · Владыка ушёл в тень — у него оставалось ${left}% здоровья`;
 		else if (fin) sub += ` · Владыке оставалось ${left}%`;
+		if (horde) {
+			title.textContent = ownWin ? (director ? 'Орда победила — вы выиграли' : 'Герои победили — вы выиграли') : (director ? 'Герои победили' : 'Орда победила');
+			title.className = 'over-title ' + (ownWin ? 'win' : 'lose');
+			const reason = { boss: 'Герои повергли босса', time: 'Герои продержались 15 минут', wipe: 'Все герои пали', 'director-left': 'Игрок за орду покинул матч', 'heroes-left': 'Все герои покинули матч' }[msg.reason];
+			sub = `Орда против героев · ${director ? 'Вы играли за орду' : 'Вы играли за героя'} · ${fmtTime(msg.time)}${reason ? ` · ${reason}` : ''}`;
+		}
 		$('over-sub').textContent = sub;
 		const share = new Map((fin?.by ?? []).map((b) => [b.pid, b.share]));
 		$('over-lord-th').hidden = !fin;
 		const box = $('over-unlock');
-		const fresh = Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
+		const fresh = !horde && Array.isArray(msg.unlockedNow) ? msg.unlockedNow.filter((id) => HEROES[id]) : [];
 		box.hidden = !fresh.length;
 		box.textContent = '';
 		if (fresh.length) {
@@ -758,7 +767,7 @@ export class UI {
 			body.appendChild(tr);
 		}
 		// v23: the results card (group, awards, finale, a tab per player) replaces the plain table when the server sent one.
-		this.card = msg.card && typeof msg.card === 'object' ? msg.card : null;
+		this.card = !horde && msg.card && typeof msg.card === 'object' ? msg.card : null;
 		this.cardColors = new Map(stats.map((s) => [s.pid, s.color || '#90a4ae']));
 		const shown = renderResults($('over-card'), this.card, me, this.cardColors);
 		$('over-table').hidden = shown;
