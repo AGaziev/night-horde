@@ -102,7 +102,7 @@ const check = (ok, msg) => {
 async function openPage(visual) {
 	const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 });
 	await ctx.addInitScript(([hero, vfx]) => {
-		if (sessionStorage.getItem('bench.init')) return;
+		if (sessionStorage.getItem('bench.init') || localStorage.getItem('bench.keep')) return;
 		sessionStorage.setItem('bench.init', '1');
 		localStorage.setItem('nh.unlockall', '1');
 		localStorage.setItem('nh.hero', hero);
@@ -196,17 +196,51 @@ if (CHECK) {
 	await page.keyboard.press('Escape');
 	check(await page.evaluate(() => document.getElementById('snd-panel').hidden && document.activeElement === document.body),
 		'Esc closes the panel and drops focus');
-	// In a run a focused radio must not swallow the movement keys.
+	// Two tabs: each one writes only the field it changed, and the other tab follows (storage event).
+	// Tab B is a separate page with its own session (window.open would copy the sid and displace tab A).
+	await page.evaluate(() => localStorage.setItem('bench.keep', '1'));
+	const tabB = await ctx.newPage();
+	await tabB.goto(base);
+	await tabB.waitForFunction(() => window.__nh?.ui?.screen === 'menu');
+	await page.click('#snd-more');
+	await page.click('input[name="vfx-effects"][value="full"]');
+	await tabB.click('#snd-more');
+	await tabB.click('input[name="vfx-numbers"][value="crits"]');
+	await page.waitForTimeout(200);
+	const twoTabs = await page.evaluate(() => [localStorage.getItem('nh.vfx'), window.__nh.game.visual]);
+	check(twoTabs[0] === '{"numbers":"crits","effects":"full"}', `two tabs: both changes stored ${twoTabs[0]}`);
+	check(twoTabs[1].numbers === 'crits' && twoTabs[1].effects === 'full', 'two tabs: the first tab follows the second');
+	await tabB.close();
+	await page.evaluate(() => localStorage.removeItem('bench.keep'));
+	await page.keyboard.press('Escape');
+
+	// In a co-op run (bots join) a focused radio keeps the arrows; WASD still drives the hero and does not stick.
 	await startRun(page);
 	await page.click('#snd-more');
 	await page.click('input[name="vfx-effects"][value="full"]');
 	await page.focus('input[name="vfx-effects"][value="full"]');
-	const x0 = await page.evaluate(() => window.__nh.game.local.x);
+	const pos = () => page.evaluate(() => [window.__nh.game.local.x, window.__nh.game.local.y]);
+	const moved = (a, b) => Math.hypot(b[0] - a[0], b[1] - a[1]);
+	let p0 = await pos();
+	await page.keyboard.down('ArrowRight');
+	await page.waitForTimeout(350);
+	await page.keyboard.up('ArrowRight');
+	let p1 = await pos();
+	const arrow = await page.evaluate(() => [window.__nh.game.visual.effects, document.activeElement?.value]);
+	check(arrow[0] === 'lite' && arrow[1] === 'lite', `arrow on a focused radio in a run switches the option (${arrow})`);
+	check(moved(p0, p1) < 5, `arrow on a focused radio does not move the hero (${moved(p0, p1).toFixed(1)})`);
+	p0 = await pos();
 	await page.keyboard.down('KeyD');
 	await page.waitForTimeout(400);
 	await page.keyboard.up('KeyD');
-	const x1 = await page.evaluate(() => window.__nh.game.local.x);
-	check(x1 - x0 > 20, `WASD moves the hero while a radio is focused (dx ${(x1 - x0).toFixed(0)})`);
+	p1 = await pos();
+	check(p1[0] - p0[0] > 20, `WASD moves the hero while a radio is focused (dx ${(p1[0] - p0[0]).toFixed(0)})`);
+	await page.waitForTimeout(150);
+	p0 = await pos();
+	await page.waitForTimeout(500);
+	p1 = await pos();
+	check(moved(p0, p1) < 5, `no stuck movement after the keys are released (${moved(p0, p1).toFixed(1)})`);
+	check(await page.evaluate(() => Object.values(window.__nh.input.held).every((v) => !v)), 'no held direction left');
 	check(!errors.length, `no page errors ${errors.join(' | ')}`);
 	await ctx.close();
 }
