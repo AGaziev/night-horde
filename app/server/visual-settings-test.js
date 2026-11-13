@@ -17,6 +17,16 @@ assert.deepEqual(loadVisual(storage), { numbers: 'off', effects: 'lite' }, 'stor
 const broken = { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } };
 assert.deepEqual(loadVisual(broken), DEFAULT_VISUAL, 'storage that throws (private mode): defaults');
 assert.doesNotThrow(() => saveVisual({ numbers: 'off', effects: 'lite' }, broken));
+// Blocked site data: the localStorage getter itself throws (Chrome «block all cookies», sandboxed iframe).
+const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('SecurityError'); } });
+try {
+	assert.deepEqual(loadVisual(), DEFAULT_VISUAL, 'blocked localStorage getter: defaults, no throw');
+	assert.doesNotThrow(() => saveVisual({ numbers: 'off', effects: 'lite' }), 'blocked localStorage getter: save is a no-op');
+} finally {
+	if (had) Object.defineProperty(globalThis, 'localStorage', had);
+	else delete globalThis.localStorage;
+}
 
 // The real browser state module; only its browser-root imports are adapted for Node.
 const url = (p) => JSON.stringify(new URL(p, import.meta.url).href);
@@ -55,6 +65,12 @@ const boss = (effects) => {
 };
 assert.equal(boss('full'), 63);
 assert.equal(boss('lite'), 15 + 1, 'lite: a quarter of a burst, at least one particle');
+// Switching mid-run drops numbers the new mode hides.
+const mid = play({ numbers: 'all', effects: 'full' });
+mid.setVisual({ numbers: 'crits', effects: 'full' });
+assert.deepEqual(mid.numbers.map((n) => n.crit), [true], 'switch to «crits» keeps only crits on screen');
+mid.setVisual({ numbers: 'off', effects: 'full' });
+assert.equal(mid.numbers.length, 0, 'switch to «off» clears the screen');
 for (const g of [full, lite]) {
 	assert.equal(g.warns.length, 1, 'attack warning circle is kept at every setting');
 	assert.equal(g.blines.length, 1, 'charge line is kept at every setting');

@@ -15,11 +15,14 @@ export function parseVisual(raw) {
 	};
 }
 
-export function loadVisual(storage = globalThis.localStorage) {
-	try { return parseVisual(storage?.getItem(VISUAL_KEY)); } catch { return { ...DEFAULT_VISUAL }; }
+// The localStorage getter itself throws when site data is blocked, so it is read inside try.
+export function loadVisual(storage) {
+	try { return parseVisual((storage ?? globalThis.localStorage)?.getItem(VISUAL_KEY)); } catch { return { ...DEFAULT_VISUAL }; }
 }
 
-export function saveVisual(v, storage = globalThis.localStorage) {
-	try { storage?.setItem(VISUAL_KEY, JSON.stringify({ numbers: v.numbers, effects: v.effects })); } catch { /* private mode */ }
+export function saveVisual(v, storage) {
+	try {
+		(storage ?? globalThis.localStorage)?.setItem(VISUAL_KEY, JSON.stringify({ numbers: v.numbers, effects: v.effects }));
+	} catch { /* storage blocked */ }
 }
 

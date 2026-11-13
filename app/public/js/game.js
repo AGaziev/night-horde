@@ -968,6 +968,12 @@ export class Game {
 		this.onEvent('dawn', this.lordDie ? 2 : 1);
 	}
 
+	// New visual settings; numbers already on screen that the new mode hides go away at once.
+	setVisual(v) {
+		this.visual = v;
+		if (v.numbers !== 'all') this.numbers = this.numbers.filter((n) => v.numbers === 'crits' && n.crit);
+	}
+
 	burst(x, y, color, n, spread) {
 		if (this.visual.effects === 'lite') n = Math.ceil(n / 4); // simplified effects: a quarter of the particles
 		for (let i = 0; i < n && this.particles.length < MAX_PARTICLES; i++) {

@@ -109,5 +109,6 @@ export class Input {
 
 function isTyping(e) {
 	const t = e.target;
-	return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+	// Radio buttons (visual settings) do not take text: movement keys still drive the hero.
+	return t && ((t.tagName === 'INPUT' && t.type !== 'radio') || t.tagName === 'TEXTAREA' || t.isContentEditable);
 }

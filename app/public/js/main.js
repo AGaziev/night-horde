@@ -210,6 +210,11 @@ $('pause-resume').addEventListener('click', () => togglePause(false));
 $('pause-quit').addEventListener('click', () => net.send({ t: 'quit' }));
 addEventListener('keydown', (e) => {
 	if (e.code !== 'Escape' || e.repeat) return;
+	// Esc also closes the sound and visuals panel and gives the keys back to the hero.
+	if (!$('snd-panel').hidden) {
+		toggleSoundPanel(false);
+		if ($('snd').contains(document.activeElement)) document.activeElement.blur();
+	}
 	togglePause();
 });
 // A solo run pauses itself when the tab goes to the background.
@@ -643,7 +648,7 @@ for (const kind of ['music', 'sfx']) {
 // Visual settings (Issue #11): stored in this browser, applied at once.
 const VFX_HINT = {
 	full: 'Частицы, вспышки и тряска экрана.',
-	lite: 'Меньше частиц, без вспышек и тряски. Предупреждения атак видны всегда.',
+	lite: 'Меньше частиц, без тряски, свечения и ярких вспышек. Предупреждения атак видны всегда.',
 };
 function renderVisual() {
 	for (const kind of ['numbers', 'effects']) {
@@ -655,8 +660,7 @@ for (const kind of ['numbers', 'effects']) {
 	for (const el of document.getElementsByName('vfx-' + kind)) {
 		el.addEventListener('change', () => {
 			if (!el.checked) return;
-			game.visual = { ...game.visual, [kind]: el.value };
-			if (kind === 'numbers' && el.value !== 'all') game.numbers = game.numbers.filter((n) => el.value === 'crits' && n.crit);
+			game.setVisual({ ...game.visual, [kind]: el.value });
 			saveVisual(game.visual);
 			renderVisual();
 			// A mouse or touch pick gives the keys back to the hero; keyboard users keep focus in the group.
@@ -671,7 +675,7 @@ addEventListener('pointerdown', (e) => {
 addEventListener('keydown', (e) => {
 	if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
 	const t = e.target;
-	if (t && ((t.tagName === 'INPUT' && t.type !== 'range') || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+	if (t && ((t.tagName === 'INPUT' && t.type !== 'range' && t.type !== 'radio') || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
 	sound.toggleMute();
 });
 
