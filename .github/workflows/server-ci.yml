@@ -43,6 +43,8 @@ jobs:
       - name: Install dependencies
         working-directory: app
         run: npm ci
+      - name: Run Claude hook tests
+        run: node .claude/hooks/deny-force-push-test.mjs
       - name: Run server suites
         run: node pm/run-tests.mjs "$RUNNER_TEMP/server-tests"
       - name: Summarize results
