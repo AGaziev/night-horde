@@ -432,11 +432,14 @@ test('background enemies, bosses, frozen and far-away units cannot cast army wea
 			assert.equal(f.combat.events.length, 0, `${kind} cannot trigger army death effects`);
 		}
 	}
-	const retired = encounter({ ember: 1 });
-	retired.carrier.x = -1700; retired.heroes[0].x = 1700;
-	retired.mode.retireFar(retired.heroes);
-	assert.equal(retired.carrier.dead, true);
-	assert.equal(retired.combat.events.length, 0, 'retirement is not a combat death');
+	const distant = encounter({ ember: 1 });
+	distant.carrier.x = -1700; distant.heroes[0].x = 1700;
+	const ambient = distant.room.spawnEnemy('bat', distant.heroes, 1, [-1700, 0]);
+	ambient.hordeSource = 'ambient';
+	distant.mode.retireFar(distant.heroes);
+	assert.equal(distant.carrier.dead, false, 'distance never retires a paid weapon carrier');
+	assert.equal(ambient.dead, true, 'background pressure may still retire far away');
+	assert.equal(distant.combat.events.length, 0, 'distance management is not a combat death');
 });
 
 test('180 real carriers keep army-wide cooldowns, a three-proc tick budget and fair access to all four weapons', () => withRandom(0.5, () => {

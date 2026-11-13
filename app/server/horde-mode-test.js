@@ -255,6 +255,29 @@ test('paid cohort snapshots preserve build, level, discount, escort population a
 	assert.equal(cohort[0].hp, hp, 'later draft changes cannot retroactively heal or strengthen an existing cohort');
 });
 
+test('Hub paid cohorts survive birth and distance retirement throughout the finite arena', () => {
+	for (const [x, y] of [[1700, 1100], [1100, 0]]) {
+		const { hub, room, mode, heroes: [h], messages } = encounter();
+		Object.assign(h, { x: 0, y: 0 });
+		const before = mode.resource;
+		hub.handle(1, { t: 'horde', action: 'spawn', pack: 'swarm', x, y, seq: 1 });
+		assert.equal(mode.pending.length, 1, `${x},${y} is an accepted paid position`);
+		assert.equal(mode.resource, before - HORDE_PACKS.swarm.cost);
+		const ids = new Set(mode.pending[0].units.map((u) => `${u.x},${u.y}`));
+		room.time = 2;
+		room.step(0);
+		const born = manual(room);
+		assert.equal(born.length, HORDE_PACKS.swarm.units.length, `paid birth at ${x},${y} survives the actual tick`);
+		assert.ok(born.every((e) => ids.has(`${e.x},${e.y}`)), 'birth preserves the warned locations');
+		const bornIds = born.map((e) => e.id);
+		mode.retireFar([h]);
+		room.compactEnemies();
+		assert.deepEqual(manual(room).map((e) => e.id), bornIds, 'distance cannot silently delete a paid cohort');
+		assert.equal(mode.combat.events.length, 0, 'distance management cannot trigger death weapons');
+		assert.ok(!messages.some(({ msg }) => msg.t === 'err' && /отменён/.test(msg.msg)));
+	}
+});
+
 test('spawn validation covers downed heroes, non-finite/outside positions, locked packs, queue and full escort reservations', () => {
 	const { room, mode, heroes: [live, downed] } = encounter(2);
 	Object.assign(downed, { x: 1000, y: 0, st: 1 });

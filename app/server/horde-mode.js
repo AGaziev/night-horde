@@ -277,7 +277,8 @@ export class HordeMode {
 
 	retireFar(alive) {
 		for (const e of this.room.enemies) {
-			if (e.dead || e.boss || !alive.length) continue;
+			// Paid units remain on the finite arena until combat removes them; the population cap bounds them.
+			if (e.dead || e.boss || e.hordeSource === 'manual' || !alive.length) continue;
 			if (alive.every((h) => Math.hypot(e.x - h.x, e.y - h.y) > HORDE_LIMITS.retireDistance)) e.dead = true;
 		}
 	}
