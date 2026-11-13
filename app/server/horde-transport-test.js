@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import fs from 'node:fs';
-import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -12,15 +11,24 @@ import { PROTO } from './snapshot-codec.js';
 
 test('real WebSocket horde purchases stay private and survive director reconnect without replaying payment', { timeout: 20_000 }, async (t) => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-transport-'));
-	const probe = net.createServer(); probe.listen(0, '127.0.0.1'); await once(probe, 'listening');
-	const port = probe.address().port; await new Promise((resolve) => probe.close(resolve));
-	const origin = `http://127.0.0.1:${port}`, clients = [];
-	let output = '';
-	const child = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], {
-		env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
+	const preload = path.join(dir, 'listen.mjs');
+	fs.writeFileSync(preload, `import { Server } from 'node:http';
+const listen = Server.prototype.listen;
+Server.prototype.listen = function (...args) {
+ if (typeof args[0] === 'number') {
+  args[0] = 0;
+  this.once('listening', () => console.log('TEST_LISTENING:' + this.address().port));
+ }
+ return listen.apply(this, args);
+};`);
+	const clients = [];
+	let output = '', port, origin;
+	const child = spawn(process.execPath, ['--import', new URL('../../pm/test-runtime.mjs', import.meta.url).pathname, '--import', preload, new URL('./server.js', import.meta.url).pathname], {
+		env: { ...process.env, PORT: '3000', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	const exited = once(child, 'exit');
-	child.stdout.on('data', (data) => { output += data; }); child.stderr.on('data', (data) => { output += data; });
+	child.stdout.on('data', (data) => { output += data; port = Number(output.match(/TEST_LISTENING:(\d+)/)?.[1]); });
+	child.stderr.on('data', (data) => { output += data; });
 	t.after(async () => {
 		for (const client of clients) client.socket.terminate();
 		child.kill(); await exited;
@@ -28,7 +36,7 @@ test('real WebSocket horde purchases stay private and survive director reconnect
 	});
 	let healthy = false;
 	for (let i = 0; i < 60; i++) {
-		healthy = await fetch(origin + '/health').then((r) => r.ok, () => false);
+		if (port) { origin = `http://127.0.0.1:${port}`; healthy = await fetch(origin + '/health', { signal: AbortSignal.timeout(2000) }).then((r) => r.ok, () => false); }
 		if (healthy) break;
 		await setTimeout(50);
 	}
@@ -73,13 +81,13 @@ test('real WebSocket horde purchases stay private and survive director reconnect
 	hero.send({ t: 'horde', action: 'spawn', pack: 'swarm', x: 1100, y: 0, seq: 1 });
 	await hero.wait((m) => m.t === 'err' && /полководцу/.test(m.msg));
 	const choice = initial.offer.choices[0];
-	director.send({ t: 'horde', action: 'pick', offerId: initial.offer.id, choice: 0, seq: 1 });
+	director.send({ t: 'horde', roundId: initial.roundId, action: 'pick', offerId: initial.offer.id, choice: 0, seq: 1 });
 	const picked = await director.wait((m) => m.t === 'horde' && m.lastSeq === 1);
 	const group = { pack: 'packs', weapon: 'weapons', artifact: 'artifacts' }[choice.kind];
 	assert.equal(picked.build[group][choice.id], choice.level); assert.equal(picked.choicesPending, 0);
-	director.send({ t: 'horde', action: 'pick', offerId: initial.offer.id, choice: 0, seq: 2 });
+	director.send({ t: 'horde', roundId: initial.roundId, action: 'pick', offerId: initial.offer.id, choice: 0, seq: 2 });
 	await director.wait((m) => m.t === 'horde' && m.lastSeq === 2);
-	const purchase = { t: 'horde', action: 'spawn', pack: 'swarm', x: 1100, y: 0, seq: 3 };
+	const purchase = { t: 'horde', roundId: initial.roundId, action: 'spawn', pack: 'swarm', x: 1100, y: 0, seq: 3 };
 	director.send(purchase);
 	const paid = await director.wait((m) => m.t === 'horde' && m.lastSeq === 3 && m.queued === 1);
 	const count = paid.packs.find((p) => p.id === 'swarm').count;

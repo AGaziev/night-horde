@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 26; // Horde drafts and combat statuses require the matching director and hero clients.
+export const PROTO = 27; // Horde round identities and authoritative combat resync require matching clients.
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.
