@@ -1,3 +1,4 @@
+import { compareDaily, dailyKey, dailyLabel } from '../public/shared/daily.js';
 // Run telemetry and a bounded archive of completed runs.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -382,7 +383,7 @@ export class RunLog {
 		}
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
-			mode: room.mode ?? 'night', runLength: room.runLength, win, grade: room.grade ?? (win ? 1 : 0), time: r1(room.time), kills: room.kills,
+			daily: room.daily ?? null, mode: room.mode ?? 'night', runLength: room.runLength, win, grade: room.grade ?? (win ? 1 : 0), time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll|ban, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common; overclock: weapon~variant',
 			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
 			summary: [], minutes: this.minutes, peaks: this.peaks, team: players,
@@ -449,7 +450,7 @@ function resultsCard(log, heroes, telemetry) {
 	const top = players.flatMap((p) => p.weapons.slice(0, 1).map((w) => ({ name: p.name, weapon: w[0], dmg: w[1], pct: w[2] }))).sort((a, b) => b.dmg - a.dmg)[0] ?? null;
 	const F = log.finale;
 	return {
-		id: log.id, v: log.v, mode: log.mode, len: log.runLength, time: log.time, win: log.win, grade: log.grade ?? (log.win ? 1 : 0), kills: log.kills,
+		id: log.id, v: log.v, daily: log.daily ?? null, mode: log.mode, len: log.runLength, time: log.time, win: log.win, grade: log.grade ?? (log.win ? 1 : 0), kills: log.kills,
 		players, top, awards: awards(players, log),
 		group: { downs: players.reduce((s, p) => s + p.downs, 0), lifted: players.reduce((s, p) => s + p.lifted, 0), revives: players.reduce((s, p) => s + p.revives, 0) },
 		fin: F && F.at != null ? { at: F.at, lordHp: F.lordHp, sec: F.sec, hpLeft: F.hpLeft, grade: F.grade, lastHit: F.lastHit, rageAt: F.rageAt, rayAt: F.rayAt ?? null, revived: F.revived } : null,
@@ -468,6 +469,7 @@ export function summarize(log) {
 	const outcome = log.grade === 2 ? `победа, Владыка повержен на ${mmss(log.time)}` : log.win ? `победа на ${mmss(log.time)}` : `группа пала на ${mmss(log.time)}`;
 	const len = log.runLength ?? modeOf(log.mode).seconds;
 	out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
+	if (log.daily) out.push(`${dailyLabel(log.daily)} · ${log.daily.description} Обычный прогресс не начисляется.`);
 	const all = {};
 	let tot = 0;
 	for (const p of log.team) for (const d of p.dmgBy) { all[d.id] = (all[d.id] ?? 0) + d.dmg; tot += d.dmg; }
@@ -656,6 +658,7 @@ export class RunStore {
 	constructor() {
 		this.runs = [];
 		this.index = new Map();
+		this.dailyBest = new Map();
 		this.dir = null;
 	}
 
@@ -668,9 +671,11 @@ export class RunStore {
 		const row = {
 			id: log.id, at: log.at, v: log.v, mode: log.mode ?? 'night', win: log.win,
 			grade: log.grade ?? (log.win ? 1 : 0), time: log.time,
+			...(log.daily ? { daily: log.daily, kills: log.kills ?? 0 } : {}),
 			players: log.team.map(({ name, hero, level }) => ({ name, hero, level })),
 		};
 		this.index.set(log.id, { row, uids });
+		this.rememberDaily(row, uids);
 	}
 
 	add(log, uids = [], card = null) {
@@ -679,6 +684,7 @@ export class RunStore {
 		try {
 			if (this.dir) this.write(record);
 			this.prune();
+			if (log.daily) this.writeDaily();
 		} catch (e) {
 			console.error('run archive write:', e.code ?? e.message);
 		}
@@ -708,10 +714,15 @@ export class RunStore {
 
 	history(uid) {
 		const rows = this.recent();
+		const scoped = (daily) => rows.filter(({ row }) => !!row.daily === daily);
+		const lists = (items) => ({
+			mine: uid ? items.filter(({ uids }) => uids.includes(uid)).slice(0, HISTORY_LIMIT).map(({ row }) => row) : [],
+			recent: items.slice(0, HISTORY_LIMIT).map(({ row }) => row),
+		});
 		return {
-			personal: !!uid,
-			mine: uid ? rows.filter(({ uids }) => uids.includes(uid)).slice(0, HISTORY_LIMIT).map(({ row }) => row) : [],
-			recent: rows.slice(0, HISTORY_LIMIT).map(({ row }) => row),
+			personal: !!uid, ...lists(scoped(false)),
+			daily: { ...lists(scoped(true)), best: uid ? [...this.dailyBest.values()].filter(r => r.uid === uid)
+				.sort((a, b) => b.best.daily.day.localeCompare(a.best.daily.day)).map(({ best, completed }) => ({ ...best, completed, detailsAvailable: this.index.has(best.id) })) : [] },
 		};
 	}
 
@@ -722,6 +733,13 @@ export class RunStore {
 			this.dir = dir;
 			this.runs = [];
 			this.index.clear();
+			this.dailyBest.clear();
+			try {
+				const rows = JSON.parse(fs.readFileSync(path.join(dir, '.daily-best'), 'utf8'));
+				if (Array.isArray(rows)) for (const record of rows) {
+					if (/^[0-9]+$/.test(record?.uid) && this.validDaily(record.best?.daily)) this.dailyBest.set(record.uid + ':' + dailyKey(record.best.daily), record);
+				}
+			} catch { /* absent or damaged summary: rebuild from retained logs */ }
 			if (fresh && legacyDir && fs.existsSync(legacyDir)) {
 				for (const id of this.files(legacyDir)) {
 					const record = this.read(legacyDir, id);
@@ -736,6 +754,34 @@ export class RunStore {
 		} catch (e) {
 			console.error('run archive startup:', e.code ?? e.message);
 		}
+	}
+
+
+	// Personal daily records survive pruning of full logs. Keep 90 challenge dates.
+	validDaily(daily) {
+	 return daily && Number.isInteger(daily.version) && /^\d{4}-\d{2}-\d{2}$/.test(daily.day)
+	  && ['lunch', 'night'].includes(daily.mode) && Number.isInteger(daily.players) && daily.players >= 1 && daily.players <= 8;
+	}
+
+	rememberDaily(row, uids) {
+	 if (!this.validDaily(row.daily)) return;
+	 for (const uid of uids) {
+	  const key = uid + ':' + dailyKey(row.daily), old = this.dailyBest.get(key);
+	  this.dailyBest.set(key, { uid, best: !old || compareDaily(row, old.best) > 0 ? row : old.best,
+	   completed: !!(old?.completed || row.win) });
+	 }
+	 const days = [...new Set([...this.dailyBest.values()].map(r => r.best.daily.day))].sort().reverse();
+	 const keep = new Set(days.slice(0, 90));
+	 for (const [key, record] of this.dailyBest) if (!keep.has(record.best.daily.day)) this.dailyBest.delete(key);
+	}
+
+	writeDaily() {
+	 if (!this.dir) return;
+	 const file = path.join(this.dir, '.daily-best'), tmp = file + '.tmp';
+	 try {
+	  fs.writeFileSync(tmp, JSON.stringify([...this.dailyBest.values()]), { mode: 0o600, flush: true });
+	  fs.renameSync(tmp, file);
+	 } finally { fs.rmSync(tmp, { force: true }); }
 	}
 
 	files(dir) {

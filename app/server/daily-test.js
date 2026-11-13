@@ -1,3 +1,7 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { RunStore } from './runlog.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room, Hub } from './game.js';
@@ -99,4 +103,32 @@ test('run result and reconnect retain contract; daily runs never grant ordinary 
  assert.equal(dailyKey(r.daily), `1:${r.daily.day}:night:2`);
  assert.ok(compareDaily({ grade: 2, time: 50 }, { grade: 1, time: 900 }) > 0);
  assert.ok(compareDaily({ grade: 0, time: 90, kills: 1 }, { grade: 0, time: 50, kills: 900 }) > 0);
+});
+
+
+test('daily history, personal best and completion persist separately, including after log pruning', (t) => {
+ const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-daily-'));
+ t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+ const store = new RunStore(); store.persist(dir);
+ const daily = { ...dailyFor(Date.UTC(2026, 10, 13)), mode: 'lunch', players: 2 };
+ const record = (i, data = {}) => ({ id: 'D' + String(i).padStart(5, '0'), at: new Date(Date.UTC(2026, 10, 13) + i * 1000).toISOString(),
+  mode: 'lunch', team: [{ name: 'Player', hero: 'witch', level: 1 }], summary: [], win: false, grade: 0, time: 40, kills: 3, ...data });
+ store.add(record(1, { daily, win: true, grade: 2 }), ['111', '222']);
+ store.add(record(2, { daily, time: 600, kills: 999 }), ['111']);
+ store.add(record(3, { daily: { ...daily, players: 1 }, time: 200 }), ['111']);
+ let history = store.history('111');
+ assert.equal(history.recent.length, 0); assert.equal(history.daily.mine.length, 3);
+ assert.equal(history.daily.best.length, 2);
+ assert.equal(history.daily.best.find(r => r.daily.players === 2).id, 'D00001');
+ assert.equal(history.daily.best.find(r => r.daily.players === 2).completed, true);
+ assert.equal(store.history('222').daily.best.length, 1);
+ assert.deepEqual(store.history(null).daily.best, []);
+ assert.doesNotMatch(JSON.stringify(history), /"uid"|111|222/);
+ for (let i = 4; i <= 505; i++) store.add(record(i), ['111']);
+ assert.equal(store.get('D00001'), null);
+ const restored = new RunStore(); restored.persist(dir); history = restored.history('111');
+ assert.equal(history.mine.length, 20); assert.equal(history.daily.mine.length, 0);
+ const best = history.daily.best.find(r => r.daily.players === 2);
+ assert.equal(best.id, 'D00001'); assert.equal(best.completed, true); assert.equal(best.detailsAvailable, false);
+ assert.equal(fs.statSync(path.join(dir, '.daily-best')).mode & 0o777, 0o600);
 });
