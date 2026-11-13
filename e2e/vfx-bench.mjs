@@ -210,6 +210,14 @@ if (CHECK) {
 	const twoTabs = await page.evaluate(() => [localStorage.getItem('nh.vfx'), window.__nh.game.visual]);
 	check(twoTabs[0] === '{"numbers":"crits","effects":"full"}', `two tabs: both changes stored ${twoTabs[0]}`);
 	check(twoTabs[1].numbers === 'crits' && twoTabs[1].effects === 'full', 'two tabs: the first tab follows the second');
+	// A storage event that arrives late carries an older value than storage holds now: the tab must not roll back.
+	await tabB.click('input[name="vfx-effects"][value="lite"]');
+	await page.waitForTimeout(200);
+	const late = await page.evaluate(() => {
+		dispatchEvent(new StorageEvent('storage', { key: 'nh.vfx', newValue: '{"numbers":"all","effects":"full"}' }));
+		return [localStorage.getItem('nh.vfx'), window.__nh.game.visual];
+	});
+	check(late[1].numbers === 'crits' && late[1].effects === 'lite', `two tabs: a late storage event does not roll back ${late[0]}`);
 	await tabB.close();
 	await page.evaluate(() => localStorage.removeItem('bench.keep'));
 	await page.keyboard.press('Escape');

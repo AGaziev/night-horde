@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { VISUAL_KEY, DEFAULT_VISUAL, parseVisual, loadVisual, saveVisual } from '../public/js/visual.js';
+import { VISUAL_KEY, DEFAULT_VISUAL, parseVisual, loadVisual, saveVisual, syncVisual } from '../public/js/visual.js';
 
 // Issue #11: damage numbers «all / crits / off» and effects «full / lite», kept in localStorage.
 
@@ -33,6 +33,25 @@ assert.deepEqual(JSON.parse(mem.get(VISUAL_KEY)), { numbers: 'off', effects: 'li
 mem.set(VISUAL_KEY, '{"numbers":"crits","effects":7}');
 assert.deepEqual(saveVisual({ numbers: 'loud' }, { numbers: 'off', effects: 'lite' }, storage), { numbers: 'crits', effects: 'lite' },
 	'unknown change is ignored, unknown stored field comes from this tab');
+
+// Readable storage that refuses writes (quota): each choice is kept in memory, the stale stored value does not undo it.
+const frozen = new Map([[VISUAL_KEY, JSON.stringify(DEFAULT_VISUAL)]]);
+const readOnly = { getItem: (k) => frozen.get(k) ?? null, setItem() { throw new Error('QuotaExceededError'); } };
+let tab = saveVisual({ numbers: 'crits' }, DEFAULT_VISUAL, readOnly);
+assert.deepEqual(tab, { numbers: 'crits', effects: 'full' }, 'failed write: the first choice is applied');
+tab = saveVisual({ effects: 'lite' }, tab, readOnly);
+assert.deepEqual(tab, { numbers: 'crits', effects: 'lite' }, 'failed write: the next choice keeps the first one');
+
+// A late storage event from another tab: the tab follows what is stored now, not the stale event value.
+mem.clear();
+const staleEvent = JSON.stringify(saveVisual({ numbers: 'crits' }, DEFAULT_VISUAL, storage)); // tab A writes crits/full
+const tabBNow = saveVisual({ effects: 'lite' }, DEFAULT_VISUAL, storage); // tab B writes crits/lite before A's event reaches it
+assert.deepEqual(parseVisual(staleEvent), { numbers: 'crits', effects: 'full' }, 'the event carries the older value');
+assert.deepEqual(syncVisual(tabBNow, storage), { numbers: 'crits', effects: 'lite' }, 'late event does not roll the tab back');
+assert.deepEqual(syncVisual({ numbers: 'off', effects: 'full' }, storage), { numbers: 'crits', effects: 'lite' }, 'other tab: takes the stored value');
+mem.set(VISUAL_KEY, '{"numbers":"off","effects":7}');
+assert.deepEqual(syncVisual({ numbers: 'crits', effects: 'lite' }, storage), { numbers: 'off', effects: 'lite' }, 'broken stored field stays as in this tab');
+assert.deepEqual(syncVisual({ numbers: 'crits', effects: 'lite' }, broken), { numbers: 'crits', effects: 'lite' }, 'unreadable storage: tab unchanged');
 
 // Blocked site data: the localStorage getter itself throws (Chrome «block all cookies», sandboxed iframe).
 const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');

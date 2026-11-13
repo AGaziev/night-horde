@@ -10,7 +10,7 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
-import { VISUAL_KEY, loadVisual, saveVisual, parseVisual } from './visual.js';
+import { VISUAL_KEY, loadVisual, saveVisual, syncVisual } from './visual.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -669,10 +669,10 @@ for (const kind of ['numbers', 'effects']) {
 	}
 }
 renderVisual();
-// Another tab changed the settings: follow it.
+// Another tab changed the settings: follow what is stored now, not the possibly stale event value.
 addEventListener('storage', (e) => {
 	if (e.key !== VISUAL_KEY) return;
-	game.setVisual(parseVisual(e.newValue));
+	game.setVisual(syncVisual(game.visual));
 	renderVisual();
 });
 addEventListener('pointerdown', (e) => {

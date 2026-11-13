@@ -29,13 +29,24 @@ export function loadVisual(storage) {
 
 // Writes only the changed fields over what is stored now, so another tab's choice of the other field survives.
 // Returns the merged settings; fields that are blocked, missing or broken in storage come from `current`.
+// When the write fails, the stored value is stale, so the result is this tab's settings plus the change.
 export function saveVisual(change, current = DEFAULT_VISUAL, storage) {
 	const own = normalize(current);
-	let merged = normalize(change, own);
+	const local = normalize(change, own);
 	try {
 		const store = storage ?? globalThis.localStorage;
-		merged = normalize(change, normalize(readJson(store?.getItem(VISUAL_KEY)), own));
-		store?.setItem(VISUAL_KEY, JSON.stringify(merged));
-	} catch { /* storage blocked */ }
-	return merged;
+		if (!store) return local;
+		const merged = normalize(change, normalize(readJson(store.getItem(VISUAL_KEY)), own));
+		store.setItem(VISUAL_KEY, JSON.stringify(merged));
+		return merged;
+	} catch {
+		return local;
+	}
+}
+
+// Another tab changed the settings. Its storage event may arrive after newer writes,
+// so the value is read from storage now instead of the event; missing or broken fields stay as in this tab.
+export function syncVisual(current = DEFAULT_VISUAL, storage) {
+	const own = normalize(current);
+	try { return normalize(readJson((storage ?? globalThis.localStorage)?.getItem(VISUAL_KEY)), own); } catch { return own; }
 }
