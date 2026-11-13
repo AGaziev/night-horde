@@ -947,6 +947,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 .horde-build-item span { font-size: 0.72rem; color: #c1c7d8; line-height: 1.4; }
 .horde-synergies .horde-build-item b { color: #a5d6a7; }
 .horde-aiming { cursor: crosshair; }
+.hud-horde-status { max-width: 240px; padding: 4px 7px; border-left: 3px solid #9beaff; border-radius: 3px; background: rgba(8, 18, 24, 0.9); color: #effff0; font-size: 0.72rem; line-height: 1.4; text-shadow: 0 1px 2px #000; }
 @media (max-width: 560px) {
 	.horde-controls { padding: 8px; }
 	.horde-toolbar { gap: 6px; font-size: 0.8rem; }

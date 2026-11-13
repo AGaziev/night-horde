@@ -1,6 +1,6 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
 import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
-import { HORDE_RULESET, HORDE_ARENA } from '/shared/horde-content.js';
+import { HORDE_RULESET, HORDE_ARENA, HORDE_COMBAT } from '/shared/horde-content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -21,6 +21,8 @@ const RECONCILE_DIST = 150;
 const MAX_SNAPS = 8;
 const MAX_PARTICLES = 700;
 const MAX_NUMBERS = 90;
+const HORDE_FX_KINDS = new Set(['venom', 'frost', 'storm', 'ember', 'reaper', 'arbalest', 'barrier', 'conductor', 'heal']);
+const MAX_HORDE_FX = 80;
 // Enemies are flat records of E_STRIDE: [id, type, x, y, hpPct, stateBits].
 export const E_STRIDE = 6;
 const SICKLE_CATCH = 24;
@@ -61,6 +63,10 @@ export class Game {
 		this.hordeState = null;
 		this.hordeTarget = null;
 		this.hordeSelected = null;
+		this.hordeStatuses = new Map();
+		this.hordeStatusTime = -Infinity;
+		this.hordeStatusAt = 0;
+		this.hordeFx = [];
 		this.players = new Map(); // pid -> {pid, name, hero, color}
 		this.snaps = [];
 		this.resetClock();
@@ -113,6 +119,7 @@ export class Game {
 	}
 
 	reset() {
+		this.clearHordeCombat();
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
@@ -197,6 +204,7 @@ export class Game {
 	}
 
 	stop() {
+		this.clearHordeCombat();
 		this.running = false;
 		this.offer = null;
 		this.frozen = false;
@@ -245,7 +253,57 @@ export class Game {
 	passiveLevel(id) { return this.passives[id] || 0; }
 	// Accumulated artifact value: card rarity makes it differ from perLevel × level (server recalcMods does the same).
 	passiveVal(id) { return this.pvals[id] ?? PASSIVES[id].perLevel * this.passiveLevel(id); }
-	speedMul() { return 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
+	speedMul() {
+		const speed = 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0);
+		return this.ruleset === HORDE_RULESET ? speed * (1 - (this.hordeStatus(this.me)?.slow || 0)) : speed;
+	}
+
+	clearHordeCombat() {
+		this.hordeStatuses.clear(); this.hordeFx.length = 0;
+		this.hordeStatusTime = -Infinity; this.hordeStatusAt = 0;
+	}
+
+	onHordeStatus(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !Number.isFinite(msg.time) || !Array.isArray(msg.effects)) return;
+		if (msg.time < this.hordeStatusTime) return;
+		this.hordeStatusTime = msg.time; this.hordeStatusAt = performance.now() / 1000;
+		this.hordeStatuses.clear();
+		for (const effect of msg.effects) {
+			if (!effect || !this.players.has(effect.pid)) continue;
+			this.hordeStatuses.set(effect.pid, {
+				poisonUntil: Number.isFinite(effect.poisonUntil) ? effect.poisonUntil : 0,
+				chillUntil: Number.isFinite(effect.chillUntil) ? effect.chillUntil : 0,
+				slow: Number.isFinite(effect.slow) ? Math.max(0, Math.min(HORDE_COMBAT.slowCap, effect.slow)) : 0,
+			});
+		}
+	}
+
+	hordeTime() {
+		const snap = this.latest(), now = performance.now() / 1000;
+		if (snap && snap.tm >= this.hordeStatusTime) return snap.tm + Math.max(0, now - snap.at);
+		return Number.isFinite(this.hordeStatusTime) ? this.hordeStatusTime + Math.max(0, now - this.hordeStatusAt) : this.view.tm;
+	}
+
+	hordeStatus(pid) {
+		if (!this.running || this.ruleset !== HORDE_RULESET) return null;
+		const state = this.hordeStatuses.get(pid);
+		if (!state || this.latest()?.pMap.get(pid)?.[P.st] === 1) return null;
+		const time = this.hordeTime();
+		const poisonLeft = Math.max(0, state.poisonUntil - time), chillLeft = Math.max(0, state.chillUntil - time);
+		return poisonLeft || chillLeft ? { poisonLeft, chillLeft, slow: chillLeft > 0 ? state.slow : 0 } : null;
+	}
+
+	onHordeFx(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !HORDE_FX_KINDS.has(msg.kind)) return;
+		if (!Number.isFinite(msg.x) || !Number.isFinite(msg.y)) return;
+		const paired = Number.isFinite(msg.x2) && Number.isFinite(msg.y2);
+		if (this.hordeFx.length >= MAX_HORDE_FX) this.hordeFx.shift();
+		this.hordeFx.push({
+			kind: msg.kind, x: msg.x, y: msg.y, x2: paired ? msg.x2 : msg.x, y2: paired ? msg.y2 : msg.y,
+			r: Number.isFinite(msg.r) ? Math.max(0, Math.min(500, msg.r)) : 24,
+			life: Number.isFinite(msg.duration) ? Math.max(0.08, Math.min(3, msg.duration)) : 0.4, t: 0,
+		});
+	}
 	inBanner() {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
@@ -1010,6 +1068,7 @@ export class Game {
 	}
 
 	updateEffects(dt) {
+		compact(this.hordeFx, (fx) => (fx.t += dt) < fx.life);
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
 		if (this.dawn) this.dawn.t += dt;

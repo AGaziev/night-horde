@@ -797,6 +797,11 @@ export class UI {
 		this.set('hud-time', 'text', fmtTime(game.view.tm));
 		this.set('hud-mode', 'text', this.modeText || '');
 		this.set('hud-pause', 'hidden', !game.solo());
+		const status = game.hordeStatus(game.me), statusParts = [];
+		if (status?.poisonLeft > 0) statusParts.push(`☣ Яд · ${Math.ceil(status.poisonLeft)} с`);
+		if (status?.chillLeft > 0) statusParts.push(`❄ Замедление −${Math.round(status.slow * 100)}% · ${Math.ceil(status.chillLeft)} с`);
+		this.set('hud-horde-status', 'hidden', !statusParts.length);
+		this.set('hud-horde-status', 'text', statusParts.join(' / '));
 		const pk = game.peak();
 		// v21 finale: its own line instead of the peak's — the closing ring, then the time left until the dawn.
 		const fin = game.finale();
@@ -928,6 +933,7 @@ export class UI {
 		$('hud-down').hidden = true;
 		$('hud-outposts').hidden = true;
 		$('hud-trophy').hidden = true;
+		$('hud-horde-status').hidden = true;
 		$('banner').hidden = true;
 	}
 

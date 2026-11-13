@@ -238,6 +238,8 @@ net.on('s', (msg) => {
 });
 
 net.on('horde', (msg) => hordeUI.receive(msg));
+net.on('horde-status', (msg) => game.onHordeStatus(msg));
+net.on('horde-fx', (msg) => game.onHordeFx(msg));
 
 net.on('lvl', (msg) => {
 	if (!game.running || game.isDirector()) return;

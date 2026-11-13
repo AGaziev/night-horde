@@ -46,6 +46,10 @@ const ALLY_ARROWS = 4; // standing-ally arrows after merging close directions
 const ALLY_MERGE = 0.4; // rad: allies closer in direction share an arrow
 const MM_RANGE = 1600; // world units from the hero to the minimap rim
 const HERO_FOOT = 14 * 0.95;
+const HORDE_FX_COLORS = {
+	venom: '#c1ed76', frost: '#9beaff', storm: '#ffe18c', ember: '#ffad85', reaper: '#edc5ff',
+	arbalest: '#ffeec7', barrier: '#cbb8ff', conductor: '#ffd38a', heal: '#8af2bf',
+};
 
 function hash2(x, y) {
 	let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263)) | 0;
@@ -184,6 +188,7 @@ export class Renderer {
 			this.drawHostile(ctx, game, now);
 			this.drawEventSky(ctx, game, now);
 			this.drawEffects(ctx, game);
+			this.drawHordeCombatFx(ctx, game);
 			this.drawReactions(ctx, game);
 			this.drawFinale(ctx, game, now, vx0, vy0, vx1, vy1);
 			if (game.isDirector()) this.drawHordeOrders(ctx, game, now);
@@ -263,6 +268,85 @@ export class Renderer {
 			ctx.moveTo(target.x - r * 1.5, target.y); ctx.lineTo(target.x + r * 1.5, target.y);
 			ctx.moveTo(target.x, target.y - r * 1.5); ctx.lineTo(target.x, target.y + r * 1.5); ctx.stroke();
 		}
+		ctx.restore();
+	}
+
+	strokeHordeFx(ctx, color, width = 2) {
+		ctx.strokeStyle = '#080b12'; ctx.lineWidth = (width + 3) / this.zoom; ctx.stroke();
+		ctx.strokeStyle = color; ctx.lineWidth = width / this.zoom; ctx.stroke();
+	}
+
+	drawHordeCombatFx(ctx, game) {
+		if (!game.hordeFx.length) return;
+		ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+		for (const fx of game.hordeFx) {
+			const color = HORDE_FX_COLORS[fx.kind];
+			const u = Math.min(1, fx.t / fx.life), x = fx.x2, y = fx.y2;
+			ctx.globalAlpha = Math.min(1, (1 - u) * 1.5);
+			if (fx.kind === 'storm' || fx.kind === 'conductor' || fx.kind === 'arbalest') {
+				const dx = x - fx.x, dy = y - fx.y, len = Math.hypot(dx, dy) || 1;
+				ctx.beginPath(); ctx.moveTo(fx.x, fx.y);
+				for (let i = 1; i < 7; i++) {
+					const offset = fx.kind === 'arbalest' ? 0 : (i % 2 ? 1 : -1) * 10;
+					ctx.lineTo(fx.x + dx * i / 7 - dy / len * offset, fx.y + dy * i / 7 + dx / len * offset);
+				}
+				ctx.lineTo(x, y); this.strokeHordeFx(ctx, color);
+				ctx.beginPath(); ctx.arc(x, y, (7 + 10 * u) / this.zoom, 0, TAU); this.strokeHordeFx(ctx, color, 1.5);
+			} else if (fx.kind === 'barrier') {
+				const r = Math.max(22, fx.r) * (0.9 + u * 0.15);
+				ctx.beginPath();
+				for (let i = 0; i <= 6; i++) {
+					const a = i / 6 * TAU - Math.PI / 2;
+					const px = fx.x + Math.cos(a) * r, py = fx.y + Math.sin(a) * r;
+					if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+				}
+				this.strokeHordeFx(ctx, color, 2.5);
+			} else if (fx.kind === 'heal') {
+				const r = 11 / this.zoom;
+				ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y);
+				ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); this.strokeHordeFx(ctx, color, 3);
+				ctx.beginPath(); ctx.arc(x, y, Math.max(20, fx.r) * (0.6 + u * 0.4), 0, TAU); this.strokeHordeFx(ctx, color, 1);
+			} else if (fx.kind === 'reaper') {
+				ctx.beginPath(); ctx.arc(x, y, Math.max(35, fx.r) * (0.8 + u * 0.2), -Math.PI * 0.8 + u, Math.PI * 0.6 + u);
+				this.strokeHordeFx(ctx, color, 3);
+			} else if (fx.kind === 'frost') {
+				const r = (14 + u * 12) / this.zoom;
+				ctx.beginPath();
+				for (let i = 0; i < 6; i++) {
+					const a = i / 6 * TAU;
+					ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+				}
+				this.strokeHordeFx(ctx, color);
+			} else if (fx.kind === 'venom') {
+				ctx.beginPath();
+				for (let i = 0; i < 3; i++) {
+					const a = i / 3 * TAU + u, r = (8 + u * 13) / this.zoom;
+					ctx.moveTo(x + Math.cos(a) * r + 4 / this.zoom, y + Math.sin(a) * r);
+					ctx.arc(x + Math.cos(a) * r, y + Math.sin(a) * r, 4 / this.zoom, 0, TAU);
+				}
+				this.strokeHordeFx(ctx, color);
+			} else if (fx.kind === 'ember') {
+				ctx.beginPath(); ctx.arc(x, y, Math.max(25, fx.r) * (0.5 + u * 0.6), 0, TAU); this.strokeHordeFx(ctx, color, 2.5);
+			}
+		}
+		ctx.restore();
+	}
+
+	drawHordeHeroStatus(ctx, game, pid, x, y, now) {
+		const status = game.hordeStatus(pid);
+		if (!status) return;
+		ctx.save();
+		const poison = status.poisonLeft > 0, chill = status.chillLeft > 0;
+		const color = chill ? HORDE_FX_COLORS.frost : HORDE_FX_COLORS.venom;
+		ctx.globalAlpha = 0.7 + Math.sin(now * 5) * 0.15;
+		ctx.beginPath(); ctx.ellipse(x, y + 8, 26, 14, 0, 0, TAU); this.strokeHordeFx(ctx, color, 1.5);
+		ctx.globalAlpha = 1;
+		const parts = [];
+		if (poison) parts.push(`☣ ${Math.ceil(status.poisonLeft)}с`);
+		if (chill) parts.push(`❄ ${Math.ceil(status.chillLeft)}с`);
+		ctx.font = `700 ${11 / this.zoom}px system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+		ctx.lineWidth = 3 / this.zoom; ctx.strokeStyle = '#080b12'; ctx.strokeText(parts.join('  '), x, y + 29 + 9 / this.zoom);
+		ctx.fillStyle = color; ctx.fillText(parts.join('  '), x, y + 29 + 9 / this.zoom);
 		ctx.restore();
 	}
 
@@ -2981,6 +3065,7 @@ export class Renderer {
 				ctx.fillRect(x - 16, y + 22, 32, 4);
 				ctx.fillStyle = hp > 0.35 ? '#66bb6a' : '#ef5350';
 				ctx.fillRect(x - 16, y + 22, 32 * hp, 4);
+				this.drawHordeHeroStatus(ctx, game, pid, x, y, now);
 			}
 		}
 		// The own hero is drawn even before the first snapshot that contains it.
