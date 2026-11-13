@@ -82,3 +82,81 @@ test('#24: a repeated outpost reward and a reconnect do not duplicate the reforg
 	assert.equal(log.reforges.length, 1);
 	assert.equal(h.weapons.get('frost').lvl, 4);
 });
+
+function arena(weapons) {
+	const r = new Room('FORGE-COMBAT', () => {});
+	r.addPlayer(1, 'P1', 'knight'); r.start();
+	r.time = 100; r.enemies.length = 0;
+	const h = r.heroes.get(1);
+	h.x = h.y = 0;
+	h.weapons = new Map(weapons.map(([id, lvl]) => [id, { lvl, t: 0 }]));
+	h.passives = new Map();
+	r.recalcMods(h);
+	return { r, h };
+}
+function foe(r, x, y, hp = 1e6) {
+	const e = r.spawnEnemy('brute', [...r.heroes.values()], 1);
+	Object.assign(e, { x, y, hp, maxHp: hp });
+	r.rebuildGrid();
+	return e;
+}
+
+test('#24: Морозный след — the returning Серп lays a slowing trail that slows an enemy in combat', () => {
+	const { r, h } = arena([['sickle', 3], ['frost', 3]]);
+	assert.ok(r.imprint(h, { id: 'sickle', donor: 'frost' }));
+	const target = foe(r, 120, 0);
+	r.updateWeapon(h, 'sickle', h.weapons.get('sickle'), 0.05);
+	const discs = r.projectiles.filter(p => p.trail);
+	assert.ok(discs.length > 0 && discs.every(p => p.returnTrail));
+	const trail = () => r.puddles.filter(z => z.hidden && z.slow > 0);
+	let outbound = 0;
+	for (let i = 0; i < 300 && discs.some(p => p.outT > 0); i++) { r.updateProjectiles(1 / 30); outbound = trail().length; }
+	assert.equal(outbound, 0, 'no trail on the way out');
+	for (let i = 0; i < 30; i++) r.updateProjectiles(1 / 30);
+	const zones = trail();
+	assert.ok(zones.length > 0, 'the way back leaves trail patches');
+	assert.ok(r.fx.some(([fx]) => fx === 'buildring'), 'the trail is visible to clients');
+
+	// An ordinary enemy walking through a patch is slowed by the trail itself.
+	const z = zones[0], walker = foe(r, z.x, z.y);
+	walker.slow = 0; walker.slowT = 0; target.x = 5000;
+	r.rebuildGrid();
+	r.updatePuddles(1 / 30);
+	assert.ok(walker.slowT > r.time && walker.slow >= 0.3, `slowed by the trail: slow ${walker.slow}, until ${walker.slowT}`);
+
+	// Without the imprint the same throw leaves nothing.
+	const plain = arena([['sickle', 3]]);
+	foe(plain.r, 120, 0);
+	plain.r.updateWeapon(plain.h, 'sickle', plain.h.weapons.get('sickle'), 0.05);
+	for (let i = 0; i < 120; i++) plain.r.updateProjectiles(1 / 30);
+	assert.equal(plain.r.puddles.filter(z2 => z2.hidden).length, 0);
+});
+
+test('#24: Ливень — the first Гроза strike leaves a puddle, the next strike conducts through it', () => {
+	const { r, h } = arena([['lightning', 3], ['flask', 3]]);
+	assert.ok(r.imprint(h, { id: 'lightning', donor: 'flask' }));
+	const a = foe(r, 60, 0);
+	r.updateWeapon(h, 'lightning', h.weapons.get('lightning'), 0.05);
+	const puddle = r.puddles.find(z => z.wet && z.owner === h);
+	assert.ok(puddle, 'the first strike leaves a puddle');
+	assert.ok(Math.hypot(puddle.x - a.x, puddle.y - a.y) < 1, 'under the struck enemy');
+	r.updatePuddles(0.05);
+	assert.ok(a.wetT > r.time, 'the puddle soaks the enemy');
+
+	const b = foe(r, a.x + puddle.r * 0.5, a.y), hpB = b.hp;
+	b.wetT = 0;
+	r.updatePuddles(0.55);
+	assert.ok(b.wetT > r.time);
+	const before = r.fx.length;
+	h.weapons.get('lightning').t = 0;
+	r.updateWeapon(h, 'lightning', h.weapons.get('lightning'), 0.05);
+	assert.ok(puddle.condT > r.time, 'a strike on a soaked enemy conducts through the puddle');
+	assert.ok(r.fx.length > before);
+	assert.ok(b.hp < hpB, 'the conduction reaches the enemy standing in the puddle');
+
+	// Without the imprint Гроза leaves no puddle.
+	const plain = arena([['lightning', 3]]);
+	foe(plain.r, 60, 0);
+	plain.r.updateWeapon(plain.h, 'lightning', plain.h.weapons.get('lightning'), 0.05);
+	assert.equal(plain.r.puddles.length, 0);
+});
