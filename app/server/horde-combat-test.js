@@ -25,7 +25,7 @@ function encounter(weapons = {}, artifacts = {}, count = 1, packs = { swarm: 1 }
 function purchase(room, pack) {
 	const before = new Set(room.enemies.map((e) => e.id));
 	room.horde.resource = room.horde.resourceCap;
-	room.handle(1, { t: 'horde', seq: room.horde.lastSeq + 1, action: 'spawn', pack, x: -1000, y: 0 });
+	room.handle(1, { t: 'horde', roundId: room.horde.roundId, seq: room.horde.lastSeq + 1, action: 'spawn', pack, x: -1000, y: 0 });
 	assert.equal(room.horde.pending.length, 1, 'fixture must create a real paid order');
 	room.time += 2;
 	room.horde.tick(0, [...room.heroes.values()].filter((h) => h.st === 0));

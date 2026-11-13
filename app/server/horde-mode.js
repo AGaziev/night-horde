@@ -34,6 +34,7 @@ export class HordeMode {
 	}
 
 	get levels() { return this.build.packs; }
+	get roundId() { return this.offerPrefix; }
 	get resourceCap() { return HORDE_ECONOMY.cap + 20 * (this.build.artifacts.supply ?? 0); }
 	get choicesPending() { return this.rank - this.picksTaken; }
 	get nextRankAt() { return this.rank < HORDE_BUILD.maxPicks ? this.rank * HORDE_BUILD.rankEvery : null; }
@@ -139,7 +140,7 @@ export class HordeMode {
 		const { manual, reserved } = this.counts();
 		const room = this.room;
 		return {
-			t: 'horde', resource: Math.floor(this.resource), resourceCap: this.resourceCap,
+			t: 'horde', roundId: this.roundId, resource: Math.floor(this.resource), resourceCap: this.resourceCap,
 			income: HORDE_ECONOMY.perSecond, lastSeq: this.lastSeq,
 			population: manual + reserved, populationCap: HORDE_LIMITS.manual, queued: this.pending.length,
 			levels: { ...this.levels }, arena: HORDE_ARENA, build: this.snapshotBuild(), rank: this.rank,
@@ -160,7 +161,9 @@ export class HordeMode {
 
 	handle(msg) {
 		let error = null;
-		if (!Number.isSafeInteger(msg.seq) || msg.seq <= 0) error = 'Неверный номер команды орды';
+		// Transport delivery can outlive a rematch; stale rounds must never acknowledge the new sequence.
+		if (msg.roundId !== this.roundId) error = 'Этот матч уже завершён';
+		else if (!Number.isSafeInteger(msg.seq) || msg.seq <= 0) error = 'Неверный номер команды орды';
 		else if (msg.seq <= this.lastSeq) { this.sendState(); return; }
 		else if (msg.seq !== this.lastSeq + 1) error = 'Нарушен порядок команд орды';
 		else {

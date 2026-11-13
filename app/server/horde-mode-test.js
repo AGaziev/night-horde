@@ -20,7 +20,7 @@ function encounter(count = 1, start = true) {
 }
 
 function command(room, data, pid = room.directorPid) {
-	room.handle(pid, { t: 'horde', seq: room.horde.lastSeq + 1, ...data });
+	room.handle(pid, { t: 'horde', roundId: room.horde.roundId, seq: room.horde.lastSeq + 1, ...data });
 }
 
 function due(room, at = room.time + 2) {
@@ -260,7 +260,7 @@ test('Hub paid cohorts survive birth and distance retirement throughout the fini
 		const { hub, room, mode, heroes: [h], messages } = encounter();
 		Object.assign(h, { x: 0, y: 0 });
 		const before = mode.resource;
-		hub.handle(1, { t: 'horde', action: 'spawn', pack: 'swarm', x, y, seq: 1 });
+		hub.handle(1, { t: 'horde', roundId: mode.roundId, action: 'spawn', pack: 'swarm', x, y, seq: 1 });
 		assert.equal(mode.pending.length, 1, `${x},${y} is an accepted paid position`);
 		assert.equal(mode.resource, before - HORDE_PACKS.swarm.cost);
 		const ids = new Set(mode.pending[0].units.map((u) => `${u.x},${u.y}`));
