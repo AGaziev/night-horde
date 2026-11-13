@@ -46,7 +46,7 @@ test('total snapshot loss permits bounded movement, explicit solo pause freezes 
 	} finally { f.restore(); }
 });
 
-test('position acknowledgements from before a dash never undo its new movement epoch', () => {
+test('optional movement epochs reject old acknowledgements without requiring a dash implementation', () => {
 	const f = fixture();
 	try {
 		f.game.pendingPositions.set(10, { x: 0, y: 0, epoch: 0 });
