@@ -9,6 +9,8 @@ import { ENEMIES, enemyHpScale, SNAPSHOT_HZ, TICK_HZ } from '../public/shared/co
 // with the lanes and aims anew after the thaw, so the client must drop the old lanes by then even when it renders
 // slowly (main.js caps a frame's dt at 50 ms). Real path: Room ticks → 10 Hz snapshots through the fx codec → the
 // client Game on its render clock at 15/30/60 FPS. One fan on screen at a time; every volley flies along the last one.
+let seed = 1;
+Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 let wall = 0;
 Object.defineProperty(globalThis, 'performance', { value: { now: () => wall * 1000 }, configurable: true, writable: true });
 const file = new URL('../public/js/game.js', import.meta.url);
@@ -16,7 +18,7 @@ const source = fs.readFileSync(file, 'utf8').replace("'/shared/content.js'", JSO
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 const S = ENEMIES.sniper, W = S.windup, FAN = S.fan, dt = 1 / TICK_HZ, EVERY = Math.round(TICK_HZ / SNAPSHOT_HZ);
-const LATENCY = 0.06, idle = { vector: () => ({ x: 0, y: 0 }) };
+const LATENCY = 0.06, eps = 1e-6, idle = { vector: () => ({ x: 0, y: 0 }) };
 
 function arena(kind, mode) {
 	const r = new Room('LOWFPS', () => {}); r.setMode(mode); r.addPlayer(1, 'One', 'knight'); r.start();
@@ -98,3 +100,50 @@ for (const mode of ['lunch', 'night']) for (const kind of ['guard', 'ordinary'])
 	}
 assert.ok(reaimed >= cases / 3, `the windup ran out in the freeze in ${reaimed}/${cases} cases`);
 console.log(`late Иней at 15/30/60 FPS, ${cases} cases (${reaimed} aimed anew after the thaw): never more than one fan on screen, every volley along it: OK`);
+
+// A hidden tab renders no frames while snapshots keep coming. On return the lanes of a windup still under way show
+// before its volley: the long gap does not age them away in the first frame.
+function hidden({ hide, back }) {
+	seed = 1;
+	const { r, h, e } = arena('ordinary', 'lunch');
+	wall = 100;
+	const g = new Game({ send() {} }); g.me = 1;
+	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: h.x, y: h.y }] });
+	const inbox = [], t0 = r.time, aimAt = t0 + 3 + dt;
+	const shownAt = 100 + 3 + dt + LATENCY + back, hideFrom = shownAt - hide; // wall clock of the tab's return
+	let fx = [], ticks = 0, lanes = false, orbAt = null, nextFrame = wall + LATENCY;
+	e.x = h.x + 3000; e.shotT = 1e9; // out of range while the client clock settles
+	while (r.time < t0 + 3 + back + 2 * W) {
+		r.time += dt; r.fx.length = 0;
+		if (e.shotT > 1e8 && r.time >= aimAt - eps) { e.x = h.x + 500; e.shotT = 0; }
+		r.moveEnemies(dt, [h]);
+		if (r.fx.some(ev => ev[0] === 'eorb')) r.hostile.length = 0;
+		fx.push(...r.fx);
+		if (++ticks % EVERY) continue;
+		const tm = Math.round(r.time * 100) / 100, packed = packFx(fx, Math.round(tm * 1000));
+		inbox.push({ arrive: 100 + (r.time - t0) + LATENCY, msg: { t: 's', tm, fx: unpackFx(packed.f, packed.fv, packed.fn, Math.round(tm * 1000)) } });
+		fx = [];
+		while (nextFrame <= 100 + (r.time - t0) + LATENCY) {
+			while (inbox.length && inbox[0].arrive <= nextFrame) {
+				const m = inbox.shift(), frame = wall;
+				wall = m.arrive; g.onSnapshot(m.msg); wall = frame; // snapshots arrive between frames
+			}
+			if (nextFrame > hideFrom && nextFrame < shownAt) { nextFrame += 1 / 60; continue; }
+			const raw = nextFrame - wall;
+			wall = nextFrame;
+			g.update(Math.min(0.05, Math.max(0, raw)), idle);
+			if (wall >= shownAt && g.blines.length) lanes = true;
+			for (const o of g.hostile.values()) if (o.show && o.r && orbAt === null) orbAt = wall;
+			nextFrame += 1 / 60;
+		}
+	}
+	return { lanes, orbAt, shownAt };
+}
+let hiddenCases = 0;
+for (const hide of [0.3, 2, 10]) for (const back of [0.25, 0.45, 0.6, 0.75]) {
+	const { lanes, orbAt, shownAt } = hidden({ hide, back });
+	assert.ok(orbAt !== null && orbAt > shownAt, `hidden ${hide} s, back ${back} s into the windup: the volley comes after the return`);
+	assert.ok(lanes, `hidden ${hide} s, back ${back} s into the windup: its lanes show before the volley`);
+	hiddenCases++;
+}
+console.log(`tab hidden 0.3/2/10 s and back mid-windup, ${hiddenCases} cases: the lanes show before the volley: OK`);

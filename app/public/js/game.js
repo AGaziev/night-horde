@@ -12,6 +12,7 @@ const CLOCK_MARGIN = 0.02;
 const CLOCK_SLEW = 0.12; // max playback speed deviation while catching up
 const CLOCK_GAIN = 2;
 const CLOCK_SNAP = 0.5; // jump instead of slewing when this far off
+const FX_STEP_MAX = 0.25; // the longest frame the render clock slews over (updateView)
 const MAX_EXTRAPOLATE = 0.2;
 // An enemy that moved farther than this between two snapshots is placed, not slid across the map.
 const TELEPORT_DIST = 200;
@@ -387,8 +388,9 @@ export class Game {
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
-		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames.
-		const wall = this.effectsNow === null ? dt : Math.max(0, now - this.effectsNow);
+		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames. A longer
+		// gap (a hidden tab) is cut as the render clock's jump is, so warnings that arrived meanwhile still show.
+		const wall = this.effectsNow === null ? dt : Math.min(FX_STEP_MAX, Math.max(0, now - this.effectsNow));
 		this.effectsNow = now;
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
@@ -453,7 +455,7 @@ export class Game {
 		const target = now - this.clockRef;
 		const dt = now - this.lastNow;
 		this.lastNow = now;
-		if (this.renderTm === null || dt < 0 || dt > 0.25 || Math.abs(target - this.renderTm) > CLOCK_SNAP) {
+		if (this.renderTm === null || dt < 0 || dt > FX_STEP_MAX || Math.abs(target - this.renderTm) > CLOCK_SNAP) {
 			this.renderTm = target;
 		} else {
 			const err = target - this.renderTm;
