@@ -42,6 +42,7 @@ function loadPlaywright() {
 
 // --- server with the stress hook ---
 process.env.PORT = String(PORT);
+const ownRuns = !process.env.HORDE_RUNS_DIR;
 process.env.HORDE_RUNS_DIR ??= fs.mkdtempSync(path.join(os.tmpdir(), 'horde-bench-runs-'));
 const { Room } = await import(path.join(APP, 'server/game.js'));
 const { TICK_HZ } = await import(path.join(APP, 'public/shared/content.js'));
@@ -192,6 +193,20 @@ if (CHECK) {
 	await page.focus('input[name="vfx-numbers"][value="crits"]');
 	await page.keyboard.press('ArrowRight');
 	check(await page.evaluate(() => window.__nh.game.visual.numbers) === 'off', 'keyboard arrows switch the numbers setting');
+	await page.keyboard.press('Escape');
+	check(await page.evaluate(() => document.getElementById('snd-panel').hidden && document.activeElement === document.body),
+		'Esc closes the panel and drops focus');
+	// In a run a focused radio must not swallow the movement keys.
+	await startRun(page);
+	await page.click('#snd-more');
+	await page.click('input[name="vfx-effects"][value="full"]');
+	await page.focus('input[name="vfx-effects"][value="full"]');
+	const x0 = await page.evaluate(() => window.__nh.game.local.x);
+	await page.keyboard.down('KeyD');
+	await page.waitForTimeout(400);
+	await page.keyboard.up('KeyD');
+	const x1 = await page.evaluate(() => window.__nh.game.local.x);
+	check(x1 - x0 > 20, `WASD moves the hero while a radio is focused (dx ${(x1 - x0).toFixed(0)})`);
 	check(!errors.length, `no page errors ${errors.join(' | ')}`);
 	await ctx.close();
 }
@@ -222,7 +237,9 @@ for (let round = 0; round < ROUNDS; round++) {
 			if (v.numbers === 'off') check(m.numbers === 0, `${key}: no damage numbers on screen`);
 			if (v.numbers === 'crits') check(m.nonCrit === 0, `${key}: only crit numbers on screen (avg ${m.numbers.toFixed(1)})`);
 			if (v.effects === 'lite') {
-				check(Object.keys(calls).length === 6 && Object.values(calls).every((n) => n > 0), `${key}: warnings and enemy shots still drawn ${JSON.stringify(calls)}`);
+				// drawOrbShots runs only while sniper orbs exist, so it is reported but not required.
+				const always = ['drawWarns', 'drawWindupWarnings', 'drawHostile', 'drawEventGround', 'drawOutposts'];
+				check(always.every((k) => calls[k] > 0), `${key}: warnings and enemy shots still drawn ${JSON.stringify(calls)}`);
 			}
 		}
 		check(!errors.length, `${key}: no page errors ${errors.join(' | ')}`);
@@ -245,6 +262,7 @@ for (const [key, r] of rows) {
 	console.log(`${key.padEnd(15)} | ${mean(r.tm).toFixed(0).padStart(6)} s  | ${mean(r.enemies).toFixed(0).padStart(17)} | ${mean(r.numbers).toFixed(1).padStart(7)} | ${mean(r.particles).toFixed(0).padStart(9)} | ${fm.toFixed(2).padStart(8)} / ${pct(r.frames, 0.95).toFixed(2).padStart(6)} | ${(1000 / fm).toFixed(1).padStart(4)} | ${mean(r.draws).toFixed(2).padStart(8)} / ${pct(r.draws, 0.95).toFixed(2)}`);
 }
 await browser.close();
+if (ownRuns) fs.rmSync(process.env.HORDE_RUNS_DIR, { recursive: true, force: true });
 if (failures.length) {
 	console.log(`\n${failures.length} check(s) failed`);
 	process.exit(1);
