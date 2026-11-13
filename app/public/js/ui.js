@@ -406,7 +406,7 @@ export class UI {
 		const box = $('levelup-cards');
 		// The same cards sent again (a reward changed a level or the epoch) are a refresh, not a new draw:
 		// revealed chest cards stay open, hidden ones keep their reveal time, focus stays on the same control.
-		const ids = choices.map((c) => `${c.kind}:${c.id}:${c.donor ?? ''}:${c.v ?? ''}`);
+		const ids = choices.map((c) => `${c.kind}:${c.id}:${c.donor ?? ''}:${c.v ?? ''}:${c.rar ?? ''}`);
 		const refresh = !this.levelup.hidden && this.offerIds?.length === ids.length
 			&& ids.every((id, i) => id === this.offerIds[i]);
 		const prevReady = refresh ? (this.readyAt ?? []) : [];
