@@ -388,6 +388,7 @@ export class Room {
 				const scale = e.boss ? bossHpScale : enemyHpScale;
 				const k = scale(born, to) / scale(born, from);
 				e.hp *= k; e.maxHp *= k;
+				if (e.hordeBarrier > 0) e.hordeBarrier *= k;
 				const dk = enemyDmgScale(born, to) / enemyDmgScale(born, from);
 				e.dmg *= dk; e.dmgMul *= dk;
 				continue;
@@ -422,6 +423,7 @@ export class Room {
 		h.st = 1;
 		h.rev = 0;
 		h.downT = this.time;
+		this.horde?.combat.clearHero(h);
 		this.fx.push(['down', h.pid]);
 		this.events.onDown(h);
 		this.runLog?.down(this, h, from);
@@ -475,6 +477,7 @@ export class Room {
 			}
 			if (h?.offer) this.sendOffer(h);
 			if (pid === this.directorPid) this.horde?.sendState();
+			this.horde?.combat.sendStatus(pid);
 		} else if (this.state === 'over' && this.overMsg) {
 			this.send(pid, this.overMsg);
 		}
@@ -679,6 +682,7 @@ export class Room {
 		this.needKey = new Set();
 		this.broadcast(this.startMsg());
 		this.horde?.sendState();
+		this.horde?.combat.sendStatus();
 		return true;
 	}
 
@@ -721,7 +725,7 @@ export class Room {
 			const pos = this.isHorde ? clampHordePosition(x, y, PLAYER_RADIUS) : { x: clamp(x, -WORLD_LIMIT, WORLD_LIMIT), y: clamp(y, -WORLD_LIMIT, WORLD_LIMIT) };
 			const tx = pos.x, ty = pos.y;
 			const elapsed = clamp(this.time - h.lastPosT, 0, 1);
-			const maxStep = h.speed * h.mods.speedMul * elapsed * 1.5 + 30;
+			const maxStep = (h.speed * h.mods.speedMul * elapsed * 1.5 + 30) * (this.horde?.heroSpeedMul(h) ?? 1);
 			const dx = tx - h.x, dy = ty - h.y;
 			const d = Math.hypot(dx, dy);
 			if (d > 0.5) {
@@ -1472,6 +1476,7 @@ export class Room {
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
+		this.horde?.combat.tick(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
@@ -1945,6 +1950,7 @@ export class Room {
 				dy /= d;
 				// Stop at contact distance so enemies don't stack on the player.
 				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+				speed *= this.horde?.combat.unitSpeedMul(e) ?? 1;
 				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
 				if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
 				let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
@@ -2522,6 +2528,8 @@ export class Room {
 				reaction.flash *= m;
 			}
 		}
+		dmg = this.horde?.combat.barrier(e, dmg) ?? dmg;
+		if (dmg <= 0) return 0;
 		const dealt = Math.min(dmg, e.hp);
 		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
@@ -2745,6 +2753,7 @@ export class Room {
 	killEnemy(e, h, src = SRC_NONE) {
 		if (e.dead) return;
 		e.dead = true;
+		this.horde?.combat.onKilled(e, h, src);
 		if (e.outpost) this.guardKilled(e);
 		this.kills++;
 		if (h) {
@@ -3121,6 +3130,7 @@ export class Room {
 			h.st = 1;
 			h.rev = 0;
 			h.downT = this.time;
+			this.horde?.combat.clearHero(h);
 			this.fx.push(['down', h.pid]);
 			this.events.onDown(h);
 		}

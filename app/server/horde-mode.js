@@ -1,8 +1,9 @@
 import { ENEMIES, PLAYER_RADIUS, enemyHpScale, spawnRateScale } from '../public/shared/content.js';
 import { randomUUID } from 'node:crypto';
+import { HordeCombat } from './horde-combat.js';
 import {
 	HORDE_ARENA, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_ECONOMY, HORDE_LIMITS, HORDE_PACKS, HORDE_UPGRADE,
-	HORDE_BUILD, HORDE_WEAPONS, HORDE_ARTIFACTS, hordeSynergies, hordeCardDef, clampHordePosition,
+	HORDE_BUILD, HORDE_COMBAT, HORDE_WEAPONS, HORDE_ARTIFACTS, hordeSynergies, hordeCardDef, clampHordePosition,
 } from '../public/shared/horde-content.js';
 
 const PACK_RADIUS = 64;
@@ -28,6 +29,7 @@ export class HordeMode {
 		this.nextPrivate = 0;
 		this.bossSpawned = false;
 		this.bossKilled = false;
+		this.combat = new HordeCombat(this);
 		this.ensureOffer();
 	}
 
@@ -41,7 +43,20 @@ export class HordeMode {
 	}
 
 	packCost(pack) { return Math.ceil(pack.cost * (1 - 0.05 * (this.build.artifacts.supply ?? 0))); }
-	packUnits(pack) { return [...pack.units, ...Array(this.build.artifacts.brood ?? 0).fill(pack.units[0])]; }
+	packUnits(pack) {
+		const escort = pack.units.reduce((weakest, type) => ENEMIES[type].hp < ENEMIES[weakest].hp ? type : weakest, pack.units[0]);
+		return [...pack.units, ...Array(this.build.artifacts.brood ?? 0).fill(escort)];
+	}
+	heroSpeedMul(h) { return this.combat.heroSpeedMul(h); }
+
+	artifactAvailable(def) {
+		const weapons = Object.keys(this.build.weapons);
+		if (def.requiresWeapon && !weapons.length) return false;
+		if (def.requiresPacks && Object.keys(this.build.packs).length < def.requiresPacks) return false;
+		if (def.requiresWeapons && !def.requiresWeapons.some((id) => this.build.weapons[id])) return false;
+		if (def.requiresWeaponTags && !weapons.some((id) => HORDE_WEAPONS[id].tags.some((tag) => def.requiresWeaponTags.includes(tag)))) return false;
+		return true;
+	}
 
 	candidates() {
 		const out = [];
@@ -54,6 +69,7 @@ export class HordeMode {
 			for (const def of Object.values(defs)) {
 				const level = owned[def.id] ?? 0;
 				if (level >= max || (!level && (full || (def.at ?? 0) > this.room.time))) continue;
+				if (!level && kind === 'artifact' && !this.artifactAvailable(def)) continue;
 				out.push({ kind, id: def.id, level: level + 1 });
 			}
 		}
@@ -224,6 +240,7 @@ export class HordeMode {
 				e.hp *= 1 + HORDE_UPGRADE.hpPerLevel * (p.level - 1); e.maxHp = e.hp;
 				e.dmg *= 1 + HORDE_UPGRADE.damagePerLevel * (p.level - 1); e.dmgMul *= 1 + HORDE_UPGRADE.damagePerLevel * (p.level - 1);
 				e.hordeBarrier = e.maxHp * 0.12 * (p.build.artifacts.carapace ?? 0);
+				if (e.ai === 'exploder') e.def = { ...e.def, fuse: Math.max(e.def.fuse, HORDE_COMBAT.warning) };
 			}
 		}
 		if (alive.length) {
