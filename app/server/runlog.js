@@ -336,7 +336,7 @@ export class RunLog {
 	}
 
 	card(room, log) {
-		return log ? resultsCard(log, room.heroes, this.p) : null;
+		return log && !room.isHorde ? resultsCard(log, room.heroes, this.p) : null;
 	}
 
 	build(room, win) {
@@ -354,7 +354,8 @@ export class RunLog {
 				pid: h.pid, name: h.name, hero: h.hero, heroName: HEROES[h.hero]?.name ?? h.hero, level: h.level,
 				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
-				duos: p.duos, evos: p.evos, rarity: p.rar, ach: room.runAchievements?.(h, win),
+				duos: p.duos, evos: p.evos, rarity: p.rar,
+				...(room.isHorde ? {} : { ach: room.runAchievements?.(h, win) }),
 				hpByMin: p.hpMin, dpsByMin: p.dps, deaths: p.deaths, drops: p.drops ?? [], declinedNewWeapon: p.declinedW, declinedNewWeaponLonely: p.declinedLonely,
 				build: {
 					weapons: [...h.weapons].map(([id, w]) => `${id}${w.lvl}`),
@@ -382,6 +383,9 @@ export class RunLog {
 		}
 		const log = {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
+			ruleset: room.ruleset ?? 'pve', directorPid: room.directorPid ?? null,
+			...(room.isHorde ? { ranked: false, directorWin: !win, reason: room.resultReason,
+				director: { name: room.members.get(room.directorPid)?.name ?? room.runDirectorName ?? '', levels: { ...room.horde.levels } } } : {}),
 			mode: room.mode ?? 'night', runLength: room.runLength, win, grade: room.grade ?? (win ? 1 : 0), time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll|ban, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common; overclock: weapon~variant',
 			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
@@ -467,7 +471,11 @@ export function summarize(log) {
 	const out = [];
 	const outcome = log.grade === 2 ? `победа, Владыка повержен на ${mmss(log.time)}` : log.win ? `победа на ${mmss(log.time)}` : `группа пала на ${mmss(log.time)}`;
 	const len = log.runLength ?? modeOf(log.mode).seconds;
-	out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
+	if (log.ruleset === 'horde') {
+		const reasons = { boss: 'герои победили босса', time: 'герои продержались 15 минут', wipe: 'орда повалила всех героев', 'director-left': 'полководец покинул игру', 'heroes-left': 'все герои покинули игру' };
+		out.push(`Ночная орда ${log.v} · лог #${log.id} · Асимметричная орда (${mmss(len)}), без рейтинга · героев: ${log.players} · ${reasons[log.reason] ?? outcome} на ${mmss(log.time)} · убито ${log.kills}`);
+		if (log.director?.name) out.push(`Полководец: ${log.director.name}`);
+	} else out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
 	const all = {};
 	let tot = 0;
 	for (const p of log.team) for (const d of p.dmgBy) { all[d.id] = (all[d.id] ?? 0) + d.dmg; tot += d.dmg; }
@@ -667,6 +675,8 @@ export class RunStore {
 		if (this.runs.length > KEEP_RUNS) this.runs.pop();
 		const row = {
 			id: log.id, at: log.at, v: log.v, mode: log.mode ?? 'night', win: log.win,
+			ruleset: log.ruleset ?? 'pve',
+			...(log.ruleset === 'horde' ? { directorWin: !!log.directorWin, reason: log.reason, ranked: false } : {}),
 			grade: log.grade ?? (log.win ? 1 : 0), time: log.time,
 			players: log.team.map(({ name, hero, level }) => ({ name, hero, level })),
 		};
@@ -690,7 +700,7 @@ export class RunStore {
 
 	getCard(id) {
 		const record = this.getRecord(id);
-		return record ? record.card ?? resultsCard(record.log) : null;
+		return record && record.log.ruleset !== 'horde' ? record.card ?? resultsCard(record.log) : null;
 	}
 
 	getRecord(id) {
