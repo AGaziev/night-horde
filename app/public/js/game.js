@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
+import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS, DASH } from '/shared/content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -105,6 +105,10 @@ export class Game {
 	}
 
 	reset() {
+		this.moveEpoch = 0;
+		this.dashReadyAt = 0;
+		this.dashTravel = null;
+		this.dashWaiting = 0;
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
@@ -295,6 +299,7 @@ export class Game {
 		}
 		const snap = {
 			tm,
+			mob: Array.isArray(msg.mob) ? msg.mob : EMPTY,
 			at: now,
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
@@ -333,6 +338,14 @@ export class Game {
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
 		const mine = snap.pMap.get(this.me);
+		const mobility = snap.mob.find(r => r[0] === this.me);
+		if (mobility) {
+			this.dashReadyAt = mobility[2];
+			if (mobility[1] > (this.moveEpoch ?? 0) && !this.dashWaiting && !this.dashTravel) {
+				this.moveEpoch = mobility[1];
+				if (mine) { this.local.x = mine[P.x]; this.local.y = mine[P.y]; }
+			}
+		}
 		if (mine) {
 			const sx = +mine[P.x], sy = +mine[P.y];
 			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
@@ -384,8 +397,35 @@ export class Game {
 		return !r || r[P.st] !== 1;
 	}
 
+	dashRemaining() {
+		return Math.max(0, (this.dashReadyAt ?? 0) - (this.latest()?.tm ?? 0));
+	}
+
+	requestDash(input) {
+		if (!this.running || this.frozen || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0) return false;
+		const v = input.vector(), len = Math.hypot(v.x, v.y);
+		const x = len ? v.x / len : this.local.fx, y = len ? v.y / len : this.local.fy;
+		this.dashWaiting = performance.now() + 1500;
+		this.net.send({ t: 'dash', x, y });
+		return true;
+	}
+
+	acceptDash(msg) {
+		if (!this.running) return;
+		this.dashWaiting = 0;
+		if (!Number.isInteger(msg.epoch) || msg.epoch < (this.moveEpoch ?? 0)) return;
+		this.moveEpoch = msg.epoch;
+		if (!msg.ok) return;
+		if (![msg.x, msg.y, msg.dx, msg.dy, msg.readyAt].every(Number.isFinite)) return;
+		this.local.x = msg.x; this.local.y = msg.y;
+		this.local.fx = msg.dx; this.local.fy = msg.dy;
+		this.dashTravel = { x: msg.dx, y: msg.dy, left: DASH.duration };
+		this.dashReadyAt = msg.readyAt;
+	}
+
 	update(dt, input) {
 		const now = performance.now() / 1000;
+		if (this.dashWaiting && now * 1000 >= this.dashWaiting) this.dashWaiting = 0;
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
 			this.hold -= dt;
@@ -405,7 +445,13 @@ export class Game {
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
 				const v = input.vector();
-				if (v.x || v.y) {
+				if (this.dashTravel) {
+					const d = this.dashTravel, t = Math.min(dt, d.left);
+					this.local.x += d.x * DASH.distance * t / DASH.duration;
+					this.local.y += d.y * DASH.distance * t / DASH.duration;
+					d.left -= t;
+					if (d.left < 1e-8) this.dashTravel = null;
+				} else if (!this.dashWaiting && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -417,12 +463,15 @@ export class Game {
 				// The finale wall: the same projection the server applies (a standing hero is pushed by the closing ring too).
 				const fin = this.finale();
 				if (fin) [this.local.x, this.local.y] = clampToRing(this.local.x, this.local.y, fin.cx, fin.cy, fin.r - PLAYER_RADIUS);
+				this.local.x = Math.max(-100000, Math.min(100000, this.local.x));
+				this.local.y = Math.max(-100000, Math.min(100000, this.local.y));
 				this.posTimer -= dt;
-				if (this.posTimer <= 0 && this.me !== null) {
+				if (this.posTimer <= 0 && this.me !== null && !this.dashWaiting && !this.dashTravel) {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
 					this.net.send({
 						t: 'pos',
+						epoch: this.moveEpoch ?? 0,
 						x: Math.round(this.local.x * 10) / 10,
 						y: Math.round(this.local.y * 10) / 10,
 						fx: Math.round(this.local.fx * 1000) / 1000,
