@@ -58,7 +58,7 @@ function run({ kind = 'ordinary', mode = 'lunch', fps = 60, warm = 2, freeze, hi
 	const at = (t) => aim + t; // wall time of a moment after the aim
 	const queue = []; // client-side arrivals {at, kind, msg | on}
 	let fx = [], ticks = 0, tickAt = T0, frameAt = T0 + LATENCY, freezeAt = null, lastFrame = null, gapEnd = T0;
-	let lastFan = null, fanSeenAt = -Infinity, volleys = 0, reaimed = 0, fans = 0, lanesAfterPause = null, lanesBeforeHide = 0;
+	let lastFan = null, fanSeenAt = -Infinity, volleys = 0, reaimed = 0, fans = 0, lanesAfterPause = null, lanesBeforeHide = 0, lanesThroughPause = true, waitMax = 0;
 	const orbs = new Set();
 	const paused = (t) => pause && t >= at(pause[0]) && t < at(pause[1]);
 	if (pause) queue.push({ at: at(pause[0]) + LATENCY, kind: 'pause', on: true }, { at: at(pause[1]) + LATENCY, kind: 'pause', on: false });
@@ -88,6 +88,7 @@ function run({ kind = 'ordinary', mode = 'lunch', fps = 60, warm = 2, freeze, hi
 			const m = queue.shift();
 			wall = m.at; // messages arrive between frames
 			if (m.kind === 'snap') g.onSnapshot(m.msg); else g.setPause(m.on, true);
+			waitMax = Math.max(waitMax, g.teleWait.length);
 		}
 		if (hide && now > at(hide[0]) && now < at(hide[1])) continue;
 		if (lastFrame !== null && now - lastFrame > 1.5 / fps) gapEnd = now;
@@ -98,6 +99,7 @@ function run({ kind = 'ordinary', mode = 'lunch', fps = 60, warm = 2, freeze, hi
 		assert.ok(lanes === 0 || lanes === FAN, `${label}: one fan on screen, not ${lanes} lanes`);
 		if (pause && lanesAfterPause === null && now > at(pause[1]) + LATENCY) lanesAfterPause = lanes;
 		if (hide && now <= at(hide[0])) lanesBeforeHide = lanes;
+		if (pause && now > at(pause[0]) + LATENCY && now <= at(pause[1]) + LATENCY && lanes !== FAN) lanesThroughPause = false;
 		const fan = lanes ? g.blines.map(angle) : null;
 		for (const [id, o] of g.hostile) if (o.show && o.r && !orbs.has(id)) {
 			orbs.add(id);
@@ -109,7 +111,7 @@ function run({ kind = 'ordinary', mode = 'lunch', fps = 60, warm = 2, freeze, hi
 		}
 		if (fan) { lastFan = fan; fanSeenAt = now; }
 	}
-	return { volleys, reaimed, orbs: orbs.size / FAN, lanesAfterPause, lanesBeforeHide };
+	return { volleys, reaimed, orbs: orbs.size / FAN, lanesAfterPause, lanesBeforeHide, lanesThroughPause, waitMax };
 }
 
 // 1. A late Иней at 12/15/30/60 FPS: the windup runs out in the freeze, a new fan comes after it.
@@ -135,8 +137,9 @@ for (const kind of ['guard', 'ordinary']) for (const at of [0.5, 0.7, 0.85]) for
 		cases++;
 	}
 // Hidden long, back during a later windup.
-for (const hide of [3.6, 3.8, 4.0, 4.2, 10]) {
-	run({ warm: 12, hide: [0.3, 0.3 + hide], until: hide + 2, label: `hidden ${hide} s from 0.3 s into a windup` });
+for (const hide of [3.6, 3.8, 4.0, 4.2, 10, 60]) {
+	const { waitMax } = run({ warm: 12, hide: [0.3, 0.3 + hide], until: hide + 2, label: `hidden ${hide} s from 0.3 s into a windup` });
+	assert.ok(waitMax <= 2 * FAN, `hidden ${hide} s: warnings over while hidden are not kept (${waitMax} waiting)`);
 	cases++;
 }
 console.log(`hidden tab around late Иней and windups, ${cases} cases: one fan on screen, volleys along the lanes shown: OK`);
@@ -151,7 +154,30 @@ for (const kind of ['guard', 'ordinary']) for (const fps of [15, 60]) for (const
 	assert.ok(res.orbs >= 1, `${label}: the volley comes`);
 	cases++;
 }
-console.log(`pause between frames, ${cases} cases: lanes kept over it, the volley along them: OK`);
+// The menu pause with frames running: the lanes stay all through it.
+for (const kind of ['guard', 'ordinary']) for (const fps of [15, 60]) for (const from of [0.35, 0.6]) for (const len of [1.5, 4]) {
+	const label = `${kind} ${fps} FPS, menu pause ${len} s at ${from} s of the windup, frames running`;
+	const res = run({ kind, fps, warm: 2, pause: [from, from + len], until: len + 2.5, label });
+	assert.equal(res.lanesAfterPause, FAN, `${label}: the lanes are on screen after the pause`);
+	assert.ok(res.lanesThroughPause, `${label}: the lanes are on screen all through the pause`);
+	assert.ok(res.orbs >= 1, `${label}: the volley comes`);
+	cases++;
+}
+console.log(`pause between frames and with frames running, ${cases} cases: lanes kept over it, the volley along them: OK`);
+
+// A new run starts while the tab is hidden: its warnings count on its own clock, not the last run's.
+{
+	wall = T0;
+	const g = new Game({ send() {} }); g.me = 1;
+	g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: 0, y: 0 }] });
+	const snap = (tm, fx = []) => { wall = T0 + tm + LATENCY + (tm < 100 ? 700 : 0); g.onSnapshot({ t: 's', tm, fx }); };
+	for (let tm = 600; tm <= 602; tm = Math.round((tm + 0.1) * 10) / 10) { snap(tm); g.update(0.016, idle); }
+	for (let k = 1; k <= 12; k++) snap(k / 10, k === 3 ? [['bline', 0, 0, 600, 0, 34, 2]] : []); // hidden: no frames
+	wall += 0.016; g.update(0.016, idle);
+	assert.equal(g.blines.length, 1, 'a lane of the new run shows on the first frame after the return');
+	assert.ok(g.blines[0].t > 0.5 && g.blines[0].t < 1, `it is as old as the new run says (${g.blines[0].t.toFixed(2)} s)`);
+	console.log('new run while the tab is hidden: its lanes show with their own age: OK');
+}
 
 // 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
 {

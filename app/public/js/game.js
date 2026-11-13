@@ -183,6 +183,7 @@ export class Game {
 		this.clockRef = null;
 		this.renderTm = null;
 		this.lastNow = 0;
+		this.teleTm = null;
 	}
 
 	stop() {
@@ -340,6 +341,8 @@ export class Game {
 				this.fxTm = null;
 			}
 		}
+		// Warnings over by now are never shown: without frames they would pile up.
+		if (this.teleWait.length) compact(this.teleWait, ([, item]) => item.born + item.life > tm);
 
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
@@ -693,11 +696,14 @@ export class Game {
 		return last && this.renderTm !== null ? Math.min(this.renderTm, last.tm) : null;
 	}
 
-	// Warnings of a snapshot are as old as its server time says; without one (no clock yet) they start fresh.
+	// Warnings of a snapshot are as old as its server time says; they wait while the telegraph clock is not there yet
+	// (or not set: no frame since the run began). Without a snapshot they start fresh.
 	addTelegraph(list, item) {
-		if (this.fxTm !== null && this.teleTm !== null) {
+		if (this.fxTm !== null) {
 			item.born = this.fxTm;
-			if (this.teleTm < item.born) {
+			// Over by the newest snapshot (frames stopped for long): never shown, not kept either.
+			if (item.born + item.life <= this.latest().tm) return;
+			if (this.teleTm === null || this.teleTm < item.born) {
 				this.teleWait.push([list, item]);
 				return;
 			}
