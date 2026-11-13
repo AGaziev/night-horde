@@ -198,3 +198,26 @@ test('#24: a reroll returning the same cards and rarities without draft marks tu
 		assert.ok(h.weapons.has('traps'));
 	} finally { restore(); }
 });
+
+test('#24: a reroll is a new draw even when the cards or the whole message come back unchanged', async () => {
+	const { ui, box, advance, restore } = await harness();
+	try {
+		const { lvl } = encounter();
+		const chest = lvl(), n = chest.choices.length;
+		ui.showOffer(chest); advance(600 * n + 1);
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, 0);
+
+		// Same ids, other marks: without the reroll it would be a refresh that keeps the cards open.
+		ui.expectDraw();
+		const marked = { ...chest, offerEpoch: chest.offerEpoch + 1, choices: chest.choices.map((c, i) => (i ? c : { ...c, draft: 'fit' })) };
+		assert.equal(ui.showOffer(marked), true, 'the reroll reply is a new draw');
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'chest cards are dealt face down again');
+
+		// The very same message (same key): showOffer returns early, «Изгнать» must already be off.
+		advance(600 * n + 1);
+		ui.setBanMode(true);
+		ui.expectDraw();
+		ui.showOffer(marked);
+		assert.equal(ui.banMode, false);
+	} finally { restore(); }
+});
