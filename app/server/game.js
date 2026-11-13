@@ -1202,7 +1202,9 @@ export class Room {
 		h.fused.add(b);
 		// Consumed attacks end at fusion; unrelated weapons keep their own fields and missiles.
 		const consumed = (effect) => effect.owner === h && card.parts.includes(effect.src?.weapon);
-		for (const p of this.projectiles) if(consumed(p)) this.endProjectile(p);
+		for (const [key, kind] of [['projectiles', 0], ['blasts', 1], ['coldWaves', 2], ['orbs', 3]]) {
+			for (const effect of this[key]) if (consumed(effect) && effect.id !== undefined) this.fx.push(['cancel', kind, effect.id]);
+		}
 		for (const key of ['projectiles', 'coldWaves', 'puddles', 'traps', 'blasts', 'orbs']) this[key] = this[key].filter(effect => !consumed(effect));
 		this.fx.push(['duo', h.pid, card.id]);
 		this.runLog?.fused(this, h, 'duo', card.id);
@@ -3362,11 +3364,11 @@ export class Room {
 				const target = this.densestPoints(h, 1, L.radius * areaMul)[0];
 				if (!target) { w.t = 0.2; return; }
 				const a = Math.atan2(target.y - h.y, target.x - h.x);
-				const wave = { owner: h, x: h.x, y: h.y, dx: Math.cos(a), dy: Math.sin(a), distance: 0,
+				const wave = { id: this.nextId++, owner: h, x: h.x, y: h.y, dx: Math.cos(a), dy: Math.sin(a), distance: 0,
 					range: L.radius * areaMul, width: L.width * areaMul, speed: 420, dmg, src, hit: new Set(),
 					slow: L.slow, dur: L.dur * durMul, freeze: L.freeze * h.mods.ctrlMul * durMul };
 				this.coldWaves.push(wave);
-				this.fx.push(['coldwave', Math.round(h.x), Math.round(h.y), round3(a), Math.round(wave.range), Math.round(wave.width), wave.speed]);
+				this.fx.push(['coldwave', Math.round(h.x), Math.round(h.y), round3(a), Math.round(wave.range), Math.round(wave.width), wave.speed, wave.id]);
 				if (w.imprint === 'sickle') for (const off of [-0.55, 0, 0.55])
 					this.addProjectile(h, 'sickle', a + off, 320, dmg * 0.55, Infinity, 1.7, null, 0.46, { src });
 				w.t = L.cd * cdMul;
@@ -4527,8 +4529,9 @@ export class Room {
 			pts.push({ x: pts[0].x + Math.cos(a) * step, y: pts[0].y + Math.sin(a) * step });
 		}
 		for (const p of pts) {
-			this.fx.push(['lob', this.nextId++, Math.round(h.x), Math.round(h.y), Math.round(p.x), Math.round(p.y), round3(fuse), round3(this.time), lobKind]);
-			this.blasts.push({ ...blast(p.x, p.y), t: this.time + fuse });
+			const id = this.nextId++;
+			this.fx.push(['lob', id, Math.round(h.x), Math.round(h.y), Math.round(p.x), Math.round(p.y), round3(fuse), round3(this.time), lobKind]);
+			this.blasts.push({ ...blast(p.x, p.y), id, t: this.time + fuse });
 		}
 		return true;
 	}

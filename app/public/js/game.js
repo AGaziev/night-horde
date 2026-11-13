@@ -75,6 +75,7 @@ export class Game {
 		this.slashes = [];
 		this.rings = [];
 		this.coldWaves = [];
+		this.cancelledWaves = new Set();
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null; // {t, n}: the final burn at 15:00, drives the victory overlay
@@ -125,6 +126,7 @@ export class Game {
 		this.slashes.length = 0;
 		this.rings.length = 0;
 		this.coldWaves.length = 0;
+		this.cancelledWaves.clear();
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null;
@@ -590,6 +592,18 @@ export class Game {
 	shotEvent(ev) {
 		this.sound?.shot(ev, this);
 		switch (ev[0]) {
+			case 'cancel': {
+				const id = ev[2];
+				if (ev[1] === 0) this.shots.delete(id);
+				if (ev[1] === 1) this.lobs.delete(id);
+				if (ev[1] === 2) {
+					this.coldWaves = this.coldWaves.filter(w => w.id !== id);
+					this.cancelledWaves.add(id);
+					if (this.cancelledWaves.size > 512) this.cancelledWaves.delete(this.cancelledWaves.values().next().value);
+				}
+				if (ev[1] === 3) this.orbs.delete(id);
+				break;
+			}
 			case 'shot': {
 				const st = +ev[9] || 0;
 				this.shots.set(ev[1], {
@@ -780,7 +794,7 @@ export class Game {
 				this.zaps.push({ pts: [+ev[1], +ev[2], +ev[3], +ev[4]], t: 0, color: '#d897ff' });
 				break;
 			case 'coldwave':
-				this.coldWaves.push({ x: +ev[1], y: +ev[2], angle: +ev[3], range: +ev[4], width: +ev[5], speed: +ev[6], t: 0, life: +ev[4] / +ev[6] });
+				if (!this.cancelledWaves.has(ev[7])) this.coldWaves.push({ id: ev[7], x: +ev[1], y: +ev[2], angle: +ev[3], range: +ev[4], width: +ev[5], speed: +ev[6], t: 0, life: +ev[4] / +ev[6] });
 				break;
 			case 'buildring': {
 				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55', '#a5f0c6'][ev[4]] || '#d1a6ff';
