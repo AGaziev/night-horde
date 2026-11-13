@@ -6,6 +6,7 @@ import {
 	GAME_VERSION, HEROES, ENEMIES, ENEMY_TYPES, weaponDef, enemyHpScale, enemyDmgScale, REACTIONS, RARITIES, modeOf,
 	SPECIALS, EVENTS, EVENT_INDEX, ALTAR_DEALS, MAX_WEAPONS, MAX_PASSIVES, OVERCLOCKS, WEAPONS, PASSIVES,
 } from '../public/shared/content.js';
+import { hordeCardDef, hordeSynergies } from '../public/shared/horde-content.js';
 
 export const RUN_ID_RE = /^[A-Z0-9]{6}$/;
 const ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -385,7 +386,13 @@ export class RunLog {
 			v: GAME_VERSION, id: this.id, at: new Date(this.startedAt).toISOString(), players: players.length,
 			ruleset: room.ruleset ?? 'pve', directorPid: room.directorPid ?? null,
 			...(room.isHorde ? { ranked: false, directorWin: !win, reason: room.resultReason,
-				director: { name: room.members.get(room.directorPid)?.name ?? room.runDirectorName ?? '', levels: { ...room.horde.levels } } } : {}),
+				director: {
+					name: room.members.get(room.directorPid)?.name ?? room.runDirectorName ?? '', levels: { ...room.horde.levels },
+					build: room.horde.snapshotBuild(), rank: room.horde.rank, choicesPending: room.horde.choicesPending,
+					picks: room.horde.picks.map((p) => ({ ...p, time: r1(p.time) })), rerolls: room.horde.rerolls,
+					rerollHistory: room.horde.rerollHistory.map((p) => ({ ...p, time: r1(p.time) })),
+					synergies: hordeSynergies(room.horde.build).map((s) => s.id),
+				} } : {}),
 			mode: room.mode ?? 'night', runLength: room.runLength, win, grade: room.grade ?? (win ? 1 : 0), time: r1(room.time), kills: room.kills,
 			pickFormat: '[time, level, pick|skip|reroll|ban, id, kind, level, rarity, offered]; offered: id+level, *rarity if not common; overclock: weapon~variant',
 			hpFormat: 'hpByMin: [hp at the minute end, min hp in the minute, max hp]; dpsByMin: {weapon: damage per second} per minute',
@@ -475,6 +482,13 @@ export function summarize(log) {
 		const reasons = { boss: 'герои победили босса', time: 'герои продержались 15 минут', wipe: 'орда повалила всех героев', 'director-left': 'полководец покинул игру', 'heroes-left': 'все герои покинули игру' };
 		out.push(`Ночная орда ${log.v} · лог #${log.id} · Асимметричная орда (${mmss(len)}), без рейтинга · героев: ${log.players} · ${reasons[log.reason] ?? outcome} на ${mmss(log.time)} · убито ${log.kills}`);
 		if (log.director?.name) out.push(`Полководец: ${log.director.name}`);
+		if (log.director?.build) {
+			const build = [];
+			for (const [kind, key] of [['pack', 'packs'], ['weapon', 'weapons'], ['artifact', 'artifacts']]) {
+				for (const [id, level] of Object.entries(log.director.build[key] ?? {})) build.push(`${hordeCardDef(kind, id)?.name ?? id} ${level}`);
+			}
+			out.push(`Сборка полководца: ${build.join(', ')}. Выборов сделано: ${log.director.picks?.length ?? 0}; накоплено: ${log.director.choicesPending ?? 0}.`);
+		}
 	} else out.push(`Ночная орда ${log.v} · лог #${log.id} · режим «${modeOf(log.mode).name}» (${mmss(len)}) · игроков: ${log.players} · ${outcome} · убито ${log.kills}`);
 	const all = {};
 	let tot = 0;
