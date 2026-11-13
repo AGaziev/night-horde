@@ -181,6 +181,7 @@ export class Game {
 		this.clockRef = null;
 		this.renderTm = null;
 		this.lastNow = 0;
+		this.effectsNow = null;
 	}
 
 	stop() {
@@ -386,6 +387,9 @@ export class Game {
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
+		// Telegraphs age on the wall clock, as the server's windups do: the frame dt is capped for slow frames.
+		const wall = this.effectsNow === null ? dt : Math.max(0, now - this.effectsNow);
+		this.effectsNow = now;
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
 			this.hold -= dt;
@@ -435,7 +439,7 @@ export class Game {
 			}
 		}
 
-		this.updateEffects(dt);
+		this.updateEffects(dt, wall);
 	}
 
 	updateView(now) {
@@ -973,7 +977,7 @@ export class Game {
 		}
 	}
 
-	updateEffects(dt) {
+	updateEffects(dt, wall = dt) {
 		this.shake = Math.max(0, this.shake - dt * 40);
 		this.hurtFlash = Math.max(0, this.hurtFlash - dt * 3);
 		if (this.dawn) this.dawn.t += dt;
@@ -993,7 +997,7 @@ export class Game {
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
 		// Telegraphs count down the server's windups, and the server stands still while paused.
-		const tdt = this.frozen ? 0 : dt;
+		const tdt = this.frozen ? 0 : wall;
 		compact(this.warns, (w) => (w.t += tdt) < w.life);
 		compact(this.blines, (l) => (l.t += tdt) < l.life);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);

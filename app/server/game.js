@@ -1820,8 +1820,12 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
-					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock.
-					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) e.windT = e.shotT = 0;
+					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
+					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
+					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
+						e.windT = e.shotT = 0;
+						e.aimAfter = now + 1 / SNAPSHOT_HZ;
+					}
 					continue;
 				}
 				let dx = best.x - e.x, dy = best.y - e.y;
@@ -2199,7 +2203,7 @@ export class Room {
 		}
 		e.shotT -= dt;
 		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
-		if (e.shotT <= 0 && d < keep[1] + 150) {
+		if (e.shotT <= 0 && d < keep[1] + 150 && !(e.aimAfter > this.time)) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
