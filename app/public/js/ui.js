@@ -1,3 +1,4 @@
+import { dailyLabel } from '/shared/daily.js';
 // DOM screens, HUD, level-up panel, toasts.
 import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
 
@@ -331,7 +332,14 @@ export class UI {
 			}
 		}
 		const isHost = lobby.host === me;
-		this.renderMode(lobby.mode, isHost);
+		this.renderMode(lobby.mode, isHost && lobby.startsAt == null);
+		const toggle = $('lobby-daily');
+		toggle.checked = lobby.dailySelected === true;
+		toggle.disabled = !isHost || lobby.startsAt != null;
+		$('lobby-daily-title').textContent = lobby.daily ? dailyLabel(lobby.daily) : '';
+		$('lobby-daily-description').textContent = lobby.daily?.description ?? '';
+		$('lobby-daily-hint').textContent = (lobby.startsAt != null ? 'Условия зафиксированы до старта. ' : isHost ? 'Выбирает хост. ' : 'Условия выбирает хост. ')
+			+ 'В испытании повторы без ограничений. Отдельные рекорды и отметка за победу; обычный прогресс не начисляется. Случайные находки могут отличаться.';
 		this.renderDuoBook();
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
@@ -665,7 +673,7 @@ export class UI {
 		if (grade === 2 && fin) sub = `${modeOf(msg.mode).name} · рассвет наступил на ${fmtTime(Math.max(0, len - msg.time))} раньше срока · бой ${Math.round(fin.sec)} с${fin.lastHit ? ` · последний удар: ${fin.lastHit}` : ''}`;
 		else if (grade === 1 && fin) sub = `${modeOf(msg.mode).name} · Владыка ушёл в тень — у него оставалось ${left}% здоровья`;
 		else if (fin) sub += ` · Владыке оставалось ${left}%`;
-		$('over-sub').textContent = sub;
+		$('over-sub').textContent = (msg.daily ? dailyLabel(msg.daily) + ' · ' : '') + sub;
 		const share = new Map((fin?.by ?? []).map((b) => [b.pid, b.share]));
 		$('over-lord-th').hidden = !fin;
 		const box = $('over-unlock');

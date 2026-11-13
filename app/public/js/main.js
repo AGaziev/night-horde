@@ -1,3 +1,5 @@
+import { dailyLabel } from '/shared/daily.js';
+import { rememberDaily } from './daily-records.js';
 import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS, AFFINITY } from '/shared/content.js';
 import { Net } from './net.js';
 import { Input } from './input.js';
@@ -187,6 +189,9 @@ net.on('start', (msg) => {
 	game.begin(msg);
 	const len = +msg.len || modeOf(msg.mode).seconds;
 	ui.modeText = `${modeOf(msg.mode).name} · до ${fmtTime(len)}`;
+	$('hud-daily').hidden = !msg.daily;
+	$('hud-daily').textContent = msg.daily ? dailyLabel(msg.daily) : '';
+	$('hud-daily').title = msg.daily?.description ?? '';
 	goGame();
 	ui.showPause(game.menuPause);
 	if (invitedElsewhere) ui.toast('Откройте приглашение после текущего забега.', 'info');
@@ -259,6 +264,7 @@ net.on('over', (msg) => {
 
 // Adds this run's stats to the browser's totals and returns heroes opened by it.
 function takeAchievements(msg) {
+	if (msg.daily) return [];
 	const mine = (Array.isArray(msg.stats) ? msg.stats : []).find((s) => s.pid === state.me);
 	// The server resends `over` on reconnect: a run counts once.
 	if (!mine?.ach || (msg.runId && store.get('nh.achRun') === msg.runId)) return [];
@@ -274,6 +280,7 @@ function takeAchievements(msg) {
 }
 
 function showOver(msg) {
+	rememberDaily(null, msg);
 	game.stop();
 	ui.showPause(false);
 	msg.unlockedNow ??= takeAchievements(msg);
@@ -362,7 +369,7 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 		case 'duo': {
 			const name = DUOS[arg2]?.name || 'связка';
 			if (arg === state.me) {
-				const first = rememberDuo(arg2);
+				const first = !game.daily && rememberDuo(arg2);
 				ui.banner(first ? `Новая связка: ${name}` : `Связка: ${name}`);
 				ui.flashWeapons();
 			} else {
@@ -478,6 +485,7 @@ ui.onHero = (id) => {
 	ui.selectHero(id, state.lobby?.players?.find((p) => p.pid === state.me)?.color || '#90a4ae');
 };
 ui.onMode = (id) => net.send({ t: 'mode', mode: id });
+$('lobby-daily').addEventListener('change', (event) => net.send({ t: 'daily', enabled: event.target.checked }));
 ui.buildHeroCards(state.hero);
 ui.setUnlocks(unlocked(), ach.stats);
 ui.setLords(ach.stats?.lords);
