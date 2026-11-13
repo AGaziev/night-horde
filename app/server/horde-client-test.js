@@ -92,3 +92,57 @@ test('horde archive renders its own outcome and army build without a PvE results
 	assert.equal(historyResult({ win: true, grade: 1 }), 'Победа', 'ordinary PvE history keeps its label');
 	assert.equal(renderHordeHistory(container, { ...log, ruleset: 'pve' }), false);
 });
+
+test('horde resync restores only remaining warning, charge and projectile state in its own round', () => {
+	const game = new Game({ send() {} }); game.me = 1;
+	game.begin({ ruleset: 'horde', roundId: 'resync-round', directorPid: 2, players: [{ pid: 1, hero: 'knight' }] });
+	const resync = { t: 'horde-resync', roundId: 'resync-round', time: 42,
+		warnings: [{ x: 10, y: 20, r: 88, remaining: 0.35 }],
+		shots: [{ id: 7, x: 300, y: 120, vx: 80, vy: -20, remaining: 0.5, r: 8 }],
+		lanes: [{ x1: 0, y1: 1, x2: 20, y2: 30, w: 50, remaining: 0.2 }], fxBefore: [] };
+	game.onHordeResync(resync);
+	assert.equal(game.warns.length, 1); assert.equal(game.warns[0].life, 0.35);
+	assert.equal(game.blines[0].life, 0.2);
+	assert.equal(game.hostile.get(7).x, 300, 'restore the current position rather than the original spawn point');
+	assert.equal(game.hostile.get(7).end, 42.5);
+	game.hordeTime = () => 42.1; game.advanceHostile(); game.updateEffects(0.001);
+	assert.equal(game.hostile.get(7).show, true);
+	assert.ok(Math.abs(game.hostile.get(7).x - 308) < 1e-6);
+	assert.ok(Math.abs(game.warns[0].t - 0.1) < 1e-6, 'remaining duration follows the server clock, not render dt');
+	game.onHordeResync({ ...resync, roundId: 'older-round', warnings: [], shots: [], lanes: [] });
+	assert.equal(game.warns.length, 1); assert.equal(game.hostile.size, 1);
+	game.hordeTime = () => 42.6; game.advanceHostile(); game.updateEffects(0.001);
+	assert.equal(game.hostile.size, 0); assert.equal(game.warns.length, 0); assert.equal(game.blines.length, 0);
+	game.begin({ ruleset: 'pve', players: [] }); game.onHordeResync(resync);
+	assert.equal(game.hostile.size, 0); assert.equal(game.warns.length, 0);
+});
+
+test('resync skips queued effects once without suppressing an identical new warning', () => {
+	const game = new Game({ send() {} });
+	game.begin({ ruleset: 'horde', roundId: 'fx-round', directorPid: 2, players: [] });
+	const warn = ['warn', 10, 20, 88, 1.5], shot = ['eshot', 7, 100, 0, 20, 0, 4, 39];
+	game.onHordeResync({ roundId: 'fx-round', time: 42, warnings: [{ x: 10, y: 20, r: 88, remaining: 0.2 }],
+		shots: [], lanes: [], fxBefore: [warn, shot] });
+	game.onSnapshot({ tm: 42.1, p: [], fx: [warn, shot, [...warn]] });
+	game.view.tm = 42.1; game.applyEffects();
+	assert.equal(game.warns.length, 2, 'one old warning is skipped and the genuinely new identical warning is preserved');
+	assert.equal(game.warns[0].life, 0.2, 'old full-duration warning must not restart');
+	assert.equal(game.hostile.size, 0, 'a completed queued projectile cannot be resurrected');
+	game.onSnapshot({ tm: 42.2, p: [], fx: [warn] });
+	game.view.tm = 42.2; game.applyEffects();
+	assert.equal(game.warns.length, 3, 'filter is consumed exactly once');
+});
+
+test('resync effect dedup also covers a snapshot gap and stale snapshots cannot replace restored attacks', () => {
+	const game = new Game({ send() {} });
+	game.begin({ ruleset: 'horde', roundId: 'gap-round', players: [] });
+	const shot = ['eshot', 7, 100, 0, 20, 0, 4, 39];
+	game.onHordeResync({ roundId: 'gap-round', time: 42, warnings: [], lanes: [],
+		shots: [{ id: 7, x: 160, y: 0, vx: 20, vy: 0, remaining: 1 }], fxBefore: [shot] });
+	game.onSnapshot({ tm: 41, p: [], fx: [shot] });
+	assert.equal(game.hostile.get(7).x0, 160);
+	game.onSnapshot({ gap: true, tm: 42.1, fx: [shot] });
+	assert.equal(game.hostile.get(7).x0, 160);
+	game.onHordeResync({ roundId: 'gap-round', time: 41, warnings: [], shots: [], lanes: [] });
+	assert.equal(game.hostile.size, 1, 'older resync cannot erase newer restored state');
+});

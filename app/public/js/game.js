@@ -67,6 +67,7 @@ export class Game {
 		this.hordeStatuses = new Map();
 		this.hordeStatusTime = -Infinity;
 		this.hordeStatusAt = 0;
+		this.hordeResyncTime = -Infinity; this.hordeResyncAt = 0; this.hordeQueuedFx = null;
 		this.hordeFx = [];
 		this.players = new Map(); // pid -> {pid, name, hero, color}
 		this.snaps = [];
@@ -263,6 +264,7 @@ export class Game {
 	clearHordeCombat() {
 		this.hordeStatuses.clear(); this.hordeFx.length = 0;
 		this.hordeStatusTime = -Infinity; this.hordeStatusAt = 0;
+		this.hordeResyncTime = -Infinity; this.hordeResyncAt = 0; this.hordeQueuedFx = null;
 	}
 
 	onHordeStatus(msg) {
@@ -280,10 +282,35 @@ export class Game {
 		}
 	}
 
+	onHordeResync(msg) {
+		if (!this.running || this.ruleset !== HORDE_RULESET || !this.roundId || msg.roundId !== this.roundId
+			|| !Number.isFinite(msg.time) || msg.time <= this.hordeResyncTime) return;
+		this.hordeResyncTime = msg.time; this.hordeResyncAt = performance.now() / 1000;
+		this.hordeQueuedFx = new Map();
+		for (const ev of msg.fxBefore || []) {
+			const key = JSON.stringify(ev);
+			this.hordeQueuedFx.set(key, (this.hordeQueuedFx.get(key) || 0) + 1);
+		}
+		const live = (row, fields) => row && Number.isFinite(row.remaining) && row.remaining > 0 && fields.every((key) => Number.isFinite(row[key]));
+		const timing = (row) => ({ t: 0, life: row.remaining, serverStart: msg.time });
+		this.warns = (msg.warnings || []).filter((row) => live(row, ['x', 'y', 'r']))
+			.map((row) => ({ x: row.x, y: row.y, r: row.r, ...timing(row) }));
+		this.blines = (msg.lanes || []).filter((row) => live(row, ['x1', 'y1', 'x2', 'y2', 'w']))
+			.map((row) => ({ x1: row.x1, y1: row.y1, x2: row.x2, y2: row.y2, w: row.w, ...timing(row) }));
+		this.hostile.clear();
+		for (const row of msg.shots || []) {
+			if (!live(row, ['id', 'x', 'y', 'vx', 'vy'])) continue;
+			this.hostile.set(row.id, { x0: row.x, y0: row.y, x: row.x, y: row.y, vx: row.vx, vy: row.vy,
+				st: msg.time, end: msg.time + row.remaining, r: row.r, show: true, authoritative: true });
+		}
+	}
+
 	hordeTime() {
 		const snap = this.latest(), now = performance.now() / 1000;
-		if (snap && snap.tm >= this.hordeStatusTime) return snap.tm + Math.max(0, now - snap.at);
-		return Number.isFinite(this.hordeStatusTime) ? this.hordeStatusTime + Math.max(0, now - this.hordeStatusAt) : this.view.tm;
+		return Math.max(this.view.tm,
+			snap ? snap.tm + Math.max(0, now - snap.at) : -Infinity,
+			this.hordeStatusTime + Math.max(0, now - this.hordeStatusAt),
+			this.hordeResyncTime + Math.max(0, now - this.hordeResyncAt));
 	}
 
 	hordeStatus(pid) {
@@ -353,6 +380,16 @@ export class Game {
 	}
 
 	onSnapshot(msg) {
+		if (this.ruleset === HORDE_RULESET && msg.tm < this.hordeResyncTime) return;
+		if (this.hordeQueuedFx && msg.tm >= this.hordeResyncTime) {
+			const queued = this.hordeQueuedFx;
+			this.hordeQueuedFx = null;
+			msg = { ...msg, fx: (msg.fx || []).filter((ev) => {
+				const key = JSON.stringify(ev), count = queued.get(key) || 0;
+				if (!count) return true;
+				queued.set(key, count - 1); return false;
+			}) };
+		}
 		if (msg.gap) {
 			// Delta without its base (net.js asked for a key): only projectile events are usable.
 			for (const ev of msg.fx) if (Array.isArray(ev)) this.shotEvent(ev);
@@ -720,12 +757,13 @@ export class Game {
 	advanceHostile() {
 		const vt = this.view.tm;
 		for (const [id, s] of this.hostile) {
-			if (vt >= s.end) {
+			const time = s.authoritative ? Math.max(vt, this.hordeTime()) : vt;
+			if (time >= s.end) {
 				this.hostile.delete(id);
 				continue;
 			}
-			s.show = vt >= s.st;
-			const k = Math.max(0, vt - s.st);
+			s.show = time >= s.st;
+			const k = Math.max(0, time - s.st);
 			s.x = s.x0 + s.vx * k;
 			s.y = s.y0 + s.vy * k;
 		}
@@ -1089,8 +1127,12 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		compact(this.warns, (w) => (w.t += dt) < w.life);
-		compact(this.blines, (l) => (l.t += dt) < l.life);
+		const advanceWarning = (w) => {
+			w.t = w.serverStart === undefined ? w.t + dt : Math.max(0, this.hordeTime() - w.serverStart);
+			return w.t < w.life;
+		};
+		compact(this.warns, advanceWarning);
+		compact(this.blines, advanceWarning);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);
