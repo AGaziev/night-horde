@@ -2915,8 +2915,7 @@ export class Room {
 				const R = ITEMS.slowtime.radius;
 				for (const e of this.enemies) {
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= R * R) continue;
-					e.slow = ITEMS.slowtime.slow;
-					e.slowT = Math.max(e.slowT, now + ITEMS.slowtime.dur);
+					this.slowEnemy(e, ITEMS.slowtime.slow, ITEMS.slowtime.dur, h);
 				}
 				break;
 			}

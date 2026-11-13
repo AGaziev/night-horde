@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {Room} from './game.js';
+import {ITEM_TYPES} from '../public/shared/content.js';
 const r=new Room('SUP',()=>{});for(let i=1;i<=4;i++)r.addPlayer(i,'P'+i,'knight');r.start();r.time=100;r.enemies=[];
 const [h,a,b,c]=r.heroes.values();for(const p of r.heroes.values()){p.x=p.y=0;p.perk.readyAt=Infinity;p.weapons.clear();}
 h.weapons.set('bastion',{lvl:1,t:0});r.updateWeapon(h,'bastion',h.weapons.get('bastion'),1/30);
@@ -35,4 +36,14 @@ assert.ok(!JSON.stringify(log).includes('sharedWard'),'owner object graph is nev
  const target=r.heroes.get(4);target.ward=1;target.sharedWard={owner:h,until:r.time+8};target.weapons.set('ward',{lvl:3,t:0});
  r.updateWeapon(target,'ward',target.weapons.get('ward'),1/30);
  assert.equal(target.sharedWard,null,'own initial shield cannot misattribute a replaced gift');
+}
+{
+ r.enemies=[];r.time=500;const target=r.spawnEnemy('ghoul',[h],1);
+ Object.assign(target,{x:100,y:0,speed:0,dmg:0});
+ const beforeH=h.support.control,beforeA=a.support.control;
+ r.slowEnemy(target,.3,.5,h);r.useItem(a,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h,a,b,c]);
+ assert.equal(target.slowOwner,a,'the time-sand collector owns the replacement slow');
+ r.time+=1;r.moveEnemies(.1,[h,a,b,c]);
+ assert.equal(h.support.control,beforeH);assert.ok(a.support.control>beforeA);
+ target.boss=true;target.slowT=0;r.useItem(a,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h,a,b,c]);assert.equal(target.slow,.25,'item control follows the same boss limit');
 }
