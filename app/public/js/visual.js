@@ -6,13 +6,20 @@ export const NUMBERS = ['all', 'crits', 'off'];
 export const EFFECTS = ['full', 'lite'];
 export const DEFAULT_VISUAL = Object.freeze({ numbers: 'all', effects: 'full' });
 
-export function parseVisual(raw) {
-	let v = null;
-	try { v = JSON.parse(raw || 'null'); } catch { v = null; }
+// Known values of `v`; anything missing or unknown is taken from `base`.
+function normalize(v, base = DEFAULT_VISUAL) {
 	return {
-		numbers: NUMBERS.includes(v?.numbers) ? v.numbers : DEFAULT_VISUAL.numbers,
-		effects: EFFECTS.includes(v?.effects) ? v.effects : DEFAULT_VISUAL.effects,
+		numbers: NUMBERS.includes(v?.numbers) ? v.numbers : base.numbers,
+		effects: EFFECTS.includes(v?.effects) ? v.effects : base.effects,
 	};
+}
+
+function readJson(raw) {
+	try { return JSON.parse(raw || 'null'); } catch { return null; }
+}
+
+export function parseVisual(raw) {
+	return normalize(readJson(raw));
 }
 
 // The localStorage getter itself throws when site data is blocked, so it is read inside try.
@@ -21,15 +28,14 @@ export function loadVisual(storage) {
 }
 
 // Writes only the changed fields over what is stored now, so another tab's choice of the other field survives.
-// Returns the merged settings; when storage is blocked they are `current` with the change applied.
+// Returns the merged settings; fields that are blocked, missing or broken in storage come from `current`.
 export function saveVisual(change, current = DEFAULT_VISUAL, storage) {
-	let merged = parseVisual(JSON.stringify({ ...current, ...change }));
+	const own = normalize(current);
+	let merged = normalize(change, own);
 	try {
 		const store = storage ?? globalThis.localStorage;
-		const raw = store?.getItem(VISUAL_KEY);
-		if (raw) merged = parseVisual(JSON.stringify({ ...parseVisual(raw), ...change }));
+		merged = normalize(change, normalize(readJson(store?.getItem(VISUAL_KEY)), own));
 		store?.setItem(VISUAL_KEY, JSON.stringify(merged));
 	} catch { /* storage blocked */ }
 	return merged;
 }
-

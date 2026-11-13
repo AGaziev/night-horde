@@ -1,6 +1,6 @@
 import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS, AFFINITY } from '/shared/content.js';
 import { Net } from './net.js';
-import { Input } from './input.js';
+import { Input, isVisualRadio } from './input.js';
 import { Game, P } from './game.js';
 import { Renderer } from './render.js';
 import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
@@ -210,10 +210,11 @@ $('pause-resume').addEventListener('click', () => togglePause(false));
 $('pause-quit').addEventListener('click', () => net.send({ t: 'quit' }));
 addEventListener('keydown', (e) => {
 	if (e.code !== 'Escape' || e.repeat) return;
-	// Esc also closes the sound and visuals panel and gives the keys back to the hero.
+	// Esc with the sound and visuals panel open only closes it and gives the keys back to the hero.
 	if (!$('snd-panel').hidden) {
 		toggleSoundPanel(false);
 		if ($('snd').contains(document.activeElement)) document.activeElement.blur();
+		return;
 	}
 	togglePause();
 });
@@ -680,7 +681,7 @@ addEventListener('pointerdown', (e) => {
 addEventListener('keydown', (e) => {
 	if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
 	const t = e.target;
-	if (t && ((t.tagName === 'INPUT' && t.type !== 'range' && t.type !== 'radio') || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+	if (t && ((t.tagName === 'INPUT' && t.type !== 'range' && !isVisualRadio(t)) || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
 	sound.toggleMute();
 });
 

@@ -27,8 +27,12 @@ assert.deepEqual(tabA, { numbers: 'crits', effects: 'full' });
 assert.deepEqual(tabB, { numbers: 'crits', effects: 'lite' }, 'tab B keeps tab A\'s «crits»');
 assert.deepEqual(loadVisual(storage), { numbers: 'crits', effects: 'lite' }, 'stored: both changes');
 mem.set(VISUAL_KEY, '{broken');
-assert.deepEqual(saveVisual({ effects: 'lite' }, { numbers: 'off', effects: 'full' }, storage), { numbers: 'all', effects: 'lite' },
-	'broken stored value: defaults plus the change');
+assert.deepEqual(saveVisual({ effects: 'lite' }, { numbers: 'off', effects: 'full' }, storage), { numbers: 'off', effects: 'lite' },
+	'broken stored value: this tab\'s settings plus the change');
+assert.deepEqual(JSON.parse(mem.get(VISUAL_KEY)), { numbers: 'off', effects: 'lite' }, 'broken stored value is replaced');
+mem.set(VISUAL_KEY, '{"numbers":"crits","effects":7}');
+assert.deepEqual(saveVisual({ numbers: 'loud' }, { numbers: 'off', effects: 'lite' }, storage), { numbers: 'crits', effects: 'lite' },
+	'unknown change is ignored, unknown stored field comes from this tab');
 
 // Blocked site data: the localStorage getter itself throws (Chrome «block all cookies», sandboxed iframe).
 const had = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -43,10 +47,12 @@ try {
 
 // Keys on a focused radio group: arrows switch the option, WASD and other game keys reach the hero.
 const { isTyping } = await import('../public/js/input.js');
-const radio = { tagName: 'INPUT', type: 'radio' };
+const radio = { tagName: 'INPUT', type: 'radio', closest: (s) => (s === '.vfx-group' ? {} : null) };
 for (const code of ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown']) assert.equal(isTyping({ target: radio, code }), true, code);
 for (const code of ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'Digit1', 'KeyM']) assert.equal(isTyping({ target: radio, code }), false, code);
 assert.equal(isTyping({ target: { tagName: 'INPUT', type: 'text' }, code: 'KeyW' }), true, 'text field keeps every key');
+const rating = { tagName: 'INPUT', type: 'radio', closest: () => null };
+assert.equal(isTyping({ target: rating, code: 'KeyD' }), true, 'feedback rating radio keeps every key');
 assert.equal(isTyping({ target: { tagName: 'TEXTAREA' }, code: 'KeyW' }), true);
 assert.equal(isTyping({ target: { tagName: 'CANVAS' }, code: 'ArrowRight' }), false, 'canvas: arrows move the hero');
 
