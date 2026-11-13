@@ -23,9 +23,9 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
-import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
+import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec.js';
 import { HordeMode } from './horde-mode.js';
-import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, clampHordePosition } from '../public/shared/horde-content.js';
+import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, clampHordePosition } from '../public/shared/horde-content.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -286,6 +286,7 @@ export class Room {
 		if (this.state !== 'lobby' || (id !== 'pve' && id !== HORDE_RULESET)) return 'Неизвестные правила игры';
 		if (id === this.ruleset) return null;
 		if (id === HORDE_RULESET) {
+			if ([...this.members.keys()].some((pid) => !isCompatible(pid))) return 'Игра обновилась — обновите страницу (F5), чтобы играть за орду';
 			if (this.size > HORDE_MAX_HEROES + 1) return 'В Орде могут играть до пяти участников';
 			const uids = [...this.members.values()].map((m) => m.uid).filter((uid) => uid !== null && uid !== undefined).map(String);
 			if (new Set(uids).size !== uids.length) return 'В Орде один пользователь может занимать только одно место';
@@ -331,6 +332,7 @@ export class Room {
 
 	addPlayer(pid, name, hero, unlocked = null, uid = null) {
 		if (this.state !== 'lobby') return 'Игра уже идёт';
+		if (this.isHorde && !isCompatible(pid)) return 'Игра обновилась — обновите страницу (F5), чтобы играть за орду';
 		if (this.members.size >= this.maxMembers) return 'Комната заполнена';
 		if (this.isHorde && uid !== null && uid !== undefined && [...this.members.values()].some((m) => m.uid !== null && m.uid !== undefined && String(m.uid) === String(uid))) return 'В Орде один пользователь может занимать только одно место';
 		const usedColors = new Set([...this.members.values()].map((m) => m.color));
@@ -442,6 +444,7 @@ export class Room {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
 			ruleset: this.ruleset, directorPid: this.directorPid,
+			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			startsAt: this.startsAt, serverNow: Date.now(),
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color, role }) => ({ pid, name, hero, ready, color, role })),
 		};
@@ -455,6 +458,8 @@ export class Room {
 		return {
 			t: 'start', mode: this.mode, len: this.runLength, paused: this.frozen, menu: this.paused,
 			ruleset: this.ruleset, directorPid: this.directorPid, arena: this.isHorde ? HORDE_ARENA : null,
+			roundId: this.horde?.roundId ?? null,
+			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y) })),
 			broken: this.brokenList ?? [],
 		};
@@ -462,6 +467,10 @@ export class Room {
 
 	// Re-sends current state to a reconnected player.
 	resync(pid) {
+		if (this.isHorde && !isCompatible(pid)) {
+			this.send(pid, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return;
+		}
 		if (this.state === 'lobby') {
 			this.send(pid, this.lobbyMsg());
 			return;
@@ -478,6 +487,7 @@ export class Room {
 			if (h?.offer) this.sendOffer(h);
 			if (pid === this.directorPid) this.horde?.sendState();
 			this.horde?.combat.sendStatus(pid);
+			this.horde?.sendResync?.(pid);
 		} else if (this.state === 'over' && this.overMsg) {
 			this.send(pid, this.overMsg);
 		}
@@ -486,6 +496,10 @@ export class Room {
 	handle(pid, msg) {
 		const m = this.members.get(pid);
 		if (!m) return;
+		if (this.isHorde && !isCompatible(pid)) {
+			this.send(pid, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return;
+		}
 		switch (msg.t) {
 			case 'ruleset': {
 				if (this.state !== 'lobby') break;
@@ -660,6 +674,10 @@ export class Room {
 
 	start() {
 		this.startsAt = null;
+		if (this.isHorde && [...this.members.keys()].some((pid) => !isCompatible(pid))) {
+			this.send(this.host, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return false;
+		}
 		if (this.isHorde && (this.members.get(this.directorPid)?.role !== 'director' || this.heroCount < 1 || this.heroCount > HORDE_MAX_HEROES)) {
 			this.send(this.host, { t: 'err', msg: 'Для Орды нужны один полководец и от одного до четырёх героев' });
 			this.sendLobby();
@@ -5603,6 +5621,7 @@ export class Hub {
 				this.send(pid, { t: 'rooms', rooms: this.roomList() });
 				return;
 			case 'create': {
+				if (msg.ruleset === HORDE_RULESET && !isCompatible(pid)) return err('Игра обновилась — обновите страницу (F5), чтобы играть за орду');
 				this.leaveRoom(pid);
 				const room = new Room(this.newCode(), this.send);
 				room.onRunEnd = this.onRunEnd;
@@ -5618,6 +5637,7 @@ export class Hub {
 				const code = typeof msg.code === 'string' ? msg.code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) : '';
 				const room = this.rooms.get(code);
 				if (!room) return err('Комната не найдена');
+				if (room.isHorde && !isCompatible(pid)) return err('Игра обновилась — обновите страницу (F5), чтобы играть за орду');
 				if (p.room === room) {
 					room.resync(pid);
 					return;
