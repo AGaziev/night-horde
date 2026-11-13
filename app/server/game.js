@@ -679,7 +679,8 @@ export class Room {
 		this.send(h.pid, { t: 'ps', levels: Object.fromEntries(h.passives), values: { ...h.pval } });
 	}
 
-	sendOffer(h) {
+	// `rerolled` marks the reply to an accepted reroll, so the client deals it as a new draw.
+	sendOffer(h, rerolled = false) {
 		const signature = JSON.stringify(h.offer);
 		if (h.offer !== h.sentOffer || signature !== h.offerSignature) {
 			h.offerEpoch = this.offerSequence = (this.offerSequence ?? 0) + 1;
@@ -690,6 +691,7 @@ export class Room {
 		const closed = !h.offer?.length;
 		this.send(h.pid, {
 			t: 'lvl', choices: closed ? null : h.offer, closed: closed || undefined, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			rerolled: rerolled || undefined,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
 	}
@@ -1307,7 +1309,7 @@ export class Room {
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h, true);
-		this.sendOffer(h);
+		this.sendOffer(h, true);
 	}
 
 	// Declining the whole offer gives SKIP_XP instead (no junk in slots).

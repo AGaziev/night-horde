@@ -150,6 +150,27 @@ const seeded = (seed) => () => { seed = (seed * 1664525 + 1013904223) >>> 0; ret
 function seededBy(seed, action) { const old = Math.random; Math.random = seeded(seed); try { return action(); } finally { Math.random = old; } }
 const mainSource = fs.readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
 
+// The actual main.js `lvl` handler and pick/reroll/ban actions over a real Game; `deliver` hands the client every new `lvl` in order.
+function wire(ui, Game, r, sent, pid) {
+	const outbox = [], game = new Game({ send: (msg) => outbox.push(msg) }); game.me = pid; game.begin(r.startMsg());
+	ui.screen = 'game';
+	const handlers = new Map(), net = { on: (name, handler) => handlers.set(name, handler) };
+	const lvl = mainSource.match(/net\.on\('lvl', \(msg\) => \{[\s\S]*?\n\}\);/)?.[0];
+	const actions = mainSource.slice(mainSource.indexOf('function pick(i, drop) {'), mainSource.indexOf('ui.onSkip = input.onSkip = skip;'));
+	assert.ok(lvl && actions.includes('function reroll()'), 'actual main.js handlers found');
+	const input = {}, sound = { card() {}, legendary() {} };
+	new Function('net', 'game', 'ui', 'sound', lvl)(net, game, ui, sound);
+	new Function('game', 'ui', 'input', 'sound', actions)(game, ui, input, sound);
+	let seen = 0;
+	const deliver = () => {
+		const fresh = sent.slice(seen).filter(x => x.pid === pid && x.msg.t === 'lvl').map(x => x.msg);
+		seen = sent.length;
+		for (const msg of fresh) handlers.get('lvl')(msg);
+		return fresh;
+	};
+	return { game, input, outbox, deliver };
+}
+
 test('#24: a reroll returning the same cards and rarities without draft marks turns «Изгнать» off', async () => {
 	const { ui, Game, restore } = await harness();
 	try {
@@ -164,16 +185,7 @@ test('#24: a reroll returning the same cards and rarities without draft marks tu
 		seededBy(395, () => r.grantOffer(h, false, 1));
 		assert.deepEqual(h.offer.map(c => [c.id, c.rar, c.draft]), [['traps', 1, 'fit'], ['counterweight', 0, 'pivot'], ['coil', undefined, undefined]]);
 
-		const outbox = [], game = new Game({ send: (msg) => outbox.push(msg) }); game.me = 1; game.begin(r.startMsg());
-		ui.screen = 'game';
-		const handlers = new Map(), net = { on: (name, handler) => handlers.set(name, handler) };
-		const lvl = mainSource.match(/net\.on\('lvl', \(msg\) => \{[\s\S]*?\n\}\);/)?.[0];
-		const actions = mainSource.slice(mainSource.indexOf('function pick(i, drop) {'), mainSource.indexOf('ui.onSkip = input.onSkip = skip;'));
-		assert.ok(lvl && actions.includes('function reroll()'), 'actual main.js handlers found');
-		const input = {}, sound = { card() {}, legendary() {} };
-		new Function('net', 'game', 'ui', 'sound', lvl)(net, game, ui, sound);
-		new Function('game', 'ui', 'input', 'sound', actions)(game, ui, input, sound);
-		const deliver = () => handlers.get('lvl')(sent.findLast(x => x.pid === 1 && x.msg.t === 'lvl').msg);
+		const { game, input, outbox, deliver } = wire(ui, Game, r, sent, 1);
 		deliver();
 		const first = game.offer, bans = h.bans;
 		assert.ok(bans > 0 && h.rerolls > 0);
@@ -199,25 +211,69 @@ test('#24: a reroll returning the same cards and rarities without draft marks tu
 	} finally { restore(); }
 });
 
-test('#24: a reroll is a new draw even when the cards or the whole message come back unchanged', async () => {
-	const { ui, box, advance, restore } = await harness();
+test('#24: a reroll rejected after an outpost reward refreshed the offer keeps revealed cards and focus', async () => {
+	const { ui, Game, box, advance, restore } = await harness();
 	try {
-		const { lvl } = encounter();
-		const chest = lvl(), n = chest.choices.length;
-		ui.showOffer(chest); advance(600 * n + 1);
-		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, 0);
-
-		// Same ids, other marks: without the reroll it would be a refresh that keeps the cards open.
-		ui.expectDraw();
-		const marked = { ...chest, offerEpoch: chest.offerEpoch + 1, choices: chest.choices.map((c, i) => (i ? c : { ...c, draft: 'fit' })) };
-		assert.equal(ui.showOffer(marked), true, 'the reroll reply is a new draw');
-		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'chest cards are dealt face down again');
-
-		// The very same message (same key): showOffer returns early, «Изгнать» must already be off.
+		const { r, h, last, lvl } = encounter();
+		const sent = [];
+		r.send = (pid, msg) => sent.push({ pid, msg: structuredClone(msg) });
+		r.sendOffer(h);
+		const { game, input, outbox, deliver } = wire(ui, Game, r, sent, h.pid);
+		deliver();
+		const first = game.offer, n = first.choices.length;
 		advance(600 * n + 1);
+		assert.ok(first.choices.every((_, i) => ui.cardReady(i)), 'all chest cards revealed');
+		box.children[1].querySelectorAll('button, select')[0].focus();
+		const rerolls = h.rerolls;
+		assert.ok(rerolls > 0);
+
+		input.onReroll(); // reroll@epoch1 is still on its way to the server
+		const stale = outbox.at(-1);
+		assert.equal(stale.t, 'reroll'); assert.equal(stale.offerEpoch, first.offerEpoch);
+		fixed(0, () => r.killEnemy(last, h)); // meanwhile the ally clears the last outpost: Иней III→IV, epoch 2
+		const [bg] = deliver();
+		assert.notEqual(bg.offerEpoch, first.offerEpoch); assert.equal(bg.choices[0].level, 4); assert.equal(bg.rerolled, undefined);
+		assert.equal(bg.rerolls, rerolls + 1, 'the reward adds a reroll');
+
+		r.handle(h.pid, stale);
+		const reply = deliver();
+		assert.equal(reply.length, 1, 'the server answers the stale reroll with the current offer');
+		assert.equal(reply[0].offerEpoch, bg.offerEpoch); assert.equal(reply[0].rerolled, undefined);
+		assert.equal(h.rerolls, rerolls + 1, 'the rejected reroll costs nothing');
+		assert.deepEqual(h.offer.map(c => c.id), bg.choices.map(c => c.id), 'the cards did not change');
+
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, 0, 'no card is hidden again');
+		assert.ok(bg.choices.every((_, i) => ui.cardReady(i)), 'every card stays selectable');
+		assert.equal(document.activeElement, box.children[1].querySelectorAll('button, select')[0], 'focus stays on the same card');
+		assert.equal(game.offer.offerEpoch, bg.offerEpoch);
+	} finally { restore(); }
+});
+
+test('#24: a reroll the server accepted is a new draw even when the same cards come back', async () => {
+	const { ui, Game, box, advance, restore } = await harness();
+	try {
+		const { r, h } = encounter();
+		const sent = [];
+		r.send = (pid, msg) => sent.push({ pid, msg: structuredClone(msg) });
+		r.sendOffer(h);
+		const { game, input, outbox, deliver } = wire(ui, Game, r, sent, h.pid);
+		deliver();
+		const n = game.offer.choices.length;
+		advance(600 * n + 1);
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, 0);
 		ui.setBanMode(true);
-		ui.expectDraw();
-		ui.showOffer(marked);
-		assert.equal(ui.banMode, false);
+
+		const rerolls = h.rerolls;
+		const same = h.offer.map(c => ({ ...c }));
+		r.makeChoices = () => same.map(c => ({ ...c })); // the reroll deals exactly the same cards
+		input.onReroll();
+		assert.equal(ui.banMode, false, 'pressing reroll leaves «Изгнать»');
+		r.handle(h.pid, outbox.at(-1));
+		const [reply] = deliver();
+		assert.equal(reply.rerolled, true); assert.equal(h.rerolls, rerolls - 1);
+		assert.deepEqual(reply.choices, game.offer.choices);
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'chest cards are dealt face down again');
+		advance(600 * n + 1);
+		assert.ok(reply.choices.every((_, i) => ui.cardReady(i)));
 	} finally { restore(); }
 });
