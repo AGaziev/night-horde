@@ -94,7 +94,7 @@ for (const mode of ['lunch', 'night']) for (const kind of ['guard', 'ordinary'])
 	console.log(`${f.label}: ${f.volleys.length} volley(s), each along the only fan on screen after ${W} s: OK`);
 }
 
-// The real Смерч pulls a nearby sniper every tick: one fan follows it on screen, none is left behind.
+// The real Смерч pulls a nearby sniper every tick: the sniper waits to stand still, and no stale lanes stay behind.
 for (const mode of ['lunch', 'night']) {
 	const f = arena('ordinary', mode), { r, h, e } = f;
 	f.label = `${mode} Смерч I pulling a sniper`;
@@ -105,7 +105,9 @@ for (const mode of ['lunch', 'night']) {
 		r.moveEnemies(dt, [h]); r.rebuildGrid(); r.updatePlayers(dt, [h]);
 		lanesSent += r.fx.filter(ev => ev[0] === 'bline').length;
 	});
-	assert.ok(lanesSent > FAN, `${f.label}: the pull makes the sniper aim again`);
+	// A dragged sniper does not aim, so even a page from before this fix (no bcut) never piles up lanes.
+	assert.ok(lanesSent <= 2 * FAN, `${f.label}: ${lanesSent / FAN} fans sent while dragged`);
+	assert.ok(f.volleys.length >= 1, `${f.label}: the sniper fires once the pull lets it go`);
 	console.log(`${f.label}: ${lanesSent / FAN} fans sent, never more than one on screen, ${f.volleys.length} volley(s) along it: OK`);
 }
 

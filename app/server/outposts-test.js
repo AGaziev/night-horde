@@ -115,7 +115,7 @@ for(const [x,y] of [[99990,99990],[-99990,99990],[99990,-99990],[-99990,-99990]]
  normal.frozenT=r.time+10;normal.x=p.x+900;r.moveEnemies(.1,hs);
  assert.ok(Math.hypot(normal.x-p.x,normal.y-p.y)<=520+1e-6,'frozen early continue still confines');
  const sniper=r.enemies.find(e=>e.outpost===p&&e.ai==='sniper');
- sniper.x=p.x+510;sniper.y=p.y;sniper.windT=.01;sniper.bvx=1;sniper.bvy=0;
+ sniper.x=sniper.restX=p.x+510;sniper.y=sniper.restY=p.y;sniper.windT=.01;sniper.bvx=1;sniper.bvy=0; // placed there, not dragged
  r.sniperTick(sniper,hs[0],100,.1);
  assert.ok(r.hostile.length>0);
  for(const shot of r.hostile) {

@@ -1921,7 +1921,10 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally { confineGuard(e); }
+			} finally {
+				confineGuard(e);
+				if (e.ai === 'sniper') e.restX = e.x, e.restY = e.y;
+			}
 		}
 	}
 
@@ -2183,7 +2186,9 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
-		if (e.windT > 0 && movedSinceAim(e)) {
+		// Moved since its own turn: something drags it (knock, pull). It aims again once it stands on its own.
+		const dragged = e.restX !== undefined && (e.x !== e.restX || e.y !== e.restY);
+		if (e.windT > 0 && (dragged || movedSinceAim(e))) {
 			this.cancelAim(e);
 			e.shotT = 0;
 		}
@@ -2209,7 +2214,7 @@ export class Room {
 		}
 		e.shotT -= dt;
 		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
-		if (e.shotT <= 0 && d < keep[1] + 150) {
+		if (e.shotT <= 0 && d < keep[1] + 150 && !dragged) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;

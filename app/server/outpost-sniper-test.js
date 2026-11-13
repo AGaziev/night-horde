@@ -86,7 +86,7 @@ for (const mode of ['night', 'lunch']) {
 	const guard = volley('guard', mode), normal = volley('normal', mode);
 	close(guard.damage / normal.damage, 1.15, 'guard shot multiplier remains1.15');
 	close(guard.e.maxHp / normal.e.maxHp, 1.5, 'guard HP multiplier remains1.5');
-	const lead = aim('guard', 500, mode); lead.e.x = lead.h.x + 300; lead.e.shotT = 0;
+	const lead = arena('guard', 300, mode); lead.e.shotT = 0;
 	lead.h.mvx = 0; lead.h.mvy = 1; lead.h.movedT = lead.r.time;
 	lead.r.moveEnemies(dt, [lead.h]); assert.ok(lead.e.bvy > .2, 'guard still aims ahead along native target motion');
 	console.log(`guard sniper ${mode}: actual5-orb volley/.9 windup/HP1.5/damage1.15/bounds and native lead: OK`);
