@@ -1,4 +1,4 @@
-import { ENEMIES, PLAYER_RADIUS, enemyHpScale, spawnRateScale } from '../public/shared/content.js';
+import { ENEMIES, HOSTILE_R, PLAYER_RADIUS, enemyHpScale, spawnRateScale } from '../public/shared/content.js';
 import { randomUUID } from 'node:crypto';
 import { HordeCombat } from './horde-combat.js';
 import {
@@ -158,6 +158,47 @@ export class HordeMode {
 		if (this.room.directorPid !== null) this.room.send(this.room.directorPid, this.privateState());
 		this.nextPrivate = this.room.time + PRIVATE_EVERY;
 	}
+
+	nativeLanes() {
+		const lanes = [];
+		for (const e of this.room.enemies) {
+			if (e.dead) continue;
+			const def = e.def;
+			if (e.bs === 'aim' && e.bt > 0) {
+				const length = def.dashSpeed * def.dashTime;
+				lanes.push({ x1: e.x, y1: e.y, x2: e.x + e.bvx * length, y2: e.y + e.bvy * length,
+					w: e.r * 2, remaining: e.bt });
+			} else if (e.ai === 'sniper' && e.windT > 0) {
+				const aim = Math.atan2(e.bvy, e.bvx), length = def.shotSpeed * def.shotLife;
+				for (let i = 0; i < def.fan; i++) {
+					const a = aim + (i - (def.fan - 1) / 2) * def.spread;
+					lanes.push({ x1: e.x, y1: e.y, x2: e.x + Math.cos(a) * length, y2: e.y + Math.sin(a) * length,
+						w: def.shotR * 2 + 8, remaining: e.windT });
+				}
+			}
+		}
+		return lanes;
+	}
+
+	resyncState() {
+		const room = this.room, time = room.time, combat = this.combat.resyncState();
+		return {
+			t: 'horde-resync', roundId: this.roundId, time,
+			warnings: [
+				...this.pending.filter((p) => p.at > time).map((p) => ({ x: p.x, y: p.y, r: PACK_RADIUS + 24, remaining: p.at - time })),
+				...combat.warnings,
+				...room.blasts.filter((b) => b.pdmg > 0 && b.t > time).map((b) => ({ x: b.x, y: b.y, r: b.r, remaining: b.t - time })),
+			],
+			shots: [...combat.shots, ...room.hostile.filter((s) => s.life > 0).map((s) => ({
+				id: s.id, x: s.x, y: s.y, vx: s.vx, vy: s.vy, remaining: s.life, r: s.r ?? HOSTILE_R,
+			}))],
+			lanes: this.nativeLanes(),
+			// The next snapshot can still carry these old events. Clients skip each once after restoring live state.
+			fxBefore: room.fx.map((ev) => [...ev]),
+		};
+	}
+
+	sendResync(pid) { this.room.send(pid, this.resyncState()); }
 
 	handle(msg) {
 		let error = null;

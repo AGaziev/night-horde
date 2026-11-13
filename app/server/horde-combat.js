@@ -70,8 +70,20 @@ export class HordeCombat {
 			...(end ? { x2: q(end.x), y2: q(end.y) } : {}) });
 	}
 
-	warn(x, y, r) { this.room.fx.push(['warn', Math.round(x), Math.round(y), Math.round(r), HORDE_COMBAT.warning]); }
-	schedule(fn) { this.events.push({ at: this.room.time + HORDE_COMBAT.warning, fn }); }
+	schedule(point, r, fn, carrier = null) {
+		const warning = { x: point.x, y: point.y, r };
+		this.room.fx.push(['warn', Math.round(point.x), Math.round(point.y), Math.round(r), HORDE_COMBAT.warning]);
+		this.events.push({ at: this.room.time + HORDE_COMBAT.warning, warning, carrier, fn });
+	}
+
+	resyncState() {
+		const warnings = this.events.filter((e) => e.at > this.room.time && !e.carrier?.dead)
+			.map((e) => ({ ...e.warning, remaining: e.at - this.room.time }));
+		const shots = this.shots.filter((s) => s.life > 0).map((s) => ({
+			id: s.id, x: s.x, y: s.y, vx: s.vx, vy: s.vy, remaining: s.life, r: s.r,
+		}));
+		return { warnings, shots };
+	}
 
 	attack(e, id) {
 		const build = e.hordeBuild, level = build.weapons[id], def = HORDE_WEAPONS[id];
@@ -219,8 +231,7 @@ export class HordeCombat {
 		const target = this.alive().find((h) => h !== primary && distance(h, primary) <= (CHAIN_RADIUS + 20 * (level - 1)) * attack.area);
 		if (!target || !this.spendProc()) return;
 		const point = { x: target.x, y: target.y }, origin = { x: primary.x, y: primary.y };
-		this.warn(point.x, point.y, 42);
-		this.schedule(() => {
+		this.schedule(point, 42, () => {
 			if (distance(target, point) > 42 + PLAYER_RADIUS || !this.hit(target, attack, 0.25)) return;
 			this.poison(target, attack, 0.5); // Direct dose only: never calls censer or conductor again.
 			this.fx('venom', origin.x, origin.y, 42, 0.45, point);
@@ -234,8 +245,7 @@ export class HordeCombat {
 		if (!target || !this.spendProc()) return;
 		this.conductorAt = this.room.time + 3;
 		const point = { x: target.x, y: target.y }, origin = { x: primary.x, y: primary.y };
-		this.warn(point.x, point.y, 42);
-		this.schedule(() => {
+		this.schedule(point, 42, () => {
 			if (distance(target, point) > 42 + PLAYER_RADIUS) return;
 			// A plain secondary hit has no projectile-hit callback, poison or further secondary.
 			this.hit(target, { ...attack, id: 'conductor' }, factor * 0.5);
@@ -250,8 +260,7 @@ export class HordeCombat {
 			const radius = (seen.size === 0 ? firstRadius : 48) * attack.area;
 			seen.add(h.pid);
 			const point = { x: h.x, y: h.y };
-			this.warn(point.x, point.y, radius);
-			this.schedule(() => {
+			this.schedule(point, radius, () => {
 				this.fx('storm', origin.x, origin.y, radius, 0.45, point);
 				if (distance(h, point) > radius + PLAYER_RADIUS || !this.hit(h, attack)) return;
 				if (seen.size >= limit) return;
@@ -263,15 +272,14 @@ export class HordeCombat {
 	}
 
 	area(attack, center, radius, factor = 1, carrier = null) {
-		this.warn(center.x, center.y, radius);
-		this.schedule(() => {
+		this.schedule(center, radius, () => {
 			if (carrier?.dead) return; // A slain reaper carrier cannot finish its windup.
 			this.fx(attack.id, center.x, center.y, radius, 0.55);
 			for (const h of this.alive()) if (distance(h, center) <= radius + PLAYER_RADIUS) this.hit(h, attack, factor);
 			if (attack.id === 'ember' && factor === 1 && attack.synergies.has('cremation') && this.spendProc()) {
 				this.area(attack, center, radius, 0.45);
 			}
-		});
+		}, carrier);
 	}
 
 	onKilled(e, h, src) {
