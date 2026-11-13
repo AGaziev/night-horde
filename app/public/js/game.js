@@ -744,10 +744,7 @@ export class Game {
 				break;
 			}
 			case 'bline':
-				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8), own: ev[7] });
-				break;
-			case 'bcut': // a sniper dropped its windup: its lanes no longer show where the volley goes
-				compact(this.blines, (l) => l.own !== ev[1]);
+				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
 				break;
 			case 'warn':
 				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });

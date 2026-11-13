@@ -36,8 +36,6 @@ const WORLD_LIMIT = 100000;
 const MAX_HIT_FX = 32;
 const KNIFE_AIM_RANGE = 550;
 const round3 = (v) => Math.round(v * 1000) / 1000;
-// A sniper's lanes start where it aimed: once moved, the volley would leave from elsewhere.
-const movedSinceAim = (e) => e.aimFrom && (e.x !== e.aimFrom.x || e.y !== e.aimFrom.y);
 const MAX_DIE_FX = 40;
 const SEPARATION_NEIGHBORS = 10;
 const PROJ_R = 6;
@@ -1816,19 +1814,14 @@ export class Room {
 					e.x += dx / d * step;
 					e.y += dy / d * step;
 					e.bs = 0;
-					if (e.ai === 'sniper') this.cancelAim(e); else e.windT = 0;
+					e.windT = 0;
 					continue;
 				}
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
-					// The lanes keep fading while the sniper is locked: once they are gone, it aims anew after the lock.
-					if (e.ai === 'sniper' && e.windT > 0) {
-						if (movedSinceAim(e)) {
-							this.cancelAim(e);
-							e.shotT = 0;
-						} else if ((e.windT -= dt) <= 0) e.windT = e.shotT = 0;
-					}
+					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock.
+					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) e.windT = e.shotT = 0;
 					continue;
 				}
 				let dx = best.x - e.x, dy = best.y - e.y;
@@ -1921,10 +1914,7 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally {
-				confineGuard(e);
-				if (e.ai === 'sniper') e.restX = e.x, e.restY = e.y;
-			}
+			} finally { confineGuard(e); }
 		}
 	}
 
@@ -2186,12 +2176,6 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
-		// Moved since its own turn: something drags it (knock, pull). It aims again once it stands on its own.
-		const dragged = e.restX !== undefined && (e.x !== e.restX || e.y !== e.restY);
-		if (e.windT > 0 && (dragged || movedSinceAim(e))) {
-			this.cancelAim(e);
-			e.shotT = 0;
-		}
 		if (e.windT > 0) {
 			e.windT -= dt;
 			if (e.windT <= 0) {
@@ -2200,8 +2184,9 @@ export class Room {
 				const dmg = E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				for (let i = 0; i < E.fan; i++) {
 					const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
+					// From where it aimed, even if knocked or pulled since: the volley follows the lanes on screen.
 					const s = {
-						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
+						id: this.nextId++, x: e.aimX ?? e.x, y: e.aimY ?? e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
@@ -2214,7 +2199,7 @@ export class Room {
 		}
 		e.shotT -= dt;
 		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
-		if (e.shotT <= 0 && d < keep[1] + 150 && !dragged) {
+		if (e.shotT <= 0 && d < keep[1] + 150) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
@@ -2224,7 +2209,8 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
-			e.aimFrom = { x: e.x, y: e.y };
+			e.aimX = e.x;
+			e.aimY = e.y;
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
 			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
@@ -2232,17 +2218,11 @@ export class Room {
 				const ca = Math.cos(a), sa = Math.sin(a);
 				const preview = boundGuardShot(e, { x: e.x, y: e.y, vx: ca * E.shotSpeed, vy: sa * E.shotSpeed, life: E.shotLife });
 				const len = E.shotSpeed * preview.life;
-				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + ca * len), Math.round(e.y + sa * len), E.shotR * 2 + 8, round3(E.windup), e.id]);
+				this.fx.push(['bline', Math.round(e.x), Math.round(e.y), Math.round(e.x + ca * len), Math.round(e.y + sa * len), E.shotR * 2 + 8, round3(E.windup)]);
 			}
 			return true;
 		}
 		return false;
-	}
-
-	// Drops a sniper's windup and its lanes on the clients, so only the fan it will really fire stays on screen.
-	cancelAim(e) {
-		if (e.windT > 0) this.fx.push(['bcut', e.id]);
-		e.windT = 0;
 	}
 
 	// The shield turns toward its target at `turn` rad/s; circling players get behind it.
@@ -2638,7 +2618,6 @@ export class Room {
 	killEnemy(e, h, src = SRC_NONE) {
 		if (e.dead) return;
 		e.dead = true;
-		if (e.ai === 'sniper') this.cancelAim(e);
 		if (e.outpost) this.guardKilled(e);
 		this.kills++;
 		if (h) {
