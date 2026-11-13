@@ -69,9 +69,9 @@ function checkSnapshot(s) {
 	assert.ok(Array.isArray(s.fx));
 	const known = ['hit', 'die', 'zap', 'slash', 'hurt', 'down', 'up', 'lvl', 'boss', 'chest', 'shot', 'ptgt', 'pend', 'slowz',
 		'eshot', 'epend', 'lob', 'boom', 'warn', 'frost', 'snap', 'brk', 'item', 'open', 'elite', 'blink', 'inv',
-		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'outposts', 'coldwave'];
+		'tslash', 'tfan', 'orb', 'orbm', 'zk', 'shard', 'duo', 'evo', 'cone', 'crescent', 'bell', 'ward', 'bline', 'react', 'banner', 'peakw', 'peak', 'pring', 'dawn', 'evt', 'evte', 'eorb', 'altar', 'apulse', 'ovr', 'buildring', 'buildbeam', 'outposts', 'coldwave', 'cancel'];
 	const arity = {
-		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 3, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5, coldwave: 7,
+		ptgt: 4, pend: 5, inv: 3, eshot: 8, epend: 6, lob: 9, tslash: 5, tfan: 3, orb: 10, orbm: 10, zk: 3, shard: 3, duo: 3, evo: 3, cone: 5, crescent: 3, bell: 3, ward: 3, bline: 7, boom: 5, warn: 5, snap: 3, brk: 3, item: 5, open: 4, elite: 3, blink: 3, react: 5, banner: 6, peakw: 2, peak: 2, pring: 4, dawn: 2, evt: 3, evte: 3, eorb: 9, altar: 3, apulse: 3, ovr: 4, buildring: 5, buildbeam: 5, coldwave: 8, cancel: 3,
 	};
 	for (const f of s.fx) {
 		assert.ok(known.includes(f[0]), `fx ${f[0]}`);
@@ -81,6 +81,8 @@ function checkSnapshot(s) {
 		if (f[0] === 'frost') assert.ok(f.length === 3 || f.length === 5, 'frost arity'); // v28: 5 — a wave at a point (Ледяные силки)
 		if (f[0] === 'shot') assert.ok(f[2] >= 0 && f[2] < PROJECTILE_KINDS.length && f[7] > 0 && f[9] <= s.tm + 0.01); // tm has 2 decimals, event times 3
 		if (f[0] === 'pend') assert.ok(f[4] <= s.tm + 0.01);
+		if (f[0] === 'epend') assert.ok(f[2] <= s.tm + 0.01 && Number.isFinite(f[3]) && Number.isFinite(f[4]) && (f[5] === 0 || f[5] === 1));
+		if (f[0] === 'cancel') assert.ok([0, 1, 2, 3].includes(f[1]) && Number.isInteger(f[2]));
 	}
 	assert.ok(s.pk === undefined || (Array.isArray(s.pk) && s.pk.length === 3 && PEAKS[s.pk[0]] && s.pk[1] >= 0 && s.pk[2] >= s.pk[1]), 'peak');
 	assert.ok(s.boss === null || (Array.isArray(s.boss) && s.boss.length === 3 && ENEMIES[ENEMY_TYPES[s.boss[2]]]?.boss), 'boss bar');

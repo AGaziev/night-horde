@@ -112,3 +112,10 @@ for (let i = 0; i < 600; i++) {
 }
 assert.ok(gaps > 10, 'lossy client hit gaps');
 console.log(`codec: ok (${n} snapshots, ${gaps} gaps recovered, wire ${Math.round(bytesDelta / n)} B vs plain ${Math.round(bytesPlain / n)} B, key every ${KEY_EVERY})`);
+
+// New cancellation and impact coordinates survive the actual FX wire representation.
+{
+ const fx=[['cancel',1,245],['cancel',2,246],['epend',9,100.017,-21,0,1],['coldwave',0,0,.2,200,40,420,246]];
+ const packed=packFx(fx,tmMilliOf(100.1));
+ assert.deepEqual(unpackFx(packed.f,packed.fv,packed.fn,tmMilliOf(100.1)),fx);
+}
