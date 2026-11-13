@@ -59,6 +59,7 @@ export class HordeMode {
 		let error = null;
 		if (!Number.isSafeInteger(msg.seq) || msg.seq <= 0) error = 'Неверный номер команды орды';
 		else if (msg.seq <= this.lastSeq) { this.sendState(); return; }
+		else if (msg.seq !== this.lastSeq + 1) error = 'Нарушен порядок команд орды';
 		else {
 			// Failed commands are acknowledged too: a retried command cannot buy later at a different price.
 			this.lastSeq = msg.seq;
@@ -87,19 +88,21 @@ export class HordeMode {
 			|| !this.inside(x, y, PACK_RADIUS + 24)) return 'Выберите точку внутри арены';
 		const alive = this.alive();
 		if (!alive.length) return 'На арене нет живых героев';
+		const heroes = [...this.room.heroes.values()];
 		const units = pack.units.map((type, i) => {
 			const a = i / pack.units.length * Math.PI * 2;
 			return { type, x: x + Math.cos(a) * PACK_RADIUS, y: y + Math.sin(a) * PACK_RADIUS };
 		});
-		if (units.some((u) => alive.some((h) => Math.hypot(h.x - u.x, h.y - u.y) < HORDE_LIMITS.spawnDistance))) {
+		if (units.some((u) => heroes.some((h) => Math.hypot(h.x - u.x, h.y - u.y) < HORDE_LIMITS.spawnDistance))) {
 			return 'Точка призыва слишком близко к герою';
 		}
 		const c = this.counts();
 		if (c.manual + c.reserved + units.length > HORDE_LIMITS.manual
 			|| c.total + c.reserved + units.length > HORDE_LIMITS.total) return 'Достигнут предел отрядов';
 		this.resource -= pack.cost;
-		this.pending.push({ pack: pack.id, level: this.levels[pack.id], cost: pack.cost, x, y, units, at: this.room.time + HORDE_LIMITS.warning });
-		this.room.fx.push(['warn', Math.round(x), Math.round(y), PACK_RADIUS + 24, HORDE_LIMITS.warning]);
+		const delay = HORDE_LIMITS.warning + HORDE_LIMITS.preparation;
+		this.pending.push({ pack: pack.id, level: this.levels[pack.id], cost: pack.cost, x, y, units, at: this.room.time + delay });
+		this.room.fx.push(['warn', Math.round(x), Math.round(y), PACK_RADIUS + 24, delay]);
 		return null;
 	}
 
@@ -119,9 +122,11 @@ export class HordeMode {
 		this.resource = Math.min(HORDE_ECONOMY.cap, this.resource + dt * HORDE_ECONOMY.perSecond);
 		const due = this.pending.filter((p) => p.at <= room.time);
 		this.pending = this.pending.filter((p) => p.at > room.time);
+		const heroes = [...room.heroes.values()];
 		for (const p of due) {
 			const c = this.counts();
-			const unsafe = p.units.some((u) => alive.some((h) => Math.hypot(h.x - u.x, h.y - u.y) < ENEMIES[u.type].r + PLAYER_RADIUS + 64));
+			const unsafe = p.units.some((u) => !this.inside(u.x, u.y, ENEMIES[u.type].r)
+				|| heroes.some((h) => Math.hypot(h.x - u.x, h.y - u.y) < HORDE_LIMITS.birthDistance));
 			if (!alive.length || unsafe || c.manual + c.reserved + p.units.length > HORDE_LIMITS.manual
 				|| c.total + c.reserved + p.units.length > HORDE_LIMITS.total) {
 				this.resource = Math.min(HORDE_ECONOMY.cap, this.resource + p.cost);
@@ -129,12 +134,10 @@ export class HordeMode {
 				continue;
 			}
 			for (const u of p.units) {
-				const e = room.spawnEnemy(u.type, alive, enemyHpScale(room.nt, room.heroes.size));
-				e.x = u.x; e.y = u.y;
+				const e = room.spawnEnemy(u.type, alive, enemyHpScale(room.nt, room.heroes.size), [u.x, u.y]);
 				e.hordeSource = 'manual'; e.hordePack = p.pack; e.hordeLevel = p.level;
 				e.hp *= 1 + HORDE_UPGRADE.hpPerLevel * p.level; e.maxHp = e.hp;
 				e.dmg *= 1 + HORDE_UPGRADE.damagePerLevel * p.level; e.dmgMul *= 1 + HORDE_UPGRADE.damagePerLevel * p.level;
-				e.hordeReadyAt = room.time + HORDE_LIMITS.preparation;
 			}
 		}
 		if (alive.length) {
