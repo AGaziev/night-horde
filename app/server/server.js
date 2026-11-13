@@ -158,6 +158,14 @@ function protoOf(url) {
 }
 
 function attach(s, conn, proto) {
+	const p = hub.players.get(s.pid);
+	if (proto !== PROTO && p?.room?.isHorde) {
+		// An incompatible reconnect must not take over a compatible session or receive Horde state.
+		conn.send(JSON.stringify({ t: 'welcome', v: PROTO, pid: s.pid, name: p.name, room: p.room.code }), false);
+		conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
+		conn.close();
+		return;
+	}
 	const old = s.conn;
 	s.conn = conn;
 	clearTimeout(s.timer);
@@ -167,7 +175,7 @@ function attach(s, conn, proto) {
 	hub.setOffline(s.pid, false);
 	hub.welcome(s.pid);
 	conn.send(JSON.stringify(progressMsg(store, s.uid ? store.record(s.uid) : null)), false);
-	if (proto < PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
+	if (proto !== PROTO) conn.send(JSON.stringify({ t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть дальше' }), false);
 }
 
 function detach(s, conn) {
@@ -537,7 +545,7 @@ server.on('upgrade', (req, socket, head) => {
 			ws.ping();
 		}, WS_PING_MS);
 		ws.on('message', (data, isBinary) => {
-			if (isBinary) return;
+			if (isBinary || s.conn !== conn) return;
 			dispatch(s, parseJson(data.toString('utf8')));
 		});
 		ws.on('close', () => {
