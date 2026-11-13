@@ -304,6 +304,7 @@ export class Game {
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
 			op: msg.op && Array.isArray(msg.op.posts) ? msg.op : null,
+			cv: msg.cv && Number.isFinite(msg.cv.x) && Number.isFinite(msg.cv.y) ? msg.cv : null,
 			trophy: Array.isArray(msg.trophy) ? msg.trophy : EMPTY,
 			support: Array.isArray(msg.support) ? msg.support : EMPTY,
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
