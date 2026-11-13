@@ -438,7 +438,10 @@ input.onDigit = pick;
 
 function reroll() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
-	if (game.reroll()) sound.card('reroll');
+	if (game.reroll()) {
+		sound.card('reroll');
+		ui.expectDraw();
+	}
 }
 function skip() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;

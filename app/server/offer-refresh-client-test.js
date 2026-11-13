@@ -54,6 +54,7 @@ async function harness() {
 	globalThis.setTimeout = (fn, ms) => { const t = { fn, at: clock + ms }; timers.push(t); return t; };
 	globalThis.clearTimeout = (t) => { timers = timers.filter((x) => x !== t); };
 	const { UI } = await import('data:text/javascript;base64,' + Buffer.from(uiSource).toString('base64'));
+	const { Game } = await import(gameUrl);
 	const ui = Object.create(UI.prototype); ui.levelup = node('levelup'); ui.offerKey = ''; ui.revealTimers = [];
 	const reveals = []; ui.onReveal = (i) => reveals.push(i);
 	const advance = (ms) => {
@@ -64,7 +65,7 @@ async function harness() {
 		globalThis.document = saved.document; performance.now = saved.now;
 		globalThis.setTimeout = saved.setTimeout; globalThis.clearTimeout = saved.clearTimeout;
 	};
-	return { ui, box: node('levelup-cards'), advance, reveals, restore };
+	return { ui, Game, box: node('levelup-cards'), advance, reveals, restore };
 }
 
 // The last outpost guard is alive; the hero has an open boss-chest offer with a Кузня card for Иней III.
@@ -107,6 +108,7 @@ test('#24: an outpost reward refreshing the open Кузня card keeps revealed 
 		assert.ok(first.choices.every((_, i) => ui.cardReady(i)));
 		box.children[1].querySelectorAll('button, select')[0].focus();
 		const focused = document.activeElement;
+		ui.setBanMode(true);
 
 		fixed(0, () => r.killEnemy(last, h)); // the ally's kill: Иней III→IV, new epoch
 		const fresh = lvl();
@@ -116,6 +118,7 @@ test('#24: an outpost reward refreshing the open Кузня card keeps revealed 
 		assert.ok(fresh.choices.every((_, i) => ui.cardReady(i)), 'every card stays selectable at once');
 		assert.notEqual(document.activeElement, focused, 'the buttons were rebuilt');
 		assert.equal(document.activeElement, box.children[1].querySelectorAll('button, select')[0], 'focus stays on the same card');
+		assert.equal(ui.banMode, true, 'a background refresh keeps «Изгнать» armed');
 		advance(5000);
 		assert.equal(reveals.length, n, 'no second reveal');
 	} finally { restore(); }
@@ -139,5 +142,59 @@ test('#24: a refresh during the chest reveal keeps the remaining reveal time, a 
 		ui.hideOffer();
 		ui.showOffer({ ...first, offerEpoch: first.offerEpoch + 100 });
 		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'a reopened chest is a new draw');
+	} finally { restore(); }
+});
+
+// The CEO scene for #46: the actual main.js handlers, Game and UI, with the server Room behind them.
+const seeded = (seed) => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 2 ** 32; };
+function seededBy(seed, action) { const old = Math.random; Math.random = seeded(seed); try { return action(); } finally { Math.random = old; } }
+const mainSource = fs.readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
+
+test('#24: a reroll returning the same cards and rarities without draft marks turns «Изгнать» off', async () => {
+	const { ui, Game, restore } = await harness();
+	try {
+		const sent = [], r = new Room('REROLL-BAN', (pid, msg) => sent.push({ pid, msg: structuredClone(msg) }));
+		r.addPlayer(1, 'One', 'knight'); r.addPlayer(2, 'Two', 'witch'); r.start();
+		assert.equal(r.mode, 'night'); assert.equal(r.runLength, 900);
+		const h = r.heroes.get(1);
+		assert.equal(h.startWeapon, 'whip');
+		r.time = 359;
+		h.weapons = new Map([['whip', { lvl: 5, t: 9999, oc: 1 }], ['bolt', { lvl: 5, t: 9999, oc: 1 }]]);
+		r.recalcMods(h); r.updateCombos(h);
+		seededBy(395, () => r.grantOffer(h, false, 1));
+		assert.deepEqual(h.offer.map(c => [c.id, c.rar, c.draft]), [['traps', 1, 'fit'], ['counterweight', 0, 'pivot'], ['coil', undefined, undefined]]);
+
+		const outbox = [], game = new Game({ send: (msg) => outbox.push(msg) }); game.me = 1; game.begin(r.startMsg());
+		ui.screen = 'game';
+		const handlers = new Map(), net = { on: (name, handler) => handlers.set(name, handler) };
+		const lvl = mainSource.match(/net\.on\('lvl', \(msg\) => \{[\s\S]*?\n\}\);/)?.[0];
+		const actions = mainSource.slice(mainSource.indexOf('function pick(i, drop) {'), mainSource.indexOf('ui.onSkip = input.onSkip = skip;'));
+		assert.ok(lvl && actions.includes('function reroll()'), 'actual main.js handlers found');
+		const input = {}, sound = { card() {}, legendary() {} };
+		new Function('net', 'game', 'ui', 'sound', lvl)(net, game, ui, sound);
+		new Function('game', 'ui', 'input', 'sound', actions)(game, ui, input, sound);
+		const deliver = () => handlers.get('lvl')(sent.findLast(x => x.pid === 1 && x.msg.t === 'lvl').msg);
+		deliver();
+		const first = game.offer, bans = h.bans;
+		assert.ok(bans > 0 && h.rerolls > 0);
+
+		input.onBan(); // B
+		assert.equal(ui.banMode, true);
+		r.time = 360; // 6:00
+		input.onReroll();
+		assert.equal(outbox.at(-1).t, 'reroll');
+		seededBy(57, () => r.handle(1, outbox.at(-1)));
+		deliver();
+		assert.deepEqual(h.offer.map(c => [c.id, c.rar, c.draft]), [['traps', 1, undefined], ['counterweight', 0, undefined], ['coil', undefined, undefined]],
+			'same cards and rarities, the draft marks are gone');
+		assert.notEqual(game.offer.offerEpoch, first.offerEpoch);
+		assert.equal(ui.banMode, false, 'the player\'s reroll turns «Изгнать» off');
+
+		ui.onPick(0); // a click on «Капканы»
+		assert.equal(outbox.at(-1).t, 'pick', 'the click picks, it does not banish');
+		r.handle(1, outbox.at(-1));
+		assert.equal(h.bans, bans, 'no ban charge spent');
+		assert.ok(!h.banned.has('weapon:traps'));
+		assert.ok(h.weapons.has('traps'));
 	} finally { restore(); }
 });

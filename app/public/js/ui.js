@@ -404,7 +404,7 @@ export class UI {
 		if (key === this.offerKey && !this.levelup.hidden) return false;
 		this.offerKey = key;
 		const box = $('levelup-cards');
-		// The same cards sent again (a reward changed a level or the epoch) are a refresh, not a new draw:
+		// The same cards sent again without the player's action (a reward changed a level or the epoch) are a refresh:
 		// revealed chest cards stay open, hidden ones keep their reveal time, focus stays on the same control.
 		const ids = choices.map((c) => `${c.kind}:${c.id}:${c.donor ?? ''}:${c.v ?? ''}:${c.rar ?? ''}`);
 		const refresh = !this.levelup.hidden && this.offerIds?.length === ids.length
@@ -650,6 +650,12 @@ export class UI {
 		box.classList.remove('duo-flash');
 		void box.offsetWidth;
 		box.classList.add('duo-flash');
+	}
+
+	// The player's own reroll: whatever cards come back are a new draw, never a refresh, and «Изгнать» is off.
+	expectDraw() {
+		this.offerIds = null;
+		this.setBanMode(false);
 	}
 
 	hideOffer() {
