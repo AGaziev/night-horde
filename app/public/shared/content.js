@@ -87,7 +87,7 @@ export const MODES = {
 	// v28: v25–v26 (3 new weapons and 4 artifacts in the pool) thinned builds: from 6:00 the human bot took +30–50% damage,
 	// wins fell to 14% solo and 8% for pairs. Enemy damage for 1–2 players brings them back to 25–40% (pm/balance-v28.md).
 	// Single-signature fusions remove the old component casts. Keep solo pressure; recalibrate group encounters.
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 1.8, 2.16, 2.25], dmgMul: [0.75, 0.54, 0.448, 0.48] },
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 1.8, 2.16, 2.25], dmgMul: [0.75, 0.54, 0.48, 0.48] },
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
 	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 1.8, 2.16, 2.16], dmgMul: [0.75, 0.54, 0.45, 0.48] },
 };
