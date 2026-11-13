@@ -18,7 +18,8 @@ import {
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
-import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard as confineOutpostGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot } from './caravans.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -28,6 +29,7 @@ import { requestDash, stepMobility, mobilitySnapshot } from './mobility.js';
 import { segmentDistance2 } from '../public/shared/mobility.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
+function confineGuard(e) { confineOutpostGuard(e); confineCaravanGuard(e); }
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
 const SNAP_STRIDE = { e: 6, g: 4, z: 4, tr: 5, it: 4 };
 const CELL = 64;
@@ -530,6 +532,8 @@ export class Room {
 		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
 		this.outposts = null;
+		this.caravan = null;
+		this.nextCaravanTry = 0;
 		this.blasts = [];
 		this.traps = [];
 		this.items = [];
@@ -1372,6 +1376,7 @@ export class Room {
 
 		this.updatePeaks(alive);
 		this.updateFinale(dt, alive);
+		updateCaravan(this, alive, dt);
 		this.events.tick(alive);
 		if (alive.length) {
 			this.spawn(dt, alive);
@@ -1388,7 +1393,7 @@ export class Room {
 		this.updateTimers();
 		this.updateTraps(dt);
 		this.updatePuddles(dt);
-		for (const e of this.enemies) if (e.outpost) confineGuard(e);
+		for (const e of this.enemies) if (e.outpost || e.caravan) confineGuard(e);
 		this.compactEnemies();
 		this.updateGems(dt, alive);
 		this.updateItems(dt, alive);
@@ -1456,7 +1461,7 @@ export class Room {
 	// Outpost guards own a separate, bounded budget and never thin ordinary encounters.
 	ordinaryEnemyCount() {
 		let n = 0;
-		for (const e of this.enemies) if (!e.dead && !e.outpost) n++;
+		for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan) n++;
 		return n;
 	}
 
@@ -1799,24 +1804,26 @@ export class Room {
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
-				if (e.outpost && e.guardReadyAt > now) continue;
+				if ((e.outpost || e.caravan) && e.guardReadyAt > now) continue;
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+					if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 					const d = dist2(e.x, e.y, p.x, p.y);
 					if (d < bd) {
 						bd = d;
 						best = p;
 					}
 				}
-				if (!e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
+				if (!e.outpost && !e.caravan && bd > FAR_DIST2 && e.ai !== 'flee') {
 					[e.x, e.y] = this.randomRingPos(alive);
 					e.windT = 0;
 					e.bs = 0;
 					continue;
 				}
-				if (!best && e.outpost) {
-					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
+				if (!best && (e.outpost || e.caravan)) {
+					const anchor = e.outpost ?? e.caravan;
+					const dx = anchor.x - e.x, dy = anchor.y - e.y, d = Math.hypot(dx, dy) || 1;
 					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
 					e.x += dx / d * step;
 					e.y += dy / d * step;
@@ -2296,7 +2303,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.outpost || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
+			if (e.dead || e.outpost || e.caravan || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -2314,7 +2321,7 @@ export class Room {
 	}
 
 	setElite(e, affix) {
-		if (e.outpost) return;
+		if (e.outpost || e.caravan) return;
 		e.elite = affix;
 		e.hp *= ELITE_HP_MUL;
 		e.maxHp *= ELITE_HP_MUL;
@@ -2330,6 +2337,7 @@ export class Room {
 		let tb = null, td = Infinity;
 		for (const p of taunters) {
 			if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+			if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 			const d = dist2(e.x, e.y, p.x, p.y);
 			if (d < p.trait.taunt * p.trait.taunt && d < td) {
 				td = d;
@@ -2624,6 +2632,7 @@ export class Room {
 		if (e.dead) return;
 		e.dead = true;
 		if (e.outpost) this.guardKilled(e);
+		if (e.caravan) caravanGuardKilled(this, e);
 		this.kills++;
 		if (h) {
 			h.kills++;
@@ -2933,7 +2942,7 @@ export class Room {
 			const from = h.dashPath ?? h;
 			this.grid.query((h.x + from.x) / 2, (h.y + from.y) / 2, PLAYER_RADIUS + MAX_ENEMY_R + Math.hypot(h.x - from.x, h.y - from.y) / 2, near);
 			for (const e of near) {
-				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
+				if (e.dead || ((e.outpost || e.caravan) && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
 				if (segmentDistance2(e.x, e.y, from.x, from.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
@@ -2946,7 +2955,7 @@ export class Room {
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.hurtPlayer(h, cd * (1 - braced), e.caravan ? 'caravan' : e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -5248,7 +5257,7 @@ export class Room {
 
 	enemyState(en) {
 		const t = this.time;
-		let st = en.outpost ? ST.guard : 0;
+		let st = en.outpost || en.caravan ? ST.guard : 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
 		if (stormMarked(en, t)) st |= ST.stormMarked;
@@ -5314,6 +5323,7 @@ export class Room {
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
 			mob: mobilitySnapshot(this),
+			cv: caravanSnapshot(this),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
