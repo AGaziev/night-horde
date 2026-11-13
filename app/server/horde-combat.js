@@ -247,7 +247,7 @@ export class HordeCombat {
 		const seen = new Set(), limit = attack.synergies.has('conduit') ? 3 : 2;
 		const firstRadius = attack.synergies.has('conduit') && this.alive().length === 1 ? 60 : 48;
 		const hop = (h, origin) => {
-			const radius = seen.size === 0 ? firstRadius : 48;
+			const radius = (seen.size === 0 ? firstRadius : 48) * attack.area;
 			seen.add(h.pid);
 			const point = { x: h.x, y: h.y };
 			this.warn(point.x, point.y, radius);
