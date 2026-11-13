@@ -743,9 +743,20 @@ export class Room {
 			const pos = this.isHorde ? clampHordePosition(x, y, PLAYER_RADIUS) : { x: clamp(x, -WORLD_LIMIT, WORLD_LIMIT), y: clamp(y, -WORLD_LIMIT, WORLD_LIMIT) };
 			const tx = pos.x, ty = pos.y;
 			const elapsed = clamp(this.time - h.lastPosT, 0, 1);
-			const maxStep = (h.speed * h.mods.speedMul * elapsed * 1.5 + 30) * (this.horde?.heroSpeedMul(h) ?? 1);
+			let maxStep = h.speed * h.mods.speedMul * elapsed * 1.5 + 30;
+			if (this.isHorde) {
+				const slow = this.horde.heroSpeedMul(h);
+				const speed = h.speed * h.mods.speedMul * slow;
+				const budgetElapsed = clamp(this.time - (h.hordeMoveAt ?? 0), 0, 1);
+				// One shared jitter allowance, replenished only by server time, never by another packet or resync.
+				h.hordeMoveCredit = Math.min(speed * 1.1 + 30 * slow,
+					(h.hordeMoveCredit ?? 30 * slow) + speed * budgetElapsed * 1.1);
+				h.hordeMoveAt = this.time;
+				maxStep = h.hordeMoveCredit;
+			}
 			const dx = tx - h.x, dy = ty - h.y;
 			const d = Math.hypot(dx, dy);
+			if (this.isHorde) h.hordeMoveCredit = Math.max(0, h.hordeMoveCredit - Math.min(d, maxStep));
 			if (d > 0.5) {
 				h.mvx = dx / d;
 				h.mvy = dy / d;
