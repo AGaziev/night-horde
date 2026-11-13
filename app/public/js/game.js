@@ -424,7 +424,8 @@ export class Game {
 	}
 
 	requestDash(input) {
-		if (!this.running || this.frozen || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0) return false;
+		if (!this.running || this.frozen || this.awaitingSnapshot || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0
+			|| performance.now() / 1000 - (this.latest()?.at ?? this.predictionAt) > MAX_PREDICTION_AGE) return false;
 		const v = input.vector(), len = Math.hypot(v.x, v.y);
 		const x = len ? v.x / len : this.local.fx, y = len ? v.y / len : this.local.fy;
 		this.dashWaiting = performance.now() + 1500;
