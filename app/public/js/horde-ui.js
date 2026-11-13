@@ -20,6 +20,7 @@ const BUILD_GROUPS = {
 // Keep a whole server troop ring (radius 64) and its edge clearance inside the arena.
 const PACK_RADIUS = 64;
 const COMMAND_RETRY_MS = 2500;
+const PENDING_KEY = 'nh.hordeCommand';
 const PLACEMENT_INSET = PACK_RADIUS + 24;
 
 // Director controls live outside the hero input/offer flow. All purchases wait for a private server frame.
@@ -92,7 +93,8 @@ export class HordeUI {
 		this.net.cancelHordeCommands();
 		const keepCamera = this.enabled;
 		this.enabled = this.game.isDirector();
-		this.ready = false; this.state = null; this.inflight = null; this.selected = null;
+		this.ready = false; this.state = null; this.selected = null;
+		this.restorePending();
 		this.offerKey = ''; this.loadoutKey = '';
 		if (!keepCamera) { this.draftOpen = true; this.buildOpen = false; this.buildTab = 'pack'; }
 		this.game.hordeState = null; this.game.hordeTarget = null;
@@ -107,24 +109,26 @@ export class HordeUI {
 
 	stop() {
 		this.net.cancelHordeCommands();
-		this.enabled = false; this.ready = false; this.inflight = null; this.selected = null;
+		this.enabled = false; this.ready = false; this.clearPending(); this.selected = null;
 		this.cancelPointer(); this.panel.hidden = true;
 		this.game.hordeState = null; this.game.hordeTarget = null;
 		this.canvas.classList.remove('horde-aiming');
 	}
 
 	connection() {
-		// Reconnect supplies a fresh authoritative round, lastSeq and wallet before accepting new input.
-		this.ready = false; this.inflight = null;
+		// A request can arrive after reconnect. Keep its payload until the same round acknowledges it.
+		this.ready = false;
+		if (this.inflight && this.inflight.sid !== this.net.sid) this.clearPending();
 		this.cancelPointer(); this.paint();
 	}
 
 	receive(msg) {
 		if (!this.active() || !this.game.roundId || msg.roundId !== this.game.roundId || !Number.isSafeInteger(msg.lastSeq) || msg.lastSeq < 0) return;
 		if (this.state && msg.lastSeq < this.state.lastSeq) return;
+		if (this.inflight && (this.inflight.sid !== this.net.sid || this.inflight.message.roundId !== this.game.roundId)) this.clearPending();
 		this.state = msg; this.ready = true;
 		this.game.hordeState = { ...msg, receivedAt: performance.now() / 1000 };
-		if (this.inflight && msg.lastSeq >= this.inflight.seq) this.inflight = null;
+		if (this.inflight && msg.lastSeq >= this.inflight.seq) this.clearPending();
 		this.paint();
 	}
 
@@ -148,9 +152,42 @@ export class HordeUI {
 		const seq = this.state.lastSeq + 1;
 		if (!Number.isSafeInteger(seq)) return;
 		const message = Object.freeze({ ...payload, t: 'horde', action, seq, roundId: this.state.roundId });
-		this.inflight = { seq, message, sentAt: performance.now() };
+		const pending = { seq, message, sid: this.net.sid, sentAt: performance.now() };
+		try {
+			// Persist before delivery so a full page reload cannot reuse this sequence for another payload.
+			sessionStorage.setItem(PENDING_KEY, JSON.stringify({ sid: pending.sid, message }));
+		} catch {
+			this.ui.toast('Не удалось сохранить приказ в браузере. Проверьте доступ к хранилищу и повторите.');
+			return;
+		}
+		this.inflight = pending;
 		this.net.send(message);
 		this.paint();
+	}
+
+	clearPending() {
+		this.inflight = null;
+		try { sessionStorage.removeItem(PENDING_KEY); } catch { /* the next private acknowledgement still reconciles it */ }
+	}
+
+	restorePending() {
+		if (this.inflight?.sid === this.net.sid && this.inflight.message.roundId === this.game.roundId) {
+			this.inflight.sentAt = -Infinity; return;
+		}
+		let saved;
+		try { saved = JSON.parse(sessionStorage.getItem(PENDING_KEY) || 'null'); }
+		catch {
+			// If storage becomes unavailable, an existing in-memory command still survives reconnect.
+			if (this.inflight?.sid === this.net.sid && this.inflight.message.roundId === this.game.roundId) return;
+			this.inflight = null; return;
+		}
+		const message = saved?.message;
+		if (saved?.sid !== this.net.sid || !this.game.roundId || message?.roundId !== this.game.roundId
+			|| message?.t !== 'horde' || !['spawn', 'pick', 'reroll'].includes(message.action)
+			|| !Number.isSafeInteger(message.seq) || message.seq <= 0) {
+			this.clearPending(); return;
+		}
+		this.inflight = { seq: message.seq, sid: saved.sid, message: Object.freeze(message), sentAt: -Infinity };
 	}
 
 	retryPending() {
