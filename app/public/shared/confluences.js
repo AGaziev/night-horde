@@ -1,4 +1,4 @@
-// Signature interactions of the nine new duos. Both inherited weapon attacks are handled by Room.updateWeapon.
+// Each duo runs only this signature; consumed weapons supply lineage levels.
 const levels = (first, second, third) => [first, { ...first, ...second }, { ...first, ...third }];
 const duo = (name, icon, parts, tags, effect, desc, stats) => ({ name, icon, parts, tags, effect, desc, levels: stats });
 export const CONFLUENCES = {
@@ -31,4 +31,12 @@ export const CONFLUENCES = {
     levels({dmg:18,castCd:3.8,range:310,radius:115,dur:3,tick:0.35,burn:10}, {dmg:26,radius:140,burn:15}, {dmg:38,castCd:3,range:370,radius:165,dur:3.6,burn:22})),
 };
 
-CONFLUENCES.singularity.signaturePower = 1.1;
+
+// Crowd signatures spend part of their power budget on control/resonance/marking.
+CONFLUENCES.spectral.signaturePower = 0.5;
+CONFLUENCES.gravitybell.signaturePower = 0.35;
+CONFLUENCES.arclaser.signaturePower = 0.45;
+CONFLUENCES.resonantshield.signaturePower = 0.35;
+CONFLUENCES.crystalchoir.signaturePower = 0.5;
+CONFLUENCES.inferno.signaturePower = 0.6;
+CONFLUENCES.blacksnare.signaturePower = 0.8;

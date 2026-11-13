@@ -16,7 +16,7 @@ import {
 	MODES, DEFAULT_MODE, timeScale, bossTimes, modeHpMul, modeDmgMul, SPECIALS, specialCap, SHIELD_DIRS, SHIELD_SHIFT, ALTAR_DEALS,
 	OVERCLOCKS, weaponLevel, attackLevel, overclockId, BANS_START, FORGE_MIN_LEVEL, forgeRecipe,
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
-	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
+	DUO_SIGNATURE_POWER, duoPartLevel, duoLineagePower,
 } from '../public/shared/content.js';
 import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard as confineOutpostGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
 import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot } from './caravans.js';
@@ -3064,15 +3064,11 @@ export class Room {
 			w.parts ??= DUOS[id].parts.map((part) => ({ id: part, lvl: duoPartLevel(w.lvl), t: 0.2 }));
 			const previous = this.weaponContext;
 			try {
-				for (const part of w.parts) {
-					part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
-					this.weaponContext = { h, weapon: id, part: part.id, scale: DUOS[id].inheritPower ?? DUO_INHERIT_POWER };
-					if (part.id === 'ward') this.wardBash(h, part, attackLevel('ward', part.lvl, 0, h.mods), dt);
-					else if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && part.t <= dt && canRepeatCast(part.id)) repeatCast(this, h, part.id, part, dt);
-					else this.castWeapon(h, part.id, part, dt);
-				}
-				this.weaponContext = { h, weapon: id, part: id, scale: DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER };
-				this.castWeapon(h, id, w, dt);
+				for (const part of w.parts) part.lvl = Math.max(part.lvl, duoPartLevel(w.lvl));
+				this.weaponContext = { h, weapon: id, part: id,
+					scale: (DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER) * duoLineagePower(w.lvl, w.parts) };
+				if (h.hero === 'witch' && !h.offline && this.time >= h.perk.readyAt && w.t <= dt && canRepeatCast(id)) repeatCast(this, h, id, w, dt);
+				else this.castWeapon(h, id, w, dt);
 			} finally { this.weaponContext = previous; }
 			return;
 		}
@@ -3169,7 +3165,7 @@ export class Room {
 				w.p = (w.p ?? L.pulse) - dt;
 				if (w.p <= 0) {
 					w.p = L.pulse * cdMul;
-					this.auroraPulse(h, id === 'aurora' ? { ...L, radius: WEAPONS.aura.levels[duoPartLevel(w.lvl) - 1].radius } : L, 1);
+					this.auroraPulse(h, L, 1);
 				}
 				break;
 			case 'tocsin':
@@ -3867,13 +3863,7 @@ export class Room {
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
 		h.iframes = PLAYER_IFRAMES;
 		this.fx.push(['ward', h.pid, h.ward]);
-		if (DUOS[id]?.parts.includes('ward')) {
-			const inherited = w.parts?.find((part) => part.id === 'ward');
-			const base = attackLevel('ward', inherited?.lvl ?? duoPartLevel(w.lvl), 0, h.mods);
-			this.explode({ x: h.x, y: h.y, r: base.burstR * h.mods.areaMul, pdmg: 0,
-				edmg: base.burstDmg * h.mods.dmgMul, owner: h, kind: 7,
-				src: { weapon: id, component: 'ward', tags: ['aoe'], scale: DUO_INHERIT_POWER, lineage: true }, kb: base.kb });
-		}
+
 		if (DUOS[id]?.effect === 'sonicShield') {
 			this.tuningWave(h, L, L.dmg * 1.8 * h.mods.dmgMul, SRC[id]);
 			return;

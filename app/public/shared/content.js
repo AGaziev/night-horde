@@ -782,10 +782,11 @@ export const orbitAngle = (gameTime, rps, index, count) => gameTime * rps * Math
 // attack. The duo takes the first weapon's slot, the second slot frees up. Levels I–III; at most MAX_DUOS per player.
 // Pairs are matched in one place on the server (Room.updateCombos).
 export const MAX_DUOS = 2;
-// Fusion retains both attacks, then adds the signature interaction. These are combat multipliers, not offer odds.
-export const DUO_INHERIT_POWER = 1.2;
-export const DUO_SIGNATURE_POWER = 0.35;
+// Fusion runs only its signature; levels of the consumed parts are lineage, not separate attacks.
+export const DUO_INHERIT_POWER = 1; // compatibility export; no component attacks use it
+export const DUO_SIGNATURE_POWER = 1;
 export const duoPartLevel = (level) => Math.min(5, level + 2);
+export const duoLineagePower = (level, parts = []) => 1 + 0.04 * parts.reduce((n, p) => n + Math.max(0, p.lvl - duoPartLevel(level)), 0);
 export const DUO_MIN_LEVEL = 3;
 export const DUO_MAX_LEVEL = 3;
 export const DUO_DEFER_OFFERS = 2; // a declined duo card comes back after this many offers
@@ -794,6 +795,7 @@ export const SYNERGY_MAX = 0.2;
 export const duoStartLevel = (partLevels) => (partLevels >= 10 ? 3 : partLevels >= 8 ? 2 : 1);
 export const DUOS = {
 	thunderslash: {
+		signaturePower: 0.85,
 		name: 'Громовой разрез', icon: '⚡', parts: ['whip', 'lightning'], tags: ['phys', 'shock'],
 		desc: 'Удар в обе стороны; задетых через миг бьёт молния с цепью, каждый 3-й удар — веер молний',
 		levels: [
@@ -830,6 +832,7 @@ export const DUOS = {
 		],
 	},
 	tripwire: {
+		signaturePower: 1.35,
 		name: 'Растяжка', icon: '⋈', parts: ['knives', 'traps'], tags: ['phys', 'trap'],
 		desc: 'Капканы связаны режущей нитью; промахнувшиеся ножи становятся шипами',
 		levels: [
@@ -866,7 +869,7 @@ export const DUOS = {
 		],
 	},
 	icebomb: {
-		signaturePower: 0.42, name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
+		name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Взрыв замораживает, замёрзшие раскалываются осколками',
 		levels: [
 			{ dmg: 55, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
@@ -893,7 +896,8 @@ export const DUOS = {
 		],
 	},
 	icedisc: {
-		inheritPower: 1.4, name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
+		signaturePower: 0.85,
+		name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
 		desc: 'Диск оставляет ледяной след и замораживает на обратном пути',
 		levels: [
 			{ dmg: 68, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
@@ -902,7 +906,7 @@ export const DUOS = {
 		],
 	},
 	stormlight: {
-		inheritPower: 1.5, name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
+		name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Луч метит врагов, в луче бьют молнии; цепь только по помеченным',
 		levels: [
 			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 28, chain: 2 },
@@ -975,6 +979,7 @@ export const DUOS = {
 		],
 	},
 	riposte: {
+		signaturePower: 1.15,
 		name: 'Контрудар', icon: '⚔', parts: ['whip', 'ward'], tags: ['phys'],
 		desc: 'Удар клинка в обе стороны; поглощённый щитом удар сразу отвечает круговым ударом с удвоенным уроном',
 		levels: [
@@ -1002,6 +1007,7 @@ export const DUOS = {
 		],
 	},
 	firescythe: {
+		signaturePower: 0.8,
 		name: 'Огненный серп', icon: '☾', parts: ['sickle', 'trail'], tags: ['fire', 'phys', 'proj'],
 		desc: 'Серп летит к врагу и возвращается, оставляя горящую полосу; задетых поджигает',
 		levels: [
@@ -1012,7 +1018,8 @@ export const DUOS = {
 	},
 	// v28 (связки v2, поставка Б).
 	frostsnare: {
-		inheritPower: 2, signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		signaturePower: 2.6,
+		name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
 		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
 		levels: [
 			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },
@@ -1021,6 +1028,7 @@ export const DUOS = {
 		],
 	},
 	abatis: {
+		signaturePower: 1.5,
 		name: 'Засека', icon: '⚔', parts: ['whip', 'traps'], tags: ['phys', 'trap'],
 		desc: 'Удар клинка оставляет капкан на конце дуги; по врагу в корнях клинок бьёт в полтора раза сильнее',
 		levels: [
@@ -1030,6 +1038,7 @@ export const DUOS = {
 		],
 	},
 	harpoon: {
+		signaturePower: 0.85,
 		name: 'Гарпун', icon: '⥉', parts: ['sickle', 'spear'], tags: ['phys', 'proj'],
 		desc: 'Копьё на цепи летит в сильнейшего, пробивает строй и возвращается, на обратном пути бьёт ещё раз',
 		levels: [
@@ -1048,6 +1057,7 @@ export const DUOS = {
 		],
 	},
 	stingers: {
+		signaturePower: 0.85,
 		name: 'Ядовитые жала', icon: '➶', parts: ['knives', 'flask'], tags: ['phys', 'proj', 'aoe'],
 		desc: 'Веер ножей; нож, попав или упав, разбивается каплей — малой лужей яда',
 		levels: [
