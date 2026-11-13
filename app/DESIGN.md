@@ -664,6 +664,7 @@ HUD и подпись/радар поста используют эти числ
 FX: `['outposts', 'arrive'|'clear'|'chest'|'won'|'closed', optional id/count]`.
 Адресный `reforge`: `{source:'forge'|'outposts', result:null|{id,kind,name,from,to,rar:3,bonus,val?}}`;
 последний результат повторяется при reconnect. Открытая затронутая карточка пересчитывается или заменяется при max;
+карточка Кузни получает новый уровень носителя, его же пишет журнал выбора;
 повторное принятие stale max-карточки не даёт дополнительный бонус. Лог хранит точные `team[].reforges`.
 
 

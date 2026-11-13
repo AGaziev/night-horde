@@ -911,6 +911,11 @@ export class Room {
 		h.lastReforge = { t: 'reforge', source, result };
 		this.send(h.pid, h.lastReforge);
 		this.runLog?.reforged(this, h, source, result);
+		// A Кузня card names the carrier's current level, which the pick keeps and the log records.
+		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'imprint' && c.id === id)) {
+			h.offerEpochRequired = true;
+			h.offer = h.offer.map(c => (c.kind === 'imprint' && c.id === id ? { ...c, level: result.to } : c));
+		}
 		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
 		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'duo' && c.parts?.includes(id))) {
 			// Replace the array even if the tier stays the same: inherited part levels changed.
