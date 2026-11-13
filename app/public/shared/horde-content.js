@@ -25,8 +25,8 @@ export const HORDE_PACKS = Object.freeze({
 
 // These are army weapons: one shared cooldown per weapon, never one proc per unit.
 export const HORDE_WEAPONS = Object.freeze({
-	venom: { id: 'venom', name: 'Чумной жезл', icon: '☣', tags: ['poison', 'duration'], cooldown: 4.5, range: 420, damage: 4, desc: 'Ядовитый снаряд: до 3 стаков яда на 3 секунды. Уровни усиливают яд' },
-	frost: { id: 'frost', name: 'Криолит', icon: '❄', tags: ['control', 'duration'], cooldown: 5, range: 400, damage: 5, desc: 'Ледяной снаряд замедляет героя на 18% на 2,5 секунды; без заморозки' },
+	venom: { id: 'venom', name: 'Чумной жезл', icon: '☣', tags: ['poison', 'duration', 'projectile'], cooldown: 4.5, range: 420, damage: 4, desc: 'Ядовитый снаряд: до 3 стаков яда на 3 секунды. Уровни усиливают яд' },
+	frost: { id: 'frost', name: 'Криолит', icon: '❄', tags: ['control', 'duration', 'projectile'], cooldown: 5, range: 400, damage: 5, desc: 'Ледяной снаряд замедляет героя на 18% на 2,5 секунды; без заморозки' },
 	storm: { id: 'storm', name: 'Грозовой тотем', icon: 'ϟ', tags: ['chain', 'area'], cooldown: 6, range: 360, damage: 8, desc: 'Предупреждённый разряд перескакивает к соседнему герою. Одна цель получает один удар' },
 	arbalest: { id: 'arbalest', name: 'Костяной арбалет', icon: '➶', tags: ['projectile'], cooldown: 3.8, range: 500, damage: 6, desc: 'Боец выпускает веер из двух костяных стрел; уровни усиливают залп' },
 	ember: { id: 'ember', name: 'Погребальная искра', icon: '✹', tags: ['death', 'area'], cooldown: 5, range: 130, damage: 10, desc: 'Гибель бойца рядом с героем оставляет предупреждённый взрыв. Общий откат на всю армию' },
@@ -34,18 +34,18 @@ export const HORDE_WEAPONS = Object.freeze({
 });
 
 export const HORDE_ARTIFACTS = Object.freeze({
-	lens: { id: 'lens', name: 'Треснувшая линза', icon: '◉', tags: ['projectile', 'siege'], desc: 'За уровень: +12% дальности оружия и +8% скорости снарядов' },
-	hourglass: { id: 'hourglass', name: 'Песочные часы', icon: '⌛', tags: ['duration', 'poison', 'control'], desc: 'За уровень: +20% длительности яда и замедления' },
-	powder: { id: 'powder', name: 'Пороховая урна', icon: '⚱', tags: ['area', 'death', 'blast'], desc: 'За уровень: +15% радиуса взрывов, удара серпа и цепного перескока' },
-	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], desc: 'Снаряды оружия могут дать вторичный разряд соседнему герою; общий откат 3 секунды' },
-	hunter: { id: 'hunter', name: 'Глаз охотника', icon: '◈', tags: ['poison', 'control'], desc: 'За уровень: +15% урона оружия по отравленным или замедленным героям' },
-	tether: { id: 'tether', name: 'Узы легиона', icon: '∞', tags: ['support', 'frontline'], desc: 'Оружие сильнее рядом с другим семейством: +6% за уровень и семейство, до трёх семейств' },
+	lens: { id: 'lens', name: 'Треснувшая линза', icon: '◉', tags: ['projectile', 'siege'], requiresWeapon: true, desc: 'За уровень: +12% дальности оружия и +8% скорости снарядов' },
+	hourglass: { id: 'hourglass', name: 'Песочные часы', icon: '⌛', tags: ['duration', 'poison', 'control'], requiresWeaponTags: ['duration'], desc: 'За уровень: +20% длительности яда и замедления' },
+	powder: { id: 'powder', name: 'Пороховая урна', icon: '⚱', tags: ['area', 'death', 'blast'], requiresWeaponTags: ['area'], desc: 'За уровень: +15% радиуса взрывов, удара серпа и цепного перескока' },
+	conductor: { id: 'conductor', name: 'Медный проводник', icon: '⌁', tags: ['chain', 'projectile'], requiresWeaponTags: ['projectile', 'chain'], desc: 'Снаряды оружия могут дать вторичный разряд соседнему герою; общий откат 3 секунды' },
+	hunter: { id: 'hunter', name: 'Глаз охотника', icon: '◈', tags: ['poison', 'control'], requiresWeaponTags: ['poison', 'control'], desc: 'За уровень: +15% урона оружия по отравленным или замедленным героям' },
+	tether: { id: 'tether', name: 'Узы легиона', icon: '∞', tags: ['support', 'frontline'], requiresWeapon: true, requiresPacks: 2, desc: 'Оружие сильнее рядом с другим семейством: +6% за уровень и семейство, до трёх семейств' },
 	brood: { id: 'brood', name: 'Матка роя', icon: '♧', tags: ['swarm'], desc: 'За уровень: один дополнительный боец при покупке пачки. Учитывается в населении и очереди' },
 	carapace: { id: 'carapace', name: 'Хитиновый панцирь', icon: '⛨', tags: ['frontline', 'guard'], desc: 'За уровень: новые бойцы получают барьер на 12% здоровья. Барьер не восстанавливается' },
-	march: { id: 'march', name: 'Барабан марша', icon: '♬', tags: ['fast', 'support'], desc: 'За уровень: +6% скорости рядом с другим ручным семейством; несколько барабанов не складываются' },
+	march: { id: 'march', name: 'Барабан марша', icon: '♬', tags: ['fast', 'support'], requiresPacks: 2, desc: 'За уровень: +6% скорости рядом с другим ручным семейством; несколько барабанов не складываются' },
 	supply: { id: 'supply', name: 'Военный обоз', icon: '▣', tags: ['economy'], desc: 'За уровень: пачки дешевле на 5%, запас ресурса больше на 20. Урон не усиливает' },
-	idol: { id: 'idol', name: 'Кровавый идол', icon: '♦', tags: ['frontline', 'melee'], desc: 'За уровень: +15% урона оружия, если у бойца-носителя меньше половины здоровья' },
-	censer: { id: 'censer', name: 'Чумная кадильница', icon: '♨', tags: ['poison', 'area'], desc: 'Яд при попадании заражает ещё одного соседнего героя ослабленной дозой; не порождает цепь заражений' },
+	idol: { id: 'idol', name: 'Кровавый идол', icon: '♦', tags: ['frontline', 'melee'], requiresWeapon: true, desc: 'За уровень: +15% урона оружия, если у бойца-носителя меньше половины здоровья' },
+	censer: { id: 'censer', name: 'Чумная кадильница', icon: '♨', tags: ['poison', 'area'], requiresWeapons: ['venom'], desc: 'Яд при попадании заражает ещё одного соседнего героя ослабленной дозой; не порождает цепь заражений' },
 });
 
 export const HORDE_SYNERGIES = Object.freeze([
