@@ -441,6 +441,12 @@ async function handleLobbyInvites(req, res, url) {
 		if (room.startsAt !== null && !retry) return reject(409, 'Отсчёт уже идёт.');
 		if (retry && (batch.sending || ids.some((id) => !batch.ids.includes(id)))) return reject(409, 'Дождитесь результата текущей отправки.');
 		const employees = await lobbyInvites.list(true);
+		// Access lookup can outlive a WS cancel/restart, host change, or room start.
+		// A retry belongs only to the exact batch/deadline captured before the await.
+		if (!session.conn || hub.hostLobby(session.pid, code) !== room
+			|| (retry && (room.inviteBatch !== batch || room.startsAt !== batch.startsAt))) {
+			return reject(409, 'Отсчёт или комната изменились. Откройте форму ещё раз.');
+		}
 		const allowed = new Set(employees.map(({ id }) => id));
 		if (ids.some((id) => !allowed.has(id))) return reject(409, 'Список доступа изменился. Откройте форму ещё раз.');
 		const members = new Set([...room.members.values()].map((member) => member.uid));
@@ -449,7 +455,7 @@ async function handleLobbyInvites(req, res, url) {
 		}
 		const now = Date.now();
 		if (!retry && ids.length && (inviteTimes.get(uid) ?? 0) > now) return reject(429, 'Подождите несколько секунд перед новой отправкой.');
-		const startsAt = retry ? room.startsAt : now + input.minutes * 60_000;
+		const startsAt = retry ? batch.startsAt : now + input.minutes * 60_000;
 		if (!session.conn || (retry ? hub.hostLobby(session.pid, code) !== room : !hub.scheduleStart(room, session.pid, startsAt))) {
 			return reject(409, 'Комната изменилась или отсчёт уже идёт.');
 		}

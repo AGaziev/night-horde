@@ -12,11 +12,12 @@ import { PROTO } from './snapshot-codec.js';
 
 const runtime = new URL('../../pm/test-runtime.mjs', import.meta.url).pathname;
 test('HTTP: состав, владелец, частичная доставка и безопасный повтор, ссылка, отмена и рестарт', async (t) => {
-	let retry = false;
+	let retry = false, gateAccess = false, releaseAccess;
 	const calls = [];
 	const fixture = createServer(async (req, res) => {
 		let body = ''; for await (const chunk of req) body += chunk;
 		let data = {};
+		if (req.url.endsWith('/access') && gateAccess) { gateAccess = false; await new Promise((resolve) => { releaseAccess = resolve; }); }
 		if (req.url === '/v1/me') data = { owner: { userId: '900', name: 'Владелец' } };
 		else if (req.url.endsWith('/access')) data = { users: [{ userId: '101', userName: 'Хост' }, { userId: '102', userName: 'Борис' }, { userId: '103', userName: 'Вера' }, ...Array.from({ length: 120 }, (_, i) => ({ userId: String(1000 + i), userName: 'Ёж ' + i }))] };
 		else if (req.url === '/v1/infra/servers/fixture') data = { accessPolicy: 'NAMED_USERS' };
@@ -33,8 +34,8 @@ test('HTTP: состав, владелец, частичная доставка 
 	const child = spawn(process.execPath, ['--import', runtime, '--import', new URL('../../pm/lobby-platform-fixture.mjs', import.meta.url).pathname, new URL('./server.js', import.meta.url).pathname], {
 		env: { ...process.env, PORT: '34381', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: 'local-fixture-key', HORDE_VIBE_SERVER_ID: 'fixture', HORDE_APP_ORIGIN: 'https://game.example', HORDE_TEST_PLATFORM_URL: `http://127.0.0.1:${fixture.address().port}` }, stdio: 'ignore',
 	});
-	const exited = once(child, 'exit'); let ws, guest;
-	t.after(async () => { ws?.terminate(); guest?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
+	const exited = once(child, 'exit'); let ws, guest, racingHost;
+	t.after(async () => { ws?.terminate(); guest?.terminate(); racingHost?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
 	for (let i = 0; i < 70; i++) { if (await fetch(base + '/health').then((r) => r.ok, () => false)) break; await delay(40); }
 	const headers = { 'X-Vibe-User-Id': '101', 'X-Vibe-User-Name': encodeURIComponent('Хост'), 'X-Vibe-Authorization': 'Bearer vibe_session_fixture' };
 	const { sid } = await (await fetch(base + '/api/session', { headers })).json();
@@ -78,6 +79,36 @@ test('HTTP: состав, владелец, частичная доставка 
 	for (let i = 0; i < 50 && !messages.some((m) => m.t === 'start'); i++) await delay(10);
 	assert.ok(messages.some((m) => m.t === 'start'));
 	assert.equal((await fetch(route, { headers })).status, 403, 'started room is no longer an invitation lobby');
+	// A retry awaiting the platform access list must not survive WS cancellation/restart.
+	const raceHeaders = { ...headers, 'X-Vibe-User-Id': '105' };
+	const raceSid = (await (await fetch(base + '/api/session', { headers: raceHeaders })).json()).sid;
+	racingHost = new WebSocket(base.replace('http', 'ws') + `/ws?sid=${raceSid}&v=${PROTO}`, { headers: raceHeaders });
+	const raceMessages = []; racingHost.on('message', (raw) => raceMessages.push(JSON.parse(raw)));
+	await once(racingHost, 'open'); racingHost.send(JSON.stringify({ t: 'create', hero: 'knight' }));
+	for (let i = 0; i < 50 && !raceMessages.some((m) => m.t === 'lobby'); i++) await delay(10);
+	const raceCode = raceMessages.findLast((m) => m.t === 'lobby').code;
+	const racePost = async (data) => { const response = await fetch(base + `/api/lobby/invites?sid=${raceSid}&room=${raceCode}`, { method: 'POST', headers: { ...raceHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: response.status, body: await response.json() }; };
+	retry = false;
+	const raceFirst = await racePost({ minutes: 5, ids: ['102', '103'] });
+	assert.equal(raceFirst.body.failed, 1);
+	const callsBeforeRace = calls.length;
+	gateAccess = true;
+	const pendingRetry = racePost({ minutes: 5, ids: ['103'], startsAt: raceFirst.body.startsAt });
+	for (let i = 0; i < 100 && !releaseAccess; i++) await delay(5);
+	assert.ok(releaseAccess, 'retry is blocked in actual HTTP access lookup');
+	racingHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && raceMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	assert.equal(raceMessages.findLast((m) => m.t === 'lobby').startsAt, null);
+	const pendingRestart = racePost({ minutes: 1, ids: [] });
+	releaseAccess(); releaseAccess = null;
+	const cancelledRetry = await pendingRetry;
+	assert.equal(cancelledRetry.status, 409, 'stale retry is rejected after cancellation, never sent with null/restarted deadline');
+	const raceRestart = await pendingRestart;
+	assert.equal(raceRestart.status, 200); assert.equal(raceRestart.body.active, true);
+	assert.notEqual(raceRestart.body.startsAt, raceFirst.body.startsAt);
+	assert.equal(calls.length, callsBeforeRace, 'no stale notification is emitted');
+	racingHost.send(JSON.stringify({ t: 'cancel-start' }));
+
 	if (process.env.HORDE_BROWSER_CHECK === '1') {
 		const { chromium } = await import('/Users/s.konev/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
 		const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
