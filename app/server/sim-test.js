@@ -1163,7 +1163,7 @@ console.log('over/again/leave: ok');
 		fxAll.length = 0;
 		run(r, 3.5, () => { chilled ||= e.slowT > r.time; frozenNear ||= e.frozenT > r.time; });
 		assert.ok(chilled && e.hp < 1e5, 'aura chills and hurts');
-		assert.ok(frozenNear && take('frost').some((f) => f[2] === 90), 'the pulse holds enemies inside the inherited aura');
+		assert.ok(frozenNear && take('frost').some((f) => f[2] === DUOS.aurora.levels[0].radius), 'the pulse uses the signature aura radius');
 		console.log('duo aurora: ok');
 	}
 	// 11. Кадило: clouds hurt enemies and heal allies (not the owner).

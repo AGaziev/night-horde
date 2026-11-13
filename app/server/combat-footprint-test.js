@@ -21,3 +21,10 @@ for(const dir of [-1,1]) {
   r.enemies=[];h.x=h.y=0;const e=r.spawnEnemy('ghoul',[h],1);Object.assign(e,{x,y,r:0,hp:100});r.rebuildGrid();r.slash(h,dir,100,40,10);assert.equal(e.hp<100,hit,`${dir} edge ${x},${y}`);
  }
 }
+// Execute the actual browser state event handler with only its browser-root import adapted for Node.
+const fs=await import('node:fs');
+const client=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8').replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+const {Game}=await import('data:text/javascript;base64,'+Buffer.from(client).toString('base64'));
+const g=new Game({send(){}});g.effect(['slash',1,-1,100,40,25,-8,10]);
+assert.deepEqual([g.slashes[0].x,g.slashes[0].y,g.slashes[0].impactAt],[25,-8,10]);
+g.shotEvent(['eshot',9,0,0,600,0,1,10]);g.shotEvent(['epend',9,10.02]);assert.equal(g.hostile.get(9).end,10.02,'client never prolongs a collided hostile');
