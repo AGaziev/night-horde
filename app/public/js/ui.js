@@ -403,8 +403,18 @@ export class UI {
 		for (const b of document.querySelectorAll('#levelup-cards .card-ban')) this.banLabel(b, false);
 		if (key === this.offerKey && !this.levelup.hidden) return false;
 		this.offerKey = key;
-		this.setBanMode(false);
 		const box = $('levelup-cards');
+		// The same cards sent again (a reward changed a level or the epoch) are a refresh, not a new draw:
+		// revealed chest cards stay open, hidden ones keep their reveal time, focus stays on the same control.
+		const ids = choices.map((c) => `${c.kind}:${c.id}:${c.donor ?? ''}:${c.v ?? ''}`);
+		const refresh = !this.levelup.hidden && this.offerIds?.length === ids.length
+			&& ids.every((id, i) => id === this.offerIds[i]);
+		const prevReady = refresh ? (this.readyAt ?? []) : [];
+		const active = refresh ? document.activeElement : null;
+		const focusCard = active && box.contains?.(active) ? [...box.children].findIndex((w) => w.contains(active)) : -1;
+		const focusControl = focusCard >= 0 ? [...box.children[focusCard].querySelectorAll('button, select')].indexOf(active) : -1;
+		this.offerIds = ids;
+		if (!refresh) this.setBanMode(false);
 		box.textContent = '';
 		// Boss chest (`spin`): the cards are revealed one by one, CHEST_REVEAL_MS apart; a hidden card cannot be taken.
 		for (const t of this.revealTimers ?? []) clearTimeout(t);
@@ -413,11 +423,12 @@ export class UI {
 		const swap = choices[0]?.kind === 'swap';
 		const forge = choices[0]?.kind === 'imprint';
 		const now = performance.now();
-		this.readyAt = choices.map((_, i) => (spin ? now + CHEST_REVEAL_MS * (i + 1) : 0));
+		this.readyAt = choices.map((_, i) => (!spin ? 0 : prevReady[i] ?? now + CHEST_REVEAL_MS * (i + 1)));
 		$('levelup-title-text').textContent = swap ? 'Алтарь: замена артефакта' : forge ? 'Кузня свойств' : spin ? 'Сундук босса!' : 'Новый уровень!';
 		const known = knownDuos();
 		const add = (card, c, i) => {
-			const wrap = el('div', spin ? 'card-wrap card-veil' : 'card-wrap');
+			const hidden = this.readyAt[i] > now;
+			const wrap = el('div', hidden ? 'card-wrap card-veil' : 'card-wrap');
 			wrap.appendChild(card);
 			if (canBan(c)) {
 				const b = el('button', 'card-ban');
@@ -437,12 +448,12 @@ export class UI {
 				});
 				wrap.appendChild(b);
 			}
-			if (spin) {
+			if (hidden) {
 				this.revealTimers.push(setTimeout(() => {
 					wrap.classList.remove('card-veil');
 					wrap.classList.add('card-reveal');
 					this.onReveal && this.onReveal(i, c);
-				}, CHEST_REVEAL_MS * (i + 1)));
+				}, this.readyAt[i] - now));
 			}
 			box.appendChild(wrap);
 		};
@@ -553,7 +564,8 @@ export class UI {
 		});
 		box.style.gridTemplateColumns = `repeat(${Math.max(1, choices.length)}, 1fr)`;
 		this.levelup.hidden = false;
-		return true;
+		if (focusControl >= 0) box.children[focusCard]?.querySelectorAll('button, select')[focusControl]?.focus({ preventScroll: true });
+		return !refresh;
 	}
 
 	// v20. Overclock card: the weapon's icon, the variant's name and its one-line description.
@@ -643,6 +655,7 @@ export class UI {
 	hideOffer() {
 		this.levelup.hidden = true;
 		this.offerKey = '';
+		this.offerIds = null;
 		for (const t of this.revealTimers ?? []) clearTimeout(t);
 		this.revealTimers = [];
 		this.readyAt = [];

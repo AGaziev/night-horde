@@ -1,0 +1,143 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { test } from 'node:test';
+import { Room } from './game.js';
+
+// Actual Room messages -> production UI.showOffer. Only the DOM, clock and timers are adapted.
+const contentUrl = JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href);
+const gameSource = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8').replace("'/shared/content.js'", contentUrl);
+const gameUrl = 'data:text/javascript;base64,' + Buffer.from(gameSource).toString('base64');
+const uiSource = fs.readFileSync(new URL('../public/js/ui.js', import.meta.url), 'utf8')
+	.replace("'/shared/content.js'", contentUrl)
+	.replace("import { drawHeroPreview } from './render.js';", '')
+	.replace("import { sprites } from './sprites.js';", '')
+	.replace("import { renderResults } from './results.js';", '')
+	.replace("'./game.js'", JSON.stringify(gameUrl));
+
+class Node {
+	constructor(tag = 'div') {
+		this.tagName = tag.toUpperCase(); this.children = []; this.parent = null; this.style = {}; this.hidden = true;
+		this.classes = new Set();
+		const self = this;
+		this.classList = {
+			add: (c) => self.classes.add(c), remove: (c) => self.classes.delete(c),
+			toggle: (c, on) => ((on ?? !self.classes.has(c)) ? self.classes.add(c) : self.classes.delete(c)),
+			contains: (c) => self.classes.has(c),
+		};
+	}
+	set className(v) { this.classes = new Set(String(v).split(/\s+/).filter(Boolean)); }
+	get className() { return [...this.classes].join(' '); }
+	set textContent(v) { for (const c of this.children) c.parent = null; this.text = v; this.children = []; }
+	get textContent() { return this.text ?? ''; }
+	appendChild(child) { child.parent = this; this.children.push(child); return child; }
+	append(...nodes) { for (const n of nodes) this.appendChild(n); }
+	addEventListener() {}
+	setAttribute() {}
+	contains(n) { for (; n; n = n.parent) if (n === this) return true; return false; }
+	descendants() { return this.children.flatMap((c) => [c, ...c.descendants()]); }
+	querySelectorAll(sel) {
+		const tags = sel.split(',').map((s) => s.trim()).filter((s) => /^[a-z]+$/.test(s)).map((s) => s.toUpperCase());
+		const classes = sel.split(/[\s,]+/).filter((s) => s.startsWith('.')).map((s) => s.slice(1));
+		return this.descendants().filter((n) => tags.includes(n.tagName) || classes.some((c) => n.classes.has(c)));
+	}
+	focus() { globalThis.document.activeElement = this; }
+}
+
+function fixed(value, action) { const old = Math.random; Math.random = () => value; try { return action(); } finally { Math.random = old; } }
+
+async function harness() {
+	const nodes = new Map(), node = (id) => { if (!nodes.has(id)) nodes.set(id, new Node()); return nodes.get(id); };
+	const saved = { document: globalThis.document, now: performance.now, setTimeout: globalThis.setTimeout, clearTimeout: globalThis.clearTimeout };
+	let clock = 0, timers = [];
+	globalThis.document = { getElementById: node, createElement: (tag) => new Node(tag), querySelectorAll: () => [], activeElement: null };
+	performance.now = () => clock;
+	globalThis.setTimeout = (fn, ms) => { const t = { fn, at: clock + ms }; timers.push(t); return t; };
+	globalThis.clearTimeout = (t) => { timers = timers.filter((x) => x !== t); };
+	const { UI } = await import('data:text/javascript;base64,' + Buffer.from(uiSource).toString('base64'));
+	const ui = Object.create(UI.prototype); ui.levelup = node('levelup'); ui.offerKey = ''; ui.revealTimers = [];
+	const reveals = []; ui.onReveal = (i) => reveals.push(i);
+	const advance = (ms) => {
+		clock += ms;
+		for (const t of timers.filter((x) => x.at <= clock).sort((a, b) => a.at - b.at)) { timers = timers.filter((x) => x !== t); t.fn(); }
+	};
+	const restore = () => {
+		globalThis.document = saved.document; performance.now = saved.now;
+		globalThis.setTimeout = saved.setTimeout; globalThis.clearTimeout = saved.clearTimeout;
+	};
+	return { ui, box: node('levelup-cards'), advance, reveals, restore };
+}
+
+// The last outpost guard is alive; the hero has an open boss-chest offer with a Кузня card for Иней III.
+function encounter() {
+	const sent = [], r = new Room('OFFER-REFRESH', (pid, msg) => sent.push({ pid, msg: structuredClone(msg) }));
+	r.addPlayer(1, 'One', 'knight'); r.addPlayer(2, 'Two', 'witch'); r.start();
+	const hs = [...r.heroes.values()], h = hs[0]; r.time = 600; fixed(0, () => r.updateOutposts(hs));
+	let last;
+	for (const post of r.outposts.posts) {
+		h.x = post.x; h.y = post.y;
+		while (post.spawned < post.total || r.enemies.some(e => e.outpost === post && !e.dead && e !== last)) {
+			r.updateOutposts(hs);
+			const guards = r.enemies.filter(e => e.outpost === post && !e.dead && e !== last);
+			for (const e of guards) {
+				if (post === r.outposts.posts.at(-1) && post.spawned === post.total && e === guards.at(-1)) last = e;
+				else r.killEnemy(e, h);
+			}
+			r.compactEnemies();
+		}
+	}
+	h.weapons = new Map([['frost', { lvl: 3, t: 0 }], ['sickle', { lvl: 3, t: 0 }]]); h.passives.clear();
+	h.forgeUsed = false; h.forgeDefer = 0;
+	r.recalcMods(h); r.updateCombos(h);
+	h.offer = fixed(0.5, () => r.makeChoices(h)); h.offerSpin = true; r.sendOffer(h); h.queue = 1;
+	assert.equal(h.offer[0].kind, 'imprint'); assert.equal(h.offer[0].id, 'frost'); assert.ok(h.offer.length >= 2);
+	const lvl = () => sent.findLast(x => x.pid === h.pid && x.msg.t === 'lvl').msg;
+	return { r, h, last, lvl };
+}
+
+test('#24: an outpost reward refreshing the open Кузня card keeps revealed chest cards and focus', async () => {
+	const { ui, box, advance, reveals, restore } = await harness();
+	try {
+		const { r, h, last, lvl } = encounter();
+		const first = lvl();
+		assert.equal(ui.showOffer(first), true, 'a new draw');
+		const n = first.choices.length;
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'chest cards start face down');
+		advance(600 * n + 1);
+		assert.deepEqual(reveals, [...Array(n).keys()]);
+		assert.ok(first.choices.every((_, i) => ui.cardReady(i)));
+		box.children[1].querySelectorAll('button, select')[0].focus();
+		const focused = document.activeElement;
+
+		fixed(0, () => r.killEnemy(last, h)); // the ally's kill: Иней III→IV, new epoch
+		const fresh = lvl();
+		assert.notEqual(fresh.offerEpoch, first.offerEpoch); assert.equal(fresh.choices[0].level, 4);
+		assert.equal(ui.showOffer(fresh), false, 'a refresh is not a new draw (no legendary sound)');
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, 0, 'no card is hidden again');
+		assert.ok(fresh.choices.every((_, i) => ui.cardReady(i)), 'every card stays selectable at once');
+		assert.notEqual(document.activeElement, focused, 'the buttons were rebuilt');
+		assert.equal(document.activeElement, box.children[1].querySelectorAll('button, select')[0], 'focus stays on the same card');
+		advance(5000);
+		assert.equal(reveals.length, n, 'no second reveal');
+	} finally { restore(); }
+});
+
+test('#24: a refresh during the chest reveal keeps the remaining reveal time, a new draw starts over', async () => {
+	const { ui, box, advance, restore } = await harness();
+	try {
+		const { r, h, last, lvl } = encounter();
+		const first = lvl(), n = first.choices.length;
+		ui.showOffer(first);
+		advance(700); // card 1 open, the rest still face down
+		assert.ok(ui.cardReady(0) && !ui.cardReady(1));
+		fixed(0, () => r.killEnemy(last, h));
+		ui.showOffer(lvl());
+		assert.ok(ui.cardReady(0), 'the open card stays open');
+		assert.ok(!box.children[0].classes.has('card-veil') && box.children[1].classes.has('card-veil'));
+		advance(500); // 1200 ms: the second card is due as before
+		assert.ok(ui.cardReady(1) && !box.children[1].classes.has('card-veil'));
+
+		ui.hideOffer();
+		ui.showOffer({ ...first, offerEpoch: first.offerEpoch + 100 });
+		assert.equal(box.children.filter((w) => w.classes.has('card-veil')).length, n, 'a reopened chest is a new draw');
+	} finally { restore(); }
+});
