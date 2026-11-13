@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
+import { Hub } from './game.js';
+import { DUOS, EVOS } from '../public/shared/content.js';
 
 // Use the production state and role controls. Only browser-root URLs and unused canvas imports are adapted.
 const browserSource = (name) => fs.readFileSync(new URL('../public/js/' + name, import.meta.url), 'utf8')
@@ -13,7 +15,7 @@ const uiUrl = moduleUrl(browserSource('ui.js')
 	.replace("import { sprites } from './sprites.js';", '')
 	.replace("import { renderResults } from './results.js';", '')
 	.replace("'./game.js'", JSON.stringify(gameUrl)));
-const { UI } = await import(uiUrl);
+const { UI, knownDuos, rememberDuo } = await import(uiUrl);
 const { setupLobbyInvites } = await import(moduleUrl(browserSource('lobby-invites.js').replace("'./ui.js'", JSON.stringify(uiUrl))));
 const { historyResult, renderHordeHistory } = await import(moduleUrl(browserSource('run-history.js')
 	.replace("'./ui.js'", JSON.stringify(uiUrl)).replace("import { renderResults } from './results.js';", '')));
@@ -145,4 +147,47 @@ test('resync effect dedup also covers a snapshot gap and stale snapshots cannot 
 	assert.equal(game.hostile.get(7).x0, 160);
 	game.onHordeResync({ roundId: 'gap-round', time: 41, warnings: [], shots: [], lanes: [] });
 	assert.equal(game.hostile.size, 1, 'older resync cannot erase newer restored state');
+});
+
+
+test('real onPick/fuseDuo events in PvP do not grow the fresh PvE book; PvE discoveries still persist', (t) => {
+	const storage = new Map();
+	const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+	const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	class Element {
+		constructor() { this.children = []; this.textContent = ''; }
+		appendChild(child) { this.children.push(child); return child; }
+	}
+	const nodes = new Map();
+	Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (k) => storage.get(k), setItem: (k, v) => storage.set(k, v) } });
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: {
+		createElement: () => new Element(), getElementById: (id) => { if (!nodes.has(id)) nodes.set(id, new Element()); return nodes.get(id); },
+	} });
+	t.after(() => {
+		for (const [key, previous] of [['localStorage', previousStorage], ['document', previousDocument]]) {
+			if (previous) Object.defineProperty(globalThis, key, previous); else delete globalThis[key];
+		}
+	});
+	const main = browserSource('main.js');
+	const handler = main.slice(main.indexOf('game.onEvent ='), main.indexOf('\nfunction pick('));
+	const client = new Game({ send() {} }); client.me = 2;
+	const banners = [], ui = { banner: (text) => banners.push(text), flashWeapons() {}, toast() {} };
+	new Function('game', 'state', 'ui', 'rememberDuo', 'DUOS', 'EVOS', 'HORDE_RULESET', handler)(client, { me: 2 }, ui, rememberDuo, DUOS, EVOS, 'horde');
+	for (const ruleset of ['horde', 'pve']) {
+		const hub = new Hub(() => {}); hub.addPlayer(1, 'Host'); hub.addPlayer(2, 'Hero');
+		hub.handle(1, { t: 'create', hero: 'ranger', ruleset });
+		const room = hub.players.get(1).room;
+		hub.handle(2, { t: 'join', code: room.code, hero: 'ranger' }); hub.handle(1, { t: 'start' });
+		const hero = room.heroes.get(2);
+		hero.weapons = new Map([['whip', { lvl: 3, t: 0 }], ['lightning', { lvl: 3, t: 0 }]]);
+		hero.offer = [{ kind: 'duo', id: 'thunderslash', parts: ['whip', 'lightning'], level: 1 }];
+		room.fx.length = 0; room.onPick(2, { i: 0 });
+		assert.ok(hero.weapons.has('thunderslash'), 'a real accepted pick must fuse the duo');
+		client.begin({ ruleset, roundId: 'duo-round', players: [{ pid: 2, hero: 'ranger' }] });
+		for (const ev of room.fx) client.effect(ev);
+		assert.equal(knownDuos().size, ruleset === 'horde' ? 0 : 1);
+		const freshPve = Object.create(UI.prototype); freshPve.renderDuoBook();
+		assert.match(nodes.get('duo-book-count').textContent, ruleset === 'horde' ? /^0 \/ / : /^1 \/ /);
+	}
+	assert.equal(banners.length, 2, 'both modes retain gameplay announcements');
 });

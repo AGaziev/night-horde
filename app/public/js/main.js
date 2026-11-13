@@ -384,7 +384,7 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 		case 'duo': {
 			const name = DUOS[arg2]?.name || 'связка';
 			if (arg === state.me) {
-				const first = rememberDuo(arg2);
+				const first = game.ruleset !== HORDE_RULESET && rememberDuo(arg2);
 				ui.banner(first ? `Новая связка: ${name}` : `Связка: ${name}`);
 				ui.flashWeapons();
 			} else {
