@@ -32,10 +32,11 @@ export function castConfluence(room, h, L, src, effect) {
   }
   if(effect==='choirWave') {
     const a=Math.atan2(center.y-h.y,center.x-h.x);
-    room.coldWaves.push({owner:h,x:h.x,y:h.y,dx:Math.cos(a),dy:Math.sin(a),distance:0,range,
+    const wave={id:room.nextId++,owner:h,x:h.x,y:h.y,dx:Math.cos(a),dy:Math.sin(a),distance:0,range,
       width:L.radius*h.mods.areaMul,speed:420,dmg:damage,src,hit:new Set(),slow:0.45,
-      dur:L.dur*h.mods.durMul,freeze:L.freeze*h.mods.ctrlMul*h.mods.durMul,resonance:1.4});
-    room.fx.push(['coldwave',Math.round(h.x),Math.round(h.y),a,Math.round(range),Math.round(L.radius*h.mods.areaMul),420]);
+      dur:L.dur*h.mods.durMul,freeze:L.freeze*h.mods.ctrlMul*h.mods.durMul,resonance:1.4};
+    room.coldWaves.push(wave);
+    room.fx.push(['coldwave',Math.round(h.x),Math.round(h.y),a,Math.round(range),Math.round(L.radius*h.mods.areaMul),420,wave.id]);
     return true;
   }
   const radius=L.radius*h.mods.areaMul;
