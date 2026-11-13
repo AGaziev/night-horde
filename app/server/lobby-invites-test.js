@@ -129,3 +129,14 @@ test('OAuth schema without owner stays usable and reports incomplete owner infor
 	assert.deepEqual(await portal.list(), [{ id: '2', name: 'Игрок' }]);
 	assert.match(portal.warning, /владельца/);
 });
+
+
+test('collaborator key identity is not mistaken for the server owner or an extra allowed recipient', async () => {
+	const portal = createLobbyInvites({ key: 'test-key', serverId: 'test-server', origin: 'https://game.example', fetcher: async (url) => {
+		const path = new URL(url).pathname;
+		return Response.json({ success: true, data: path.endsWith('/me') ? { owner: { userId: '999', name: 'Разработчик другого сервера' } }
+			: path.endsWith('/access') ? { users: [{ userId: '2', userName: 'Игрок' }] } : { accessPolicy: 'NAMED_USERS', access: { via: 'collaborator' } } });
+	} });
+	assert.deepEqual(await portal.list(), [{ id: '2', name: 'Игрок' }]);
+	assert.match(portal.warning, /владельца/);
+});

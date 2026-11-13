@@ -33,8 +33,8 @@ test('HTTP: состав, владелец, частичная доставка 
 	const child = spawn(process.execPath, ['--import', runtime, '--import', new URL('../../pm/lobby-platform-fixture.mjs', import.meta.url).pathname, new URL('./server.js', import.meta.url).pathname], {
 		env: { ...process.env, PORT: '34381', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: 'local-fixture-key', HORDE_VIBE_SERVER_ID: 'fixture', HORDE_APP_ORIGIN: 'https://game.example', HORDE_TEST_PLATFORM_URL: `http://127.0.0.1:${fixture.address().port}` }, stdio: 'ignore',
 	});
-	const exited = once(child, 'exit'); let ws;
-	t.after(async () => { ws?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
+	const exited = once(child, 'exit'); let ws, guest;
+	t.after(async () => { ws?.terminate(); guest?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
 	for (let i = 0; i < 70; i++) { if (await fetch(base + '/health').then((r) => r.ok, () => false)) break; await delay(40); }
 	const headers = { 'X-Vibe-User-Id': '101', 'X-Vibe-User-Name': encodeURIComponent('Хост'), 'X-Vibe-Authorization': 'Bearer vibe_session_fixture' };
 	const { sid } = await (await fetch(base + '/api/session', { headers })).json();
@@ -52,6 +52,17 @@ test('HTTP: состав, владелец, частичная доставка 
 	const first = await post({ minutes: 5, ids: ['102', '103'] });
 	assert.equal(first.status, 200); assert.equal(first.body.sent, 1); assert.equal(first.body.failed, 1); assert.equal(first.body.active, true);
 	assert.ok(calls[0].message.includes(`https://game.example/?room=${code}`));
+	const link = new URL(calls[0].message.match(/\[URL=([^\]]+)\]/)[1]);
+	const invitedCode = link.searchParams.get('room');
+	const guestHeaders = { ...headers, 'X-Vibe-User-Id': '102' };
+	const guestSid = (await (await fetch(base + '/api/session', { headers: guestHeaders })).json()).sid;
+	guest = new WebSocket(base.replace('http', 'ws') + `/ws?sid=${guestSid}&v=${PROTO}`, { headers: guestHeaders });
+	const guestMessages = []; guest.on('message', (raw) => guestMessages.push(JSON.parse(raw)));
+	await once(guest, 'open'); guest.send(JSON.stringify({ t: 'join', code: invitedCode, hero: 'knight' }));
+	for (let i = 0; i < 50 && !guestMessages.some((m) => m.t === 'lobby'); i++) await delay(10);
+	assert.equal(guestMessages.findLast((m) => m.t === 'lobby').code, code);
+	assert.equal(guestMessages.findLast((m) => m.t === 'lobby').startsAt, first.body.startsAt);
+
 	assert.equal((await get()).delivery.failed, 1);
 	retry = true;
 	const second = await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt });
