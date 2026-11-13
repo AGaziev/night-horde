@@ -246,6 +246,10 @@ function renderPlayer(box, p, color) {
 	}
 
 	const best = [];
+	if (p.support) {
+		const s=p.support;
+		if(s.healing || s.blocked || s.control || s.allyDamage) box.appendChild(el('p', 'res-note', `Поддержка: лечение ${fmtNum(s.healing)} · блок ${fmtNum(s.blocked)} · контроль ${Number(s.control ?? 0).toFixed(1)} враго-с · метки союзникам +${fmtNum(s.allyDamage)} урона.`));
+	}
 	if (p.supportDamage > 0) box.appendChild(el('p', 'res-note', `Метки добавили ${fmtNum(p.supportDamage)} урона. Это часть урона атакующих игроков.`));
 	if (p.bestHit) best.push(['💥', `Самый сильный удар: ${fmtNum(p.bestHit[0])} (${p.bestHit[1]})`, p.bestHit[2]]);
 	if (p.streak) best.push(['🔥', `Лучшая серия: ${p.streak[0]} ${plural(p.streak[0], 'убийство', 'убийства', 'убийств')} за 10 с`, p.streak[1]]);
