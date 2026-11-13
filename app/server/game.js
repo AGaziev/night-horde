@@ -281,6 +281,7 @@ export class Room {
 	get isHorde() { return this.ruleset === HORDE_RULESET; }
 	get heroCount() { return [...this.members.values()].filter((m) => m.role !== 'director').length; }
 	get maxMembers() { return this.isHorde ? HORDE_MAX_HEROES + 1 : MAX_PLAYERS; }
+	resultHeroes() { return this.isHorde ? this.runHeroes : this.heroes; }
 
 	setRuleset(id) {
 		if (this.state !== 'lobby' || (id !== 'pve' && id !== HORDE_RULESET)) return 'Неизвестные правила игры';
@@ -599,6 +600,7 @@ export class Room {
 
 	resetSim() {
 		this.time = 0;
+		this.runHeroes = new Map();
 		this.bossKills = 0;
 		if (this.isHorde) this.runLength = HORDE_SECONDS;
 		this.tscale = this.isHorde ? 1 : timeScale(this.runLength);
@@ -695,6 +697,7 @@ export class Room {
 			const r = list.length > 1 ? 50 : 0;
 			this.heroes.set(m.pid, makeHero(m, Math.cos(a) * r, Math.sin(a) * r));
 		});
+		if (this.isHorde) this.runHeroes = new Map(this.heroes);
 		this.runLog = new RunLog(this);
 		this.snapCodec = new SnapshotEncoder(SNAP_STRIDE);
 		this.needKey = new Set();
@@ -5400,7 +5403,7 @@ export class Room {
 		}
 		const log = this.runLog?.build(this, win) ?? null;
 		this.lastLog = log;
-		const stats = [...this.heroes.values()].map((h) => ({
+		const stats = [...this.resultHeroes().values()].map((h) => ({
 			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level,
 			...(!this.isHorde ? { ach: this.runAchievements(h, win) } : {}),
 		}));

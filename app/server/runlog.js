@@ -110,7 +110,7 @@ export class RunLog {
 			m: this.minutes.length + 1, enemies: room.enemies.length, hpMul: r1(enemyHpScale(room.nt ?? room.time, room.heroes.size)),
 			dmgMul: Math.round(enemyDmgScale(room.nt ?? room.time, room.heroes.size) * 100) / 100, alive, lvl: heroes.map((h) => h.level),
 			taken: Math.round(this.acc.taken), downs: this.acc.downs, kills: room.kills - this.acc.kills,
-			dps: Math.round((dealt - this.acc.dealt) / 60), maxHp: Math.round(heroes.reduce((s, h) => s + h.maxHp, 0) / heroes.length),
+			dps: Math.round((dealt - this.acc.dealt) / 60), maxHp: heroes.length ? Math.round(heroes.reduce((s, h) => s + h.maxHp, 0) / heroes.length) : 0,
 		});
 		this.acc = { taken: 0, downs: 0, kills: room.kills, dealt };
 		for (const h of heroes) {
@@ -342,7 +342,7 @@ export class RunLog {
 
 	build(room, win) {
 		if (room.time - (this.nextSample - 60) >= 5) this.sample(room);
-		const players = [...room.heroes.values()].map((h) => {
+		const players = [...(room.resultHeroes?.() ?? room.heroes).values()].map((h) => {
 			const p = this.p.get(h.pid) ?? { picks: [], reforges: [], duos: [], evos: [], taken: {}, downs: [], ups: [], minHp: h.hp, minHpT: 0, rar: newRar(), ovr: { seen: 0, took: [] }, bans: [], slotsFullT: null };
 			// Share of embers among the cards taken in the last third of the run.
 			const late = p.picks.filter((e) => e[2] === 'pick' && e[0] >= room.runLength * (2 / 3));
