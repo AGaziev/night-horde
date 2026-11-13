@@ -23,6 +23,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { newSupport, supportStats, healSupport, controlTick } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -240,7 +241,7 @@ function makeHero(member, x, y) {
 		perk: { readyAt: HERO_PERKS[member.hero]?.cooldown ?? 0, receivedBellAt: -Infinity },
 		passives: new Map(),
 		mods: baseMods(),
-		kills: 0, dmg: 0, dmgBy: {}, supportDamage: 0, revives: 0, knifeKills: 0,
+		kills: 0, dmg: 0, dmgBy: {}, supportDamage: 0, support: newSupport(), revives: 0, knifeKills: 0,
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		forgeUsed: false, forgeDefer: 0, buildChestDone: false, swapPending: false, swapUsed: false, fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, blockCharge: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
@@ -1793,6 +1794,7 @@ export class Room {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
 				if (e.outpost && e.guardReadyAt > now) continue;
+				controlTick(e, now, dt);
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
@@ -2397,14 +2399,17 @@ export class Room {
 		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
 			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
-			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+			const gain = Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+			e.markOwner.supportDamage += gain;
+			if(h !== e.markOwner) e.markOwner.support.allyDamage += gain;
 		}
 		if (!src.raw && src.markSupport) {
 			// A reaction can carry another target's mark into this hit. Credit that
 			// inherited gain before the local mark, so their cross term is counted once.
 			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
-			src.markSupport.owner.supportDamage += Math.max(0,
-				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
+			const gain = Math.max(0, Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
+			src.markSupport.owner.supportDamage += gain;
+			if(h !== src.markSupport.owner) src.markSupport.owner.support.allyDamage += gain;
 		}
 		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
@@ -2552,7 +2557,7 @@ export class Room {
 			this.reacted('cond', z.x, z.y, z.r);
 			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, this.reactionSource(e, SRC_R.cond, dmg, reaction.fixed), e);
 		}
-		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1))) this.reacted('icing', e.x, e.y, 0);
+		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1), h)) this.reacted('icing', e.x, e.y, 0);
 		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
 			e.burnT = 0;
 			e.slowT = 0;
@@ -2585,8 +2590,9 @@ export class Room {
 		return false;
 	}
 
-	root(e, dur) {
+	root(e, dur, owner) {
 		if (e.boss || dur <= 0) return;
+		if(this.time + dur > e.rootT) e.rootOwner = owner;
 		e.rootT = Math.max(e.rootT, this.time + dur);
 	}
 
@@ -2608,8 +2614,9 @@ export class Room {
 		this.hurtEnemy(e, e.burnDps * BURN_TICK, e.burnOwner, SRC_BURN);
 	}
 
-	slowEnemy(e, slow, dur) {
-		if (e.slowT <= this.time || slow >= e.slow) e.slow = slow;
+	slowEnemy(e, slow, dur, owner) {
+		slow = Math.min(e.boss ? 0.25 : 0.7, Math.max(0, slow));
+		if (e.slowT <= this.time || slow >= e.slow) { e.slow = slow; e.slowOwner = owner; }
 		e.slowT = Math.max(e.slowT, this.time + dur);
 	}
 
@@ -2847,8 +2854,7 @@ export class Room {
 				const R = ITEMS.slowtime.radius;
 				for (const e of this.enemies) {
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= R * R) continue;
-					e.slow = ITEMS.slowtime.slow;
-					e.slowT = Math.max(e.slowT, now + ITEMS.slowtime.dur);
+					this.slowEnemy(e, ITEMS.slowtime.slow, ITEMS.slowtime.dur, h);
 				}
 				break;
 			}
@@ -2920,6 +2926,7 @@ export class Room {
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
+			if(h.sharedWard && h.sharedWard.until <= now) { h.sharedWard=null; h.ward=Math.max(0,h.ward-1); }
 			h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
@@ -2969,12 +2976,17 @@ export class Room {
 		}
 	}
 
+	healSupport(owner, target, amount, field = false) { return healSupport(this, owner, target, amount, field); }
+
+
 	hurtPlayer(h, dmg, from = 'other') {
+		const prevented = Math.min(h.hp, Math.max(1, dmg * (h.altarCurseT > this.time ? ALTAR_DEALS[1].takenMul : 1) * h.trait.dmgTaken - h.mods.armor - h.guard));
 		if (h.ward > 0) {
+			(h.sharedWard?.owner ?? h).support.blocked += prevented;
 			this.wardAbsorb(h);
 			return;
 		}
-		if (blockHeroHit(this, h)) return;
+		if (blockHeroHit(this, h)) { h.support.blocked += prevented; return; }
 		const guard = h.guard;
 		h.guard = 0;
 		if (h.altarCurseT > this.time) dmg *= ALTAR_DEALS[1].takenMul;
@@ -3261,7 +3273,7 @@ export class Room {
 				const r = L.radius * areaMul;
 				if (L.heal) {
 					for (const o of this.heroes.values()) {
-						if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < r * r) o.hp = Math.min(o.maxHp, o.hp + L.heal * L.tick);
+						if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < r * r) this.healSupport(h, o, L.heal * L.tick, true);
 					}
 				}
 				const near = this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2);
@@ -3282,7 +3294,7 @@ export class Room {
 						}
 					}
 					this.hurtEnemy(e, dmg * heat, h, src);
-					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2);
+					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2, h);
 				}
 				this.breakAround(h.x, h.y, r, h);
 				if (oc === 'pulse') this.fx.push(['apulse', h.pid, Math.round(r)]);
@@ -3481,7 +3493,7 @@ export class Room {
 					const rr = r + e.r * 0.5;
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
 					this.hurtEnemy(e, dmg, h, src);
-					if (!e.dead) this.slowEnemy(e, L.slow, L.tick + 0.2);
+					if (!e.dead) this.slowEnemy(e, L.slow, L.tick + 0.2, h);
 				}
 				this.breakAround(h.x, h.y, r, h);
 				w.t = L.tick;
@@ -3645,8 +3657,8 @@ export class Room {
 				wave.hit.add(e);
 				this.hurtEnemy(e, wave.dmg, wave.owner, wave.src);
 				if (e.dead) continue;
-				this.slowEnemy(e, wave.slow, wave.dur);
-				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze);
+				this.slowEnemy(e, wave.slow, wave.dur, wave.owner);
+				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze, wave.owner);
 				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; }
 			}
 			if (wave.distance < wave.range) this.coldWaves[n++] = wave;
@@ -3825,6 +3837,7 @@ export class Room {
 		if (h.ward > h.wardMax && w.init) h.ward = h.wardMax;
 		if (!w.init) {
 			w.init = true;
+			h.sharedWard = null; // initial own shield replaces a temporary gift, without crediting it
 			h.ward = h.wardMax;
 			w.t = L.cd * h.mods.cdMul;
 		}
@@ -3843,6 +3856,10 @@ export class Room {
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
+		if(h.sharedWard) {
+			h.sharedWard = null; h.ward--; h.iframes = PLAYER_IFRAMES;
+			this.fx.push(['ward', h.pid, h.ward]); return;
+		}
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id);
 		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
@@ -3884,8 +3901,8 @@ export class Room {
 		}
 		if (id === 'bastion') {
 			for (const o of this.heroes.values()) {
-				if (o === h || o.st !== 0 || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
-				o.ward = Math.min(Math.max(o.wardMax, 1), o.ward + 1);
+				if (o === h || o.st !== 0 || o.offline || o.sharedWard || o.ward >= Math.max(o.wardMax, 1) || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
+				o.ward++; o.sharedWard = { owner: h, until: this.time + 8 };
 				this.fx.push(['ward', o.pid, o.ward]);
 				break;
 			}
@@ -4213,8 +4230,8 @@ export class Room {
 			if (e.dead || dist2(e.x, e.y, t.x, t.y) >= rr * rr) continue;
 			this.hurtEnemy(e, f.dmg, t.owner, src);
 			if (e.dead) continue;
-			this.slowEnemy(e, f.slow, f.dur);
-			if (!e.boss) this.freeze(e, f.freeze);
+			this.slowEnemy(e, f.slow, f.dur, t.owner);
+			if (!e.boss) this.freeze(e, f.freeze, t.owner);
 		}
 	}
 
@@ -4373,14 +4390,18 @@ export class Room {
 
 	// Control caps: an enemy that just thawed cannot be frozen again for FREEZE_IMMUNE seconds, and is knocked back
 	// at most once per KNOCK_EVERY (elites at half strength), so no build turns into a permanent wall.
-	freeze(e, dur) {
+	freeze(e, dur, owner) {
+		if(e.boss || dur <= 0) return false;
 		if (e.frozenT > this.time) {
-			e.frozenT = Math.max(e.frozenT, this.time + dur);
+			const end = Math.min(e.freezeLimit ?? e.frozenT, this.time + dur);
+			if(end > e.frozenT) { e.frozenT=end; e.frozenOwner=owner; }
+			e.thawT=e.frozenT+FREEZE_IMMUNE;
 			return true;
 		}
 		if (e.thawT > this.time) return false;
-		e.frozenT = this.time + dur;
-		e.thawT = e.frozenT + FREEZE_IMMUNE;
+		e.freezeLimit=this.time+2.5;
+		e.frozenT=Math.min(e.freezeLimit,this.time+dur);e.frozenOwner=owner;
+		e.thawT=e.frozenT+FREEZE_IMMUNE;
 		return true;
 	}
 
@@ -4472,7 +4493,7 @@ export class Room {
 		for (const e of this.grid.query(b.x, b.y, b.r + MAX_ENEMY_R, this.q3)) {
 			const rr = b.r + e.r * 0.5;
 			if (e.dead || e.boss || dist2(e.x, e.y, b.x, b.y) >= rr * rr) continue;
-			this.freeze(e, dur);
+			this.freeze(e, dur, h);
 			if (frozen.length < 8) frozen.push(e);
 		}
 		const shard = b.edmg * L.shardFrac;
@@ -4492,7 +4513,7 @@ export class Room {
 		const dur = L.freeze * h.mods.ctrlMul * h.mods.durMul;
 		for (const e of this.grid.query(h.x, h.y, R + MAX_ENEMY_R, this.q2)) {
 			const rr = R + e.r * 0.5;
-			if (!e.dead && !e.boss && dist2(e.x, e.y, h.x, h.y) < rr * rr) this.freeze(e, dur);
+			if (!e.dead && !e.boss && dist2(e.x, e.y, h.x, h.y) < rr * rr) this.freeze(e, dur, h);
 		}
 		this.fx.push(['frost', h.pid, Math.round(R)]);
 	}
@@ -4923,7 +4944,7 @@ export class Room {
 					p.critPierced = true;
 					p.pierce++;
 				}
-				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
+				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack, p.owner);
 				if (p.kb && !e.dead && !e.boss && !(p.returns && p.outT <= 0)) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
 				if (p.split) this.splitSpark(p, e);
 				if (p.burnHit && !e.dead) this.burn(e, p.owner, p.burnHit, 2);
@@ -4979,7 +5000,7 @@ export class Room {
 				// Wolf pit: a blast that roots everyone around.
 				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src });
 				for (const e of this.grid.query(t.x, t.y, t.blastR + MAX_ENEMY_R, near)) {
-					if (!e.dead && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) this.root(e, t.root);
+					if (!e.dead && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) this.root(e, t.root, t.owner);
 				}
 				continue;
 			}
@@ -4991,7 +5012,7 @@ export class Room {
 				continue;
 			}
 			this.fx.push(['snap', Math.round(t.x), Math.round(t.y)]);
-			this.root(victim, t.root);
+			this.root(victim, t.root, t.owner);
 			this.hurtEnemy(victim, t.dmg * (t.uses !== undefined && victim.boss ? 1.5 : 1), t.owner, src);
 			if (t.frost) this.frostWave(t, src);
 			if (stays) {
@@ -5005,7 +5026,7 @@ export class Room {
 					const rr = t.splash + e.r * 0.5;
 					if (e !== victim && !e.dead && dist2(e.x, e.y, t.x, t.y) < rr * rr) {
 						this.hurtEnemy(e, t.dmg * SPLASH_FRAC * (t.uses !== undefined && e.boss ? 1.5 : 1), t.owner, src);
-						if (rooted++ < t.rootTargets) this.root(e, t.root);
+						if (rooted++ < t.rootTargets) this.root(e, t.root, t.owner);
 					}
 				}
 			}
@@ -5069,7 +5090,7 @@ export class Room {
 			}
 			if (z.heal > 0) {
 				for (const o of this.heroes.values()) {
-					if (o !== z.owner && o.st === 0 && dist2(o.x, o.y, z.x, z.y) < z.r * z.r) o.hp = Math.min(o.maxHp, o.hp + z.heal * dt);
+					if (o !== z.owner && o.st === 0 && dist2(o.x, o.y, z.x, z.y) < z.r * z.r) this.healSupport(z.owner, o, z.heal * dt, true);
 				}
 			}
 			this.puddles[j++] = z;
@@ -5082,8 +5103,7 @@ export class Room {
 		for (const e of near) {
 			const rr = z.r + e.r * 0.5;
 			if (e.dead || dist2(e.x, e.y, z.x, z.y) >= rr * rr) continue;
-			if (e.slowT <= this.time || z.slow > e.slow) e.slow = z.slow;
-			e.slowT = Math.max(e.slowT, this.time + SLOW_HOLD);
+			this.slowEnemy(e, z.slow, SLOW_HOLD, z.owner);
 		}
 	}
 
@@ -5305,7 +5325,7 @@ export class Room {
 		}
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
-			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
+			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
