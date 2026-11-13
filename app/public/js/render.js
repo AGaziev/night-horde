@@ -157,6 +157,7 @@ export class Renderer {
 			this.trackSlowPuddles(game);
 			this.drawProps(ctx, game, now);
 			this.drawOutposts(ctx, game, now);
+			this.drawCaravan(ctx, game);
 			this.drawIceTrail(ctx, game);
 			this.drawPuddles(ctx, view.b, now, game);
 			this.drawSteams(ctx, game, now);
@@ -490,6 +491,23 @@ export class Renderer {
 			out.y = aArr[j + 2] + (by - aArr[j + 2]) * t;
 		}
 		return out;
+	}
+
+	drawCaravan(ctx, game) {
+		const c = game.view.b?.cv;
+		if (!c || c.x < this.vx0 - 100 || c.x > this.vx1 + 100 || c.y < this.vy0 - 100 || c.y > this.vy1 + 100) return;
+		ctx.save(); ctx.translate(c.x, c.y);
+		ctx.fillStyle = '#0007'; ctx.beginPath(); ctx.ellipse(0, 15, 53, 27, 0, 0, TAU); ctx.fill();
+		ctx.strokeStyle = '#25262b'; ctx.lineWidth = 8;
+		for (const x of [-35, 35]) { ctx.beginPath(); ctx.moveTo(x, -14); ctx.lineTo(x, 31); ctx.stroke(); }
+		ctx.fillStyle = '#896744'; ctx.fillRect(-41, -19, 82, 46);
+		ctx.strokeStyle = '#d5b878'; ctx.lineWidth = 3; ctx.strokeRect(-41, -19, 82, 46);
+		ctx.fillStyle = c.status === 'open' ? '#ffe082' : '#a94b42'; ctx.fillRect(-24, -38, 48, 38);
+		ctx.strokeStyle = '#f1d28c'; ctx.strokeRect(-24, -38, 48, 38);
+		ctx.fillStyle = '#fff0b8'; ctx.fillRect(-3, -24, 6, 18);
+		ctx.font = 'bold 15px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#11161d';
+		const label = c.status === 'open' ? '◆ Заберите груз' : `◆ Караван · ${c.killed}/${c.total}`;
+		ctx.strokeText(label, 0, -56); ctx.fillText(label, 0, -56); ctx.restore();
 	}
 
 	drawOutposts(ctx, game, now) {
@@ -3240,6 +3258,10 @@ export class Renderer {
 		if (ev && !(ev.def.id === 'fog' || ev.def.id === 'streak' || (ev.def.id === 'cursed' && ev.phase === 1) || (ev.def.id === 'star' && ev.phase === 1))) {
 			const s = this.toScreen(ev.x, ev.y, this.tmp);
 			if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse, color: '#ffd54f', name: ev.def.arrow ?? ev.def.name, icon: '★' }));
+		}
+		if (b.cv) {
+			const c = b.cv, s = this.toScreen(c.x, c.y, this.tmp);
+			if (!this.onScreen(s)) out.push(this.edgeArrow(s, { pulse: .9, color: '#ffe082', name: `Караван · ${Math.round(Math.hypot(c.x - game.local.x, c.y - game.local.y))} ед.`, icon: '◆', kind: 'caravan' }));
 		}
 		// Keep the nearest three destinations readable; the radar always includes the whole network.
 		const op = b.op;

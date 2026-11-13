@@ -745,6 +745,9 @@ export class UI {
 		this.set('hud-event', 'hidden', !ev);
 		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
 		if (!snap) return;
+		const cv = snap.cv;
+		this.set('hud-caravan', 'hidden', !cv);
+		if (cv) this.set('hud-caravan', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с`);
 		const op = snap.op;
 		this.set('hud-outposts', 'hidden', !op);
 		if (op) {
