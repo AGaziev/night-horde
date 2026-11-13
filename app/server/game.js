@@ -3885,6 +3885,7 @@ export class Room {
 		if (h.ward > h.wardMax && w.init) h.ward = h.wardMax;
 		if (!w.init) {
 			w.init = true;
+			h.sharedWard = null; // initial own shield replaces a temporary gift, without crediting it
 			h.ward = h.wardMax;
 			w.t = L.cd * h.mods.cdMul;
 		}
@@ -4438,14 +4439,16 @@ export class Room {
 	// at most once per KNOCK_EVERY (elites at half strength), so no build turns into a permanent wall.
 	freeze(e, dur, owner) {
 		if(e.boss || dur <= 0) return false;
-		if(this.time + dur > e.frozenT && !(e.thawT > this.time && e.frozenT <= this.time)) e.frozenOwner = owner;
 		if (e.frozenT > this.time) {
-			e.frozenT = Math.max(e.frozenT, this.time + dur);
+			const end = Math.min(e.freezeLimit ?? e.frozenT, this.time + dur);
+			if(end > e.frozenT) { e.frozenT=end; e.frozenOwner=owner; }
+			e.thawT=e.frozenT+FREEZE_IMMUNE;
 			return true;
 		}
 		if (e.thawT > this.time) return false;
-		e.frozenT = this.time + dur;
-		e.thawT = e.frozenT + FREEZE_IMMUNE;
+		e.freezeLimit=this.time+2.5;
+		e.frozenT=Math.min(e.freezeLimit,this.time+dur);e.frozenOwner=owner;
+		e.thawT=e.frozenT+FREEZE_IMMUNE;
 		return true;
 	}
 

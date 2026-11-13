@@ -14,3 +14,25 @@ const boss=r.spawnEnemy('brute',[h],1);boss.boss=true;r.freeze(boss,2,h);r.root(
 assert.ok(boss.frozenT<=r.time&&boss.rootT<=r.time);assert.equal(boss.slow,.25,'boss slow capped');
 const row=r.snapshot().support.find(p=>p[0]===h.pid);assert.equal(row[3],40);
 console.log('support: effective healing, bounded shared shields, union control and boss caps');
+// Shared healing field cap includes repeated/overlapping casts from different owners.
+b.hp=0;b.st=0;b.maxHp=100;r.time=200;h.support.healing=0;
+for(let i=0;i<12;i++)r.healSupport(h,b,1,true);
+assert.equal(b.hp,6);assert.equal(h.support.healing,6);
+r.healSupport(a,b,20,true);assert.equal(b.hp,6,'all casters share the same recipient budget');
+r.time=201;r.healSupport(a,b,20,true);assert.equal(b.hp,12,'next active second restores the field budget');
+const log=r.runLog.build(r,false),card=r.runLog.card(r,log);
+assert.deepEqual(log.team[0].support,card.players[0].support,'saved history contains the actual contribution');
+assert.ok(!JSON.stringify(log).includes('sharedWard'),'owner object graph is never serialized');
+{
+ const f=r.spawnEnemy('ghoul',[h],1);r.time=300;
+ assert.equal(r.freeze(f,2,h),true);
+ for(let i=1;i<=24;i++){r.time=300+i*.1;r.freeze(f,2,a);}
+ assert.equal(f.frozenT,302.5,'staggered allied freezes have a finite continuous limit');
+ r.time=302.6;assert.equal(r.freeze(f,2,b),false,'mandatory thaw window');
+ r.time=304.01;assert.equal(r.freeze(f,2,b),true,'control returns after immunity');
+}
+{
+ const target=r.heroes.get(4);target.ward=1;target.sharedWard={owner:h,until:r.time+8};target.weapons.set('ward',{lvl:3,t:0});
+ r.updateWeapon(target,'ward',target.weapons.get('ward'),1/30);
+ assert.equal(target.sharedWard,null,'own initial shield cannot misattribute a replaced gift');
+}
