@@ -4,7 +4,7 @@ import { Room } from './game.js';
 import { passiveValue } from '../public/shared/content.js';
 
 const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8')
- .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+ .replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const random=Math.random;
 Math.random=()=>0;
@@ -101,7 +101,7 @@ try {
   const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
   assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
   assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
-  assert.equal(welcome.v,24,'server and current browser announce the new offer-action protocol');
+  assert.equal(welcome.v,26,'server and current browser announce the current offer-action protocol');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
   assert.equal(reloads,1,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
@@ -116,7 +116,7 @@ try {
 {
  const gameUrl='data:text/javascript;base64,'+Buffer.from(source).toString('base64');
  const uiSource=fs.readFileSync(new URL('../public/js/ui.js',import.meta.url),'utf8')
-  .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href))
+  .replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href)
   .replace("import { drawHeroPreview } from './render.js';",'')
   .replace("import { sprites } from './sprites.js';",'')
   .replace("import { renderResults } from './results.js';",'')

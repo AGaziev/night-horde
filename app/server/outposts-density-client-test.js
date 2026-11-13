@@ -12,7 +12,7 @@ try {
 	fs.writeFileSync(path.join(tmp, 'package.json'), '{"type":"module"}');
 	const dir = new URL('../public/js/', import.meta.url);
 	for (const name of fs.readdirSync(dir).filter(name => name.endsWith('.js'))) {
-		const src = fs.readFileSync(new URL(name, dir), 'utf8').replaceAll("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+		const src = fs.readFileSync(new URL(name, dir), 'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 		fs.writeFileSync(path.join(tmp, name), src);
 	}
 	const { Game, E_STRIDE } = await import(pathToFileURL(path.join(tmp, 'game.js')));
