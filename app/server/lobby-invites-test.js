@@ -9,7 +9,7 @@ import { setTimeout } from 'node:timers/promises';
 import { test } from 'node:test';
 import WebSocket from 'ws';
 import { Hub } from './game.js';
-import { createLobbyInvites } from './lobby-invites.js';
+import { createLobbyInvites, inviteCapacity } from './lobby-invites.js';
 import { BASE_URL } from './storage.js';
 import { PROTO } from './snapshot-codec.js';
 
@@ -70,6 +70,7 @@ test('сотрудники берутся только из действующе
 					{ userId: '101', userName: 'Аня' }, { userId: '102', userName: 'Борис' }, { userId: 'net_123', userName: 'Гость' },
 				], departments: [] } });
 			}
+			if (route.endsWith('/me')) return Response.json({ success: true, data: {} });
 			if (route.endsWith('/test-server')) return Response.json({ success: true, data: { accessPolicy: policy } });
 			assert.equal(route, '/v1/notifications');
 			assert.equal(request.headers.Authorization, 'Bearer vibe_session_test');
@@ -84,7 +85,7 @@ test('сотрудники берутся только из действующе
 	const results = await portal.send(['101', '102'], 'Bearer vibe_session_test', {
 		code: 'TEST', startsAt: 10_000, minutes: 5, host: 'Хост',
 	});
-	assert.deepEqual(results, { sent: 1, failed: 1 });
+	assert.equal(results.sent, 1); assert.equal(results.failed, 1); assert.equal(results.unknown, 0);
 	assert.deepEqual(calls.map(({ userId }) => userId), [101, 102]);
 	assert.ok(calls.every(({ message }) => message.includes('https://game.example/?room=TEST') && message.includes('5 мин')));
 	policy = 'OWNER_ONLY';
@@ -198,7 +199,8 @@ test('HTTP invites expose four Horde slots and four new invitees fit', { timeout
 	const list = await api.request(host, lobby.code);
 	assert.equal(list.status, 200); assert.equal((await list.json()).slots, 4);
 	const sent = await api.request(host, lobby.code, ['102', '103', '104', '105']);
-	assert.equal(sent.status, 200); assert.deepEqual(await sent.json(), { active: true, sent: 4, failed: 0 });
+	assert.equal(sent.status, 200); const result = await sent.json();
+	assert.equal(result.active, true); assert.equal(result.sent, 4); assert.equal(result.failed, 0); assert.equal(result.unknown, 0);
 	assert.equal(api.notifications.length, 4); assert.equal((await api.busy()).scheduled, 1);
 });
 
@@ -215,7 +217,8 @@ test('HTTP PvE invites retain seven free slots and seven deliveries for the eigh
 	const lobby = await api.create(host, 'pve');
 	assert.equal((await (await api.request(host, lobby.code)).json()).slots, 7);
 	const sent = await api.request(host, lobby.code, ['102', '103', '104', '105', '106', '107', '108']);
-	assert.equal(sent.status, 200); assert.deepEqual(await sent.json(), { active: true, sent: 7, failed: 0 });
+	assert.equal(sent.status, 200); const result = await sent.json();
+	assert.equal(result.active, true); assert.equal(result.sent, 7); assert.equal(result.failed, 0); assert.equal(result.unknown, 0);
 	assert.equal(api.notifications.length, 7);
 });
 
@@ -251,4 +254,78 @@ test('HTTP invites recheck host ownership and lobby state after access lookup', 
 	held.release();
 	assert.equal((await pending).status, 409);
 	assert.equal(api.notifications.length, 0); assert.equal((await api.busy()).scheduled, 0);
+
+});
+
+test('владелец из /me доступен для приглашения без отдельной записи /access; весь непагинируемый список сохранён', async () => {
+	const portal = createLobbyInvites({ key: 'test-key', serverId: 'test-server', origin: 'https://game.example', fetcher: async (url) => {
+		const path = new URL(url).pathname;
+		return Response.json({ success: true, data: path.endsWith('/me') ? { owner: { userId: '900', name: 'Владелец' } }
+			: path.endsWith('/access') ? { users: Array.from({ length: 130 }, (_, i) => ({ userId: String(i + 1), userName: 'Сотрудник ' + i })), departments: [] }
+			: { accessPolicy: 'NAMED_USERS' } });
+	} });
+	const employees = await portal.list();
+	assert.equal(employees.length, 131);
+	assert.deepEqual(employees.find((e) => e.id === '900'), { id: '900', name: 'Владелец' });
+});
+
+test('повтор частичной доставки не дублирует успешных и не повторяет неизвестный результат', async () => {
+	const calls = []; let retry = false;
+	const portal = createLobbyInvites({ key: 'test-key', serverId: 'test-server', origin: 'https://game.example', fetcher: async (url, req) => {
+		const { userId } = JSON.parse(req.body); calls.push(userId);
+		if (userId === 3) throw new Error('connection reset after request');
+		return Response.json(userId === 1 || retry ? { success: true, data: { notificationId: userId + 10 } }
+			: { success: false, error: { code: 'NOTIFICATION_NOT_DELIVERED' } }, { status: userId === 2 && !retry ? 422 : 201 });
+	} });
+	const info = { code: 'TEST', startsAt: 10_000, minutes: 5, host: 'Хост' };
+	const first = await portal.send(['1', '2', '3'], 'Bearer vibe_session_test', info);
+	assert.deepEqual(first.recipients.map((r) => [r.id, r.status]), [['1', 'sent'], ['2', 'failed'], ['3', 'unknown']]);
+	assert.match(first.recipients[1].error, /получател/);
+	assert.match(first.recipients[2].error, /неизвест/);
+	retry = true;
+	const second = await portal.send(['1', '2', '3'], 'Bearer vibe_session_test', info, first.recipients);
+	assert.deepEqual(calls, [1, 2, 3, 2]);
+	assert.equal(second.sent, 2); assert.equal(second.unknown, 1); assert.equal(second.failed, 0);
+});
+
+
+test('capacity respects room-specific limits and keeps PvE fallback', () => {
+	assert.equal(inviteCapacity({ size: 4, maxMembers: 5 }, 8), 1);
+	assert.equal(inviteCapacity({ size: 4 }, 8), 4);
+	assert.equal(inviteCapacity({ size: 6, maxMembers: 5 }, 8), 0);
+});
+
+test('OAuth schema without owner stays usable and reports incomplete owner information', async () => {
+	const portal = createLobbyInvites({ key: 'test-key', serverId: 'test-server', origin: 'https://game.example', fetcher: async (url) => {
+		const path = new URL(url).pathname;
+		return Response.json({ success: true, data: path.endsWith('/me') ? { type: 'oauth_app', app: { id: 'app', title: 'Game' }, currentUser: null }
+			: path.endsWith('/access') ? { users: [{ userId: '2', userName: 'Игрок' }] } : { accessPolicy: 'NAMED_USERS' } });
+	} });
+	assert.deepEqual(await portal.list(), [{ id: '2', name: 'Игрок' }]);
+	assert.match(portal.warning, /владельца/);
+});
+
+
+test('collaborator key identity is not mistaken for the server owner or an extra allowed recipient', async () => {
+	const portal = createLobbyInvites({ key: 'test-key', serverId: 'test-server', origin: 'https://game.example', fetcher: async (url) => {
+		const path = new URL(url).pathname;
+		return Response.json({ success: true, data: path.endsWith('/me') ? { owner: { userId: '999', name: 'Разработчик другого сервера' } }
+			: path.endsWith('/access') ? { users: [{ userId: '2', userName: 'Игрок' }] } : { accessPolicy: 'NAMED_USERS', access: { via: 'collaborator' } } });
+	} });
+	assert.deepEqual(await portal.list(), [{ id: '2', name: 'Игрок' }]);
+	assert.match(portal.warning, /владельца/);
+});
+
+test('lobby revisions distinguish cancellation and new batch even when their deadlines match', () => {
+	const hub = new Hub(() => {}); hub.addPlayer(1, 'Host'); hub.handle(1, { t: 'create', hero: 'knight' });
+	const room = hub.players.get(1).room;
+	assert.equal(hub.scheduleStart(room, 1, 10000, { id: 'batch-a' }), true);
+	assert.equal(room.lobbyMsg().inviteBatchId, 'batch-a'); assert.equal(room.lobbyMsg().inviteRevision, 1);
+	assert.equal(room.cancelStart(), true);
+	assert.equal(room.lobbyMsg().startsAt, null); assert.equal(room.lobbyMsg().inviteRevision, 2);
+	assert.equal(hub.scheduleStart(room, 1, 10000, { id: 'batch-b' }), true);
+	assert.equal(room.lobbyMsg().inviteBatchId, 'batch-b'); assert.equal(room.lobbyMsg().inviteRevision, 3);
+	assert.equal(room.cancelStart(), true);
+	assert.equal(hub.scheduleStart(room, 1, 10000), true, 'non-invite scheduling does not inherit an old invite batch');
+	assert.equal(room.inviteBatch, null); assert.equal(room.lobbyMsg().inviteBatchId, null); assert.equal(room.lobbyMsg().inviteRevision, 5);
 });

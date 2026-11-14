@@ -17,7 +17,7 @@ test('Horde compatibility requires the exact protocol; unannounced test players 
 	const pid = 900_001;
 	try {
 		assert.equal(codec.isCompatible(pid), true);
-		for (const version of [PROTO - 1, PROTO, PROTO + 1]) {
+		for (const version of [24, 27, 29, 30, PROTO, PROTO + 1]) {
 			clientProto.set(pid, version);
 			assert.equal(codec.isCompatible(pid), version === PROTO);
 		}
@@ -138,7 +138,7 @@ test('real WS and SSE reject mismatched Horde reconnect without resync, replacin
 	director.send({ t: 'start' });
 	await hero.wait((m) => m.t === 'start' && m.ruleset === 'horde');
 	await director.wait((m) => m.t === 'horde');
-	for (const version of [PROTO - 1, PROTO + 1]) {
+	for (const version of [27, 29, PROTO - 1, PROTO + 1]) {
 		const rejected = await connect(director.sid, version, (client) => client.send({ t: 'leave' }));
 		assert.equal(rejected.frames.find((m) => m.t === 'welcome').v, PROTO);
 		await rejected.wait((m) => m.t === 'err' && /обновите/.test(m.msg));

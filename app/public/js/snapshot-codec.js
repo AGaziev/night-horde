@@ -2,7 +2,9 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 27; // Horde round identities and authoritative combat resync require matching clients.
+export const PROTO = 31; // Merged Horde round/recovery and main movement/telegraph contracts; excludes old Horde 27, main 29 and reserved 30.
+// 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
+// 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.

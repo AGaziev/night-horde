@@ -269,6 +269,10 @@ export class Net {
 
 	// Only HordeUI retries its immutable, sequenced commands. Other actions are never replayed here.
 	// Chained POSTs keep their order, but a stalled response cannot hold the queue forever.
+	// Keep menu/offer commands, but never replay unsent movement rejected by a pause.
+	discardPositions() {
+		this.outbox = this.outbox.filter((msg) => msg.t !== 'pos');
+	}
 	async flush() {
 		if (!this.connected || this.posting || !this.outbox.length) return;
 		const request = { controller: new AbortController(), batch: this.outbox.splice(0), attempt: this.attempt };

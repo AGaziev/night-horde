@@ -1,3 +1,4 @@
+import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
 	REVIVE_RADIUS, REVIVE_SECONDS, REVIVE_HP_FRACTION, PLAYER_IFRAMES, MAX_LEVEL,
@@ -26,6 +27,7 @@ import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec.js';
 import { HordeMode } from './horde-mode.js';
 import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_COMBAT, clampHordePosition } from '../public/shared/horde-content.js';
+import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -269,6 +271,7 @@ export class Room {
 		this.frozen = false; // pause or a solo level-up offer: the tick stands still
 		this.state = 'lobby';
 		this.startsAt = null;
+		this.inviteRevision = 0;
 		this.members = new Map(); // pid -> {pid, name, hero, ready, color}
 		this.host = null;
 		this.heroes = new Map();
@@ -447,6 +450,7 @@ export class Room {
 			ruleset: this.ruleset, directorPid: this.directorPid,
 			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			startsAt: this.startsAt, serverNow: Date.now(),
+			inviteBatchId: this.inviteBatch?.id ?? null, inviteRevision: this.inviteRevision,
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color, role }) => ({ pid, name, hero, ready, color, role })),
 		};
 	}
@@ -670,6 +674,7 @@ export class Room {
 	cancelStart(startsAt = this.startsAt) {
 		if (this.state !== 'lobby' || startsAt === null || this.startsAt !== startsAt) return false;
 		this.startsAt = null;
+		this.inviteRevision++;
 		this.sendLobby();
 		return true;
 	}
@@ -776,6 +781,7 @@ export class Room {
 			if (this.fin) [h.x, h.y] = clampToRing(h.x, h.y, this.fin.cx, this.fin.cy, this.fin.r - PLAYER_RADIUS);
 			this.horde?.confine(h, PLAYER_RADIUS);
 			h.lastPosT = this.time;
+			if (Number.isSafeInteger(msg.seq) && msg.seq > 0) h.posAck = msg.seq;
 		}
 		const fx = num(msg.fx), fy = num(msg.fy);
 		if (fx !== null && fy !== null) {
@@ -813,7 +819,8 @@ export class Room {
 		this.send(h.pid, { t: 'ps', levels: Object.fromEntries(h.passives), values: { ...h.pval } });
 	}
 
-	sendOffer(h) {
+	// `rerolled` marks the reply to an accepted reroll, so the client deals it as a new draw.
+	sendOffer(h, rerolled = false) {
 		const signature = JSON.stringify(h.offer);
 		if (h.offer !== h.sentOffer || signature !== h.offerSignature) {
 			h.offerEpoch = this.offerSequence = (this.offerSequence ?? 0) + 1;
@@ -824,6 +831,7 @@ export class Room {
 		const closed = !h.offer?.length;
 		this.send(h.pid, {
 			t: 'lvl', choices: closed ? null : h.offer, closed: closed || undefined, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			rerolled: rerolled || undefined,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
 	}
@@ -1045,6 +1053,11 @@ export class Room {
 		h.lastReforge = { t: 'reforge', source, result };
 		this.send(h.pid, h.lastReforge);
 		this.runLog?.reforged(this, h, source, result);
+		// A Кузня card names the carrier's current level, which the pick keeps and the log records.
+		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'imprint' && c.id === id)) {
+			h.offerEpochRequired = true;
+			h.offer = h.offer.map(c => (c.kind === 'imprint' && c.id === id ? { ...c, level: result.to } : c));
+		}
 		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
 		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'duo' && c.parts?.includes(id))) {
 			// Replace the array even if the tier stays the same: inherited part levels changed.
@@ -1436,7 +1449,7 @@ export class Room {
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h, true);
-		this.sendOffer(h);
+		this.sendOffer(h, true);
 	}
 
 	// Declining the whole offer gives SKIP_XP instead (no junk in slots).
@@ -1491,6 +1504,7 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
@@ -1509,11 +1523,11 @@ export class Room {
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
+		this.updateHostile(dt);
 		this.horde?.combat.tick(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
-		this.updateHostile(dt);
 		this.updateBlasts();
 		this.updateOrbs(dt);
 		this.updateTimers();
@@ -1976,7 +1990,15 @@ export class Room {
 				}
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
-				if (e.frozenT > now || e.rootT > now) continue;
+				if (e.frozenT > now || e.rootT > now) {
+					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
+					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
+					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
+						e.windT = e.shotT = 0;
+						e.aimAfter = now + 1 / SNAPSHOT_HZ;
+					}
+					continue;
+				}
 				let dx = best.x - e.x, dy = best.y - e.y;
 				const d = Math.sqrt(bd) || 1;
 				dx /= d;
@@ -2278,6 +2300,7 @@ export class Room {
 		for (let i = 0; i < n; i++) {
 			const a = a0 + (i / n) * Math.PI * 2;
 			const s = { id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, dmg: dmg * e.dmgMul, from: enemyKey(e) + ':shot' };
+			s.bornAt = this.time;
 			this.hostile.push(s);
 			this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 		}
@@ -2334,6 +2357,7 @@ export class Room {
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		boundGuardShot(e, s);
+		s.bornAt = this.time;
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2341,10 +2365,6 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
-		if (e.outpost && e.windT > 0 && e.guardAim && (e.x !== e.guardAim.x || e.y !== e.guardAim.y)) {
-			e.windT = 0;
-			e.shotT = 0;
-		}
 		if (e.windT > 0) {
 			e.windT -= dt;
 			if (e.windT <= 0) {
@@ -2353,11 +2373,13 @@ export class Room {
 				const dmg = E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				for (let i = 0; i < E.fan; i++) {
 					const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
+					// From where it aimed, even if knocked or pulled since: the volley follows the lanes on screen.
 					const s = {
-						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
+						id: this.nextId++, x: e.aimX ?? e.x, y: e.aimY ?? e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
+					s.bornAt = this.time;
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2367,7 +2389,7 @@ export class Room {
 		}
 		e.shotT -= dt;
 		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
-		if (e.shotT <= 0 && d < keep[1] + 150) {
+		if (e.shotT <= 0 && d < keep[1] + 150 && !(e.aimAfter > this.time)) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
@@ -2377,7 +2399,8 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
-			if (e.outpost) e.guardAim = { x: e.x, y: e.y };
+			e.aimX = e.x;
+			e.aimY = e.y;
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
 			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
@@ -2410,25 +2433,50 @@ export class Room {
 	}
 
 	updateHostile(dt) {
+		const frames = this.contactFrames ?? new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
+		this.contactFrames = null;
+		// Early AI hazards keep their legacy phase priority; preserve their new grant.
+		for (const [h, frame] of frames) if (h.iframes > frame.protectedUntil - frame.start + 1e-9)
+			frame.protectedUntil = Math.max(frame.protectedUntil, this.time + h.iframes);
+		const events = [], motions = new Map();
+		for (const s of this.hostile) {
+			const start = Math.max(this.time - dt, s.bornAt ?? this.time - dt);
+			const elapsed = Math.max(0, this.time - start), step = Math.min(elapsed, Math.max(0, s.life));
+			const ox = s.x, oy = s.y;
+			s.life -= elapsed; s.x += s.vx * step; s.y += s.vy * step;
+			motions.set(s, {start, step, ox, oy});
+			// Positive-life newborns may overlap at their birth endpoint, but never traverse pre-birth history.
+			if (step <= 0 && !(elapsed === 0 && s.life > 0 && start <= this.time)) continue;
+			const from = dt > 0 ? (start - (this.time - dt)) / dt : 1, to = Math.min(1, from + step / dt);
+			for (const h of this.heroes.values()) {
+				if (h.st !== 0) continue;
+				const prev = h.dashPath ?? h.hostilePos ?? h;
+				const hx0 = prev.x + (h.x - prev.x) * from, hy0 = prev.y + (h.y - prev.y) * from;
+				const hx1 = prev.x + (h.x - prev.x) * to, hy1 = prev.y + (h.y - prev.y) * to;
+				const t = movingCircleImpact(ox, oy, s.x, s.y, hx0, hy0, hx1, hy1, (s.r ?? HOSTILE_R) + PLAYER_RADIUS);
+				if (t !== null) events.push({s, h, at: start + t * step});
+			}
+		}
+		events.sort((a,b) => a.at - b.at || a.s.id - b.s.id || a.h.pid - b.h.pid);
+		const impacts = new Map();
+		for (const {s,h,at} of events) {
+			if (impacts.has(s) || h.st !== 0) continue;
+			impacts.set(s, at); // Protection consumes a projectile, just as endpoint contact did.
+			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
+		}
 		let j = 0;
 		for (const s of this.hostile) {
-			s.life -= dt;
-			s.x += s.vx * dt;
-			s.y += s.vy * dt;
-			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
-			if (!done) {
-				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				for (const h of this.heroes.values()) {
-					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
-					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
-					done = true;
-					break;
-				}
-			}
-			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
-			else this.hostile[j++] = s;
+			const {start, step, ox, oy} = motions.get(s), at = impacts.get(s);
+			const done = at !== undefined || s.life <= 0 || (s.outpost && dist2(s.x,s.y,s.outpost.x,s.outpost.y) > OUTPOST.shotRange ** 2);
+			if (done) {
+				const travel = at === undefined ? step : at - start;
+				this.fx.push(['epend',s.id,round3(start+travel),round3(ox+s.vx*travel),round3(oy+s.vy*travel),at === undefined ? 0 : 1]);
+			} else this.hostile[j++] = s;
 		}
 		this.hostile.length = j;
+		for (const [h,frame] of frames) {
+			finishContactFrame(h,frame);h.contactFrameEnd=this.time;h.hostilePos={x:h.x,y:h.y};
+		}
 	}
 
 	eliteTick(e, target, dt) {
@@ -3110,7 +3158,7 @@ export class Room {
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
-			h.iframes = Math.max(0, h.iframes - dt);
+			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
@@ -4358,7 +4406,7 @@ export class Room {
 		const dir = target.x >= h.x ? 1 : -1;
 		const hit = [];
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			this.slashHits(h, d, range, width, L.dmg * h.mods.dmgMul, SRC.riposte, hit);
 			this.breakAround(h.x + (d * range) / 2, h.y, range / 2, h);
 		}
@@ -4416,11 +4464,11 @@ export class Room {
 		if (!target) return false;
 		const dir = target.x >= h.x ? 1 : -1, now = this.time;
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			const cx = h.x + (d * range) / 2;
 			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
 			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
-				if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+				if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 				this.hurtEnemy(e, L.dmg * h.mods.dmgMul * (e.rootT > now ? L.rootMul : 1), h, SRC.abatis);
 			}
 			this.breakAround(cx, h.y, range / 2, h);
@@ -4625,7 +4673,7 @@ export class Room {
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
-			if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, src);
 			if (!e.dead) hit.push(e);
 		}
@@ -4903,14 +4951,13 @@ export class Room {
 	}
 
 	slash(h, dir, range, width, dmg) {
-		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width)]);
+		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 		const cx = h.x + dir * range / 2;
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.x + e.r < x0 || e.x - e.r > x1) continue;
-			if (Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (!circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, SRC.whip);
 		}
 		this.breakAround(cx, h.y, range / 2, h);
@@ -5502,7 +5549,8 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
+			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it,
+			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
@@ -5693,9 +5741,12 @@ export class Hub {
 		return room?.host === pid && room.code === code && room.state === 'lobby' ? room : null;
 	}
 
-	scheduleStart(room, pid, startsAt) {
+	scheduleStart(room, pid, startsAt, batch = null) {
 		if (this.hostLobby(pid, room.code) !== room || room.startsAt !== null) return false;
 		room.startsAt = startsAt;
+		room.inviteBatch = batch;
+		room.inviteRevision++;
+		if (batch) batch.revision = room.inviteRevision;
 		room.sendLobby();
 		return true;
 	}

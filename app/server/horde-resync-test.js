@@ -106,7 +106,8 @@ test('resync suppression excludes fresh knife shots and unrepresented warnings f
 	game.begin(f.room.startMsg()); game.onHordeResync(state);
 	const snap = f.room.snapshot(); game.onSnapshot(snap); game.view.tm = snap.tm; game.applyEffects();
 	assert.ok(game.shots.has(shot[1]), 'the native knife survives the real first-key client path');
-	assert.equal(game.warns.length, 1, 'an unrestored queued warning is still delivered normally');
+	game.teleTm = snap.tm; game.updateEffects(0);
+	assert.equal(game.warns.length, 1, 'an unrestored queued warning is delivered on the main telegraph clock');
 	assert.ok(!enemy.dead);
 });
 
@@ -145,7 +146,7 @@ test('travelled army and native projectiles restore their actual current positio
 	f.combat.tickProjectiles(0.5);
 	assert.equal(f.combat.shots.length, 0);
 	assert.ok(!stateSentTo(f, 2, true).shots.some((s) => s.id === active[0].id), 'a hit projectile is never resurrected');
-	f.room.updateHostile(4);
+	f.room.time += 4; f.room.updateHostile(4);
 	assert.deepEqual(stateSentTo(f, 2).shots, [], 'expired native projectiles are absent');
 });
 

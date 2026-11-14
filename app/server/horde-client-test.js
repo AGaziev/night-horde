@@ -39,7 +39,7 @@ test('a full horde lobby can release and transfer its director role without remo
 test('invite countdown updates cannot enable Start after role validation disabled it', (t) => {
 	const nodes = new Map();
 	const node = (id) => {
-		if (!nodes.has(id)) nodes.set(id, { disabled: false, addEventListener() {}, close() {} });
+		if (!nodes.has(id)) nodes.set(id, { disabled: false, addEventListener() {}, close() {}, querySelector: () => ({}) });
 		return nodes.get(id);
 	};
 	const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
@@ -126,13 +126,13 @@ test('resync skips queued effects once without suppressing an identical new warn
 	game.onHordeResync({ roundId: 'fx-round', time: 42, warnings: [{ x: 10, y: 20, r: 88, remaining: 0.2 }],
 		shots: [], lanes: [], fxBefore: [warn, shot] });
 	game.onSnapshot({ tm: 42.1, p: [], fx: [warn, shot, [...warn]] });
-	game.view.tm = 42.1; game.applyEffects();
+	game.view.tm = 42.1; game.teleTm = 42.1; game.applyEffects(); game.updateEffects(0);
 	assert.equal(game.warns.length, 2, 'one old warning is skipped and the genuinely new identical warning is preserved');
 	assert.equal(game.warns[0].life, 0.2, 'old full-duration warning must not restart');
 	assert.equal(game.hostile.size, 0, 'a completed queued projectile cannot be resurrected');
 	game.onSnapshot({ tm: 42.2, p: [], fx: [warn] });
-	game.view.tm = 42.2; game.applyEffects();
-	assert.equal(game.warns.length, 3, 'filter is consumed exactly once');
+	game.view.tm = 42.2; game.teleTm = 42.2; game.applyEffects(); game.updateEffects(0);
+	assert.equal(game.warns.filter((w) => w.serverStart === undefined).length, 2, 'filter is consumed exactly once; both new warnings survive');
 });
 
 test('resync effect dedup also covers a snapshot gap and stale snapshots cannot replace restored attacks', () => {
