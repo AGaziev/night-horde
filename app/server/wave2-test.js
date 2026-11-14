@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { Room } from './game.js';
 import { srcName } from './runlog.js';
 import {
-	TICK_HZ, DUOS, DUO_BY_PAIR, duoKey, EVOS, EVO_IDS, PASSIVES, PASSIVE_IDS, WEAPONS, REACTIONS, REACTION_IDS, REACT, ST,
+	TICK_HZ, DUOS, DUO_BY_PAIR, duoKey, EVOS, EVO_IDS, PASSIVES, PASSIVE_IDS, WEAPONS, REACTIONS, REACTION_IDS, REACT, ST, GOLD_GEM_MUL,
 } from '../public/shared/content.js';
 
 const dt = 1 / TICK_HZ;
@@ -239,7 +239,8 @@ function arena(id, heroes = ['knight'], seconds = 8, setup) {
 	e.beaconT = rb.time + 1;
 	const gems = rb.gems.length;
 	rb.hurtEnemy(e, 1e9, hb, S(['phys']));
-	assert.equal(rb.gems[gems]?.xp ?? rb.gems.at(-1).xp, e.xp * EVOS.beacon.levels[0].xpMul, 'beacon mark multiplies xp');
+	const gem = rb.gems[gems] ?? rb.gems.at(-1);
+	assert.equal(gem.xp, e.xp * EVOS.beacon.levels[0].xpMul * (gem.gold ? GOLD_GEM_MUL : 1), 'beacon mark multiplies normal and gold xp');
 	const { r: rn, h: hn } = arena('banner', ['knight', 'witch']);
 	assert.ok(fx.some((f) => f[0] === 'banner'), 'banner planted');
 	const { h: hq } = arena('quagmire');
