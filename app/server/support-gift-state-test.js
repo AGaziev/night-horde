@@ -22,3 +22,8 @@ test('CEO41.1 Quick Shield overclock and expiry cannot delete its own remaining 
  const card=r.ovrCards(b,'ward').find(c=>c.name==='Быстрый щит');assert.ok(card);assert.ok(r.overclock(b,card));
  assert.equal(b.ward,1);assert.ok(b.sharedWard);r.time+=8;r.updatePlayers(1/30,[...r.heroes.values()]);assert.equal(b.sharedWard,null);assert.equal(b.ward,1,'only the expired independent gift disappears');
 });
+test('CEO41.2 real Room tick expires the gift before an early bloater blast',()=>{
+ const {r,a,b,c}=arena();gift(r,a,b);a.x=c.x=500;const hp=b.hp,blocked=a.support.blocked;
+ const e=r.spawnEnemy('bloater',[b],1);Object.assign(e,{x:0,y:0,speed:0,fuseT:.001});r.time=108;r.tick(1/30);
+ assert.ok(e.exploded,'native AI fuse really detonated');assert.ok(b.hp<hp,'expired gift cannot absorb an AI-phase explosion');assert.equal(a.support.blocked,blocked,'expired donation earns no phantom prevention');
+});
