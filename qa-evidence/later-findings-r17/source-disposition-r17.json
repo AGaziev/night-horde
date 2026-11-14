@@ -1,0 +1,22 @@
+{
+  "at": "2026-11-14T14:44:01.674497+00:00",
+  "ownerComments": {
+    "17": 6878941203,
+    "41": 6878941453
+  },
+  "sources": {
+    "17": {
+      "sha": "0c1324b3571aa4aeb6366f69397901b98d08d889",
+      "codeStatus": "CHANGES_REQUIRED",
+      "futureDispatch": "HARDHOLD; native projectile target arbitration fix can affect physics; preserve original selected data, drain inflight, no killing, no auto resume"
+    },
+    "41": {
+      "sha": "7e2d195d49de4e7c4910142449b3e75394f3dad7",
+      "codeStatus": "CHANGES_REQUIRED",
+      "currentDispatch": "AUTHORIZED_OUTCOMES_ONLY",
+      "excludedAcceptance": "support.control metadata",
+      "futureCarry": "only after strict physics/AI/RNG/readset proof; no raw SHA relabeling"
+    }
+  },
+  "rawHistoryPreserved": true
+}

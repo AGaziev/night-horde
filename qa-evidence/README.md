@@ -4,6 +4,8 @@ This branch publishes isolated local QA artifacts requested by the independent r
 
 The owner merged PRs #53 and #57; six implementation PRs remain Draft while review fixes and acceptance continue. Each archive records its measured revisions. Scoped code or build-strength acceptance does not establish run-balance acceptance or close findings on a later revision.
 
+Later same-head review findings are preserved in `later-findings-r17/`: #17 on `0c1324b` still changes ordinary projectile eligibility/selection, and #41 on `7e2d195` misses a suppressed shield turn and can overcount separation at the leash. The earlier r16 originals remain closed. Scoped READY reports in the immutable closure archive precede these additional cases and do not close them. The #17 matrix is held at243/600; #41 measurement continues for physical outcomes only, excluding control-counter acceptance. Future source applicability requires a separate proof; raw source labels are never rewritten.
+
 ## Archives
 
 Each directory contains a downloadable `.tar.gz`, `SHA256SUMS` and an uncompressed `members.json`. The member manifest gives the SHA256 and byte length of every original text file. Extracted paths begin with `outputs/`, preserving the original artifact structure. The archives retain raw results, errors, rejected attempts, preregistered seed/K0/hero plans, source/runtime hashes, terminal/Room.finish evidence, report generators and immutable text source copies where present.
