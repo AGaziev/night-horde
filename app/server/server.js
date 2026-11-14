@@ -437,7 +437,9 @@ async function handleLobbyInvites(req, res, url) {
 		}
 		const ids = [...new Set(input.ids)];
 		const batch = room.inviteBatch;
-		const retry = room.startsAt !== null && batch?.startsAt === room.startsAt && input.startsAt === room.startsAt;
+		const requestedRetry = input.startsAt !== undefined && input.startsAt !== null;
+		const retry = requestedRetry && room.startsAt !== null && batch?.startsAt === room.startsAt && input.startsAt === batch.startsAt;
+		if (requestedRetry && !retry) return reject(409, 'Эта рассылка уже отменена или изменена. Откройте форму ещё раз.');
 		if (room.startsAt !== null && !retry) return reject(409, 'Отсчёт уже идёт.');
 		if (retry && (batch.sending || ids.some((id) => !batch.ids.includes(id)))) return reject(409, 'Дождитесь результата текущей отправки.');
 		const employees = await lobbyInvites.list(true);

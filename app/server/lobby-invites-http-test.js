@@ -23,6 +23,7 @@ test('HTTP: состав, владелец, частичная доставка 
 		else if (req.url === '/v1/infra/servers/fixture') data = { accessPolicy: 'NAMED_USERS' };
 		else if (req.url === '/v1/notifications') {
 			data = JSON.parse(body); calls.push(data);
+			if (data.userId === 1000) { req.socket.destroy(); return; }
 			if (data.userId === 103 && !retry) { res.writeHead(422, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, error: { code: 'NOTIFICATION_NOT_DELIVERED' } })); return; }
 			data = { notificationId: calls.length };
 		}
@@ -32,10 +33,10 @@ test('HTTP: состав, владелец, частичная доставка 
 	const dir = mkdtempSync(join(tmpdir(), 'horde-invites-'));
 	const base = 'http://127.0.0.1:34381';
 	const child = spawn(process.execPath, ['--import', runtime, '--import', new URL('../../pm/lobby-platform-fixture.mjs', import.meta.url).pathname, new URL('./server.js', import.meta.url).pathname], {
-		env: { ...process.env, PORT: '34381', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: 'local-fixture-key', HORDE_VIBE_SERVER_ID: 'fixture', HORDE_APP_ORIGIN: 'https://game.example', HORDE_TEST_PLATFORM_URL: `http://127.0.0.1:${fixture.address().port}` }, stdio: 'ignore',
+		env: { ...process.env, PORT: '34381', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: 'local-fixture-key', HORDE_VIBE_SERVER_ID: 'fixture', HORDE_APP_ORIGIN: 'https://game.example', HORDE_TEST_PLATFORM_URL: `http://127.0.0.1:${fixture.address().port}` }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
 	});
-	const exited = once(child, 'exit'); let ws, guest, racingHost;
-	t.after(async () => { ws?.terminate(); guest?.terminate(); racingHost?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
+	const exited = once(child, 'exit'); let ws, guest, racingHost, staleHost;
+	t.after(async () => { ws?.terminate(); guest?.terminate(); racingHost?.terminate(); staleHost?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
 	for (let i = 0; i < 70; i++) { if (await fetch(base + '/health').then((r) => r.ok, () => false)) break; await delay(40); }
 	const headers = { 'X-Vibe-User-Id': '101', 'X-Vibe-User-Name': encodeURIComponent('Хост'), 'X-Vibe-Authorization': 'Bearer vibe_session_fixture' };
 	const { sid } = await (await fetch(base + '/api/session', { headers })).json();
@@ -68,7 +69,8 @@ test('HTTP: состав, владелец, частичная доставка 
 	retry = true;
 	const second = await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt });
 	assert.equal(second.body.sent, 2); assert.equal(second.body.failed, 0);
-	assert.deepEqual(calls.map((x) => x.userId), [102, 103, 103]);
+	assert.deepEqual(calls.slice(0, 2).map((x) => x.userId).sort(), [102, 103]);
+	assert.deepEqual(calls.slice(2).map((x) => x.userId), [103]);
 	await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt });
 	assert.equal(calls.length, 3);
 	ws.send(JSON.stringify({ t: 'cancel-start' })); await delay(30); assert.equal((await get()).startsAt, null);
@@ -109,6 +111,31 @@ test('HTTP: состав, владелец, частичная доставка 
 	assert.equal(calls.length, callsBeforeRace, 'no stale notification is emitted');
 	racingHost.send(JSON.stringify({ t: 'cancel-start' }));
 
+	// An explicit retry token stays a retry after cancellation and after the cooldown expires.
+	const staleHeaders = { ...headers, 'X-Vibe-User-Id': '106' };
+	const staleSid = (await (await fetch(base + '/api/session', { headers: staleHeaders })).json()).sid;
+	staleHost = new WebSocket(base.replace('http', 'ws') + `/ws?sid=${staleSid}&v=${PROTO}`, { headers: staleHeaders });
+	const staleMessages = []; staleHost.on('message', (raw) => staleMessages.push(JSON.parse(raw)));
+	await once(staleHost, 'open'); staleHost.send(JSON.stringify({ t: 'create', hero: 'knight' }));
+	for (let i = 0; i < 50 && !staleMessages.some((m) => m.t === 'lobby'); i++) await delay(10);
+	const staleCode = staleMessages.findLast((m) => m.t === 'lobby').code;
+	const staleRoute = base + `/api/lobby/invites?sid=${staleSid}&room=${staleCode}`;
+	const stalePost = async (data) => { const response = await fetch(staleRoute, { method: 'POST', headers: { ...staleHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: response.status, body: await response.json() }; };
+	retry = false;
+	const staleFirst = await stalePost({ minutes: 5, ids: ['103', '1000'] });
+	assert.equal(staleFirst.body.failed, 1); assert.equal(staleFirst.body.unknown, 1);
+	retry = true;
+	const acceptedRetry = await stalePost({ minutes: 5, ids: ['103'], startsAt: staleFirst.body.startsAt });
+	assert.equal(acceptedRetry.body.sent, 1); assert.equal(acceptedRetry.body.unknown, 1);
+	const clockAdvanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 16000 }); await clockAdvanced;
+	staleHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && staleMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	assert.equal(staleMessages.findLast((m) => m.t === 'lobby').startsAt, null);
+	const callsBeforeStale = calls.length;
+	const obsolete = await stalePost({ minutes: 5, ids: ['103', '1000'], startsAt: staleFirst.body.startsAt });
+	assert.equal(obsolete.status, 409, 'cancelled batch identity cannot become a new batch after cooldown');
+	assert.equal(calls.length, callsBeforeStale, 'neither known success nor unknown outcome is resent');
+
 	if (process.env.HORDE_BROWSER_CHECK === '1') {
 		const { chromium } = await import('/Users/s.konev/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
 		const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
@@ -133,7 +160,8 @@ test('HTTP: состав, владелец, частичная доставка 
 			retry = true;
 			await page.locator('#lobby-invite-form [type=submit]').click();
 			await page.waitForFunction(() => !document.querySelector('#lobby-invite-dialog').open);
-			assert.deepEqual(calls.slice(countBefore).map((x) => x.userId), [102, 103, 103]);
+			assert.deepEqual(calls.slice(countBefore, countBefore + 2).map((x) => x.userId).sort(), [102, 103]);
+			assert.deepEqual(calls.slice(countBefore + 2).map((x) => x.userId), [103]);
 			await page.locator('#lobby-cancel-start').click();
 			await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden);
 		} finally { await browser.close(); }
