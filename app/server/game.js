@@ -2279,25 +2279,24 @@ export class Room {
 	}
 
 	updateHostile(dt) {
-		const advanced = this.dashHostileTick === this.tickNo;
-		if (!advanced && [...this.heroes.values()].some(h => h.dashPath)) { this.updateDashContacts(dt); return this.updateHostile(dt); }
+		const dashFrame = this.dashHostileTick === this.tickNo;
+		if (!dashFrame && [...this.heroes.values()].some(h => h.dashPath)) { this.updateDashContacts(dt); return this.updateHostile(dt); }
 		let j = 0;
 		for (const s of this.hostile) {
-			if (!advanced) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; }
+			// A legacy-handler shot advances here, in its original phase and array order.
+			// A surviving continuous-handler shot has already advanced exactly once.
+			if (s.dashAdvancedTick !== this.tickNo) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; }
 			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				const reserved = advanced && s.ordinaryTarget !== undefined;
-				const targets = reserved ? [this.heroes.get(s.ordinaryTarget)].filter(Boolean) : this.heroes.values();
-				for (const h of targets) {
+				// No ordinary actor is cached: earlier shots, bodies and revives can change eligibility.
+				for (const h of this.heroes.values()) {
 					const distance = dist2(s.x, s.y, h.x, h.y);
-					if (h.st !== 0 || advanced && h.dashPath || distance >= min * min) continue;
+					if (h.st !== 0 || dashFrame && h.dashPath && !s.dashTargets?.has(h.pid) || distance >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;
 				}
-				// An earlier selected target already intercepted this shot; a later dasher cannot steal it.
-				if (reserved) done = true;
 			}
 			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
 			else this.hostile[j++] = s;
@@ -2312,6 +2311,7 @@ export class Room {
 		this.dashHostileTick = this.tickNo;
 		const frames = this.dashContactFrames ?? new Map();
 		const events = [], now = this.time, start = now - dt;
+		const order = (a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
 		for (const h of this.heroes.values()) {
 			if (h.st !== 0 || !h.dashPath) continue;
 			let frame = frames.get(h);
@@ -2330,35 +2330,43 @@ export class Room {
 		for (const s of this.hostile) {
 			const from = Math.max(0, Math.min(dt, (s.bornAt ?? start) - start));
 			const life = s.life, travel = Math.max(0, Math.min(dt - from, life));
-			const sx = s.x, sy = s.y;
-			const ex = sx + s.vx * travel, ey = sy + s.vy * travel;
-			// Global flight stays legacy; only a dashing target uses birth/lifetime-clipped contact geometry.
-			s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
-			s.dashDone = life <= 0;
-			delete s.ordinaryTarget;
+			const sx = s.x, sy = s.y, ex = sx + s.vx * travel, ey = sy + s.vy * travel;
+			const legacyX = sx + s.vx * dt, legacyY = sy + s.vy * dt, radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
+			const candidates = [];
+			delete s.dashTargets;
+			s.dashDone = false;
 			if (life > 0) for (const h of this.heroes.values()) {
-				if (h.st !== 0) continue;
-				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				if (h.dashPath) {
-					const at = dashContactTime(h, sx, sy, ex, ey, dt, radius, from, from + travel);
-					if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
-				} else if (s.life > 0 && dist2(s.x, s.y, h.x, h.y) < radius ** 2
-					&& !(s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) {
-					// Only an endpoint-valid ordinary target joins selection. Its callback stays in the legacy phase.
-					const at = dashContactTime(h, sx, sy, s.x, s.y, dt, radius);
-					if (at !== null) events.push({ at: start + Math.max(from, at), h, s, id: s.id, kind: 1, ordinary: true });
+				if (h.st !== 0 || !h.dashPath) continue;
+				const at = dashContactTime(h, sx, sy, ex, ey, dt, radius, from, from + travel);
+				if (at !== null) candidates.push({ at: start + at, h, s, id: s.id, kind: 1 });
+			}
+			// No real dash intersection: this projectile stays completely in the legacy handler.
+			if (!candidates.length) continue;
+			candidates.sort(order);
+			s.dashTargets = new Set(candidates.map(c => c.h.pid));
+			let ordinary = null;
+			if (life > dt && !(s.outpost && dist2(legacyX, legacyY, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) {
+				// Ordinary targets are a Map-ordered channel, never a time-sorted actor list.
+				for (const h of this.heroes.values()) {
+					if (h.st !== 0 || h.dashPath || dist2(legacyX, legacyY, h.x, h.y) >= radius ** 2) continue;
+					const at = dashContactTime(h, sx, sy, legacyX, legacyY, dt, radius);
+					if (at !== null) ordinary = { at: start + Math.max(from, at), h, s, id: s.id, kind: 1 };
+					break;
 				}
 			}
+			// Choose the handler, not its eventual ordinary recipient. Recheck the whole Map later.
+			if (ordinary && order(ordinary, candidates[0]) <= 0) continue;
+			s.x = legacyX; s.y = legacyY; s.life -= dt;
+			s.dashAdvancedTick = this.tickNo;
+			events.push(...candidates);
 		}
-		const order = (a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
 		events.sort(order);
 		this.dashContactChanged = new Set();
 		try {
 		while (events.length) {
 			const ev = events.shift();
 			const { h, e, s, at } = ev;
-			if (h.st !== 0 || e?.dead || s?.dashDone || s?.ordinaryTarget !== undefined) continue;
-			if (s && ev.ordinary) { s.ordinaryTarget = h.pid; continue; }
+			if (h.st !== 0 || e?.dead || s?.dashDone) continue;
 			if (s) {
 				applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
 				s.dashDone = true; // Protection still intercepts and consumes a shot.
@@ -2387,7 +2395,7 @@ export class Room {
 		for (const [h, frame] of frames) if (h.dashPath) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
 		let j = 0;
 		for (const s of this.hostile) {
-			if (s.dashDone || s.life <= 0 || s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2) this.fx.push(['epend', s.id, round3(now)]);
+			if (s.dashAdvancedTick === this.tickNo && (s.dashDone || s.life <= 0 || s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) this.fx.push(['epend', s.id, round3(now)]);
 			else this.hostile[j++] = s;
 		}
 		this.hostile.length = j;
