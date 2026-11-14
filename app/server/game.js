@@ -25,7 +25,7 @@ import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { projectControlPoint, projectControlSeparation, controlPointDiffers, controlScale as observedControlScale, lockDelivered } from './control-observation.js';
-import { newSupport, supportStats, healSupport, controlTick, timedControl, resolveControl } from './support.js';
+import { newSupport, supportStats, activeWardGift, expireWardGift, canReceiveWardGift, deferWardGift, healSupport, controlTick, timedControl, resolveControl } from './support.js';
 import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
@@ -3001,9 +3001,10 @@ export class Room {
 		const now = this.time;
 		const fog = this.events.active?.id === 'fog';
 		this.updateBuffs(alive);
+		// Settle endpoint gift reservations even for a recipient downed earlier in this tick.
+		for (const h of this.heroes.values()) expireWardGift(h, now);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
-			if (h.sharedWard?.until <= now) h.sharedWard = null;
 			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
@@ -3062,11 +3063,11 @@ export class Room {
 	hurtPlayer(h, dmg, from = 'other', contactAt = this.time) {
 		// Swept contacts use their entry time; ordinary/early AI hazards use this.time.
 		// Only gift eligibility uses contactAt: do not rewind the room or other perks.
-		if (h.sharedWard?.until <= contactAt) h.sharedWard = null;
+		const gift = expireWardGift(h, contactAt);
 		const prevented = Math.min(h.hp, Math.max(1, dmg * (h.altarCurseT > this.time ? ALTAR_DEALS[1].takenMul : 1) * h.trait.dmgTaken - h.mods.armor - h.guard));
-		if (h.ward > 0 || h.sharedWard) {
-			(h.sharedWard?.owner ?? h).support.blocked += prevented;
-			this.wardAbsorb(h);
+		if (h.ward > 0 || gift) {
+			(gift?.owner ?? h).support.blocked += prevented;
+			this.wardAbsorb(h, contactAt);
 			return;
 		}
 		if (blockHeroHit(this, h)) { h.support.blocked += prevented; return; }
@@ -3937,8 +3938,8 @@ export class Room {
 	}
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
-	wardAbsorb(h) {
-		if(h.sharedWard) {
+	wardAbsorb(h, contactAt = this.time) {
+		if(expireWardGift(h, contactAt)) {
 			h.sharedWard = null; h.iframes = PLAYER_IFRAMES;
 			this.fx.push(['ward', h.pid, h.ward]); return;
 		}
@@ -3983,9 +3984,13 @@ export class Room {
 		}
 		if (id === 'bastion') {
 			for (const o of this.heroes.values()) {
-				if (o.sharedWard?.until <= this.time) o.sharedWard = null;
-				if (o === h || o.st !== 0 || o.offline || o.sharedWard || o.ward >= Math.max(o.wardMax, 1) || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
-				o.sharedWard = { owner: h, until: this.time + 8 };
+				if (!canReceiveWardGift(h, o, L.share)) continue;
+				// A future AI eligibility read must not erase a token live at an earlier contact.
+				if (this.contactFrames ? activeWardGift(o, contactAt) : expireWardGift(o, contactAt)) continue;
+				const gift = { owner: h, grantedAt: contactAt, until: contactAt + 8, range: L.share };
+				// AI runs first, but its endpoint grant must wait behind earlier projectile contacts.
+				if (this.contactFrames) deferWardGift(o, gift);
+				else o.sharedWard = gift;
 				this.fx.push(['ward', o.pid, o.ward + 1]);
 				break;
 			}
@@ -5410,7 +5415,7 @@ export class Room {
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
-			wardGift: ps.filter(h => h.sharedWard?.until > this.time).map(h => [h.pid, h.sharedWard.until]),
+			wardGift: ps.flatMap(h => { const gift=activeWardGift(h,this.time);return gift?[[h.pid,gift.until]]:[]; }),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
