@@ -7,6 +7,9 @@ import { Room } from './game.js';
 import { ENEMY_TYPES } from '../public/shared/content.js';
 
 // Import the real client modules with their browser-root content URL adapted for Node.
+const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const card = { open: false, contains: () => false };
+Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: () => card } });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'outpost-client-'));
 try {
 	fs.writeFileSync(path.join(tmp, 'package.json'), '{"type":"module"}');
@@ -70,4 +73,4 @@ try {
 		if (oldWindow) Object.defineProperty(globalThis, 'window', oldWindow); else delete globalThis.window;
 	}
 	console.log('Outpost client density: real HUD/canvas/radar totals 80/120/200/360 and 758 same-type render records: OK');
-} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+} finally { fs.rmSync(tmp, { recursive: true, force: true }); if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else delete globalThis.document; }
