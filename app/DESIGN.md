@@ -15,6 +15,11 @@ server/snapshot-codec.js  кодер снимков (дельты, проток�
 public/index.html       одна страница, <link rel="icon" href="/_gw/icon">
 public/style.css
 public/js/*.js          ESM-модули клиента (net.js, game.js, render.js, ui.js, input.js, main.js)
+public/js/visual.js     настройки графики в localStorage `nh.vfx`: цифры урона all/crits/off, эффекты full/lite (Issue #11);
+                        упрощённые эффекты убирают тряску, вспышки, размытие свечения, шлейфы и ореолы молний, частиц — четверть;
+                        предупреждения атак, вражеские снаряды и замахи рисуются при любой настройке
+                        запись — только изменённого поля поверх сохранённого, другие вкладки подхватывают её событием `storage`;
+                        на сфокусированных переключателях стрелки меняют вариант, WASD управляют героем
 public/shared/content.js
 ```
 

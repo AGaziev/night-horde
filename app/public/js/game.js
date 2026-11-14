@@ -69,6 +69,8 @@ export class Game {
 		this.shots = new Map(); // projectile id -> locally simulated projectile
 		this.numbers = [];
 		this.particles = [];
+		// Damage numbers 'all' | 'crits' | 'off' and effects 'full' | 'lite' (Issue #11); main.js loads them from visual.js.
+		this.visual = { numbers: 'all', effects: 'full' };
 		this.zaps = [];
 		this.slashes = [];
 		this.rings = [];
@@ -738,7 +740,8 @@ export class Game {
 		switch (ev[0]) {
 			case 'hit': {
 				const crit = ev[4] === 1;
-				if (this.numbers.length < MAX_NUMBERS || crit) {
+				const shown = this.visual.numbers === 'all' || (this.visual.numbers === 'crits' && crit);
+				if (shown && (this.numbers.length < MAX_NUMBERS || crit)) {
 					this.numbers.push({ x: +ev[1] + (Math.random() - 0.5) * 10, y: +ev[2] - 10, v: Math.round(+ev[3] || 0), t: 0, crit, mine: crit && ev[5] === this.me });
 				}
 				if (crit) this.burst(+ev[1], +ev[2] - 6, ev[5] === this.me ? '#ffee58' : '#fff59d', ev[5] === this.me ? 6 : 3, 2);
@@ -1025,7 +1028,14 @@ export class Game {
 		this.onEvent('dawn', this.lordDie ? 2 : 1);
 	}
 
+	// New visual settings; numbers already on screen that the new mode hides go away at once.
+	setVisual(v) {
+		this.visual = v;
+		if (v.numbers !== 'all') this.numbers = this.numbers.filter((n) => v.numbers === 'crits' && n.crit);
+	}
+
 	burst(x, y, color, n, spread) {
+		if (this.visual.effects === 'lite') n = Math.ceil(n / 4); // simplified effects: a quarter of the particles
 		for (let i = 0; i < n && this.particles.length < MAX_PARTICLES; i++) {
 			const a = Math.random() * Math.PI * 2;
 			const s = 40 + Math.random() * (80 + spread * 4);
