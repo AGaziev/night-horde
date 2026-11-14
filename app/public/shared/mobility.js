@@ -1,5 +1,10 @@
 export const DASH = Object.freeze({ distance: 180, duration: 0.15, cooldown: 12 });
 
+// Several rounded projection/root operations can leave a few coordinate ULPs.
+// Such a residual is stationary, not a path that can enter an earlier hit phase.
+export const hasDashMovement = (dx, dy, scale = 1) =>
+ Math.hypot(dx, dy) > 16 * Number.EPSILON * Math.max(1, scale);
+
 export function segmentDistance2(x, y, ax, ay, bx, by) {
 	const dx = bx - ax, dy = by - ay, len = dx * dx + dy * dy;
 	const t = len ? Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / len)) : 0;
@@ -28,11 +33,15 @@ export function clipDash(x, y, dx, dy, time, ring = null) {
   const c = projectedToRing ? 0 : (distance - ring.r) * (distance + ring.r);
   if (a) {
    const root = Math.sqrt(Math.max(0, b * b - a * c));
-   // The conjugate root preserves genuinely short outward movement without a distance threshold.
+   // The conjugate root avoids cancellation for short outward movement.
    const exit = b >= 0 ? (c === 0 ? 0 : -c / (b + root)) : (-b + root) / a;
    duration = Math.min(duration, exit);
   }
  }
  duration = Math.max(0, duration);
- return { x: x + vx * duration, y: y + vy * duration, startX, startY, duration };
+ let endX = x + vx * duration, endY = y + vy * duration;
+ const scale = Math.max(Math.abs(x), Math.abs(y), Math.abs(endX), Math.abs(endY),
+  ring ? Math.max(Math.abs(ring.cx), Math.abs(ring.cy), ring.r) : 0);
+ if (!hasDashMovement(endX - x, endY - y, scale)) { endX = x; endY = y; duration = 0; }
+ return { x: endX, y: endY, startX, startY, duration };
 }

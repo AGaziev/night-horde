@@ -1,9 +1,12 @@
-import { DASH, clipDash, segmentDistance2 } from '../public/shared/mobility.js';
+import { DASH, clipDash, hasDashMovement, segmentDistance2 } from '../public/shared/mobility.js';
 import { PLAYER_RADIUS } from '../public/shared/content.js';
 import { contactInterval } from '../public/shared/contact-time.js';
 
 // The ring/world may reject the whole ray. Its later ordinary projection is not dash travel.
-export const hasActualDash = h => !!h.dashPath && ((h.dashPath.moveX ?? 0) !== 0 || (h.dashPath.moveY ?? 0) !== 0);
+export const hasActualDash = h => !!h.dashPath && hasDashMovement(
+ h.dashPath.moveX ?? 0, h.dashPath.moveY ?? 0,
+ Math.max(Math.abs(h.dashPath.x ?? 0), Math.abs(h.dashPath.y ?? 0)),
+);
 
 export function requestDash(room, pid, msg) {
 	const h = room.heroes.get(pid);
