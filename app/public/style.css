@@ -673,7 +673,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 .snd-more { height: 22px; font-size: 14px; }
 .snd-panel {
 	position: absolute; left: 42px; top: 0;
-	width: 210px; max-width: calc(100vw - 60px);
+	width: 240px; max-width: calc(100vw - 60px);
+	max-height: calc(58vh - 8px); overflow-y: auto; overscroll-behavior: contain;
 	display: flex; flex-direction: column; gap: 10px;
 	padding: 12px 14px; border-radius: 12px;
 	background: var(--panel); border: 1px solid var(--panel-border);
@@ -685,6 +686,21 @@ input[type="text"]:focus { border-color: var(--accent); }
 .snd-hint { font-size: 0.75rem; color: var(--muted); }
 .snd-hint kbd { font-family: var(--mono); padding: 0 4px; border: 1px solid var(--panel-border); border-radius: 4px; }
 @media (hover: none) { .snd-hint { display: none; } }
+/* Issue #11: damage numbers and effect intensity */
+.vfx-group { margin: 0; padding: 0; border: 0; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.vfx-group legend { padding: 0; margin-bottom: 4px; font-size: 0.85rem; color: var(--muted); }
+.vfx-seg { display: flex; border: 1px solid var(--panel-border); border-radius: 8px; overflow: hidden; }
+.vfx-seg label { flex: 1 1 0; min-width: 0; position: relative; }
+.vfx-seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.vfx-seg span {
+	display: block; padding: 8px 2px; text-align: center; font-size: 0.78rem; line-height: 1.2;
+	color: var(--text); background: rgba(255, 255, 255, 0.03); cursor: pointer;
+	overflow-wrap: anywhere;
+}
+.vfx-seg label + label span { border-left: 1px solid var(--panel-border); }
+.vfx-seg input:checked + span { background: rgba(255, 183, 77, 0.18); color: var(--accent); font-weight: 700; }
+.vfx-seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.vfx-hint { margin: 0; font-size: 0.72rem; line-height: 1.3; color: var(--muted); }
 
 /* v14: run mode, solo pause, hero unlocks */
 .mode-pick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 4px; }

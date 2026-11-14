@@ -269,11 +269,27 @@
 	<!-- Sound -->
 	<div id="snd" class="snd">
 		<button id="snd-toggle" class="snd-btn" type="button" aria-label="Выключить звук" title="Звук (M)">🔊</button>
-		<button id="snd-more" class="snd-btn snd-more" type="button" aria-label="Громкость" aria-expanded="false" aria-controls="snd-panel" title="Громкость">⋯</button>
+		<button id="snd-more" class="snd-btn snd-more" type="button" aria-label="Звук и графика" aria-expanded="false" aria-controls="snd-panel" title="Звук и графика">⋯</button>
 		<div id="snd-panel" class="snd-panel" hidden>
 			<label class="snd-row"><span>Музыка</span><input id="snd-music" type="range" min="0" max="100" step="1"></label>
 			<label class="snd-row"><span>Эффекты</span><input id="snd-sfx" type="range" min="0" max="100" step="1"></label>
 			<div class="snd-hint"><kbd>M</kbd> — выключить звук</div>
+			<fieldset class="vfx-group">
+				<legend>Цифры урона</legend>
+				<div class="vfx-seg">
+					<label><input type="radio" name="vfx-numbers" value="all"><span>Все</span></label>
+					<label><input type="radio" name="vfx-numbers" value="crits"><span>Криты</span></label>
+					<label><input type="radio" name="vfx-numbers" value="off"><span>Выкл</span></label>
+				</div>
+			</fieldset>
+			<fieldset class="vfx-group">
+				<legend>Визуальные эффекты</legend>
+				<div class="vfx-seg">
+					<label><input type="radio" name="vfx-effects" value="full"><span>Полные</span></label>
+					<label><input type="radio" name="vfx-effects" value="lite"><span>Упрощённые</span></label>
+				</div>
+				<p id="vfx-hint" class="vfx-hint"></p>
+			</fieldset>
 		</div>
 	</div>
 	<div id="netinfo" class="netinfo">…</div>
