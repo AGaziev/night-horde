@@ -2939,7 +2939,7 @@ export class Room {
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
-			if(h.sharedWard && h.sharedWard.until <= now) { h.sharedWard=null; h.ward=Math.max(0,h.ward-1); }
+			if (h.sharedWard?.until <= now) h.sharedWard = null;
 			h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
@@ -2993,8 +2993,10 @@ export class Room {
 
 
 	hurtPlayer(h, dmg, from = 'other') {
+		// AI hazards can hit before updatePlayers; expire temporary support here too.
+		if (h.sharedWard?.until <= this.time) h.sharedWard = null;
 		const prevented = Math.min(h.hp, Math.max(1, dmg * (h.altarCurseT > this.time ? ALTAR_DEALS[1].takenMul : 1) * h.trait.dmgTaken - h.mods.armor - h.guard));
-		if (h.ward > 0) {
+		if (h.ward > 0 || h.sharedWard) {
 			(h.sharedWard?.owner ?? h).support.blocked += prevented;
 			this.wardAbsorb(h);
 			return;
@@ -3850,7 +3852,6 @@ export class Room {
 		if (h.ward > h.wardMax && w.init) h.ward = h.wardMax;
 		if (!w.init) {
 			w.init = true;
-			h.sharedWard = null; // initial own shield replaces a temporary gift, without crediting it
 			h.ward = h.wardMax;
 			w.t = L.cd * h.mods.cdMul;
 		}
@@ -3870,7 +3871,7 @@ export class Room {
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
 	wardAbsorb(h) {
 		if(h.sharedWard) {
-			h.sharedWard = null; h.ward--; h.iframes = PLAYER_IFRAMES;
+			h.sharedWard = null; h.iframes = PLAYER_IFRAMES;
 			this.fx.push(['ward', h.pid, h.ward]); return;
 		}
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
@@ -3915,8 +3916,8 @@ export class Room {
 		if (id === 'bastion') {
 			for (const o of this.heroes.values()) {
 				if (o === h || o.st !== 0 || o.offline || o.sharedWard || o.ward >= Math.max(o.wardMax, 1) || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
-				o.ward++; o.sharedWard = { owner: h, until: this.time + 8 };
-				this.fx.push(['ward', o.pid, o.ward]);
+				o.sharedWard = { owner: h, until: this.time + 8 };
+				this.fx.push(['ward', o.pid, o.ward + 1]);
 				break;
 			}
 		}
@@ -5306,7 +5307,7 @@ export class Room {
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
-			h.ward, heroShieldReady(h, this.time) ? 1 : 0,
+			h.ward + (h.sharedWard?.until > this.time ? 1 : 0), heroShieldReady(h, this.time) ? 1 : 0,
 		]);
 		const e = [];
 		for (const en of this.enemies) {

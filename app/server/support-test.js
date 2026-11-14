@@ -5,7 +5,7 @@ const r=new Room('SUP',()=>{});for(let i=1;i<=4;i++)r.addPlayer(i,'P'+i,'knight'
 const [h,a,b,c]=r.heroes.values();for(const p of r.heroes.values()){p.x=p.y=0;p.perk.readyAt=Infinity;p.weapons.clear();}
 h.weapons.set('bastion',{lvl:1,t:0});r.updateWeapon(h,'bastion',h.weapons.get('bastion'),1/30);
 a.ward=a.wardMax=2;b.ward=0;b.wardMax=2;c.ward=0;
-r.hurtPlayer(h,20);assert.equal(a.ward,2);assert.equal(b.ward,1,'skip a full first ally and share with an eligible one');
+r.hurtPlayer(h,20);assert.equal(a.ward,2);assert.equal(b.ward,0,'gift is independent of own charges');assert.equal(b.sharedWard?.owner,h,'skip a full first ally and share with an eligible one');
 const charges=h.ward;r.hurtPlayer(b,20);assert.equal(h.ward,charges,'gift charge cannot generate a counterattack or share back');
 assert.equal(h.support?.blocked,40,'own block and actual gifted block attributed once');
 b.hp=b.maxHp-2;r.healSupport(h,b,20);assert.equal(h.support.healing,2,'overheal excluded');
@@ -39,7 +39,7 @@ assert.ok(!JSON.stringify(log).includes('sharedWard'),'owner object graph is nev
 {
  const target=r.heroes.get(4);target.ward=1;target.sharedWard={owner:h,until:r.time+8};target.weapons.set('ward',{lvl:3,t:0});
  r.updateWeapon(target,'ward',target.weapons.get('ward'),1/30);
- assert.equal(target.sharedWard,null,'own initial shield cannot misattribute a replaced gift');
+ assert.equal(target.sharedWard?.owner,h,'own initialization preserves an independent gift');
 }
 {
  r.enemies=[];r.time=500;const target=r.spawnEnemy('ghoul',[h],1);
