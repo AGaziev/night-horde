@@ -51,3 +51,8 @@ test('stale snapshot cannot rewind accepted dash; ordinary down state still corr
  const down = snapshot(.2, 0); down.p[0][8] = 1; down.p[0][3] = 0;
  g.onSnapshot(down); assert.equal(g.local.x, 0); assert.equal(g.dashTravel, null);
 });
+test('CEO55-r11 client predicts the same first ring boundary on a diagonal dash',()=>{
+ const{g,sent}=setup();g.local.x=420;g.local.y=0;const s=snapshot(.01,420,0);s.fin=[2,75,0,0,440,440];g.onSnapshot(s);
+ g.requestDash({vector:()=>({x:1,y:1})});accept(g,sent,{x:420,dx:Math.SQRT1_2,dy:Math.SQRT1_2});g.update(1/30,still);
+ assert.ok(Math.abs(Math.hypot(g.local.x,g.local.y)-426)<1e-8);assert.ok(Math.abs(g.local.x-420-g.local.y)<1e-8);
+});

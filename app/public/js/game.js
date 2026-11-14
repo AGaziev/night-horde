@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS, DASH } from '/shared/content.js';
+import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS, DASH, clipDash } from '/shared/content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -536,8 +536,10 @@ export class Game {
 				const v = input.vector();
 				if (this.dashTravel) {
 					const d = this.dashTravel, t = Math.min(dt, d.left);
-					this.local.x += d.x * DASH.distance * t / DASH.duration;
-					this.local.y += d.y * DASH.distance * t / DASH.duration;
+					const fin = this.finale();
+					const ring = fin ? { cx: fin.cx, cy: fin.cy, r: Math.max(0, fin.r - PLAYER_RADIUS) } : null;
+					const travel = clipDash(this.local.x, this.local.y, d.x, d.y, t, ring);
+					this.local.x = travel.x; this.local.y = travel.y;
 					d.left -= t;
 					if (d.left < 1e-8) this.dashTravel = null;
 				} else if (!unacknowledged && !this.dashWaiting && (v.x || v.y)) {

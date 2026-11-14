@@ -1,4 +1,4 @@
-export { DASH } from './mobility.js';
+export { DASH, clipDash } from './mobility.js';
 // Shared game content and tuning. Imported by the server (Node ESM) and the browser.
 import { CONFLUENCES } from './confluences.js';
 
