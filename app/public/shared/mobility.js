@@ -11,9 +11,10 @@ export function segmentDistance2(x, y, ax, ay, bx, by) {
 export function clipDash(x, y, dx, dy, time, ring = null) {
  const limit = 100000, speed = DASH.distance / DASH.duration;
  x = Math.max(-limit, Math.min(limit, x)); y = Math.max(-limit, Math.min(limit, y));
+ let projectedToRing = false;
  if (ring) {
   const ox = x - ring.cx, oy = y - ring.cy, distance = Math.hypot(ox, oy);
-  if (distance > ring.r) { x = ring.cx + ox * ring.r / distance; y = ring.cy + oy * ring.r / distance; }
+  if (distance > ring.r) { x = ring.cx + ox * ring.r / distance; y = ring.cy + oy * ring.r / distance; projectedToRing = true; }
  }
  const startX = x, startY = y, vx = dx * speed, vy = dy * speed;
  let duration = Math.max(0, time);
@@ -21,8 +22,16 @@ export function clipDash(x, y, dx, dy, time, ring = null) {
  if (vy) duration = Math.min(duration, ((vy > 0 ? limit : -limit) - y) / vy);
  if (ring) {
   const ox = x - ring.cx, oy = y - ring.cy, a = vx * vx + vy * vy, b = ox * vx + oy * vy;
-  const c = ox * ox + oy * oy - ring.r * ring.r;
-  if (a) duration = Math.min(duration, (-b + Math.sqrt(Math.max(0, b * b - a * c))) / a);
+  const distance = Math.hypot(ox, oy);
+  // A projected start is on the boundary even if its coordinates round slightly inward.
+  // Factor the circle residual so an unprojected boundary does not gain squared-term roundoff.
+  const c = projectedToRing ? 0 : (distance - ring.r) * (distance + ring.r);
+  if (a) {
+   const root = Math.sqrt(Math.max(0, b * b - a * c));
+   // The conjugate root preserves genuinely short outward movement without a distance threshold.
+   const exit = b >= 0 ? (c === 0 ? 0 : -c / (b + root)) : (-b + root) / a;
+   duration = Math.min(duration, exit);
+  }
  }
  duration = Math.max(0, duration);
  return { x: x + vx * duration, y: y + vy * duration, startX, startY, duration };
