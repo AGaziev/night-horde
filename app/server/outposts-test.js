@@ -122,7 +122,7 @@ for(const [x,y] of [[99990,99990],[-99990,99990],[99990,-99990],[-99990,-99990]]
   assert.equal(shot.from,'outpost:shot');assert.ok(shot.life<=2.4);
   assert.ok(Math.hypot(shot.x+shot.vx*shot.life-p.x,shot.y+shot.vy*shot.life-p.y)<=650+1e-6,'wire trajectory is bounded too');
  }
- hs[0].x=p.x+1500;const hp=hs[0].hp;r.updateHostile(3);assert.equal(r.hostile.length,0);assert.equal(hs[0].hp,hp);
+ hs[0].x=p.x+1500;const hp=hs[0].hp;r.time+=3;r.updateHostile(3);assert.equal(r.hostile.length,0);assert.equal(hs[0].hp,hp);
  // A telegraphed guard cannot inflict contact damage while a player crosses its spawn point.
  normal.elite=null;normal.frozenT=0;normal.guardReadyAt=r.time+1;normal.x=hs[0].x;normal.y=hs[0].y;
  r.rebuildGrid();hs[0].weapons.clear();r.updatePlayers(.1,hs);assert.equal(hs[0].hp,hp);

@@ -119,3 +119,9 @@ console.log(`codec: ok (${n} snapshots, ${gaps} gaps recovered, wire ${Math.roun
  const packed=packFx(fx,tmMilliOf(100.1));
  assert.deepEqual(unpackFx(packed.f,packed.fv,packed.fn,tmMilliOf(100.1)),fx);
 }
+// Exact hostile impact coordinates survive the actual FX wire representation.
+{
+ const fx=[['epend',9,100.017,-21,0,1]];
+ const packed=packFx(fx,tmMilliOf(100.1));
+ assert.deepEqual(unpackFx(packed.f,packed.fv,packed.fn,tmMilliOf(100.1)),fx);
+}
