@@ -81,11 +81,29 @@ export class UI {
 	}
 
 	show(name) {
+		const focused = document.activeElement;
 		this.screen = name;
 		for (const [k, node] of Object.entries(this.screens)) node.hidden = k !== name;
 		this.hud.hidden = name !== 'game' && name !== 'over';
+		this.resetCaravan();
 		if (name !== 'game') this.hideOffer();
 		$('connecting').hidden = true;
+		if (focused && Object.values(this.screens).some(node => node.hidden && node.contains(focused))) this.focusScreen();
+	}
+
+	focusScreen() {
+		const preferred = $({ game: 'game', over: 'over-again', lobby: 'lobby-start', menu: 'menu-create' }[this.screen]);
+		const target = preferred && !preferred.hidden && !preferred.disabled ? preferred : this.screens[this.screen]?.querySelector('button:not([hidden]):not(:disabled)');
+		if (target?.tagName === 'CANVAS') target.tabIndex = -1;
+		target?.focus({ preventScroll: true });
+	}
+
+	resetCaravan() {
+		const card = $('hud-caravan'), focused = card.contains(document.activeElement);
+		card.open = false;
+		this.set('hud-caravan', 'hidden', true);
+		this.set('hud-caravan-status', 'text', '');
+		if (focused) this.focusScreen();
 	}
 
 	setConnecting(on) {
@@ -759,7 +777,11 @@ export class UI {
 		const ev = game.event();
 		this.set('hud-event', 'hidden', !ev);
 		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
-		if (!snap) return;
+		if (!snap) { this.resetCaravan(); return; }
+		const cv = snap.cv;
+		if (!cv) this.resetCaravan();
+		else this.set('hud-caravan', 'hidden', false);
+		if (cv) this.set('hud-caravan-status', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с · необязательно`);
 		const op = snap.op;
 		this.set('hud-outposts', 'hidden', !op);
 		if (op) {
