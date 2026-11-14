@@ -47,8 +47,9 @@ const INVITE_COOLDOWN = 15_000;
 const START_DELAYS = new Set([1, 3, 5, 10, 15, 30]);
 // Only for local test runs: a key prefix such as «selftest/» (letters, digits, - _ /), empty on production.
 const STORAGE_PREFIX = /^[A-Za-z0-9_-]+\/$/.test(process.env.HORDE_STORAGE_PREFIX ?? '') ? process.env.HORDE_STORAGE_PREFIX : '';
+const progressBackend = APP_KEY ? vibeBackend(APP_KEY, { prefix: STORAGE_PREFIX }) : null;
 const store = new ProgressStore({
-	backend: APP_KEY ? vibeBackend(APP_KEY, { prefix: STORAGE_PREFIX }) : null,
+	backend: progressBackend,
 	onLoaded: (uid) => sendProgress(uid),
 });
 console.log(`storage: ${store.enabled ? `on${STORAGE_PREFIX ? `, prefix ${STORAGE_PREFIX}` : ''}` : 'off (no VIBE_APP_KEY)'}`);
@@ -513,6 +514,37 @@ async function handleLobbyInvites(req, res, url) {
 	}
 }
 
+// Only the release runner can ask the deployed process to check its data paths.
+async function handleDeployStatus(req, res) {
+	const sha = process.env.HORDE_DEPLOY_SHA;
+	if (!persistentRuns || !progressBackend || !/^[a-f0-9]{40}$/.test(sha ?? '')) return sendText(res, 404, 'not found');
+	if (req.method !== 'POST') return sendText(res, 405, 'method not allowed');
+	try {
+		const body = await readSmallJson(req, res);
+		if (res.writableEnded) return;
+		const { nonce, signature } = body ?? {};
+		if (typeof nonce !== 'string' || !/^[a-f0-9-]{36}$/.test(nonce)
+			|| typeof signature !== 'string' || !/^[a-f0-9]{64}$/.test(signature)) return sendText(res, 403, 'forbidden');
+		const expected = crypto.createHmac('sha256', APP_KEY).update(`${sha}:${nonce}`).digest();
+		if (!crypto.timingSafeEqual(Buffer.from(signature, 'hex'), expected)) return sendText(res, 403, 'forbidden');
+		const probe = 'deploy/probe.json';
+		if (await progressBackend.get(probe) !== JSON.stringify(nonce)) return sendText(res, 409, 'probe unavailable');
+
+		const directory = fs.mkdtempSync(path.join(RUNS_DIR, '.deploy-check-'));
+		try {
+			const file = path.join(directory, 'probe');
+			fs.writeFileSync(file, nonce, { flush: true, mode: 0o600 });
+			if (fs.readFileSync(file, 'utf8') !== nonce) throw new Error('archive probe');
+		} finally {
+			fs.rmSync(directory, { recursive: true, force: true });
+		}
+		await progressBackend.put(probe, JSON.stringify(`ok:${nonce}`));
+		return sendJson(res, 200, { sha, archive: true, progress: true });
+	} catch {
+		return sendText(res, 503, 'data verification failed');
+	}
+}
+
 // GET /api/runs — recent runs; /api/runs/:id — full log (JSON), /api/runs/:id.txt — summary + JSON.
 function handleRuns(req, res, p) {
 	if (req.method !== 'GET') return sendText(res, 405, 'method not allowed');
@@ -540,6 +572,7 @@ const server = http.createServer((req, res) => {
 		return sendText(res, 400, 'bad request');
 	}
 	const p = url.pathname;
+	if (p === '/api/deploy-status') return handleDeployStatus(req, res);
 	if (p === '/health') return sendText(res, 200, 'ok');
 	if (p === '/api/session') return handleSession(req, res, url);
 	if (p === '/api/events') return handleEvents(req, res, url);
