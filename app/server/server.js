@@ -80,7 +80,11 @@ let guestNo = 0;
 
 const hub = new Hub((pid, msg, json) => {
 	const s = byPid.get(pid);
-	if (s?.conn) s.conn.send(json ?? JSON.stringify(msg), msg.t === 's');
+	if (s?.conn) {
+		const room = hub.players.get(pid)?.room;
+		if (room?.daily && (clientProto.get(pid) ?? 0) < PROTO && !['welcome', 'err'].includes(msg.t)) return;
+		s.conn.send(json ?? JSON.stringify(msg), msg.t === 's');
+	}
 });
 hub.isConnected = (pid) => !!byPid.get(pid)?.conn;
 
@@ -164,6 +168,13 @@ function attach(s, conn, proto) {
 	s.timer = null;
 	if (old) old.close();
 	clientProto.set(s.pid, proto);
+	const room = hub.players.get(s.pid)?.room;
+	if (room?.daily && proto < PROTO) {
+		conn.send(JSON.stringify({ t: 'welcome', pid: s.pid, name: hub.players.get(s.pid)?.name, room: room.code, v: PROTO }), false);
+		conn.send(JSON.stringify({ t: 'err', msg: 'Обновите страницу, чтобы участвовать в испытании дня' }), false);
+		conn.close();
+		return;
+	}
 	hub.setOffline(s.pid, false);
 	hub.welcome(s.pid);
 	conn.send(JSON.stringify(progressMsg(store, s.uid ? store.record(s.uid) : null)), false);
@@ -223,6 +234,12 @@ function dispatch(s, msg) {
 	if (!msg || typeof msg !== 'object' || Array.isArray(msg)) return;
 	if (!allowMessage(s)) return;
 	try {
+		const current = hub.players.get(s.pid)?.room;
+		const joining = msg.t === 'join' && typeof msg.code === 'string' ? hub.rooms.get(msg.code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8)) : null;
+		if ((clientProto.get(s.pid) ?? 0) < PROTO && ((current?.daily && msg.t !== 'leave') || joining?.dailySelected || joining?.daily)) {
+			s.conn?.send(JSON.stringify({ t: 'err', msg: 'Обновите страницу, чтобы участвовать в испытании дня' }), false);
+			return;
+		}
 		if (handleProgress(s, msg)) return;
 		if (msg.t === 'heroes' || msg.t === 'create' || msg.t === 'join') {
 			const list = serverUnlocked(s);
