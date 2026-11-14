@@ -27,3 +27,10 @@ test('CEO41.2 real Room tick expires the gift before an early bloater blast',()=
  const e=r.spawnEnemy('bloater',[b],1);Object.assign(e,{x:0,y:0,speed:0,fuseT:.001});r.time=108;r.tick(1/30);
  assert.ok(e.exploded,'native AI fuse really detonated');assert.ok(b.hp<hp,'expired gift cannot absorb an AI-phase explosion');assert.equal(a.support.blocked,blocked,'expired donation earns no phantom prevention');
 });
+for(const expired of [false,true])test('r13-41 early starfall renews only an expired gift '+expired,()=>{
+ const {r,a,b,c}=arena();a.ward=a.wardMax=4;b.x=100;c.x=500;gift(r,a,b);const oldUntil=b.sharedWard.until;
+ r.time=expired?108.01:107.5;a.iframes=0;const before=a.ward;
+ r.events.cur={id:'star',phase:0,end:r.time-.01,x:0,y:0,r:1,log:{}};r.tick(1/30);
+ assert.equal(a.ward,before-1,'real early starfall spends one own Bastion block');assert.ok(b.sharedWard,'eligible recipient has a valid gift immediately in this tick');
+ assert.equal(b.sharedWard.until,expired?r.time+8:oldUntil,'expired reservation is released before eligibility; live gift is not extended');assert.equal(b.ward,0);
+});

@@ -3917,6 +3917,7 @@ export class Room {
 		}
 		if (id === 'bastion') {
 			for (const o of this.heroes.values()) {
+				if (o.sharedWard?.until <= this.time) o.sharedWard = null;
 				if (o === h || o.st !== 0 || o.offline || o.sharedWard || o.ward >= Math.max(o.wardMax, 1) || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
 				o.sharedWard = { owner: h, until: this.time + 8 };
 				this.fx.push(['ward', o.pid, o.ward + 1]);
