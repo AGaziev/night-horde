@@ -1,3 +1,4 @@
+import { PROTO } from './snapshot-codec.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
@@ -33,7 +34,7 @@ test('CEO54-3: legacy participant blocks daily start; downgraded reconnect gets 
 	r.handle(1, { t: 'daily', enabled: true }); clientProto.set(2, 24);
 	try {
 		r.start(); assert.equal(r.state, 'lobby');
-		clientProto.set(2, 28); r.start(); assert.equal(r.state, 'play');
+		clientProto.set(2, PROTO); r.start(); assert.equal(r.state, 'play');
 		clientProto.set(2, 24); sent.length = 0;
 		r.resync(2); r.snapshot();
 		assert.ok(!sent.some(([pid, msg]) => pid === 2 && ['start', 's'].includes(msg.t)));

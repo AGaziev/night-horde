@@ -1,3 +1,4 @@
+import { PROTO } from './snapshot-codec.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import fs from 'node:fs';
@@ -32,7 +33,7 @@ test('CEO54-3 real transport: old normal client works, daily join and active dow
 	c.send({ t: 'start' }); await c.until(m => m.t === 'start');
 	assert.ok(c.messages.some(m => m.t === 'start'), 'legacy ordinary mode remains supported');
 	c.send({ t: 'quit' }); await wait(30);
-	c = await connection(sid, 28); await c.until(m => m.t === 'lobby');
+	c = await connection(sid, PROTO); await c.until(m => m.t === 'lobby');
 	c.send({ t: 'daily', enabled: true }); const lobby = await c.until(m => m.t === 'lobby' && m.dailySelected);
 	const strangerSid = (await (await fetch(url + '/api/session')).json()).sid;
 	const stranger = await connection(strangerSid, 24); stranger.send({ t: 'join', code: lobby.code, hero: 'witch' });

@@ -1,3 +1,4 @@
+import { PROTO } from '../app/server/snapshot-codec.js';
 // Real legacy browser progress + transport proof. Optional Playwright installation is external.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';
@@ -31,7 +32,7 @@ try{
  const before=await page.evaluate(()=>({ach:localStorage.getItem('nh.ach'),duos:localStorage.getItem('nh.duos'),run:localStorage.getItem('nh.achRun')}));
  // Keep this exact browsing context/storage, but stop its old reconnect loop while current host opts into daily.
  await page.goto('about:blank');
- const messages=[];control=new WebSocket(`ws://127.0.0.1:${port}/ws?sid=${sid}&v=28`);control.on('message',s=>messages.push(...[].concat(JSON.parse(s.toString()))));await once(control,'open');
+ const messages=[];control=new WebSocket(`ws://127.0.0.1:${port}/ws?sid=${sid}&v=${PROTO}`);control.on('message',s=>messages.push(...[].concat(JSON.parse(s.toString()))));await once(control,'open');
  const until=async predicate=>{for(let i=0;i<150;i++){const m=messages.find(predicate);if(m)return m;await wait(10);}throw Error('control message timeout');};
  await until(m=>m.t==='start');control.send(JSON.stringify({t:'quit'}));await until(m=>m.t==='lobby');
  control.send(JSON.stringify({t:'daily',enabled:true}));await until(m=>m.t==='lobby'&&m.dailySelected);control.send(JSON.stringify({t:'start'}));await until(m=>m.t==='start'&&m.daily);
