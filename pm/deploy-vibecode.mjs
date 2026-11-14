@@ -1,8 +1,10 @@
 import { execFileSync } from 'node:child_process';
-import { createHash } from 'node:crypto';
+import { createHash, createHmac, randomUUID } from 'node:crypto';
 import { setTimeout as pauseFor } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { gzipSync } from 'node:zlib';
+import { vibeBackend } from '../app/server/storage.js';
 
 const platformOrigin = 'https://vibecode.bitrix24.tech';
 const appOrigin = 'https://app-0fdbcfb656d3.vibecode.bitrix24.tech';
@@ -30,16 +32,19 @@ function gameVersion(cwd, ref) {
 	return version;
 }
 
+function releaseSourceId(cwd, tag) {
+	const [type, subject] = git(cwd, 'for-each-ref', '--format=%(objecttype)%09%(contents:subject)', `refs/tags/${tag}`)
+		.toString().trim().split('\t');
+	return type === 'tag' ? subject?.match(/^Vibecode source: (v[1-9]\d*)$/)?.[1] : undefined;
+}
+
 function previousRelease(cwd, sha) {
 	const tags = git(cwd, 'tag', '--merged', sha, '--list', 'v*', '--sort=-version:refname').toString().split('\n');
 	const tag = tags.find(tag => versionPattern.test(tag));
 	if (!tag || gameVersion(cwd, `refs/tags/${tag}`) !== tag) {
 		throw new Error('Последний релизный тег в проверенном коммите должен совпадать с GAME_VERSION своего коммита.');
 	}
-	const [type, subject] = git(cwd, 'for-each-ref', '--format=%(objecttype)%09%(contents:subject)', `refs/tags/${tag}`)
-		.toString().trim().split('\t');
-	const sourceId = type === 'tag' && subject?.match(/^Vibecode source: (v[1-9]\d*)$/)?.[1];
-	return { tag, sourceId: sourceId || tag };
+	return { tag, sourceId: releaseSourceId(cwd, tag) ?? tag };
 }
 
 function assertMainHead(cwd, sha) {
@@ -112,9 +117,13 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 				if (result?.success !== true || typeof token !== 'string' || !token) {
 					throw new Error('Vibecode не вернул токен для проверки прода.');
 				}
-				return await check(timeout => request('/api/busy', `${appOrigin}/api/busy`, {
-					headers: { Authorization: `Bearer ${token}` }, timeout,
-				}));
+				const headers = { Authorization: `Bearer ${token}` };
+				return await check(
+					timeout => request('/api/busy', `${appOrigin}/api/busy`, { headers, timeout }),
+					(path, { body, timeout } = {}) => request('Проверка данных приложения', `${appOrigin}${path}`, {
+						headers, method: body ? 'POST' : 'GET', body, timeout,
+					}),
+				);
 			} finally {
 				try {
 					await request('Отзыв токена', `${api}/access-tokens/${encodeURIComponent(id)}`, { method: 'DELETE' });
@@ -123,7 +132,7 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 				}
 			}
 		},
-		async deploy({ archive, sourceId, changelog }) {
+		async deploy({ archive, sourceId, changelog, sha }) {
 			const result = await request('Выкладка Vibecode', `${api}/deploy`, {
 				method: 'POST', timeout: deployTimeout,
 				body: {
@@ -139,6 +148,7 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 						VIBE_APP_KEY: key,
 						HORDE_VIBE_SERVER_ID: serverId,
 						HORDE_APP_ORIGIN: appOrigin,
+						HORDE_DEPLOY_SHA: sha,
 					},
 					displayName: 'Ночная орда',
 					changelog,
@@ -148,20 +158,84 @@ function vibecodeClient(fetch, { VIBE_KEY: key, SERVER_ID: serverId }) {
 			if (result?.success !== true || !versionPattern.test(savedId ?? '')) {
 				throw new Error('Vibecode не подтвердил успешную выкладку и сохранение исходников.');
 			}
+			const steps = result?.data?.steps;
+			if (!Array.isArray(steps) || !steps.some(step => step?.step === 'data_dirs' && step.status === 'ok')
+				|| steps.some(step => step?.status !== 'ok' && ['data_dirs', 'env', 'platform_env', 'app_secrets', 'service_user', 'hardening', 'healthcheck', 'app_root'].includes(step?.step))) {
+				throw new Error('Vibecode не подтвердил data_dirs или другой обязательный шаг запуска приложения.');
+			}
+			if (Array.isArray(result.warnings) && result.warnings.some(warning =>
+				typeof warning === 'string' && /\b(?:NODE_ENV|VIBE_APP_KEY|HORDE_(?:DEPLOY_SHA|VIBE_SERVER_ID|APP_ORIGIN))\b/.test(warning))) {
+				throw new Error('Vibecode сообщил предупреждение о переменных приложения.');
+			}
 			return savedId;
 		},
 	};
 }
 
-async function verifyProduction(client, version, pause) {
-	await client.withBusy(async read => {
-		for (let attempt = 0; attempt < 5; attempt++) {
-			if (attempt > 0) await pause(3000);
-			const status = await read().catch(() => null);
-			if (status?.v === version && status.storage === true) return;
+function releaseArchive(cwd, sha) {
+	const timestamp = git(cwd, 'show', '-s', '--format=%cI', sha).toString().trim();
+	const tar = git(cwd, 'archive', '--format=tar', `--mtime=${timestamp}`, `${sha}:app`);
+	const archive = gzipSync(tar, { level: 9 });
+	return { archive, sha256: createHash('sha256').update(archive).digest('hex') };
+}
+
+async function verifyProduction(client, version, sha, previousRun, progress, key, pause) {
+	const nonce = randomUUID();
+	const probeKey = 'deploy/probe.json';
+	const signature = createHmac('sha256', key).update(`${sha}:${nonce}`).digest('hex');
+	let ready;
+	try {
+		await progress.put(probeKey, JSON.stringify(nonce));
+		ready = await client.withBusy(async (read, appRequest) => {
+			for (let attempt = 0; attempt < 5; attempt++) {
+				if (attempt > 0) await pause(3000);
+				const status = await read().catch(() => null);
+				if (status?.v !== version || status.storage !== true) continue;
+				const proof = await appRequest('/api/deploy-status', { body: { nonce, signature } });
+				if (proof?.sha !== sha || proof.archive !== true || proof.progress !== true
+					|| await progress.get(probeKey) !== JSON.stringify(`ok:${nonce}`)) {
+					throw new Error('Приложение не подтвердило запись архива и чтение/запись хранилища прогресса.');
+				}
+				if (previousRun) {
+					const currentRun = await appRequest(`/api/runs/${previousRun.id}`);
+					if (!isDeepStrictEqual(currentRun, previousRun)) {
+						throw new Error('Приложение не подтвердило прежний архив забегов.');
+					}
+				}
+				return true;
+			}
+			return false;
+		});
+	} catch {
+		throw new Error('Не подтверждена сохранность данных: архив забегов или хранилище прогресса недоступны.');
+	}
+	if (!ready) throw new Error(`/api/busy не подтвердил ${version} с включённым хранилищем прогресса.`);
+}
+
+async function recoverRelease(cwd, sha, liveVersion, source, progress) {
+	let receipt;
+	try {
+		receipt = JSON.parse(await progress.get(`deploy/releases/${liveVersion}.json`) || 'null');
+	} catch {
+		throw new Error('Не удалось прочитать запись о проверенной выкладке.');
+	}
+	const { ref, sha256, sourceId, version } = receipt ?? {};
+	if (version !== liveVersion || sourceId !== source.versionId || sha256 !== source.sha256
+		|| !/^[a-f0-9]{40}$/.test(ref ?? '')
+		|| git(cwd, 'merge-base', ref, sha).toString().trim() !== ref
+		|| gameVersion(cwd, ref) !== version || releaseArchive(cwd, ref).sha256 !== sha256) {
+		throw new Error(`Не подтверждён проверенный коммит для ${liveVersion}: источник, архив или запись о выпуске не совпадают.`);
+	}
+	const tagRef = `refs/tags/${version}`;
+	if (git(cwd, 'ls-remote', '--tags', 'origin', tagRef).toString().trim()) {
+		git(cwd, 'fetch', '--no-tags', 'origin', `${tagRef}:${tagRef}`);
+		if (git(cwd, 'rev-parse', `${tagRef}^{}`).toString().trim() !== ref || releaseSourceId(cwd, version) !== sourceId) {
+			throw new Error(`Тег ${version} уже существует с другой привязкой.`);
 		}
-		throw new Error(`/api/busy не подтвердил ${version} с включённым хранилищем прогресса.`);
-	});
+	} else {
+		recordRelease(cwd, ref, version, sourceId);
+	}
+	return ref;
 }
 
 function hasScheduledStarts(busy, previousVersion) {
@@ -199,62 +273,74 @@ export async function deployVibecode({ cwd, sha, env, fetch = globalThis.fetch, 
 	if (!changelog || changelog.length > 2000) {
 		throw new Error(`В changelog/${version}.txt нужен текст длиной от 1 до 2000 символов.`);
 	}
-	assertMainHead(cwd, sha);
-	const timestamp = git(cwd, 'show', '-s', '--format=%cI', sha).toString().trim();
-	const tar = git(cwd, 'archive', '--format=tar', `--mtime=${timestamp}`, `${sha}:app`);
-	const archive = gzipSync(tar, { level: 9 });
-	const sha256 = createHash('sha256').update(archive).digest('hex');
-
+	const { archive, sha256 } = releaseArchive(cwd, sha);
 	const client = vibecodeClient(fetch, env);
+	const progress = vibeBackend(env.VIBE_KEY, { fetchImpl: fetch });
 	const source = await client.currentSource();
+	const initial = await client.withBusy(read => read());
+	if (initial?.v === previous.tag) assertReleaseSource(source, previous);
+	let liveRelease = previous;
+	if (versionPattern.test(initial?.v ?? '') && BigInt(initial.v.slice(1)) > BigInt(previous.tag.slice(1))) {
+		if (initial.storage !== true) throw new Error('/api/busy: хранилище прогресса выключено.');
+		const recovered = await recoverRelease(cwd, sha, initial.v, source, progress);
+		if (initial.v === version) return `Выкладка ${version} уже подтверждена. Тег проверен для ${recovered}.`;
+		if (BigInt(version.slice(1)) < BigInt(initial.v.slice(1))) {
+			throw new Error(`GAME_VERSION ${version} старше уже выложенного релиза ${initial.v}.`);
+		}
+		liveRelease = { tag: initial.v, sourceId: source.versionId };
+	}
+	assertMainHead(cwd, sha);
+
 	const deadline = now() + scheduledWaitTimeout;
 	const remaining = () => {
 		const ms = Math.ceil(deadline - now());
 		if (ms <= 0) throw new Error('Не удалось дождаться завершения запланированных стартов за 35 минут.');
 		return Math.min(ms, requestTimeout);
 	};
-	let firstCheck = true;
 	let savedId;
+	let previousRun;
 	while (savedId === undefined) {
 		remaining();
-		savedId = await client.withBusy(async read => {
+		savedId = await client.withBusy(async (read, appRequest) => {
 			const renewAt = now() + busyTokenRenewAfter;
 			while (now() < renewAt) {
 				const busy = await read(remaining());
-				if (firstCheck && busy?.v === version) {
-					if (source.sha256 !== sha256) throw new Error(`На проде уже ${version} из другого архива.`);
-					if (busy.storage !== true) throw new Error('/api/busy: хранилище прогресса выключено.');
-					return null;
-				}
-				const scheduled = hasScheduledStarts(busy, previous.tag);
-				if (firstCheck) {
-					assertReleaseSource(source, previous);
-					firstCheck = false;
-				}
+				const scheduled = hasScheduledStarts(busy, liveRelease.tag);
 				if (!scheduled) {
-					const current = await client.currentSource(remaining());
-					assertReleaseSource(current, previous);
-					assertMainHead(cwd, sha);
+					const oldRuns = await appRequest('/api/runs', { timeout: remaining() });
+					if (!Array.isArray(oldRuns?.runs)) throw new Error('Не удалось прочитать текущий архив забегов.');
+					const archiveId = oldRuns.runs[0]?.id;
+					if (oldRuns.runs.length && !/^[A-Z0-9]{6}$/.test(archiveId ?? '')) {
+						throw new Error('В архиве забегов получен неизвестный идентификатор.');
+					}
+					previousRun = archiveId ? await appRequest(`/api/runs/${archiveId}`, { timeout: remaining() }) : null;
+					if (archiveId && previousRun?.id !== archiveId) throw new Error('Не удалось прочитать запись архива забегов.');
 					if (now() >= renewAt) break;
+					const current = await client.currentSource(remaining());
+					assertReleaseSource(current, liveRelease);
 					const latest = await read(remaining());
-					if (!hasScheduledStarts(latest, previous.tag)) {
+					if (!hasScheduledStarts(latest, liveRelease.tag)) {
 						remaining();
-						return client.deploy({ archive, sourceId: current.versionId, changelog });
+						assertMainHead(cwd, sha);
+						return client.deploy({ archive, sourceId: current.versionId, changelog, sha });
 					}
 				}
 				await pause(Math.min(scheduledPollInterval, remaining()));
 			}
 		});
 	}
-	if (savedId === null) {
-		recordRelease(cwd, sha, version, source.versionId);
-		return `Выкладка ${version} уже подтверждена. Тег восстановлен для ${sha}.`;
-	}
-
-	await verifyProduction(client, version, pause);
+	await verifyProduction(client, version, sha, previousRun, progress, env.VIBE_KEY, pause);
 	const deployed = await client.currentSource();
 	if (deployed.versionId !== savedId || deployed.sha256 !== sha256) {
 		throw new Error('Vibecode не подтвердил хеш архива проверенного коммита.');
+	}
+	const receiptKey = `deploy/releases/${version}.json`;
+	const receipt = JSON.stringify({ ref: sha, sha256, sourceId: savedId, version });
+	try {
+		await progress.put(receiptKey, receipt);
+		if (await progress.get(receiptKey) !== receipt) throw new Error();
+	} catch {
+		throw new Error('Не удалось сохранить подтверждение выкладки для восстановления тега.');
 	}
 	recordRelease(cwd, sha, version, savedId);
 	return `Выкладка ${version} подтверждена. Тег записан для ${sha}.`;

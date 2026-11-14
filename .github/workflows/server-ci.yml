@@ -71,7 +71,7 @@ jobs:
   deploy-production:
     name: Deploy to Vibecode
     needs: server-tests
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.VIBECODE_AUTODEPLOY == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 65
     permissions:
