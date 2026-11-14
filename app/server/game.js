@@ -25,7 +25,6 @@ import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, 
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 import { requestDash, stepMobility, mobilitySnapshot, dashShotDistance2 } from './mobility.js';
-import { segmentDistance2 } from '../public/shared/mobility.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -1795,6 +1794,10 @@ export class Room {
 	}
 
 	moveEnemies(dt, alive) {
+		// Capture the whole cohort before any AI side effects; read endpoints after finally/confineGuard.
+		if (alive.some(h => h.dashPath)) {
+			for (const e of this.enemies) if (!e.dead) e.dashMotion = { x: e.x, y: e.y, tick: this.tickNo, warped: false };
+		}
 		this.rebuildGrid();
 		const near = this.q1;
 		const taunters = alive.filter((p) => p.trait.taunt > 0);
@@ -1818,6 +1821,7 @@ export class Room {
 				}
 				if (!e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
 					[e.x, e.y] = this.randomRingPos(alive);
+					if (e.dashMotion) e.dashMotion.warped = true;
 					e.windT = 0;
 					e.bs = 0;
 					continue;
@@ -2004,6 +2008,7 @@ export class Room {
 					e.bt -= dt;
 					if (e.bt <= 0) {
 						this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+						if (e.dashMotion && (e.x !== e.tx || e.y !== e.ty)) e.dashMotion.warped = true;
 						e.x = e.tx;
 						e.y = e.ty;
 						e.bs = 0;
@@ -2301,6 +2306,7 @@ export class Room {
 			const d = Math.hypot(dx, dy) || 1;
 			const step = Math.min(BLINK_DIST, Math.max(0, d - e.r - PLAYER_RADIUS - 20));
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+			if (step > 0 && e.dashMotion) e.dashMotion.warped = true;
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
 			confineGuard(e);
@@ -2945,12 +2951,17 @@ export class Room {
 			h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
-			const from = h.dashPath ?? h;
-			this.grid.query((h.x + from.x) / 2, (h.y + from.y) / 2, PLAYER_RADIUS + MAX_ENEMY_R + Math.hypot(h.x - from.x, h.y - from.y) / 2, near);
-			for (const e of near) {
+			// A fast crossing enemy can end outside the hero segment's grid cells.
+			// Only a dash scans the room's bounded enemy list; ordinary movement keeps its point query.
+			const contacts = h.dashPath ? this.enemies : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
+			for (const e of contacts) {
 				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
-				if (segmentDistance2(e.x, e.y, from.x, from.y, h.x, h.y) >= min * min) continue;
+				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null;
+				const distance = h.dashPath && !motion?.warped
+					? dashShotDistance2(h, motion?.x ?? e.x, motion?.y ?? e.y, e.x, e.y, dt)
+					: dist2(e.x, e.y, h.x, h.y);
+				if (distance >= min * min) continue;
 				if (e.ai === 'exploder') {
 					if (e.fuseT <= 0) {
 						e.fuseT = e.def.fuse;

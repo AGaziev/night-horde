@@ -38,7 +38,7 @@ export function stepMobility(room, dt) {
 	}
 }
 
-// Follow both moving bodies. In the last dash tick the hero can arrive early,
+// Follow a moving enemy body or shot against the hero. In the last dash tick the hero can arrive early,
 // so split travel and the stationary remainder rather than stretching travel.
 export function dashShotDistance2(h, sx, sy, ex, ey, dt) {
 	const from = h.dashPath;
