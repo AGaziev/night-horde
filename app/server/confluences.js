@@ -21,7 +21,7 @@ export function castConfluence(room, h, L, src, effect) {
         if(along<0||along>range||Math.abs(x*dy-y*dx)>L.width*h.mods.areaMul+e.r)continue;
         seen.add(e);room.hurtEnemy(e,damage*(e===focus ? L.focusMul : 1),h,src);
         if(e.dead)continue;
-        if(effect==='resonanceBeam'){e.resonanceT=room.time+L.dur*h.mods.durMul;e.resonancePower=1.3;}
+        if(effect==='resonanceBeam'){e.resonanceT=room.time+L.dur*h.mods.durMul;e.resonancePower=1.3;e.resonanceWeapon=src.weapon;}
         if(effect==='markBeam' && (!(e.markT>room.time)||e.markMul<=L.mark)){
           e.markMul=L.mark;e.markT=room.time+L.dur*h.mods.durMul;e.markOwner=h;
         }

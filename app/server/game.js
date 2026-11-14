@@ -1172,6 +1172,9 @@ export class Room {
 		h.fused.add(b);
 		// Consumed attacks end at fusion; unrelated weapons keep their own fields and missiles.
 		const consumed = (effect) => effect.owner === h && card.parts.includes(effect.src?.weapon);
+		const removedPools = new Set(this.puddles.filter(consumed));
+		for (const pool of removedPools) pool.life = 0;
+		for (const enemy of this.enemies) if (removedPools.has(enemy.wetZ)) enemy.wetZ = null;
 		for (const [key, kind] of [['projectiles', 0], ['blasts', 1], ['coldWaves', 2], ['orbs', 3]]) {
 			for (const effect of this[key]) if (consumed(effect) && effect.id !== undefined) this.fx.push(['cancel', kind, effect.id]);
 		}
@@ -2543,7 +2546,7 @@ export class Room {
 			const r = 58;
 			this.fx.push(['buildring', Math.round(e.x), Math.round(e.y), r, 1]);
 			this.splash(e.x, e.y, r, dmg * 0.65 * e.resonancePower, h,
-				this.reactionSource(e, { weapon: 'tuning', tags: [], react: true }, dmg), e);
+				this.reactionSource(e, { weapon: e.resonanceWeapon ?? 'tuning', tags: [], react: true }, dmg), e);
 		}
 		if (fire && e.rootT > now && t.includes('aoe')) {
 			dmg *= REACT.blastMul;
@@ -3663,7 +3666,7 @@ export class Room {
 				if (e.dead) continue;
 				this.slowEnemy(e, wave.slow, wave.dur);
 				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze);
-				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; }
+				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; e.resonanceWeapon = wave.src.weapon; }
 			}
 			if (wave.distance < wave.range) this.coldWaves[n++] = wave;
 		}
@@ -3707,6 +3710,7 @@ export class Room {
 			if (e.dead) continue;
 			e.resonanceT = this.time + L.dur * h.mods.durMul;
 			e.resonancePower = L.resonance ?? 1;
+			e.resonanceWeapon = src.weapon;
 		}
 		return true;
 	}
@@ -5069,7 +5073,7 @@ export class Room {
 						}
 						this.hurtEnemy(e, z.dmg * (entry ? 2.5 : 1), z.owner, z.src ?? (z.heal ? SRC.censer : SRC.flask));
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
-						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; }
+						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; e.resonanceWeapon = z.src.weapon; }
 						if (z.drag && !e.dead && !e.boss) {
 							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
 							e.dragT = this.time + z.tick + 0.1;
