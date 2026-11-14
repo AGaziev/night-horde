@@ -1,3 +1,4 @@
+import { supportStats } from './support.js';
 // Run telemetry and a bounded archive of completed runs.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -352,7 +353,7 @@ export class RunLog {
 			const taken = Object.fromEntries(Object.entries(p.taken).sort((a, b) => b[1] - a[1]).map(([k, v]) => [k, Math.round(v)]));
 			return {
 				pid: h.pid, name: h.name, hero: h.hero, heroName: HEROES[h.hero]?.name ?? h.hero, level: h.level,
-				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
+				kills: h.kills, dmg: Math.round(h.dmg), dmgBy, support: supportStats(h), supportDamage: Math.round(h.supportDamage), taken, takenTotal: Math.round(Object.values(p.taken).reduce((s, v) => s + v, 0)),
 				downs: p.downs, ups: p.ups, minHp: Math.round(Math.max(0, p.minHp)), minHpAt: r1(p.minHpT), maxHp: h.maxHp,
 				duos: p.duos, evos: p.evos, rarity: p.rar, ach: room.runAchievements?.(h, win),
 				hpByMin: p.hpMin, dpsByMin: p.dps, deaths: p.deaths, drops: p.drops ?? [], declinedNewWeapon: p.declinedW, declinedNewWeaponLonely: p.declinedLonely,
@@ -431,7 +432,8 @@ function resultsCard(log, heroes, telemetry) {
 			pid: t.pid ?? i + 1, name: t.name, hero: t.hero, heroName: t.heroName ?? HEROES[t.hero]?.name ?? t.hero,
 			level: t.level, kills: t.kills, dmg: t.dmg, maxHp: t.maxHp,
 			weapons: (t.dmgBy ?? []).slice(0, 8).map((d) => [d.name, d.dmg, d.pct]),
-			supportDamage: Math.round(h?.supportDamage ?? 0),
+			supportDamage: Math.round(h?.supportDamage ?? t.supportDamage ?? 0),
+			support: h ? supportStats(h) : (t.support ?? supportStats()),
 			taken: t.takenTotal ?? 0, takenTop, revives: t.ach?.revives ?? 0,
 			// Downs by enemies (a dropped connection is counted apart), when they fell and when allies lifted them.
 			downs: downsAt.length, downsAt,

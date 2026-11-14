@@ -301,6 +301,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 .duo-flash .hud-icon { animation: duo-flash 0.9s ease-out; }
 @keyframes duo-flash { 0% { transform: scale(1.5); box-shadow: 0 0 22px #ffd54f; } 100% { transform: scale(1); } }
 .hud-syn { font-size: 0.72rem; color: #ffe082; text-shadow: 0 1px 3px #000; margin-top: 2px; }
+#hud-support { grid-column: 1 / -1; max-width: 100%; line-height: 1.35; }
 .card-hint { font-size: 0.72rem; color: #ffe082; line-height: 1.25; }
 .card-hint-react { color: #81d4fa; }
 .card-hint-rec { color: #a5d6a7; font-weight: 600; }

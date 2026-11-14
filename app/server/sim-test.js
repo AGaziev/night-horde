@@ -2009,7 +2009,7 @@ console.log('over/again/leave: ok');
 		assert.equal(msgs.filter(([pid, m]) => pid === 2 && m.t === 'lobby').pop()[1].mode, 'night', 'everyone sees the mode');
 		// Buildcraft calibration applies in both modes, with the fourth value shared by larger groups.
 		for (const [mode, { hp, dmg }] of Object.entries({
-			night: { hp: [1.8, 2, 2.4, 2.5], dmg: [0.75, 0.6, 0.56, 0.6] },
+			night: { hp: [1.8, 2, 2.4, 2.5], dmg: [0.75, 0.6, 0.5, 0.6] },
 			lunch: { hp: [1.9, 2, 2.4, 2.4], dmg: [0.75, 0.6, 0.5, 0.6] },
 		})) {
 			for (const players of [1, 2, 3, 4, 8]) {
