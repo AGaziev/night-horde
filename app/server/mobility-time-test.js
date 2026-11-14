@@ -49,3 +49,16 @@ test('early AI hazard retains legacy priority and fresh protection',()=>{
 test('new run resets contact phase marker even at same tick number',()=>{
  const{r,h}=setup();shot(r,25,9);r.step(dt);r.start();const next=r.heroes.get(1);next.perk.readyAt=Infinity;next.weapons.clear();r.handle(1,{t:'dash',x:1,y:0,run:r.runLog.id,request:1,expiresAt:Date.now()+1500});const hp=next.hp;shot(r,25,9);r.step(dt);assert.equal(next.hp,hp-9);
 });
+test('CEO55-4 actual revive then44 native ticks preserves protection at the early dash contact',()=>{
+ const r=new Room('REVIVE',()=>{});r.addPlayer(1,'Revived','witch');r.addPlayer(2,'Helper','witch');r.start();r.spawn=()=>{};r.breakAround=()=>{};
+ const h=r.heroes.get(1),helper=r.heroes.get(2);
+ for(const hero of r.heroes.values()){hero.weapons.clear();hero.perk.readyAt=Infinity;hero.x=hero.y=0;}
+ Object.assign(h,{st:1,hp:0,rev:100});r.updateRevive(dt);assert.equal(h.st,0);assert.equal(h.iframes,1.5);const hp=h.hp;helper.x=1000;
+ for(let i=0;i<44;i++)r.step(dt);assert.ok(Math.abs(h.iframes-dt)<1e-8);
+ r.handle(1,{t:'dash',x:1,y:0,run:r.runLog.id,request:1,expiresAt:Date.now()+1500});shot(r,12,8,{y:20.99});r.step(dt);
+ assert.equal(h.hp,hp,'contact near10ms stays inside remaining33.33ms revive protection');assert.ok(h.iframes<1e-8);assert.equal(r.hostile.length,0);
+});
+test('a ward burst removing a queued exploder prevents a later phantom fuse event',()=>{
+ const{r,h}=setup();h.ward=1;const e=r.spawnEnemy('bloater',[h],1);Object.assign(e,{x:50,y:0,speed:0,hp:.01,fuseT:0});shot(r,25,10);r.step(dt);
+ assert.equal(h.hp,100);assert.equal(e.dead,true);assert.equal(e.fuseT,0);
+});

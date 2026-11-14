@@ -2339,7 +2339,7 @@ export class Room {
 		events.sort((a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid);
 		for (const ev of events) {
 			const { h, e, s, at } = ev;
-			if (h.st !== 0 || s?.dashDone) continue;
+			if (h.st !== 0 || e?.dead || s?.dashDone) continue;
 			if (s) {
 				applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
 				s.dashDone = true; // Protection still intercepts and consumes a shot.
