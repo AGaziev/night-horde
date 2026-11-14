@@ -1159,9 +1159,11 @@ export class Room {
 		const current = this.currentDuoCard(h, card);
 		if (!current || current.level !== card.level) return false;
 		const [a, b] = card.parts;
+		const shield = card.parts.includes('ward') ? h.weapons.get('ward') : null;
 		const next = new Map();
 		for (const [id, w] of h.weapons) {
-			if (id === a) next.set(card.id, { lvl: card.level, t: 0.3,
+			if (id === a) next.set(card.id, { lvl: card.level, t: shield ? shield.t : 0.3,
+				...(shield ? { init: shield.init ?? false } : {}),
 				parts: [a, b].map((part) => ({ id: part, lvl: h.weapons.get(part).lvl, t: 0.3 })) });
 			else if (id !== b) next.set(id, w);
 		}
