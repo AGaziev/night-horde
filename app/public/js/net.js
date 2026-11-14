@@ -246,6 +246,11 @@ export class Net {
 		}
 	}
 
+	// A timed-out dash must not remain behind an in-flight SSE position POST.
+	cancelDash(run, request) {
+		this.outbox = this.outbox.filter(m => m.t !== 'dash' || m.run !== run || m.request !== request);
+	}
+
 	// Keep menu/offer commands, but never replay unsent movement rejected by a pause.
 	discardPositions() {
 		this.outbox = this.outbox.filter((msg) => msg.t !== 'pos');

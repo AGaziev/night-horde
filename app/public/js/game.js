@@ -1,5 +1,5 @@
 // Client-side game state: own hero prediction, snapshot buffer with interpolation, effect events.
-import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS } from '/shared/content.js';
+import { HEROES, WEAPONS, PASSIVES, PLAYER_COLORS, POS_HZ, ENEMIES, ENEMY_TYPES, PROJECTILE_KINDS, ITEM_TYPES, DUOS, EVOS, REACTION_IDS, REACT, PEAKS, EVENTS, FINALE, clampToRing, PLAYER_RADIUS, DASH, clipDash } from '/shared/content.js';
 
 // Cards that «Изгнать» accepts: plain weapons, artifacts and overclock variants (the server checks the same).
 export const canBan = (c) => (c?.kind === 'weapon' && !!WEAPONS[c.id]) || c?.kind === 'passive' || c?.kind === 'ovr';
@@ -115,6 +115,13 @@ export class Game {
 	}
 
 	reset() {
+		this.cancelDash();
+		this.moveEpoch = 0;
+		this.dashConfirmedEpoch = 0;
+		this.dashReadyAt = 0;
+		this.dashSyncAt = 0;
+		this.dashTravel = null;
+		this.dashWaiting = 0;
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
@@ -161,6 +168,9 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.mobilityRun = msg.mobilityRun;
+		this.serverOffset = Number.isFinite(msg.serverNow) ? msg.serverNow - Date.now() : 0;
+		this.dashRequest = 0;
 		this.running = true;
 		this.frozen = msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
@@ -176,10 +186,11 @@ export class Game {
 				color: p.color || PLAYER_COLORS[i % PLAYER_COLORS.length],
 			});
 			if (p.pid === this.me) {
+				this.dashRequest = p.dashRequest ?? 0;
 				this.local.x = +p.x || 0;
 				this.local.y = +p.y || 0;
-				this.local.fx = 1;
-				this.local.fy = 0;
+				this.local.fx = Number.isFinite(p.fx) ? p.fx : 1;
+				this.local.fy = Number.isFinite(p.fy) ? p.fy : 0;
 			}
 		});
 	}
@@ -201,6 +212,7 @@ export class Game {
 	}
 
 	stop() {
+		this.cancelDash();
 		this.running = false;
 		this.offer = null;
 		this.frozen = false;
@@ -324,6 +336,7 @@ export class Game {
 		}
 		const snap = {
 			tm,
+			mob: Array.isArray(msg.mob) ? msg.mob : EMPTY,
 			at: now,
 			fin: Array.isArray(msg.fin) && msg.fin.length >= 6 ? msg.fin : null,
 			k: msg.k | 0,
@@ -377,7 +390,24 @@ export class Game {
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
 		const mine = snap.pMap.get(this.me);
-		if (mine) {
+		const mobility = snap.mob.find(r => r[0] === this.me);
+		const staleDash = mobility && mobility[1] < (this.moveEpoch ?? 0);
+		if (mobility && !staleDash) {
+			this.dashReadyAt = mobility[2];
+			const end = mobility[2] - DASH.cooldown + DASH.duration;
+			const completed = mobility[1] > this.dashConfirmedEpoch && (mobility[3] === 0 || mobility[3] === undefined && tm >= end);
+			if (mine && (completed || mobility[1] > (this.moveEpoch ?? 0) || this.dashTravel && mobility[1] === this.moveEpoch)) {
+				this.moveEpoch = mobility[1];
+				this.cancelDash();
+				this.local.x = mine[P.x]; this.local.y = mine[P.y];
+				this.dashSyncAt = mobility[2] - DASH.cooldown + DASH.duration;
+				const left = Math.min(DASH.duration, Math.max(0, mobility[3] ?? this.dashSyncAt - tm));
+				this.dashTravel = left > 1e-8 ? { x: mine[P.fx] ?? this.local.fx, y: mine[P.fy] ?? this.local.fy, left } : null;
+				if (!this.dashTravel) { this.dashConfirmedEpoch = mobility[1]; this.discardPrediction(mine); }
+			}
+		}
+		if (mine && !staleDash && (mine[P.st] === 1 || snap.tm >= this.dashSyncAt)) {
+			if (mine[P.st] === 1) { this.dashTravel = null; this.cancelDash(); }
 			const sx = +mine[P.x], sy = +mine[P.y];
 			const ack = Array.isArray(msg.pa) ? msg.pa.find((row) => row[0] === this.me) : null;
 			const authored = ack && this.pendingPositions.get(ack[1]);
@@ -446,8 +476,48 @@ export class Game {
 		return !r || r[P.st] !== 1;
 	}
 
+	dashRemaining() {
+		return Math.max(0, (this.dashReadyAt ?? 0) - (this.latest()?.tm ?? 0));
+	}
+
+	requestDash(input) {
+		if (!this.running || !this.mobilityRun || this.frozen || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0) return false;
+		const v = input.vector(), len = Math.hypot(v.x, v.y);
+		const x = len ? v.x / len : this.local.fx, y = len ? v.y / len : this.local.fy;
+		this.dashWaiting = performance.now() + 1500;
+		this.pendingDash = ++this.dashRequest;
+		this.net.send({ t: 'dash', x, y, run: this.mobilityRun, request: this.pendingDash, expiresAt: Date.now() + this.serverOffset + 1500 });
+		return true;
+	}
+
+	cancelDash() {
+		if (this.pendingDash) this.net.cancelDash?.(this.mobilityRun, this.pendingDash);
+		this.pendingDash = 0;
+		this.dashWaiting = 0;
+	}
+
+	acceptDash(msg) {
+		if (!this.running || !this.pendingDash || msg.run !== this.mobilityRun || msg.request !== this.pendingDash) return;
+		if (performance.now() > this.dashWaiting) { this.cancelDash(); return; }
+		this.cancelDash();
+		if (!Number.isInteger(msg.epoch) || msg.epoch < (this.moveEpoch ?? 0)) return;
+		this.moveEpoch = msg.epoch;
+		if (!msg.ok) return;
+		if (![msg.x, msg.y, msg.dx, msg.dy, msg.readyAt].every(Number.isFinite)) return;
+		const elapsed = Number.isFinite(msg.serverNow) ? Math.max(0, Math.min(DASH.duration, (Date.now() + this.serverOffset - msg.serverNow) / 1000)) : 0;
+		const fin = this.finale();
+		const ring = fin ? { cx: fin.cx, cy: fin.cy, r: Math.max(0, fin.r - PLAYER_RADIUS) } : null;
+		const travel = clipDash(msg.x, msg.y, msg.dx, msg.dy, elapsed, ring);
+		this.local.x = travel.x; this.local.y = travel.y;
+		this.local.fx = msg.dx; this.local.fy = msg.dy;
+		this.dashTravel = elapsed < DASH.duration ? { x: msg.dx, y: msg.dy, left: DASH.duration - elapsed } : null;
+		this.dashReadyAt = msg.readyAt;
+		this.dashSyncAt = msg.readyAt - DASH.cooldown + DASH.duration;
+	}
+
 	update(dt, input) {
 		const now = performance.now() / 1000;
+		if (this.dashWaiting && now * 1000 >= this.dashWaiting) this.cancelDash();
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
 			this.hold -= dt;
@@ -470,7 +540,15 @@ export class Game {
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
 				const v = input.vector();
-				if (!unacknowledged && (v.x || v.y)) {
+				if (this.dashTravel) {
+					const d = this.dashTravel, t = Math.min(dt, d.left);
+					const fin = this.finale();
+					const ring = fin ? { cx: fin.cx, cy: fin.cy, r: Math.max(0, fin.r - PLAYER_RADIUS) } : null;
+					const travel = clipDash(this.local.x, this.local.y, d.x, d.y, t, ring);
+					this.local.x = travel.x; this.local.y = travel.y;
+					d.left -= t;
+					if (d.left < 1e-8) this.dashTravel = null;
+				} else if (!unacknowledged && !this.dashWaiting && this.dashConfirmedEpoch === this.moveEpoch && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -482,15 +560,17 @@ export class Game {
 				// The finale wall: the same projection the server applies (a standing hero is pushed by the closing ring too).
 				const fin = this.finale();
 				if (fin) [this.local.x, this.local.y] = clampToRing(this.local.x, this.local.y, fin.cx, fin.cy, fin.r - PLAYER_RADIUS);
+				this.local.x = Math.max(-100000, Math.min(100000, this.local.x));
+				this.local.y = Math.max(-100000, Math.min(100000, this.local.y));
 				this.posTimer -= dt;
-				if (this.posTimer <= 0 && this.me !== null) {
+				if (this.posTimer <= 0 && this.me !== null && !this.dashWaiting && !this.dashTravel && this.dashConfirmedEpoch === this.moveEpoch) {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
 					const seq = ++this.posSeq;
 					this.pendingPositions.set(seq, { x: this.local.x, y: this.local.y, epoch: this.moveEpoch ?? 0, at: now });
 					if (this.pendingPositions.size > MAX_PENDING_POSITIONS) this.pendingPositions.delete(this.pendingPositions.keys().next().value);
 					this.net.send({
-						t: 'pos', seq,
+						t: 'pos', seq, epoch: this.moveEpoch ?? 0,
 						x: Math.round(this.local.x * 10) / 10,
 						y: Math.round(this.local.y * 10) / 10,
 						fx: Math.round(this.local.fx * 1000) / 1000,
