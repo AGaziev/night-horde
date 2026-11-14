@@ -15,7 +15,11 @@ export function lockDelivered(e,target,alive,now,dt,speedMul) {
  if(e.frozenT>now&&e.dmg>0&&!(e.immuneT>now)&&e.ai!=='exploder'&&alive.some(h=>h.st===0&&h.iframes<=dt&&(h.x-e.x)**2+(h.y-e.y)**2<(e.r+PLAYER_RADIUS)**2))return true;
  let dx=target.x-e.x,dy=target.y-e.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
  const E=e.def,keep=e.outpost&&e.ai==='sniper'?OUTPOST.sniperKeep:E.keep;
- if(e.ai==='shield'&&((['aim','dash','rest'].includes(e.bs)&&e.bt>0)||(e.dcd<=dt&&d<=E.trigger&&d>=e.r)))return true;
+ if(e.ai==='shield'){
+  if((['aim','dash','rest'].includes(e.bs)&&e.bt>0)||(e.dcd<=dt&&d<=E.trigger&&d>=e.r))return true;
+  let angle=Math.atan2(dy,dx)-e.fa;while(angle>Math.PI)angle-=Math.PI*2;while(angle<-Math.PI)angle+=Math.PI*2;
+  if(Math.min(Math.abs(angle),E.turn*dt)>1e-9)return true; // Suppressed turn changes frontal defense even at contact.
+ }
  if(e.ai==='exploder'&&e.fuseT>0)return true;
  if(e.ai==='ranged'&&(e.windT>0||(e.shotT<=dt&&d<E.keep[1]+80)))return true;
  if(e.ai==='sniper') {
