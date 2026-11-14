@@ -2276,20 +2276,17 @@ export class Room {
 	}
 
 	updateHostile(dt) {
-		if (this.dashHostileTick === this.tickNo) return;
-		if ([...this.heroes.values()].some(h => h.dashPath)) return this.updateDashContacts(dt);
+		const advanced = this.dashHostileTick === this.tickNo;
+		if (!advanced && [...this.heroes.values()].some(h => h.dashPath)) { this.updateDashContacts(dt); return this.updateHostile(dt); }
 		let j = 0;
 		for (const s of this.hostile) {
-			const sx = s.x, sy = s.y;
-			s.life -= dt;
-			s.x += s.vx * dt;
-			s.y += s.vy * dt;
+			if (!advanced) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; }
 			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
 					const distance = dist2(s.x, s.y, h.x, h.y);
-					if (h.st !== 0 || distance >= min * min) continue;
+					if (h.st !== 0 || advanced && h.dashPath || distance >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;
@@ -2309,12 +2306,11 @@ export class Room {
 		const frames = this.dashContactFrames ?? new Map();
 		const events = [], now = this.time, start = now - dt;
 		for (const h of this.heroes.values()) {
-			if (h.st !== 0) continue;
+			if (h.st !== 0 || !h.dashPath) continue;
 			let frame = frames.get(h);
 			if (!frame) frames.set(h, frame = contactFrame(h, now, dt));
 			// Hazards processed by AI keep their existing priority over the contact phase.
 			if (h.iframes > frame.protectedUntil - frame.start + 1e-9) frame.protectedUntil = Math.max(frame.protectedUntil, now + h.iframes);
-			if (!h.dashPath) continue;
 			for (const e of this.enemies) {
 				if (e.dead || e.outpost && e.guardReadyAt > now) continue;
 				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null;
@@ -2328,11 +2324,13 @@ export class Room {
 			const from = Math.max(0, Math.min(dt, (s.bornAt ?? start) - start));
 			const life = s.life, travel = Math.max(0, Math.min(dt - from, life));
 			const sx = s.x, sy = s.y;
-			s.x += s.vx * travel; s.y += s.vy * travel; s.life -= dt - from;
+			const ex = sx + s.vx * travel, ey = sy + s.vy * travel;
+			// Global flight stays legacy; only a dashing target uses birth/lifetime-clipped contact geometry.
+			s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
 			s.dashDone = life <= 0;
 			if (life > 0) for (const h of this.heroes.values()) {
-				if (h.st !== 0) continue;
-				const at = dashContactTime(h, sx, sy, s.x, s.y, dt, (s.r ?? HOSTILE_R) + PLAYER_RADIUS, from, from + travel);
+				if (h.st !== 0 || !h.dashPath) continue;
+				const at = dashContactTime(h, sx, sy, ex, ey, dt, (s.r ?? HOSTILE_R) + PLAYER_RADIUS, from, from + travel);
 				if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
 			}
 		}
@@ -2349,7 +2347,7 @@ export class Room {
 				applyContact(h, frames.get(h), at, () => this.bodyContact(h, e));
 			}
 		}
-		for (const [h, frame] of frames) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
+		for (const [h, frame] of frames) if (h.dashPath) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
 		let j = 0;
 		for (const s of this.hostile) {
 			if (s.dashDone || s.life <= 0 || s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2) this.fx.push(['epend', s.id, round3(now)]);
