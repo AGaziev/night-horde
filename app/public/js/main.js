@@ -2,7 +2,7 @@ import { dailyLabel } from '/shared/daily.js';
 import { rememberDaily } from './daily-records.js';
 import { HEROES, ITEMS, ELITE_AFFIXES, DUOS, EVOS, PEAK_WARN, ALTAR_DEALS, MODES, DEFAULT_MODE, modeOf, START_HEROES, mergeAchStats, unlockedHeroes, unlockProgress, OVERCLOCKS, WEAPONS, AFFINITY } from '/shared/content.js';
 import { Net } from './net.js';
-import { Input } from './input.js';
+import { Input, isVisualRadio } from './input.js';
 import { Game, P } from './game.js';
 import { Renderer } from './render.js';
 import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
@@ -12,6 +12,7 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
+import { VISUAL_KEY, loadVisual, saveVisual, syncVisual } from './visual.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -31,6 +32,7 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
+game.visual = loadVisual();
 
 // Hero unlocks live in this browser: totals of per-run stats the server sends in `over`.
 // ?unlockall=1 opens everyone (debug, remembered); ?unlockall=0 turns it off.
@@ -213,6 +215,12 @@ $('pause-resume').addEventListener('click', () => togglePause(false));
 $('pause-quit').addEventListener('click', () => net.send({ t: 'quit' }));
 addEventListener('keydown', (e) => {
 	if (e.code !== 'Escape' || e.repeat) return;
+	// Esc with the sound and visuals panel open only closes it and gives the keys back to the hero.
+	if (!$('snd-panel').hidden) {
+		toggleSoundPanel(false);
+		if ($('snd').contains(document.activeElement)) document.activeElement.blur();
+		return;
+	}
 	togglePause();
 });
 // A solo run pauses itself when the tab goes to the background.
@@ -445,7 +453,11 @@ input.onDigit = pick;
 
 function reroll() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
-	if (game.reroll()) sound.card('reroll');
+	if (game.reroll()) {
+		sound.card('reroll');
+		// Pressing reroll leaves «Изгнать»; the cards change only when the server confirms the reroll (`lvl.rerolled`).
+		ui.setBanMode(false);
+	}
 }
 function skip() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
@@ -645,13 +657,43 @@ for (const kind of ['music', 'sfx']) {
 		el.blur();
 	});
 }
+
+// Visual settings (Issue #11): stored in this browser, applied at once.
+const VFX_HINT = {
+	full: 'Частицы, вспышки и тряска экрана.',
+	lite: 'Меньше частиц, без тряски, свечения и ярких вспышек. Предупреждения атак видны всегда.',
+};
+function renderVisual() {
+	for (const kind of ['numbers', 'effects']) {
+		for (const el of document.getElementsByName('vfx-' + kind)) el.checked = el.value === game.visual[kind];
+	}
+	$('vfx-hint').textContent = VFX_HINT[game.visual.effects];
+}
+for (const kind of ['numbers', 'effects']) {
+	for (const el of document.getElementsByName('vfx-' + kind)) {
+		el.addEventListener('change', () => {
+			if (!el.checked) return;
+			game.setVisual(saveVisual({ [kind]: el.value }, game.visual));
+			renderVisual();
+			// A mouse or touch pick gives the keys back to the hero; keyboard users keep focus in the group.
+			if (!el.matches(':focus-visible')) el.blur();
+		});
+	}
+}
+renderVisual();
+// Another tab changed the settings: follow what is stored now, not the possibly stale event value.
+addEventListener('storage', (e) => {
+	if (e.key !== VISUAL_KEY) return;
+	game.setVisual(syncVisual(game.visual));
+	renderVisual();
+});
 addEventListener('pointerdown', (e) => {
 	if (!$('snd').contains(e.target)) toggleSoundPanel(false);
 });
 addEventListener('keydown', (e) => {
 	if (e.code !== 'KeyM' || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
 	const t = e.target;
-	if (t && ((t.tagName === 'INPUT' && t.type !== 'range') || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+	if (t && ((t.tagName === 'INPUT' && t.type !== 'range' && !isVisualRadio(t)) || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
 	sound.toggleMute();
 });
 
