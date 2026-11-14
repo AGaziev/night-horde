@@ -10,7 +10,7 @@ function fixture() {
 	let now = 0; const pending = [], snaps = [];
 	const old = globalThis.performance;
 	globalThis.performance = { now: () => now * 1000 };
-	const room = new Room('MOVE', (pid, msg) => { if (pid === 1 && msg.t === 's') { snaps.push(msg); pending.push({ at: now + 1.1, msg }); } });
+	const room = new Room('MOVE', (pid, msg) => { if (pid === 1 && msg.t === 's') { snaps.push(msg); pending.push({ at: now + 1.1, msg }); } else if (pid === 1 && msg.t === 'pause') pending.push({ at: now + 1.1, msg }); });
 	room.addPlayer(1, 'One', 'knight'); room.start(); room.spawn = () => {};
 	const game = new Game({ send: (msg) => room.handle(1, msg) }); game.me = 1;
 	const h = room.heroes.get(1); h.x = h.y = 0;
@@ -37,8 +37,10 @@ test('total snapshot loss permits bounded movement, explicit solo pause freezes 
 		f.room.snapshot(); f.now(0); f.game.onSnapshot(f.snaps.at(-1));
 		for (let frame = 1; frame <= 120; frame++) { f.now(frame * dt); f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) }); }
 		assert.ok(f.game.local.x <= HEROES.knight.speed * .55, `prediction is bounded after snapshots stop, x=${f.game.local.x}`);
-		const x = f.game.local.x, tm = f.game.view.tm;
+		const tm = f.game.view.tm;
 		f.game.setPause(true, true);
+		const x = f.game.myRow()[1];
+		assert.equal(f.game.local.x, x, 'pause discards unacknowledged prediction even during snapshot loss');
 		for (let frame = 121; frame <= 180; frame++) { f.now(frame * dt); f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) }); }
 		assert.equal(f.game.local.x, x); assert.equal(f.game.view.tm, tm);
 		f.game.setPause(false, false); f.now(4); f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) });
@@ -103,5 +105,26 @@ test('an outgoing stall after established 1100ms latency has a bounded tail and 
 		assert.ok(maxTail <= HEROES.knight.speed * 1.55, `acknowledged latency budget cannot grow forever: ${maxTail}`);
 		assert.ok(f.game.local.x > acceptedAtBlock + maxTail + 50, 'motion resumes after acknowledgements recover');
 		assert.ok(f.game.pendingPositions.size <= 256);
+	} finally { f.restore(); }
+});
+
+test('delayed solo pause discards the rejected prediction tail before resume with input released', () => {
+	const f = fixture(); let frozenX, rejectedTail = 0;
+	try {
+		for (let frame = 1; frame <= 420; frame++) {
+			const time = frame * dt; f.now(time);
+			if (frame === 192) { f.room.setPaused(true); frozenX = f.room.heroes.get(1).x; }
+			if (frame === 300) f.room.setPaused(false);
+			while (f.pending[0]?.at <= time) {
+				const { msg } = f.pending.shift();
+				if (msg.t === 'pause') f.game.setPause(msg.on, msg.menu); else f.game.onSnapshot(msg);
+			}
+			f.game.update(dt, { vector: () => ({ x: time < 4.5 ? 1 : 0, y: 0 }) });
+			if (time > 3.2 && time < 4.2) rejectedTail = Math.max(rejectedTail, f.game.local.x - frozenX);
+			if (frame % 2 === 0) f.room.tick(1 / 30);
+		}
+		assert.ok(rejectedTail > 100, `fixture includes substantial unaccepted movement before pause arrives: ${rejectedTail}`);
+		assert.ok(Math.abs(f.room.heroes.get(1).x - frozenX) < .2, `resume without input cannot commit the rejected tail: ${frozenX} -> ${f.room.heroes.get(1).x}`);
+		assert.ok(Math.abs(f.game.local.x - frozenX) < .2, 'client stays at accepted paused coordinate');
 	} finally { f.restore(); }
 });

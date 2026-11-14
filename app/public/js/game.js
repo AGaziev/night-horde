@@ -219,12 +219,22 @@ export class Game {
 		const was = this.frozen;
 		this.frozen = !!on;
 		this.menuPause = !!on && !!menu;
+		if (on && !was) this.discardPrediction();
 		if (was && !on) {
 			// Keep drawing the frozen frame until the first new snapshot re-anchors the clock.
 			this.offs = [];
 			this.gaps = [];
 			this.awaitingSnapshot = true;
 		}
+	}
+
+	// A paused server rejected the input tail. It must never be submitted on resume.
+	discardPrediction(row = this.myRow()) {
+		if (row) { this.local.x = +row[P.x]; this.local.y = +row[P.y]; }
+		this.pendingPositions.clear();
+		this.ackAt = performance.now() / 1000;
+		this.posTimer = 0;
+		this.net.discardPositions?.();
 	}
 
 	setLobbyPlayers(list) {
@@ -362,6 +372,7 @@ export class Game {
 			compact(this.teleWait, ([, item]) => item.born + item.life > over);
 		}
 
+		const reanchor = this.awaitingSnapshot || this.frozen;
 		this.awaitingSnapshot = false;
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
@@ -379,7 +390,9 @@ export class Game {
 			}
 			// Snapshots describe an earlier authored position. Comparing them with the current
 			// predicted hero made a healthy, delayed connection repeatedly pull the hero backwards.
-			if (mine[P.st] === 1) {
+			if (reanchor) {
+				this.discardPrediction(mine);
+			} else if (mine[P.st] === 1) {
 				this.local.x = sx; this.local.y = sy; this.pendingPositions.clear();
 			} else if (matching && Math.hypot(sx - authored.x, sy - authored.y) > RECONCILE_DIST) {
 				this.local.x += sx - authored.x; this.local.y += sy - authored.y;
