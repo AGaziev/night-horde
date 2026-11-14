@@ -1,0 +1,9 @@
+# Daily v3 on the main45 combat base: complete2400
+
+Measured source5115e59ceb848e5155f506663573168395cfc1a8, logical main0ab / measured baselinea957. Four600-terminal groups completed with actual controllerexit0; all2400 candidate records and600 matched baseline records pass independent tuple/source/argv/hash/native-finish/exit audit. No unknown, missing or replaced candidate attempt. Baseline raw is published in v36-combat-45-complete; its explicit tree/runtime/tuple carry proof is included here. This archive includes the four immutable plans, complete per-attempt raw/metadata/exit receipts, selector/harness/source manifests, exact12CI56-suite results and independent closed analyses.
+
+This is measurement evidence, not final balanced acceptance. Glass human4 Lunch33/60=55%, Wilson95[42.49,66.91], paired+21.67pp vs ordinary20/60. Armor human3 Lunch33/60=55%, same Wilson interval, paired+13.33pp95[-4.99,31.66]; target excess is clear, causal difference from baseline is uncertain. Full ten-cell tables, baseline deviations, discordants, paired intervals, deaths/progression/boss/finale metrics and native Swarm finite-award audit are retained. Swarm/Gather point deviations and uncertain estimates are not hidden or declared equivalence.
+
+A prospective independent critique selects a new v4 Glass Lunch damage1.1/HP.7, Night unchanged; no v4 full outcome is in this archive. The existing preregistered fresh Armor H3/H4Lunch replication remains a separate dataset and is not selected by observed wins. Original v3 source labels/contracts/outcomes stay intact; no v3 raw is relabeled as a later source. This archive does not qualify browser/performance,5–8functional, live human or production acceptance.
+
+Verify archive digest and every member with ../verify.py. Raw bytes and prior failed/historical attempts elsewhere remain preserved.
