@@ -18,7 +18,7 @@ export function setupLobbyInvites(net, toast) {
 	const cancel = $('lobby-cancel-start');
 	const start = $('lobby-start');
 	let lobby, viewer, clock, load, sending = null, employees = [], slots = 0, generation = 0;
-	let retryAt = null, retryBatchId = null;
+	let retryAt = null, retryBatchId = null, inviteState = null, deadlineKey = null, deadline = null;
 	const selected = new Set();
 	const employeeNames = new Map();
 	const submit = form.querySelector('[type=submit]');
@@ -38,6 +38,43 @@ export function setupLobbyInvites(net, toast) {
 		employeeNames.clear();
 	}
 
+
+	function stateChanged(a, b) { return a.batchId !== b.batchId || a.startsAt !== b.startsAt; }
+	function adoptState(next) {
+		if (inviteState && (next.revision < inviteState.revision
+			|| (next.revision === inviteState.revision && stateChanged(next, inviteState)))) return false;
+		inviteState = next;
+		return true;
+	}
+	function paintState() {
+		const active = inviteState?.startsAt != null;
+		start.disabled = active;
+		countdown.hidden = !active;
+		cancel.hidden = !lobby || lobby.host !== viewer;
+		clearInterval(clock);
+		if (!active) { deadlineKey = null; deadline = null; return; }
+		const key = `${lobby.code}:${inviteState.batchId}:${inviteState.startsAt}`;
+		const estimate = performance.now() + Math.max(0, inviteState.startsAt - inviteState.serverNow);
+		// A delayed HTTP response must not extend a countdown already observed over WS.
+		deadline = key === deadlineKey ? Math.min(deadline, estimate) : estimate;
+		deadlineKey = key;
+		const draw = () => { timer.textContent = fmtTime(Math.max(0, Math.ceil((deadline - performance.now()) / 1000))); };
+		draw(); clock = setInterval(draw, 250);
+	}
+	function refreshRequired() {
+		retryAt = null; retryBatchId = null;
+		fields.disabled = true; submit.disabled = true;
+		status.textContent = (inviteState?.startsAt == null ? 'Отсчёт остановлен. ' : 'Отсчёт изменился. ') + 'Откройте форму ещё раз.';
+	}
+	function acceptResponse(data, requestContext) {
+		if (!Number.isSafeInteger(data.revision) || data.revision < 0 || (data.batchId !== null && typeof data.batchId !== 'string')
+			|| (requestContext.batchId && requestContext.batchId !== data.batchId)) return false;
+		if (!adoptState({ revision: data.revision, batchId: data.batchId,
+			startsAt: data.active === false ? null : data.startsAt, serverNow: data.serverNow })) return false;
+		paintState();
+		return true;
+	}
+
 	function url(code) {
 		return '/api/lobby/invites?' + new URLSearchParams({ sid: net.sid, room: code });
 	}
@@ -45,7 +82,10 @@ export function setupLobbyInvites(net, toast) {
 	async function request(route, options) {
 		const response = await fetch(route, options);
 		const data = await response.json();
-		if (!response.ok) throw new Error(data.error || 'Не удалось связаться с Битрикс24.');
+		if (!response.ok) {
+			const error = new Error(data.error || 'Не удалось связаться с Битрикс24.');
+			error.status = response.status; throw error;
+		}
 		return data;
 	}
 
@@ -120,6 +160,7 @@ export function setupLobbyInvites(net, toast) {
 		try {
 			const data = await request(url(code), { signal });
 			if (signal.aborted || !current(requestContext) || !dialog.open) return;
+			if (!acceptResponse(data, requestContext)) { refreshRequired(); return; }
 			employees = data.employees;
 			for (const employee of employees) employeeNames.set(employee.id, employee.name);
 			slots = data.slots;
@@ -136,11 +177,11 @@ export function setupLobbyInvites(net, toast) {
 		}
 	});
 	search.addEventListener('input', showEmployees);
-	dialog.addEventListener('close', () => load?.abort());
+	dialog.addEventListener('close', invalidate);
 	form.addEventListener('submit', async (event) => {
 		event.preventDefault();
 		if (!lobby || lobby.host !== viewer || sending) return;
-		const requestContext = context();
+		const requestContext = { ...context(), batchId: retryBatchId, startsAt: retryAt, revision: inviteState?.revision };
 		sending = requestContext;
 		const minutes = Number(form.elements.minutes.value);
 		fields.disabled = true;
@@ -148,9 +189,10 @@ export function setupLobbyInvites(net, toast) {
 		try {
 			const data = await request(url(requestContext.code), {
 				method: 'POST', headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ids: [...selected], minutes, startsAt: retryAt, batchId: retryBatchId }),
+				body: JSON.stringify({ ids: [...selected], minutes, startsAt: requestContext.startsAt, batchId: requestContext.batchId }),
 			});
 			if (!current(requestContext) || !dialog.open) return;
+			if (!acceptResponse(data, requestContext)) { refreshRequired(); return; }
 			if (data.failed || data.unknown) {
 				showDelivery(data);
 			} else {
@@ -159,8 +201,8 @@ export function setupLobbyInvites(net, toast) {
 			}
 		} catch (error) {
 			if (current(requestContext) && dialog.open) {
+				if (error.status === 409) refreshRequired(); else fields.disabled = false;
 				status.textContent = error.message;
-				fields.disabled = false;
 			}
 		} finally {
 			if (sending === requestContext) sending = null;
@@ -173,20 +215,22 @@ export function setupLobbyInvites(net, toast) {
 			const changedContext = next?.code !== lobby?.code || next?.host !== lobby?.host || me !== viewer;
 			lobby = next;
 			viewer = me;
-			const active = next?.startsAt != null;
 			const isHost = !!next && next.host === me;
+			if (changedContext) { inviteState = null; deadlineKey = null; deadline = null; }
+			const previous = inviteState;
+			const accepted = next && adoptState({ revision: next.inviteRevision ?? 0, batchId: next.inviteBatchId ?? null,
+				startsAt: next.startsAt, serverNow: next.serverNow });
 			if (changedContext || !isHost) { invalidate(); dialog.close(); }
-			open.hidden = !net.invites || !isHost;
-			start.disabled = active;
-			countdown.hidden = !active;
-			cancel.hidden = !isHost;
-			clearInterval(clock);
-			if (active) {
-				const deadline = performance.now() + Math.max(0, next.startsAt - next.serverNow);
-				const draw = () => { timer.textContent = fmtTime(Math.max(0, Math.ceil((deadline - performance.now()) / 1000))); };
-				draw();
-				clock = setInterval(draw, 250);
+			else if (accepted && previous && stateChanged(previous, inviteState) && dialog.open) {
+				// A first WS start may precede our HTTP result. Later cancellation/replacement
+				// still invalidates the old retry, and the result must match the latest revision.
+				const ownStartPending = sending && !sending.batchId && previous.startsAt === null
+					&& sending.revision === previous.revision && inviteState.revision === previous.revision + 1 && inviteState.startsAt !== null;
+				if (!sending) { invalidate(); dialog.close(); }
+				else if (!ownStartPending) refreshRequired();
 			}
+			open.hidden = !net.invites || !isHost;
+			paintState();
 		},
 	};
 }

@@ -439,6 +439,9 @@ async function handleLobbyInvites(req, res, url) {
 		const ids = [...new Set(input.ids)];
 		const batch = room.inviteBatch;
 		const requestedRetry = input.startsAt != null || input.batchId != null;
+		if (requestedRetry && (typeof input.batchId !== 'string' || !input.batchId)) {
+			return reject(409, 'Обновите страницу игры, чтобы повторить недоставленные приглашения.');
+		}
 		const retry = requestedRetry && room.startsAt !== null && batch?.startsAt === room.startsAt
 			&& typeof input.batchId === 'string' && input.batchId === batch.id && input.startsAt === batch.startsAt;
 		if (requestedRetry && !retry) return reject(409, 'Эта рассылка уже отменена или изменена. Откройте форму ещё раз.');

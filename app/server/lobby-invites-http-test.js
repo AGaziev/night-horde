@@ -166,6 +166,7 @@ test('HTTP: состав, владелец, частичная доставка 
 	assert.ok(a.body.batchId && b.body.batchId); assert.notEqual(a.body.batchId, b.body.batchId);
 	const legacyRetry = await collisionPost({ minutes: 1, ids: ['103'], startsAt: b.body.startsAt });
 	assert.equal(legacyRetry.status, 409, 'legacy retry without nonce is not interpreted as a fresh batch');
+	assert.match(legacyRetry.body.error, /Обновите страницу/, 'legacy client gets a recovery action it can actually perform');
 	const currentList = await (await fetch(collisionRoute, { headers: collisionHeaders })).json();
 	assert.equal(currentList.batchId, b.body.batchId);
 	retry = true;
@@ -206,55 +207,101 @@ test('HTTP: состав, владелец, частичная доставка 
 		const { chromium } = await import('/Users/s.konev/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
 		const browser = await chromium.launch({ headless: true, args: ['--mute-audio'] });
 		try {
-			const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, extraHTTPHeaders: { ...headers, 'X-Vibe-User-Id': '104' } });
-			await page.goto(base); await page.locator('#menu-create').click();
-			await page.locator('#lobby-invite').click();
-			await page.locator('#lobby-invite-search').fill('еж 119');
-			await page.locator('#lobby-invite-list').getByText('Ёж 119').waitFor();
-			await page.locator('#lobby-invite-search').fill('Владелец');
-			await page.locator('#lobby-invite-list').getByText('Владелец').waitFor();
-			await page.locator('#lobby-invite-search').fill('Борис');
-			await page.locator('#lobby-invite-list input').check();
-			await page.locator('#lobby-invite-search').fill('Вера');
-			await page.locator('#lobby-invite-list input').check();
-			await page.locator('#lobby-invite-search').fill('');
-			retry = false; const countBefore = calls.length;
-			await page.locator('#lobby-invite-form [type=submit]').click();
-			await page.waitForFunction(() => document.querySelector('#lobby-invite-status').textContent.includes('Уведомление не создано'));
-			assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), true);
-			if (process.env.HORDE_BROWSER_ARTIFACT) await page.screenshot({ path: process.env.HORDE_BROWSER_ARTIFACT });
-			retry = true;
-			await page.locator('#lobby-invite-form [type=submit]').click();
-			await page.waitForFunction(() => !document.querySelector('#lobby-invite-dialog').open);
-			assert.deepEqual(calls.slice(countBefore, countBefore + 2).map((x) => x.userId).sort(), [102, 103]);
-			assert.deepEqual(calls.slice(countBefore + 2).map((x) => x.userId), [103]);
-			await page.locator('#lobby-cancel-start').click();
-			await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden);
-			// Hold an actual partial POST response from room A, then enter a different room B.
-			let releaseResponse, responseHeld;
-			const held = new Promise((resolve) => { responseHeld = resolve; });
-			await page.route('**/api/lobby/invites?**', async (route) => {
-				if (route.request().method() !== 'POST') return route.continue();
-				const response = await route.fetch();
-				responseHeld(); await new Promise((resolve) => { releaseResponse = resolve; });
-				await route.fulfill({ response });
-			});
-			await page.locator('#lobby-invite').click();
-			await page.locator('#lobby-invite-search').fill('Вера');
-			await page.locator('#lobby-invite-list input').check();
-			retry = false;
-			await page.locator('#lobby-invite-form [type=submit]').click(); await held;
-			const oldCode = await page.locator('#lobby-code').textContent();
-			await page.locator('#lobby-invite-dialog header button').click();
-			await page.locator('#lobby-leave').click();
-			await page.locator('#menu-create').click();
-			await page.waitForFunction((old) => document.querySelector('#lobby-code').textContent !== old, oldCode);
-			releaseResponse(); await page.unrouteAll({ behavior: 'wait' });
-			assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), false, 'delayed room A partial response cannot reopen over room B');
-			await page.locator('#lobby-invite').click();
-			await page.locator('#lobby-invite-fields').waitFor({ state: 'visible' });
-			await page.waitForFunction(() => !document.querySelector('#lobby-invite-fields').disabled);
-			assert.equal(await page.locator('#lobby-invite-status').textContent(), '', 'new room does not inherit old delivery errors or retry state');
+			for (const mobile of [false, true]) {
+				const page = await browser.newPage({ viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 }, isMobile: mobile, hasTouch: mobile, extraHTTPHeaders: { ...headers, 'X-Vibe-User-Id': mobile ? '109' : '104' } });
+				const browserErrors = []; page.on('pageerror', (error) => browserErrors.push(error.message));
+				await page.goto(base); await page.locator('#menu-create').click();
+				await page.locator('#lobby-invite').click();
+				await page.locator('#lobby-invite-search').fill('еж 119');
+				await page.locator('#lobby-invite-list').getByText('Ёж 119').waitFor();
+				await page.locator('#lobby-invite-search').fill('Владелец');
+				await page.locator('#lobby-invite-list').getByText('Владелец').waitFor();
+				await page.locator('#lobby-invite-search').fill('Борис');
+				await page.locator('#lobby-invite-list input').check();
+				await page.locator('#lobby-invite-search').fill('Вера');
+				await page.locator('#lobby-invite-list input').check();
+				await page.locator('#lobby-invite-search').fill('');
+				retry = false; const countBefore = calls.length;
+				await page.locator('#lobby-invite-form [type=submit]').click();
+				await page.waitForFunction(() => document.querySelector('#lobby-invite-status').textContent.includes('Уведомление не создано'));
+				assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), true);
+				if (process.env.HORDE_BROWSER_ARTIFACT) await page.screenshot({ path: process.env.HORDE_BROWSER_ARTIFACT });
+				retry = true;
+				await page.locator('#lobby-invite-form [type=submit]').click();
+				await page.waitForFunction(() => !document.querySelector('#lobby-invite-dialog').open);
+				assert.deepEqual(calls.slice(countBefore, countBefore + 2).map((x) => x.userId).sort(), [102, 103]);
+				assert.deepEqual(calls.slice(countBefore + 2).map((x) => x.userId), [103]);
+				await page.locator('#lobby-cancel-start').click();
+				await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden);
+				// Hold a proven partial200, not a cooldown429, before entering another room.
+				advanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 16000 }); await advanced;
+				let releaseResponse, responseHeld;
+				const held = new Promise((resolve) => { responseHeld = resolve; });
+				await page.route('**/api/lobby/invites?**', async (route) => {
+					if (route.request().method() !== 'POST') return route.continue();
+					const response = await route.fetch();
+					responseHeld({ status: response.status(), body: await response.json() }); await new Promise((resolve) => { releaseResponse = resolve; });
+					await route.fulfill({ response });
+				});
+				await page.locator('#lobby-invite').click();
+				await page.locator('#lobby-invite-search').fill('Борис');
+				await page.locator('#lobby-invite-list input').check();
+				await page.locator('#lobby-invite-search').fill('Вера');
+				await page.locator('#lobby-invite-list input').check();
+				retry = false;
+				await page.locator('#lobby-invite-form [type=submit]').click();
+				const heldPartial = await held;
+				assert.equal(heldPartial.status, 200); assert.equal(heldPartial.body.active, true); assert.equal(heldPartial.body.sent, 1); assert.equal(heldPartial.body.failed, 1);
+				const oldCode = await page.locator('#lobby-code').textContent();
+				await page.locator('#lobby-invite-dialog header button').click();
+				await page.locator('#lobby-leave').click();
+				await page.locator('#menu-create').click();
+				await page.waitForFunction((old) => document.querySelector('#lobby-code').textContent !== old, oldCode);
+				releaseResponse(); await page.unrouteAll({ behavior: 'wait' });
+				assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), false, 'delayed room A partial response cannot reopen over room B');
+				await page.locator('#lobby-invite').click();
+				await page.locator('#lobby-invite-fields').waitFor({ state: 'visible' });
+				await page.waitForFunction(() => !document.querySelector('#lobby-invite-fields').disabled);
+				assert.equal(await page.locator('#lobby-invite-status').textContent(), '', 'new room does not inherit old delivery errors or retry state');
+				await page.locator('#lobby-invite-dialog header button').click();
+				const browserSid = await page.evaluate(() => sessionStorage.getItem('nh.sid'));
+				const browserCode = (await page.locator('#lobby-code').textContent()).trim();
+				const browserRoute = base + `/api/lobby/invites?sid=${browserSid}&room=${browserCode}`;
+				const browserHeaders = { ...headers, 'X-Vibe-User-Id': mobile ? '109' : '104', 'Content-Type': 'application/json' };
+				const mutate = async (data) => { const res = await fetch(browserRoute, { method: 'POST', headers: browserHeaders, body: JSON.stringify(data) }); return { status: res.status, body: await res.json() }; };
+				// Real HTTP transport from a second caller of the same session; original WS stays connected.
+				const cancelFromOtherCaller = async () => { const res = await fetch(base + `/api/send?sid=${browserSid}`, { method: 'POST', headers: browserHeaders, body: JSON.stringify({ t: 'cancel-start' }) }); assert.equal(res.status, 204); await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden); };
+				for (const replace of [false, true]) {
+					advanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 16000 }); await advanced;
+					let release, capturedResolve;
+					const captured = new Promise((resolve) => { capturedResolve = resolve; });
+					await page.route('**/api/lobby/invites?**', async (route) => {
+						if (route.request().method() !== 'POST') return route.continue();
+						const response = await route.fetch(); capturedResolve({ status: response.status(), body: await response.json() });
+						await new Promise((resolve) => { release = resolve; }); await route.fulfill({ response });
+					});
+					await page.locator('#lobby-invite').click();
+					await page.locator('#lobby-invite-form select[name=minutes]').selectOption('1');
+					for (const name of ['Борис', 'Вера']) { await page.locator('#lobby-invite-search').fill(name); await page.locator('#lobby-invite-list input').check(); }
+					retry = false;
+					await page.locator('#lobby-invite-form [type=submit]').click();
+					const aHeld = await captured; assert.equal(aHeld.status, 200); assert.equal(aHeld.body.active, true); assert.equal(aHeld.body.sent, 1); assert.equal(aHeld.body.failed, 1);
+					const countAfterA = calls.length;
+					await cancelFromOtherCaller();
+					if (replace) {
+						const b = await mutate({ minutes: 1, ids: [] }); assert.equal(b.status, 200); assert.equal(b.body.startsAt, aHeld.body.startsAt, 'same-room B deliberately has identical frozen-clock deadline'); assert.notEqual(b.body.batchId, aHeld.body.batchId);
+						await page.waitForFunction(() => !document.querySelector('#lobby-countdown').hidden);
+					}
+					release(); await page.unrouteAll({ behavior: 'wait' });
+					assert.doesNotMatch(await page.locator('#lobby-invite-status').textContent(), /Отсчёт идёт|Уведомление не создано/, 'same-room obsolete partial never replaces current status');
+					assert.equal(await page.locator('#lobby-invite-form [type=submit]').isDisabled(), true);
+					assert.equal(calls.length, countAfterA, 'stale UI response emits no additional notification');
+					await page.locator('#lobby-invite-dialog header button').click();
+					if (replace) await cancelFromOtherCaller();
+				}
+				assert.deepEqual(browserErrors, []); await page.close();
+			}
+
 
 		} finally { await browser.close(); }
 	}

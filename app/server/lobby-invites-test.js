@@ -150,4 +150,7 @@ test('lobby revisions distinguish cancellation and new batch even when their dea
 	assert.equal(room.lobbyMsg().startsAt, null); assert.equal(room.lobbyMsg().inviteRevision, 2);
 	assert.equal(hub.scheduleStart(room, 1, 10000, { id: 'batch-b' }), true);
 	assert.equal(room.lobbyMsg().inviteBatchId, 'batch-b'); assert.equal(room.lobbyMsg().inviteRevision, 3);
+	assert.equal(room.cancelStart(), true);
+	assert.equal(hub.scheduleStart(room, 1, 10000), true, 'non-invite scheduling does not inherit an old invite batch');
+	assert.equal(room.inviteBatch, null); assert.equal(room.lobbyMsg().inviteBatchId, null); assert.equal(room.lobbyMsg().inviteRevision, 5);
 });
