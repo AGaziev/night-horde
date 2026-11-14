@@ -9,15 +9,14 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: server-ci-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   server-tests:
     name: Server tests (Node 24, Linux)
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    concurrency:
+      group: server-ci-${{ github.ref }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -68,3 +67,30 @@ jobs:
           name: server-test-logs
           path: ${{ runner.temp }}/server-tests
           retention-days: 7
+
+  deploy-production:
+    name: Deploy to Vibecode
+    needs: server-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    concurrency:
+      group: vibecode-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - name: Publish verified release
+        shell: bash
+        env:
+          VIBE_KEY: ${{ secrets.VIBE_KEY }}
+          SERVER_ID: ${{ secrets.SERVER_ID }}
+        run: node pm/deploy-vibecode.mjs | tee -a "$GITHUB_STEP_SUMMARY"
