@@ -76,6 +76,7 @@ export class Game {
 		this.rings = [];
 		this.coldWaves = [];
 		this.cancelledWaves = new Set();
+		this.consumedAttacks = new Set();
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null; // {t, n}: the final burn at 15:00, drives the victory overlay
@@ -125,6 +126,7 @@ export class Game {
 		this.rings.length = 0;
 		this.coldWaves.length = 0;
 		this.cancelledWaves.clear();
+		this.consumedAttacks.clear();
 		this.shake = 0;
 		this.hurtFlash = 0;
 		this.dawn = null;
@@ -331,6 +333,8 @@ export class Game {
 			this.shotEvent(ev);
 			if (ev[0] === 'dawn') this.dawnSeen = true;
 		}
+		// Keys replay the run-scoped fusion retirement ledger after a missed cancel delta.
+		for (const [kind, id] of msg.consumedAttacks ?? []) this.shotEvent(['cancel', kind, id]);
 		snap.eIdx = indexFlat(snap.e, E_STRIDE);
 		this.syn = msg.syn | 0;
 		snap.bIdx = indexFlat(snap.b, 5);
@@ -530,6 +534,7 @@ export class Game {
 		switch (ev[0]) {
 			case 'cancel': {
 				const id = ev[2];
+				this.consumedAttacks.add(`${ev[1]}:${id}`);
 				if (ev[1] === 0) this.shots.delete(id);
 				if (ev[1] === 1) this.lobs.delete(id);
 				if (ev[1] === 2) {
@@ -541,6 +546,7 @@ export class Game {
 				break;
 			}
 			case 'shot': {
+				if (this.consumedAttacks.has(`0:${ev[1]}`)) break;
 				const st = +ev[9] || 0;
 				this.shots.set(ev[1], {
 					kind: ev[2] | 0, x: +ev[3], y: +ev[4], vx: +ev[5], vy: +ev[6],
@@ -570,10 +576,12 @@ export class Game {
 				break;
 			}
 			case 'lob':
+				if (this.consumedAttacks.has(`1:${ev[1]}`)) break;
 				this.lobs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], fuse: +ev[6] || 0.6, st: +ev[7] || 0, kind: ev[8] | 0 });
 				break;
 			case 'orb':
 			case 'orbm':
+				if (this.consumedAttacks.has(`3:${ev[1]}`)) break;
 				// 'orbm': a homing orb turned; the new leg starts where it is now with the life it has left.
 				this.orbs.set(ev[1], { x0: +ev[2], y0: +ev[3], x1: +ev[4], y1: +ev[5], speed: +ev[6] || 120, life: +ev[7] || 4, st: +ev[8] || 0, r: +ev[9] || 90, x: +ev[2], y: +ev[3], show: ev[0] === 'orbm' });
 				break;
@@ -771,7 +779,7 @@ export class Game {
 				this.zaps.push({ pts: [+ev[1], +ev[2], +ev[3], +ev[4]], t: 0, color: '#d897ff' });
 				break;
 			case 'coldwave':
-				if (!this.cancelledWaves.has(ev[7])) this.coldWaves.push({ id: ev[7], x: +ev[1], y: +ev[2], angle: +ev[3], range: +ev[4], width: +ev[5], speed: +ev[6], t: 0, life: +ev[4] / +ev[6] });
+				if (!this.consumedAttacks.has(`2:${ev[7]}`) && !this.cancelledWaves.has(ev[7])) this.coldWaves.push({ id: ev[7], x: +ev[1], y: +ev[2], angle: +ev[3], range: +ev[4], width: +ev[5], speed: +ev[6], t: 0, life: +ev[4] / +ev[6] });
 				break;
 			case 'buildring': {
 				const r = +ev[3] || 60, color = ['#d1a6ff', '#ffd47e', '#9ee8ff', '#ff9d55', '#a5f0c6'][ev[4]] || '#d1a6ff';

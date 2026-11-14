@@ -589,6 +589,7 @@ export class Room {
 		this.runLog = new RunLog(this);
 		this.snapCodec = new SnapshotEncoder(SNAP_STRIDE);
 		this.needKey = new Set();
+		this.consumedAttacks = new Map();
 		this.broadcast(this.startMsg());
 	}
 
@@ -1176,7 +1177,10 @@ export class Room {
 		for (const pool of removedPools) pool.life = 0;
 		for (const enemy of this.enemies) if (removedPools.has(enemy.wetZ)) enemy.wetZ = null;
 		for (const [key, kind] of [['projectiles', 0], ['blasts', 1], ['coldWaves', 2], ['orbs', 3]]) {
-			for (const effect of this[key]) if (consumed(effect) && effect.id !== undefined) this.fx.push(['cancel', kind, effect.id]);
+			for (const effect of this[key]) if (consumed(effect) && effect.id !== undefined) {
+				this.fx.push(['cancel', kind, effect.id]);
+				(this.consumedAttacks ??= new Map()).set(`${kind}:${effect.id}`, [kind, effect.id]);
+			}
 		}
 		for (const key of ['projectiles', 'coldWaves', 'puddles', 'traps', 'blasts', 'orbs']) this[key] = this[key].filter(effect => !consumed(effect));
 		this.fx.push(['duo', h.pid, card.id]);
@@ -5354,7 +5358,7 @@ export class Room {
 		for (const pid of this.members.keys()) {
 			let json;
 			if (isLegacy(pid)) json = plain ??= JSON.stringify(msg);
-			else if (out.isKey || this.needKey.has(pid)) json = key ??= JSON.stringify(out.key());
+			else if (out.isKey || this.needKey.has(pid)) json = key ??= JSON.stringify({ ...out.key(), consumedAttacks: [...(this.consumedAttacks?.values() ?? [])] });
 			else json = delta ??= JSON.stringify(out.delta);
 			this.needKey.delete(pid);
 			this.send(pid, msg, json);
