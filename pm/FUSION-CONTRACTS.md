@@ -1,0 +1,6 @@
+
+### CEO review: keyframe recovery of consumed attacks
+
+The run-scoped `consumedAttacks` key-only ledger repeats `[kind,id]` for attacks retired by a fusion (projectile/lob/coldwave/orb). It is not an all-attacks history: only the simultaneously active attacks of the two consumed weapons enter it, once per fusion. A key replays these cancellations after its FX; delayed spawn FX consult the same ledger. Other heroes' and other weapons' attacks remain untouched. Both Room.start and Game.reset clear it before IDs can be reused. Delta payloads are unchanged.
+
+Storage is bounded by finite fusion choices and simultaneous live effects: with eight heroes and N base weapon types, at most `8 * floor(N / 2) * K` pairs, where K is the largest number of live effects belonging to a consumed pair at a fusion. Consumed base types cannot be acquired again. The normal two-duo inventory cap is tighter unless a slot is replaced; the bound above also covers replacements. Each pair costs two JSON integers plus delimiters (approximately 12–25 bytes for normal run IDs); periodic keys carry this bounded retirement history rather than every cast made during the run. No tombstone is evicted mid-run, because an evicted delayed FX could resurrect an attack.

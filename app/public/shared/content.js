@@ -86,9 +86,10 @@ export const MODES = {
 	// v23: three players fell mid-run (9–10 min, mostly to spit and Трубач shots; 17% wins at night, 7% at lunch) — ×0.9 / ×0.8.
 	// v28: v25–v26 (3 new weapons and 4 artifacts in the pool) thinned builds: from 6:00 the human bot took +30–50% damage,
 	// wins fell to 14% solo and 8% for pairs. Enemy damage for 1–2 players brings them back to 25–40% (pm/balance-v28.md).
-	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 2, 2.4, 2.5], dmgMul: [0.75, 0.6, 0.56, 0.6] }, // Terminal calibration: pm/balance-buildcraft-terminal.md.
+	// Single-signature fusions remove the old component casts. Keep solo pressure; recalibrate group encounters.
+	night: { id: 'night', name: 'Полная ночь', short: 'Ночь', seconds: RUN_SECONDS, xpMul: 1, hpMul: [1.8, 1.8, 2.16, 2.25], dmgMul: [0.75, 0.54, 0.48, 0.48] },
 	// v20: pairs at lunch ×0.85 → ×0.8 (overclocks replace embers, the pair fell to 17–22%).
-	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 2, 2.4, 2.4], dmgMul: [0.75, 0.6, 0.5, 0.6] }, // Terminal calibration: pm/balance-buildcraft-terminal.md.
+	lunch: { id: 'lunch', name: 'Обед', short: 'Обед', seconds: 10 * 60, xpMul: 1.5, hpMul: [1.9, 1.8, 2.16, 2.16], dmgMul: [0.75, 0.54, 0.45, 0.48] },
 };
 export const MODE_IDS = Object.keys(MODES);
 export const DEFAULT_MODE = 'night';
@@ -781,10 +782,11 @@ export const orbitAngle = (gameTime, rps, index, count) => gameTime * rps * Math
 // attack. The duo takes the first weapon's slot, the second slot frees up. Levels I–III; at most MAX_DUOS per player.
 // Pairs are matched in one place on the server (Room.updateCombos).
 export const MAX_DUOS = 2;
-// Fusion retains both attacks, then adds the signature interaction. These are combat multipliers, not offer odds.
-export const DUO_INHERIT_POWER = 1.2;
-export const DUO_SIGNATURE_POWER = 0.35;
+// Fusion runs only its signature; levels of the consumed parts are lineage, not separate attacks.
+export const DUO_INHERIT_POWER = 1; // compatibility export; no component attacks use it
+export const DUO_SIGNATURE_POWER = 1;
 export const duoPartLevel = (level) => Math.min(5, level + 2);
+export const duoLineagePower = (level, parts = []) => 1 + 0.04 * parts.reduce((n, p) => n + Math.max(0, p.lvl - duoPartLevel(level)), 0);
 export const DUO_MIN_LEVEL = 3;
 export const DUO_MAX_LEVEL = 3;
 export const DUO_DEFER_OFFERS = 2; // a declined duo card comes back after this many offers
@@ -793,12 +795,13 @@ export const SYNERGY_MAX = 0.2;
 export const duoStartLevel = (partLevels) => (partLevels >= 10 ? 3 : partLevels >= 8 ? 2 : 1);
 export const DUOS = {
 	thunderslash: {
+		signaturePower: 0.85,
 		name: 'Громовой разрез', icon: '⚡', parts: ['whip', 'lightning'], tags: ['phys', 'shock'],
 		desc: 'Удар в обе стороны; задетых через миг бьёт молния с цепью, каждый 3-й удар — веер молний',
 		levels: [
-			{ dmg: 21, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 28, fan: 5 },
-			{ dmg: 30, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 42, fan: 5 },
-			{ dmg: 37, cd: 0.8, range: 180, width: 70, rodFrac: 0.45, chain: 4, fanDmg: 51, fan: 5 },
+			{ dmg: 24, cd: 1.0, range: 150, width: 62, rodFrac: 0.45, chain: 2, fanDmg: 31, fan: 5 },
+			{ dmg: 33, cd: 0.9, range: 165, width: 66, rodFrac: 0.45, chain: 3, fanDmg: 46, fan: 5 },
+			{ dmg: 41, cd: 0.8, range: 180, width: 70, rodFrac: 0.45, chain: 4, fanDmg: 56, fan: 5 },
 		],
 	},
 	orb: {
@@ -829,6 +832,7 @@ export const DUOS = {
 		],
 	},
 	tripwire: {
+		signaturePower: 1.35,
 		name: 'Растяжка', icon: '⋈', parts: ['knives', 'traps'], tags: ['phys', 'trap'],
 		desc: 'Капканы связаны режущей нитью; промахнувшиеся ножи становятся шипами',
 		levels: [
@@ -850,9 +854,9 @@ export const DUOS = {
 		name: 'Коктейль', icon: '♨', parts: ['bomb', 'flask'], tags: ['fire', 'aoe'],
 		desc: 'Взрыв оставляет горящую лужу',
 		levels: [
-			{ dmg: 81, cd: 2.3, count: 1, radius: 70, fuse: 0.6, pool: 2.5, poolDmg: 12, tick: 0.3 },
-			{ dmg: 82, cd: 2.1, count: 2, radius: 78, fuse: 0.6, pool: 3, poolDmg: 13, tick: 0.3 },
-			{ dmg: 124, cd: 1.9, count: 2, radius: 86, fuse: 0.6, pool: 3.5, poolDmg: 16, tick: 0.3 },
+			{ dmg: 105, cd: 2.3, count: 1, radius: 70, fuse: 0.6, pool: 2.5, poolDmg: 15, tick: 0.3 },
+			{ dmg: 105, cd: 2.1, count: 2, radius: 78, fuse: 0.6, pool: 3, poolDmg: 16, tick: 0.3 },
+			{ dmg: 150, cd: 1.9, count: 2, radius: 86, fuse: 0.6, pool: 3.5, poolDmg: 19, tick: 0.3 },
 		],
 	},
 	minefield: {
@@ -865,7 +869,7 @@ export const DUOS = {
 		],
 	},
 	icebomb: {
-		signaturePower: 0.42, name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
+		name: 'Ледяная граната', icon: '❅', parts: ['bomb', 'frost'], tags: ['cold', 'aoe'],
 		desc: 'Взрыв замораживает, замёрзшие раскалываются осколками',
 		levels: [
 			{ dmg: 55, cd: 2.4, count: 1, radius: 80, fuse: 0.6, freeze: 1.0, shardR: 40, shardFrac: 0.5 },
@@ -886,36 +890,37 @@ export const DUOS = {
 		name: 'Кадило', icon: '☁', parts: ['aura', 'flask'], tags: ['aoe'],
 		desc: 'Шлейф облаков: врагам урон, союзникам лечение',
 		levels: [
-			{ dmg: 9, every: 0.4, radius: 45, life: 3, tick: 0.4, heal: 2 },
-			{ dmg: 16, every: 0.4, radius: 50, life: 3, tick: 0.4, heal: 3 },
-			{ dmg: 29, every: 0.4, radius: 55, life: 3, tick: 0.4, heal: 4 },
+			{ dmg: 12, every: 0.4, radius: 45, life: 3, tick: 0.4, heal: 2 },
+			{ dmg: 21, every: 0.4, radius: 50, life: 3, tick: 0.4, heal: 3 },
+			{ dmg: 35, every: 0.4, radius: 55, life: 3, tick: 0.4, heal: 4 },
 		],
 	},
 	icedisc: {
-		inheritPower: 1.4, name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
+		signaturePower: 0.85,
+		name: 'Ледяной диск', icon: '❂', parts: ['frost', 'sickle'], tags: ['cold', 'phys', 'proj'],
 		desc: 'Диск оставляет ледяной след и замораживает на обратном пути',
 		levels: [
-			{ dmg: 68, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
-			{ dmg: 69, cd: 1.2, count: 2, range: 320, speed: 540, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.8 },
+			{ dmg: 82, cd: 1.3, count: 1, range: 300, speed: 520, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.6 },
+			{ dmg: 78, cd: 1.2, count: 2, range: 320, speed: 540, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 0.8 },
 			{ dmg: 96, cd: 1.1, count: 2, range: 340, speed: 560, trailR: 24, trailLife: 2.5, trailSlow: 0.4, freeze: 1.0 },
 		],
 	},
 	stormlight: {
-		inheritPower: 1.5, name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
+		name: 'Прожектор бури', icon: '🔦', parts: ['lantern', 'lightning'], tags: ['shock', 'aoe'],
 		desc: 'Луч метит врагов, в луче бьют молнии; цепь только по помеченным',
 		levels: [
-			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 28, chain: 2 },
-			{ dmg: 5, tick: 0.4, range: 290, angle: 80, mark: 0.30, strikeCd: 0.7, strikeDmg: 38, chain: 3 },
-			{ dmg: 7, tick: 0.4, range: 320, angle: 90, mark: 0.35, strikeCd: 0.6, strikeDmg: 52, chain: 4 },
+			{ dmg: 4, tick: 0.4, range: 260, angle: 70, mark: 0.25, strikeCd: 0.8, strikeDmg: 36, chain: 2 },
+			{ dmg: 5, tick: 0.4, range: 290, angle: 80, mark: 0.30, strikeCd: 0.7, strikeDmg: 49, chain: 3 },
+			{ dmg: 7, tick: 0.4, range: 320, angle: 90, mark: 0.35, strikeCd: 0.6, strikeDmg: 65, chain: 4 },
 		],
 	},
 	volley: {
 		name: 'Залп', icon: '⇶', parts: ['knives', 'spear'], tags: ['phys', 'proj'],
 		desc: 'Копьё в сильнейшего на лету роняет веер ножей в стороны',
 		levels: [
-			{ dmg: 99, cd: 1.9, count: 1, pierce: 8, width: 18, speed: 720, kb: 50, knifeDmg: 18, every: 65 },
-			{ dmg: 133, cd: 1.7, count: 1, pierce: 10, width: 20, speed: 740, kb: 60, knifeDmg: 23, every: 60 },
-			{ dmg: 134, cd: 1.5, count: 2, pierce: 99, width: 22, speed: 780, kb: 70, knifeDmg: 24, every: 60 },
+			{ dmg: 128, cd: 1.9, count: 1, pierce: 8, width: 18, speed: 720, kb: 50, knifeDmg: 23, every: 65 },
+			{ dmg: 165, cd: 1.7, count: 1, pierce: 10, width: 20, speed: 740, kb: 60, knifeDmg: 28, every: 60 },
+			{ dmg: 160, cd: 1.5, count: 2, pierce: 99, width: 22, speed: 780, kb: 70, knifeDmg: 28, every: 60 },
 		],
 	},
 	phalanx: {
@@ -931,8 +936,8 @@ export const DUOS = {
 		name: 'Огненное колесо', icon: '☸', parts: ['orbit', 'trail'], tags: ['fire', 'aoe'],
 		desc: 'Огненные колёса кружат, поджигают врагов и оставляют горящий круг',
 		levels: [
-			{ dmg: 16, count: 3, radius: 95, rps: 0.55, hitCd: 0.4, burn: 7, every: 0.25, patchR: 26, patchLife: 1.6, patchDmg: 5, tick: 0.3 },
-			{ dmg: 24, count: 4, radius: 100, rps: 0.55, hitCd: 0.4, burn: 10, every: 0.2, patchR: 28, patchLife: 1.8, patchDmg: 7, tick: 0.3 },
+			{ dmg: 16, count: 3, radius: 95, rps: 0.55, hitCd: 0.4, burn: 7, every: 0.25, patchR: 26, patchLife: 1.6, patchDmg: 9, tick: 0.3 },
+			{ dmg: 24, count: 4, radius: 100, rps: 0.55, hitCd: 0.4, burn: 10, every: 0.2, patchR: 28, patchLife: 1.8, patchDmg: 9, tick: 0.3 },
 			{ dmg: 42, count: 5, radius: 105, rps: 0.55, hitCd: 0.35, burn: 18, every: 0.18, patchR: 30, patchLife: 2.0, patchDmg: 11, tick: 0.3 },
 		],
 	},
@@ -941,9 +946,9 @@ export const DUOS = {
 		name: 'Путеводный огонь', icon: '✧', parts: ['bolt', 'lantern'], tags: ['proj', 'aoe'],
 		desc: 'Луч метит группу, искры летят в помеченных и продлевают метку; помеченный враг при смерти выпускает искру',
 		levels: [
-			{ dmg: 4, tick: 0.45, range: 260, angle: 60, mark: 0.22, sparkDmg: 20, sparkCd: 0.7, count: 2, pierce: 2, speed: 480, deathSparks: 1 },
-			{ dmg: 5, tick: 0.45, range: 280, angle: 65, mark: 0.26, sparkDmg: 26, sparkCd: 0.65, count: 3, pierce: 2, speed: 490, deathSparks: 1 },
-			{ dmg: 6, tick: 0.4, range: 300, angle: 70, mark: 0.30, sparkDmg: 32, sparkCd: 0.6, count: 4, pierce: 3, speed: 500, deathSparks: 2 },
+			{ dmg: 4, tick: 0.45, range: 260, angle: 60, mark: 0.22, sparkDmg: 28, sparkCd: 0.7, count: 2, pierce: 2, speed: 480, deathSparks: 1 },
+			{ dmg: 5, tick: 0.45, range: 280, angle: 65, mark: 0.26, sparkDmg: 35, sparkCd: 0.65, count: 3, pierce: 2, speed: 490, deathSparks: 1 },
+			{ dmg: 6, tick: 0.4, range: 300, angle: 70, mark: 0.30, sparkDmg: 42, sparkCd: 0.6, count: 4, pierce: 3, speed: 500, deathSparks: 2 },
 		],
 	},
 	sunspear: {
@@ -974,6 +979,7 @@ export const DUOS = {
 		],
 	},
 	riposte: {
+		signaturePower: 1.15,
 		name: 'Контрудар', icon: '⚔', parts: ['whip', 'ward'], tags: ['phys'],
 		desc: 'Удар клинка в обе стороны; поглощённый щитом удар сразу отвечает круговым ударом с удвоенным уроном',
 		levels: [
@@ -1001,25 +1007,28 @@ export const DUOS = {
 		],
 	},
 	firescythe: {
+		signaturePower: 0.8,
 		name: 'Огненный серп', icon: '☾', parts: ['sickle', 'trail'], tags: ['fire', 'phys', 'proj'],
 		desc: 'Серп летит к врагу и возвращается, оставляя горящую полосу; задетых поджигает',
 		levels: [
-			{ dmg: 30, cd: 1.3, count: 1, range: 300, speed: 520, patchR: 24, patchLife: 2, patchDmg: 7, tick: 0.3, burn: 5.5, every: 40 },
-			{ dmg: 36, cd: 1.2, count: 2, range: 320, speed: 540, patchR: 24, patchLife: 2, patchDmg: 6, tick: 0.3, burn: 5, every: 40 },
-			{ dmg: 46, cd: 1.1, count: 2, range: 340, speed: 560, patchR: 28, patchLife: 2.2, patchDmg: 10.5, tick: 0.3, burn: 9, every: 40 },
+			{ dmg: 24, cd: 1.3, count: 1, range: 300, speed: 520, patchR: 24, patchLife: 2, patchDmg: 12, tick: 0.3, burn: 5.5, every: 40 },
+			{ dmg: 36, cd: 1.2, count: 2, range: 320, speed: 540, patchR: 24, patchLife: 2, patchDmg: 11, tick: 0.3, burn: 5, every: 40 },
+			{ dmg: 46, cd: 1.1, count: 2, range: 340, speed: 560, patchR: 28, patchLife: 2.2, patchDmg: 14, tick: 0.3, burn: 9, every: 40 },
 		],
 	},
 	// v28 (связки v2, поставка Б).
 	frostsnare: {
-		inheritPower: 2, signaturePower: 0.8, name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
+		signaturePower: 2.6,
+		name: 'Ледяные силки', icon: '❄', parts: ['frost', 'traps'], tags: ['cold', 'phys', 'trap'],
 		desc: 'Сработавший капкан взрывается волной холода: всех вокруг замедляет и замораживает',
 		levels: [
-			{ dmg: 32, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 46, slow: 0.4, slowDur: 2, freeze: 0.8 },
-			{ dmg: 50, cd: 1.4, max: 7, root: 1.5, radius: 31, waveR: 80, waveDmg: 52, slow: 0.4, slowDur: 2, freeze: 1.0 },
-			{ dmg: 62, cd: 1.2, max: 8, root: 1.7, radius: 32, waveR: 90, waveDmg: 57, slow: 0.45, slowDur: 2.2, freeze: 1.2 },
+			{ dmg: 36, cd: 1.6, max: 6, root: 1.4, radius: 30, waveR: 70, waveDmg: 51, slow: 0.4, slowDur: 2, freeze: 0.8 },
+			{ dmg: 56, cd: 1.4, max: 7, root: 1.5, radius: 31, waveR: 80, waveDmg: 58, slow: 0.4, slowDur: 2, freeze: 1.0 },
+			{ dmg: 68, cd: 1.2, max: 8, root: 1.7, radius: 32, waveR: 90, waveDmg: 63, slow: 0.45, slowDur: 2.2, freeze: 1.2 },
 		],
 	},
 	abatis: {
+		signaturePower: 1.5,
 		name: 'Засека', icon: '⚔', parts: ['whip', 'traps'], tags: ['phys', 'trap'],
 		desc: 'Удар клинка оставляет капкан на конце дуги; по врагу в корнях клинок бьёт в полтора раза сильнее',
 		levels: [
@@ -1029,12 +1038,13 @@ export const DUOS = {
 		],
 	},
 	harpoon: {
+		signaturePower: 0.85,
 		name: 'Гарпун', icon: '⥉', parts: ['sickle', 'spear'], tags: ['phys', 'proj'],
 		desc: 'Копьё на цепи летит в сильнейшего, пробивает строй и возвращается, на обратном пути бьёт ещё раз',
 		levels: [
-			{ dmg: 92, cd: 1.8, count: 1, pierce: 8, range: 340, width: 18, speed: 720, kb: 50 },
-			{ dmg: 88, cd: 1.6, count: 1, pierce: 10, range: 360, width: 20, speed: 740, kb: 60 },
-			{ dmg: 84, cd: 1.5, count: 2, pierce: 99, range: 380, width: 22, speed: 760, kb: 70 },
+			{ dmg: 110, cd: 1.8, count: 1, pierce: 8, range: 340, width: 18, speed: 720, kb: 50 },
+			{ dmg: 106, cd: 1.6, count: 1, pierce: 10, range: 360, width: 20, speed: 740, kb: 60 },
+			{ dmg: 101, cd: 1.5, count: 2, pierce: 99, range: 380, width: 22, speed: 760, kb: 70 },
 		],
 	},
 	rockets: {
@@ -1047,6 +1057,7 @@ export const DUOS = {
 		],
 	},
 	stingers: {
+		signaturePower: 0.85,
 		name: 'Ядовитые жала', icon: '➶', parts: ['knives', 'flask'], tags: ['phys', 'proj', 'aoe'],
 		desc: 'Веер ножей; нож, попав или упав, разбивается каплей — малой лужей яда',
 		levels: [
@@ -1059,9 +1070,9 @@ export const DUOS = {
 		name: 'Смерч', icon: '🌀', parts: ['orbit', 'aura'], tags: ['phys', 'aoe'],
 		desc: 'Ореол-вихрь медленно стягивает врагов к кольцу кружащих клинков',
 		levels: [
-			{ dmg: 5, tick: 0.45, radius: 110, count: 3, bladeDmg: 14, ring: 100, rps: 0.7, hitCd: 0.4, pull: 30 },
-			{ dmg: 6, tick: 0.45, radius: 120, count: 4, bladeDmg: 18, ring: 110, rps: 0.7, hitCd: 0.4, pull: 35 },
-			{ dmg: 8, tick: 0.4, radius: 130, count: 5, bladeDmg: 22, ring: 120, rps: 0.75, hitCd: 0.4, pull: 40 },
+			{ dmg: 6, tick: 0.45, radius: 110, count: 3, bladeDmg: 16, ring: 100, rps: 0.7, hitCd: 0.4, pull: 30 },
+			{ dmg: 7, tick: 0.45, radius: 120, count: 4, bladeDmg: 21, ring: 110, rps: 0.7, hitCd: 0.4, pull: 35 },
+			{ dmg: 9, tick: 0.4, radius: 130, count: 5, bladeDmg: 25, ring: 120, rps: 0.75, hitCd: 0.4, pull: 40 },
 		],
 	},
 };

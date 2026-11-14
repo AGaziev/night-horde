@@ -138,15 +138,14 @@ test('4540714302: mark support is the extra dealt damage after fixed flash damag
 	}
 });
 
-test('4540714319: inherited Orbit and Whirlwind contact both hit in one frame on independent clocks', () => {
+test('4540714319: Whirlwind has only its signature contact clock', () => {
 	const { r, h } = arena([['orbit', 3], ['aura', 3]]);
 	const w = fuse(r, h, 'whirlwind');
 	r.time = 1;
 	const angle = orbitAngle(r.time, WEAPONS.orbit.levels[2].rps, 0, WEAPONS.orbit.levels[2].count);
 	const e = foe(r, Math.cos(angle) * 92, Math.sin(angle) * 92);
 	e.r = 20;
-	const expected = (WEAPONS.orbit.levels[2].dmg * DUO_INHERIT_POWER
-		+ DUOS.whirlwind.levels[0].bladeDmg * DUO_SIGNATURE_POWER) * (1 + r.synergy);
+	const expected = (DUOS.whirlwind.levels[0].bladeDmg * DUO_SIGNATURE_POWER) * (1 + r.synergy);
 	r.updateWeapon(h, 'whirlwind', w, dt);
 	assert.ok(Math.abs(h.dmg - expected) < 1e-9, `both rings hit: expected ${expected}, got ${h.dmg}`);
 	const damage = h.dmg;
