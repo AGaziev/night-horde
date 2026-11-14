@@ -1,0 +1,7 @@
+# Horde PR38: finite fixes and main integration
+
+Exacthead e7271a2da67ee588d71dd668033664b643ca6480, base13c560f4d5f16a12333d167806f9a5b20e601c4a, PROTO31/GAME_VERSIONv36. Three separate commits fix owner6861642284: idle movementcredit exploit, Lordwarning/freshKnife recovery before/afterfirstkey, and focusedEscape cancellation. One subsequent merge resolves13files while preserving main#45chronologicalfootprints,#10ack/prediction/SSE,#44invites and#7deployroute.
+
+Independent assigneddelta READY:15targetednative tests+onefootprintscript+4realChromechecks; author19native/4Chrome are supplied separate evidence, not doublecounted. First independent browser ACKwait failure and its onecorrective rerun are retained. ExactcurrentServerCI43633974699 primary61/61PASS on LinuxNode24.22.2, checkouta34acce215a7de3e126e6580467461cf96118b5f parents13c/e727, treeequalhead, ZIP/hash/source proof included. Browser/native commands, raw, wire/renderer evidence, screenshots, manifests and cleanup retained.
+
+This closes the finite functional prototype findings, not statisticalPvPbalance/full15minliveplay/longload/productionnetwork. Controlled warning fixtures preserve nativeRoom/WS/Renderer but do not simulate natural12minapproach. No externalnotifications, productiondata/deploycalls, mainmerge or release were performed. CEOownsfinalmerge/release. Read the independent REPORT.md inside the archive for scope and source applicability; verify bytes with ../verify.py.

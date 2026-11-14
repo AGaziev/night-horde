@@ -60,6 +60,12 @@
     "status": "PASS"
   },
   {
+    "archive": "v36-horde-finite-review.tar.gz",
+    "sha256": "c6936086466ffc9a77807151b4a767e5d8078a759dce614a3ba4cedb69c8cded",
+    "files": 105,
+    "status": "PASS"
+  },
+  {
     "archive": "v36-platform-final.tar.gz",
     "sha256": "34ad61f391aea633f6667ce7d2a1c1d32a8248c71f63d99e00697321db51d622",
     "files": 125,
