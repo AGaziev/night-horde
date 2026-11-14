@@ -14,6 +14,28 @@ export function healSupport(room, owner, target, amount, field = false) {
 }
 export function controlTick(e, now, dt) {
  // Priority resolves overlap once per enemy per simulation tick, not once per caster.
- const owner=e.frozenT>now?e.frozenOwner:e.rootT>now?e.rootOwner:e.slowT>now&&e.slow>0?e.slowOwner:null;
+ const owner=e.frozenT>now?e.frozenOwner:e.rootT>now?e.rootOwner:e.slowT>now&&e.slow>0?e.slowOwner:e.dragT>now&&e.drag>0?e.dragOwner:null;
  if(owner)owner.support.control+=dt;
+}
+
+// Keep each owner's active strength/lifetime instead of lending a stronger
+// effect another caster's expiry. Equal strengths from one owner can coalesce.
+export function timedControl(e, kind, strength, duration, owner, now) {
+ const field=kind+'Sources';
+ if(!e[field]) {
+  e[field]=new Map();
+  if(e[kind+'T']>now && e[kind]>0)e[field].set(`${e[kind+'Owner']?.pid??0}:${e[kind]}`,{strength:e[kind],until:e[kind+'T'],owner:e[kind+'Owner']});
+ }
+ const key=`${owner?.pid??0}:${strength}`,old=e[field].get(key);
+ e[field].set(key,{strength,until:Math.max(old?.until??0,now+duration),owner});
+ resolveControl(e,kind,now);
+}
+export function resolveControl(e, kind, now) {
+ const sources=e[kind+'Sources'];if(!sources)return;
+ let best=null;
+ for(const [key,source] of sources) {
+  if(source.until<=now){sources.delete(key);continue;}
+  if(!best || source.strength>best.strength || (source.strength===best.strength && source.until>best.until))best=source;
+ }
+ e[kind]=best?.strength??0;e[kind+'T']=best?.until??0;e[kind+'Owner']=best?.owner??null;
 }

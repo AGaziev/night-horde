@@ -23,7 +23,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
-import { newSupport, supportStats, healSupport, controlTick } from './support.js';
+import { newSupport, supportStats, healSupport, controlTick, timedControl, resolveControl } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -1801,6 +1801,8 @@ export class Room {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
 				if (e.outpost && e.guardReadyAt > now) continue;
+				resolveControl(e, 'slow', now);
+				resolveControl(e, 'drag', now);
 				controlTick(e, now, dt);
 				let best = null, bd = Infinity;
 				for (const p of alive) {
@@ -2477,8 +2479,7 @@ export class Room {
 		const A = AFFINITY[a];
 		if (a === 'recoil' && !e.boss) this.knock(e, h.x, h.y, A.kb);
 		else if (a === 'drag' && !e.boss) {
-			e.drag = Math.max(e.dragT > now ? e.drag : 0, A.slow);
-			e.dragT = now + A.dur;
+			timedControl(e, 'drag', A.slow, A.dur, h, now);
 		} else if (a === 'aim') e.aimT = now + A.dur;
 		else if (a === 'soak') {
 			e.soakT = now + A.dur;
@@ -2574,6 +2575,7 @@ export class Room {
 		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
 			e.burnT = 0;
 			e.slowT = 0;
+			e.slowSources?.clear();
 			e.steamT = now + REACT.steamLife;
 			this.reacted('steam', e.x, e.y, REACT.steamR);
 			if (this.steams.length >= MAX_STEAMS) this.steams.shift();
@@ -2629,8 +2631,7 @@ export class Room {
 
 	slowEnemy(e, slow, dur, owner) {
 		slow = Math.min(e.boss ? 0.4 : 0.7, Math.max(0, slow));
-		if (e.slowT <= this.time || slow >= e.slow) { e.slow = slow; e.slowOwner = owner; }
-		e.slowT = Math.max(e.slowT, this.time + dur);
+		timedControl(e, 'slow', slow, dur, owner, this.time);
 	}
 
 	killEnemy(e, h, src = SRC_NONE) {
@@ -5091,8 +5092,7 @@ export class Room {
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
 						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; }
 						if (z.drag && !e.dead && !e.boss) {
-							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
-							e.dragT = this.time + z.tick + 0.1;
+							timedControl(e, 'drag', z.drag, z.tick + 0.1, z.owner, this.time);
 						}
 						if (z.mark && !e.dead) {
 							if (e.markT <= this.time || z.mark > e.markMul) { e.markMul = z.mark; e.markOwner = z.owner; }
