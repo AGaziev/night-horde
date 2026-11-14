@@ -2,7 +2,7 @@
 
 This branch publishes isolated local QA artifacts requested by the independent reviewers. It is **not an application candidate** and must not be merged or deployed. The application files in this branch are the unchanged `f4a40dc3cd743a114b5df7417acd65e0c08bceae` base.
 
-All eight implementation PRs remain Draft while the CEO's general-review findings are corrected. None of the archives below closes those findings or establishes acceptance of a later source revision.
+The owner merged PRs #53 and #57; six implementation PRs remain Draft while review fixes and acceptance continue. Each archive records its measured revisions. Scoped code or build-strength acceptance does not establish run-balance acceptance or close findings on a later revision.
 
 ## Archives
 
@@ -13,6 +13,7 @@ Each directory contains a downloadable `.tar.gz`, `SHA256SUMS` and an uncompress
 | `historical-balance` | Earlier independent split-branch runs on the pre-v36 baseline, including baseline raw, 600-cell plans, partial/replaced candidates, replication/probes, the rejected #31 harness attempt and its corrected run. These are historical results, not measurements of the current v36 candidates. |
 | `historical-strength` | #31 build-strength measurements, all raw logical rows, explicit cached-control accounting, scripts/source hashes, pull/gravity follow-ups and transfer evidence for the then-current head; also the #41 boss-slow ablation. Later code fixes require a separate applicability review. |
 | `v36-prereview` | Fresh v36 baseline `f4a40dc` 600 terminal runs; the paused pre-review-fix combat matrix (1472 terminal / 928 not started) and guarded #17 matrix (215 / 385); 180 Swarm-factor trials; then-current independent CI/backend/player evidence. These candidates precede the subsequent CEO fixes. The fresh ordinary baseline remains usable only with explicit source/runtime/tuple equivalence. |
+| `v36-strength-closure` | Independent #31 strength applicability and fresh affected-defense/resonance checks after the CEO fixes: 312 initialization checks, 12 paired resonance scenes, 72 fresh defensive rows, and the audit of 14,040 historical logical rows (9,720 fresh / 4,320 explicit cache). Includes source hashes, primary logs, transfer limits and current-at-the-time CI audits. The scalar defense totals transfer; changed damage-source attribution is identified separately. Later #17 target-selection and #41 contact-root/leash findings supersede their earlier scoped code verdicts. This archive does not contain the final run matrices and does not grant overall READY. |
 
 Source SHA, base, effective parameters and execution commands are recorded inside each plan and source manifest; a directory name alone is not evidence of applicability. Runtime: local macOS Node 24.22.1 for the simulations, Linux Node 24.22.2 for GitHub Server CI. The locally used Node binary is identified by SHA256 in the plans, not bundled. Public Git revisions reconstruct original source/assets; binary source assets, duplicate source tar files, dependency directories and symlink aliases are omitted and listed in the member manifests. Output-only source modifications are retained as text.
 
