@@ -2371,7 +2371,7 @@ export class Room {
 			if (this.dashContactChanged.size) {
 				for (const changed of this.dashContactChanged) {
 					for (let i = events.length - 1; i >= 0; i--) if (events[i].e === changed) events.splice(i, 1);
-					if (changed.dead) continue;
+					if (changed.dead || changed.outpost && changed.guardReadyAt > now) continue;
 					for (const hero of this.heroes.values()) {
 						if (hero.st !== 0 || !hero.dashPath) continue;
 						const contact = dashContactTime(hero, changed.x, changed.y, changed.x, changed.y, dt,
