@@ -17,3 +17,8 @@ test('CEO41.2 expired gift cannot absorb an early AI hazard',()=>{
  const {r,a,b}=arena();gift(r,a,b);r.time+=8;const hp=b.hp;r.hurtPlayer(b,20,'bloater:blast');
  assert.equal(b.hp,hp-20);assert.equal(a.support.blocked,20,'only the original Bastion own hit is credited');assert.equal(b.sharedWard,null);
 });
+test('CEO41.1 Quick Shield overclock and expiry cannot delete its own remaining charge',()=>{
+ const {r,a,b}=arena();b.weapons.set('ward',{lvl:5,t:7,init:true});b.ward=1;b.wardMax=3;gift(r,a,b);
+ const card=r.ovrCards(b,'ward').find(c=>c.name==='Быстрый щит');assert.ok(card);assert.ok(r.overclock(b,card));
+ assert.equal(b.ward,1);assert.ok(b.sharedWard);r.time+=8;r.updatePlayers(1/30,[...r.heroes.values()]);assert.equal(b.sharedWard,null);assert.equal(b.ward,1,'only the expired independent gift disappears');
+});
