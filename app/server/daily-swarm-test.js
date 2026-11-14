@@ -1,17 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room } from './game.js';
-import { dailyFor } from '../public/shared/daily.js';
+import { DAILY_VERSION, dailyFor } from '../public/shared/daily.js';
 import { xpForNext } from '../public/shared/content.js';
 import { initSwarm, resolveSwarm, swarmSnapshot, tagSwarmEnemy } from './daily-swarm.js';
 
-function setup(mode = 'night', n = 1, version = 2) {
+function setup(mode = 'night', n = 1, version = DAILY_VERSION) {
 	const r = new Room('SWARM', () => {}); r.setMode(mode);
 	for (let i = 1; i <= n; i++) r.addPlayer(i, 'P' + i, 'witch');
 	r.handle(1, { t: 'daily', enabled: true });
 	let at = Date.UTC(2026, 10, 14); while (dailyFor(at).id !== 'swarm') at += 86400000;
 	r.lockDaily(at);
-	if (version === 1) r.daily = { ...r.daily, version: 1, mods: { enemyRate: 1.15, xp: 1.15 } };
+	r.daily = { ...r.daily, version, ...(version === 1 ? { mods: { enemyRate: 1.15, xp: 1.15 } } : {}) };
 	r.start();
 	for (const h of r.heroes.values()) { h.weapons.clear(); h.perk.readyAt = Infinity; }
 	return r;
@@ -21,8 +21,8 @@ function begin(r, c) {
 	return r.enemies.filter(e => e.swarmCohort === c);
 }
 
-for (const mode of ['lunch', 'night']) test(`Swarmv2 ${mode}: cumulative cohort, two finite rewards, down/offline recipients`, () => {
-	const r = setup(mode, 2), h = r.heroes.get(1), down = r.heroes.get(2);
+for (const version of [2, 3]) for (const mode of ['lunch', 'night']) test(`Swarmv${version} ${mode}: cumulative cohort, two finite rewards, down/offline recipients`, () => {
+	const r = setup(mode, 2, version), h = r.heroes.get(1), down = r.heroes.get(2);
 	assert.deepEqual(r.swarm.cohorts.map(c => c.id), ['ring', 'tide']);
 	assert.ok(r.swarm.cohorts.every(c => c.end <= r.finPlan.pre));
 	for (const c of r.swarm.cohorts) {
@@ -46,6 +46,12 @@ for (const mode of ['lunch', 'night']) test(`Swarmv2 ${mode}: cumulative cohort,
 	}
 	assert.equal(r.swarm.wins, 2);
 	assert.equal(swarmSnapshot(r), null);
+});
+
+test('unsupported future Swarm contracts never silently acquire current cohort rewards', () => {
+	const r = setup('night', 1, 4);
+	assert.equal(r.swarm, null);
+	assert.equal(initSwarm(r), null);
 });
 
 test('Swarmv2: later ordinary births enlarge denominator; late kills and empty/failed windows never award', () => {

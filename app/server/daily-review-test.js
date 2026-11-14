@@ -7,7 +7,7 @@ import path from 'node:path';
 import { Room } from './game.js';
 import { RunStore } from './runlog.js';
 import { clientProto } from './snapshot-codec.js';
-import { dailyFor } from '../public/shared/daily.js';
+import { DAILY_VERSION, dailyFor } from '../public/shared/daily.js';
 
 test('CEO54-1: midnight direct start refreshes all readiness before another explicit start', () => {
 	const before = Date.now, sent = [];
@@ -62,7 +62,7 @@ test('Swarmv2: only ordinary and peak-ring creations enter a cumulative end-reso
  const r = new Room('SWARM', () => {}); r.addPlayer(1, 'P', 'witch'); r.handle(1, { t: 'daily', enabled: true });
  let day = Date.UTC(2026, 10, 14); while (dailyFor(day).id !== 'swarm') day += 86400000;
  r.lockDaily(day); r.start();
- assert.equal(r.daily.version, 2);
+ assert.equal(r.daily.version, DAILY_VERSION);
  assert.equal(r.daily.mods.xp, undefined);
  assert.equal(r.swarm.cohorts.length, 2);
 });

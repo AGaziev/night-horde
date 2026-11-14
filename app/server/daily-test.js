@@ -5,7 +5,7 @@ import { RunStore } from './runlog.js';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room, Hub } from './game.js';
-import { DAILY_RULES, dailyFor, dailyKey, compareDaily } from '../public/shared/daily.js';
+import { DAILY_VERSION, DAILY_RULES, dailyFor, dailyKey, compareDaily } from '../public/shared/daily.js';
 import { HEROES, MODES, ENEMIES } from '../public/shared/content.js';
 
 function make(id, mode = 'lunch', n = 1) {
@@ -84,8 +84,8 @@ test('XP, armor/speed, and pickup/enemy health apply at their actual consumers',
 	swarm.spawn(0.01, [sh]); ordinary.spawn(0.01, [...ordinary.heroes.values()]);
 	assert.ok(Math.abs(swarm.spawnAcc / ordinary.spawnAcc - 1.15) < 1e-9);
 	const { r: armor } = make('armor'); armor.start(); const ah = armor.heroes.get(1);
-	assert.equal(ah.mods.armor, 2); assert.equal(ah.mods.speedMul, 0.9);
-	armor.hurtPlayer(ah, 10); assert.equal(ah.hp, ah.maxHp - 8);
+	assert.equal(ah.mods.armor, 1); assert.equal(ah.mods.speedMul, 0.9);
+	armor.hurtPlayer(ah, 10); assert.equal(ah.hp, ah.maxHp - 9);
 	const { r: gather } = make('gather'); gather.start(); const gh = gather.heroes.get(1);
 	assert.equal(gh.mods.magnetMul, 1.3);
 	for (const type of ['skel', 'boss']) {
@@ -100,9 +100,29 @@ test('run result and reconnect retain contract; daily runs never grant ordinary 
 	assert.equal(r.overMsg.daily.players, 2);
 	assert.ok(r.overMsg.stats.every(s => s.ach === null && s.tot === undefined));
 	r.resync(1); assert.equal(sent.at(-1), r.overMsg);
-	assert.equal(dailyKey(r.daily), `2:${r.daily.day}:night:2`);
+	assert.equal(dailyKey(r.daily), `${DAILY_VERSION}:${r.daily.day}:night:2`);
 	assert.ok(compareDaily({ grade: 2, time: 50 }, { grade: 1, time: 900 }) > 0);
 	assert.ok(compareDaily({ grade: 0, time: 90, kills: 1 }, { grade: 0, time: 50, kills: 900 }) > 0);
+});
+
+test('v3 armor leaves locked v2 contracts and persisted v1/v2 personal bests intact', t => {
+	assert.equal(DAILY_VERSION, 3);
+	const { r } = make('armor');
+	r.daily = { ...r.daily, version: 2, mods: { armor: 2, speed: .9 } };
+	r.start(); const h = r.heroes.get(1), locked = structuredClone(r.daily);
+	r.hurtPlayer(h, 10); assert.equal(h.hp, h.maxHp - 8);
+	r.resync(1); assert.deepEqual(r.daily, locked);
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-daily-versions-'));
+	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+	const store = new RunStore(); store.persist(dir);
+	for (const version of [1, 2, 3]) store.add({ id: `VER00${version}`, at: new Date().toISOString(),
+		mode: 'lunch', team: [{ name: 'Player', hero: 'witch', level: 1 }], summary: [], win: true,
+		grade: version, time: 600, kills: 3, daily: { ...locked, version } }, ['111']);
+	const restored = new RunStore(); restored.persist(dir);
+	const best = restored.history('111').daily.best;
+	assert.equal(best.length, 3);
+	assert.deepEqual(best.map(record => record.daily.version).sort(), [1, 2, 3]);
+	for (const version of [1, 2, 3]) assert.equal(best.find(record => record.daily.version === version).id, `VER00${version}`);
 });
 
 
