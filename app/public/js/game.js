@@ -17,6 +17,11 @@ const MAX_EXTRAPOLATE = 0.2;
 const TELEPORT_DIST = 200;
 const TELEPORT_SPEED = 400;
 const RECONCILE_DIST = 150;
+const MAX_PREDICTION_AGE = 0.5;
+// Normal delayed acknowledgements may trail input, but never grant an unlimited tail.
+// 1.5 seconds also fits the server's capped one-second movement allowance.
+const MAX_UNACKED_AGE = 1.5;
+const MAX_PENDING_POSITIONS = 256;
 const MAX_SNAPS = 8;
 const MAX_PARTICLES = 700;
 const MAX_NUMBERS = 90;
@@ -190,6 +195,13 @@ export class Game {
 		this.renderTm = null;
 		this.lastNow = 0;
 		this.teleTm = null;
+		this.predictionAt = performance.now() / 1000;
+		this.awaitingSnapshot = false;
+		this.posSeq = 0;
+		this.pendingPositions = new Map();
+		this.ackAt = this.predictionAt;
+		this.ackDelay = 0;
+		this.ackSeq = 0;
 	}
 
 	stop() {
@@ -211,11 +223,22 @@ export class Game {
 		const was = this.frozen;
 		this.frozen = !!on;
 		this.menuPause = !!on && !!menu;
+		if (on && !was) this.discardPrediction();
 		if (was && !on) {
 			// Keep drawing the frozen frame until the first new snapshot re-anchors the clock.
 			this.offs = [];
 			this.gaps = [];
+			this.awaitingSnapshot = true;
 		}
+	}
+
+	// A paused server rejected the input tail. It must never be submitted on resume.
+	discardPrediction(row = this.myRow()) {
+		if (row) { this.local.x = +row[P.x]; this.local.y = +row[P.y]; }
+		this.pendingPositions.clear();
+		this.ackAt = performance.now() / 1000;
+		this.posTimer = 0;
+		this.net.discardPositions?.();
 	}
 
 	setLobbyPlayers(list) {
@@ -356,15 +379,35 @@ export class Game {
 			compact(this.teleWait, ([, item]) => item.born + item.life > over);
 		}
 
+		const reanchor = this.awaitingSnapshot || this.frozen;
+		this.awaitingSnapshot = false;
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
 		const mine = snap.pMap.get(this.me);
 		if (mine) {
 			const sx = +mine[P.x], sy = +mine[P.y];
-			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
-				this.local.x = sx;
-				this.local.y = sy;
+			const ack = Array.isArray(msg.pa) ? msg.pa.find((row) => row[0] === this.me) : null;
+			const authored = ack && this.pendingPositions.get(ack[1]);
+			const epoch = this.moveEpoch ?? 0;
+			const matching = authored && (ack[2] ?? 0) === epoch && authored.epoch === epoch;
+			if (matching && ack[1] > this.ackSeq && Number.isFinite(authored.at)) {
+				this.ackSeq = ack[1];
+				this.ackAt = authored.at;
+				this.ackDelay = Math.min(MAX_UNACKED_AGE - MAX_PREDICTION_AGE, Math.max(this.ackDelay, now - authored.at));
 			}
+			// Snapshots describe an earlier authored position. Comparing them with the current
+			// predicted hero made a healthy, delayed connection repeatedly pull the hero backwards.
+			if (reanchor) {
+				this.discardPrediction(mine);
+			} else if (mine[P.st] === 1) {
+				this.local.x = sx; this.local.y = sy; this.pendingPositions.clear();
+			} else if (matching && Math.hypot(sx - authored.x, sy - authored.y) > RECONCILE_DIST) {
+				this.local.x += sx - authored.x; this.local.y += sy - authored.y;
+				this.pendingPositions.clear();
+			} else if (!Array.isArray(msg.pa) && Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
+				this.local.x = sx; this.local.y = sy;
+			}
+			if (ack) for (const seq of this.pendingPositions.keys()) if (seq <= ack[1]) this.pendingPositions.delete(seq);
 		}
 	}
 
@@ -426,13 +469,15 @@ export class Game {
 		this.advanceHostile();
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
-		const still = this.frozen || (this.offer && this.solo());
+		const stale = now - (this.latest()?.at ?? this.predictionAt) > MAX_PREDICTION_AGE;
+		const unacknowledged = now - this.ackAt > this.ackDelay + MAX_PREDICTION_AGE;
+		const still = this.frozen || this.awaitingSnapshot || stale || (this.offer && this.solo());
 		if (this.running && !still) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
 				const v = input.vector();
-				if (v.x || v.y) {
+				if (!unacknowledged && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -448,8 +493,11 @@ export class Game {
 				if (this.posTimer <= 0 && this.me !== null) {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
+					const seq = ++this.posSeq;
+					this.pendingPositions.set(seq, { x: this.local.x, y: this.local.y, epoch: this.moveEpoch ?? 0, at: now });
+					if (this.pendingPositions.size > MAX_PENDING_POSITIONS) this.pendingPositions.delete(this.pendingPositions.keys().next().value);
 					this.net.send({
-						t: 'pos',
+						t: 'pos', seq,
 						x: Math.round(this.local.x * 10) / 10,
 						y: Math.round(this.local.y * 10) / 10,
 						fx: Math.round(this.local.fx * 1000) / 1000,
@@ -470,6 +518,14 @@ export class Game {
 		const n = this.snaps.length;
 		if (!n || this.clockRef === null) {
 			v.a = v.b = null;
+			return;
+		}
+		if (this.frozen || this.awaitingSnapshot) {
+			if (!v.b) {
+				v.a = v.b = this.snaps[n - 1];
+				v.tm = this.renderTm = v.b.tm; v.t = v.et = 1;
+			}
+			this.lastNow = now;
 			return;
 		}
 		// Slew the render clock towards its target so a changed delay never makes the world jump.

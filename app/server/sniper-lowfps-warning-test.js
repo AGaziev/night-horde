@@ -214,7 +214,7 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
 	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
 	const { Net } = await import('data:text/javascript;base64,' + Buffer.from(netSource).toString('base64'));
-	for (const legacy of [24, 25]) {
+	for (const legacy of [24, 25, 28]) {
 		const oldSource = `const PROTO = ${legacy};\n` + netSource.replace('import { PROTO, SnapshotDecoder }', 'import { SnapshotDecoder }');
 		const { Net: OldNet } = await import('data:text/javascript;base64,' + Buffer.from(oldSource).toString('base64'));
 		let welcome;
@@ -231,5 +231,5 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 		assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
 		delete globalThis.sessionStorage; delete globalThis.location;
 	}
-	console.log('PROTO 28: old PROTO 24/25 pages reload on welcome, the current one goes on: OK');
+	console.log('PROTO 29: old PROTO 24/25/28 pages reload on welcome, the current one goes on: OK');
 }
