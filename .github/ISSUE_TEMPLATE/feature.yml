@@ -1,0 +1,42 @@
+name: Фича или улучшение
+description: Предложить изменение в игре или процессе работы
+labels: ["enhancement", "status:backlog"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Зачем это нужно
+      description: Кто столкнулся с проблемой и что станет возможным после изменения?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Ожидаемое поведение
+      description: Опишите сценарий от действия игрока или участника команды до видимого результата.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Критерии приёмки
+      description: Укажите конкретные примеры, условия и наблюдаемые результаты, по которым можно принять изменение.
+    validations:
+      required: true
+  - type: dropdown
+    id: team
+    attributes:
+      label: Команда
+      options:
+        - CEO распределит
+        - weapons — Оружие и герои
+        - runs — Забеги и баланс
+        - players — Игрок и кооператив
+        - platform — Платформа и выпуск
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Ограничения и связи
+      description: При наличии укажите связанные Issues, режимы и составы игроков, затронутые данные или условия выпуска.

@@ -92,6 +92,9 @@ export class Overlay {
 const LEVELS = [2, 1.5, 1.25, 1];
 const WINDOW_MS = 1000;
 const SLOW_MS = 20;
+const MISSED_FRAME_MS = 25; // separates missed 60Hz frames from ordinary vsync jitter
+const SLOW_FRAME_RATIO = 0.05;
+const FAST_FRAME_RATIO = 0.02;
 const SLOW_WINDOWS = 3; // ~3 s of slow frames before stepping down
 const FAST_MS = 17.5; // keeps vsync at 60 Hz
 const FAST_WINDOWS = 8;
@@ -109,12 +112,7 @@ export class DprController {
 		const touch = window.matchMedia?.('(pointer: coarse)').matches;
 		this.idx = touch ? Math.max(0, this.levels.findIndex((l) => l <= 1.5)) : 0;
 		this.fixed = 0;
-		this.last = 0;
-		this.winStart = 0;
-		this.sum = 0;
-		this.count = 0;
-		this.slowRun = 0;
-		this.fastRun = 0;
+		this.resetWindow(0);
 		this.retryAt = 0;
 		this.retryMs = RETRY_BASE_MS;
 		this.upAt = 0;
@@ -127,23 +125,41 @@ export class DprController {
 	// Pins a DPR (0 = adaptive again); used by benchmarks and could back a quality setting.
 	lock(v) {
 		this.fixed = +v || 0;
+		this.resetWindow();
 		this.onChange();
+	}
+
+	resetWindow(now = performance.now()) {
+		this.last = now;
+		this.winStart = 0;
+		this.sum = this.count = this.missed = 0;
+		this.slowRun = this.fastRun = 0;
 	}
 
 	frame() {
 		const now = performance.now();
 		const dt = now - this.last;
 		this.last = now;
-		if (this.fixed || dt <= 0 || dt > 250) return;
+		if (this.fixed) return;
+		if (dt <= 0 || dt > 250) {
+			// Background tabs and suspension break cadence; require fresh consecutive windows.
+			this.resetWindow(now);
+			return;
+		}
 		if (!this.winStart) this.winStart = now;
 		this.sum += dt;
 		this.count++;
+		if (dt > MISSED_FRAME_MS) this.missed++;
 		if (now - this.winStart < WINDOW_MS) return;
 		const mean = this.sum / this.count;
+		const missed = this.missed / this.count;
 		this.winStart = now;
 		this.sum = 0;
 		this.count = 0;
-		if (mean > SLOW_MS) {
+		this.missed = 0;
+		// A mean around 18ms can still hide recurring 33ms frames. React to a sustained
+		// missed-frame tail too, while retaining the three-window hysteresis.
+		if (mean > SLOW_MS || missed >= SLOW_FRAME_RATIO) {
 			this.fastRun = 0;
 			if (++this.slowRun >= SLOW_WINDOWS && this.idx < this.levels.length - 1) {
 				// Failing soon after a step up: back off before trying that level again.
@@ -153,7 +169,7 @@ export class DprController {
 			}
 		} else {
 			this.slowRun = 0;
-			if (mean < FAST_MS && this.idx > 0 && now >= this.retryAt) {
+			if (mean < FAST_MS && missed < FAST_FRAME_RATIO && this.idx > 0 && now >= this.retryAt) {
 				if (++this.fastRun >= FAST_WINDOWS) {
 					this.upAt = now;
 					this.set(this.idx - 1);

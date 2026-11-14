@@ -246,6 +246,11 @@ export class Net {
 		}
 	}
 
+	// Keep menu/offer commands, but never replay unsent movement rejected by a pause.
+	discardPositions() {
+		this.outbox = this.outbox.filter((msg) => msg.t !== 'pos');
+	}
+
 	// POSTs are chained so messages keep their order; whatever queues meanwhile goes as one batch.
 	async flush() {
 		if (this.posting || !this.outbox.length) return;

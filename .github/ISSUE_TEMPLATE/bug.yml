@@ -1,0 +1,41 @@
+name: Ошибка
+description: Сообщить о дефекте и описать, как его воспроизвести
+labels: ["bug", "status:backlog"]
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Как воспроизвести
+      description: Укажите шаги, версию игры, режим, состав группы и браузер, если они известны и важны для ошибки.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Что произошло
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Что должно произойти
+      description: Укажите ожидаемый результат после исправления в тех же условиях. Добавьте пограничный сценарий, если он известен.
+    validations:
+      required: true
+  - type: dropdown
+    id: team
+    attributes:
+      label: Команда
+      options:
+        - CEO распределит
+        - weapons — Оружие и герои
+        - runs — Забеги и баланс
+        - players — Игрок и кооператив
+        - platform — Платформа и выпуск
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Дополнительные материалы
+      description: Приложите ID забега, скриншот или относящийся к ошибке фрагмент лога. Удалите ключи, токены и персональные данные.

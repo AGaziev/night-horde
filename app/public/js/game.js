@@ -17,6 +17,11 @@ const MAX_EXTRAPOLATE = 0.2;
 const TELEPORT_DIST = 200;
 const TELEPORT_SPEED = 400;
 const RECONCILE_DIST = 150;
+const MAX_PREDICTION_AGE = 0.5;
+// Normal delayed acknowledgements may trail input, but never grant an unlimited tail.
+// 1.5 seconds also fits the server's capped one-second movement allowance.
+const MAX_UNACKED_AGE = 1.5;
+const MAX_PENDING_POSITIONS = 256;
 const MAX_SNAPS = 8;
 const MAX_PARTICLES = 700;
 const MAX_NUMBERS = 90;
@@ -69,6 +74,8 @@ export class Game {
 		this.shots = new Map(); // projectile id -> locally simulated projectile
 		this.numbers = [];
 		this.particles = [];
+		// Damage numbers 'all' | 'crits' | 'off' and effects 'full' | 'lite' (Issue #11); main.js loads them from visual.js.
+		this.visual = { numbers: 'all', effects: 'full' };
 		this.zaps = [];
 		this.slashes = [];
 		this.rings = [];
@@ -80,6 +87,9 @@ export class Game {
 		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
 		this.warns = [];
 		this.blines = []; // boss charge lanes {x1, y1, x2, y2, w, t, life}
+		this.teleWait = []; // telegraphs of a snapshot the telegraph clock has not reached yet: [list, item]
+		this.teleTm = null; // telegraph clock this frame (teleClock)
+		this.fxTm = null; // server time of the snapshot whose effects are being applied
 		this.broken = new Set(); // broken prop tiles, key tx * 100003 + ty
 		this.eliteAffix = new Map(); // enemy id -> index in ELITE_AFFIXES
 		this.orbs = new Map(); // ball lightning id -> {x0, y0, x1, y1, speed, st, life, r}
@@ -128,8 +138,7 @@ export class Game {
 		this.dawnPending = null;
 		this.hostile.clear();
 		this.lobs.clear();
-		this.warns.length = 0;
-		this.blines.length = 0;
+		this.clearTelegraphs();
 		this.broken.clear();
 		this.eliteAffix.clear();
 		this.orbs.clear();
@@ -181,6 +190,14 @@ export class Game {
 		this.clockRef = null;
 		this.renderTm = null;
 		this.lastNow = 0;
+		this.teleTm = null;
+		this.predictionAt = performance.now() / 1000;
+		this.awaitingSnapshot = false;
+		this.posSeq = 0;
+		this.pendingPositions = new Map();
+		this.ackAt = this.predictionAt;
+		this.ackDelay = 0;
+		this.ackSeq = 0;
 	}
 
 	stop() {
@@ -202,11 +219,22 @@ export class Game {
 		const was = this.frozen;
 		this.frozen = !!on;
 		this.menuPause = !!on && !!menu;
+		if (on && !was) this.discardPrediction();
 		if (was && !on) {
 			// Keep drawing the frozen frame until the first new snapshot re-anchors the clock.
 			this.offs = [];
 			this.gaps = [];
+			this.awaitingSnapshot = true;
 		}
+	}
+
+	// A paused server rejected the input tail. It must never be submitted on resume.
+	discardPrediction(row = this.myRow()) {
+		if (row) { this.local.x = +row[P.x]; this.local.y = +row[P.y]; }
+		this.pendingPositions.clear();
+		this.ackAt = performance.now() / 1000;
+		this.posTimer = 0;
+		this.net.discardPositions?.();
 	}
 
 	setLobbyPlayers(list) {
@@ -286,6 +314,7 @@ export class Game {
 			this.shots.clear();
 			this.hostile.clear();
 			this.lobs.clear();
+			this.clearTelegraphs();
 		}
 		const prevTm = this.snaps.length ? this.snaps[this.snaps.length - 1].tm : null;
 		if (prevTm !== null && tm <= prevTm) {
@@ -328,17 +357,50 @@ export class Game {
 		snap.bIdx = indexFlat(snap.b, 5);
 		snap.gIdx = indexFlat(snap.g, 4);
 		this.snaps.push(snap);
-		if (this.snaps.length > MAX_SNAPS) this.snaps.shift();
+		if (this.snaps.length > MAX_SNAPS) {
+			// Frames stopped (a hidden tab): a snapshot leaves unplayed, but its warnings may still be under way.
+			const old = this.snaps.shift();
+			if (!old.applied) {
+				this.fxTm = old.tm;
+				for (const ev of old.fx) if (Array.isArray(ev)) this.telegraphEvent(ev);
+				this.fxTm = null;
+			}
+		}
+		// Warnings over by the render clock are never shown: without frames they would pile up.
+		if (this.teleWait.length) {
+			const over = this.teleNow();
+			compact(this.teleWait, ([, item]) => item.born + item.life > over);
+		}
 
+		const reanchor = this.awaitingSnapshot || this.frozen;
+		this.awaitingSnapshot = false;
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
 		const mine = snap.pMap.get(this.me);
 		if (mine) {
 			const sx = +mine[P.x], sy = +mine[P.y];
-			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
-				this.local.x = sx;
-				this.local.y = sy;
+			const ack = Array.isArray(msg.pa) ? msg.pa.find((row) => row[0] === this.me) : null;
+			const authored = ack && this.pendingPositions.get(ack[1]);
+			const epoch = this.moveEpoch ?? 0;
+			const matching = authored && (ack[2] ?? 0) === epoch && authored.epoch === epoch;
+			if (matching && ack[1] > this.ackSeq && Number.isFinite(authored.at)) {
+				this.ackSeq = ack[1];
+				this.ackAt = authored.at;
+				this.ackDelay = Math.min(MAX_UNACKED_AGE - MAX_PREDICTION_AGE, Math.max(this.ackDelay, now - authored.at));
 			}
+			// Snapshots describe an earlier authored position. Comparing them with the current
+			// predicted hero made a healthy, delayed connection repeatedly pull the hero backwards.
+			if (reanchor) {
+				this.discardPrediction(mine);
+			} else if (mine[P.st] === 1) {
+				this.local.x = sx; this.local.y = sy; this.pendingPositions.clear();
+			} else if (matching && Math.hypot(sx - authored.x, sy - authored.y) > RECONCILE_DIST) {
+				this.local.x += sx - authored.x; this.local.y += sy - authored.y;
+				this.pendingPositions.clear();
+			} else if (!Array.isArray(msg.pa) && Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
+				this.local.x = sx; this.local.y = sy;
+			}
+			if (ack) for (const seq of this.pendingPositions.keys()) if (seq <= ack[1]) this.pendingPositions.delete(seq);
 		}
 	}
 
@@ -394,18 +456,21 @@ export class Game {
 			this.dawnPending = null;
 		}
 		this.updateView(now);
+		this.teleTm = this.teleClock();
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
-		const still = this.frozen || (this.offer && this.solo());
+		const stale = now - (this.latest()?.at ?? this.predictionAt) > MAX_PREDICTION_AGE;
+		const unacknowledged = now - this.ackAt > this.ackDelay + MAX_PREDICTION_AGE;
+		const still = this.frozen || this.awaitingSnapshot || stale || (this.offer && this.solo());
 		if (this.running && !still) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
 				const v = input.vector();
-				if (v.x || v.y) {
+				if (!unacknowledged && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -421,8 +486,11 @@ export class Game {
 				if (this.posTimer <= 0 && this.me !== null) {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
+					const seq = ++this.posSeq;
+					this.pendingPositions.set(seq, { x: this.local.x, y: this.local.y, epoch: this.moveEpoch ?? 0, at: now });
+					if (this.pendingPositions.size > MAX_PENDING_POSITIONS) this.pendingPositions.delete(this.pendingPositions.keys().next().value);
 					this.net.send({
-						t: 'pos',
+						t: 'pos', seq,
 						x: Math.round(this.local.x * 10) / 10,
 						y: Math.round(this.local.y * 10) / 10,
 						fx: Math.round(this.local.fx * 1000) / 1000,
@@ -443,6 +511,14 @@ export class Game {
 		const n = this.snaps.length;
 		if (!n || this.clockRef === null) {
 			v.a = v.b = null;
+			return;
+		}
+		if (this.frozen || this.awaitingSnapshot) {
+			if (!v.b) {
+				v.a = v.b = this.snaps[n - 1];
+				v.tm = this.renderTm = v.b.tm; v.t = v.et = 1;
+			}
+			this.lastNow = now;
 			return;
 		}
 		// Slew the render clock towards its target so a changed delay never makes the world jump.
@@ -532,7 +608,10 @@ export class Game {
 			}
 			case 'epend': {
 				const s = this.hostile.get(ev[1]);
-				if (s) s.end = Math.max(s.st + MIN_SHOT_VISIBLE, +ev[2] || 0);
+				if (s) {
+					s.end = Math.max(s.st, +ev[2] || 0);
+					if (ev[5] === 1 && Number.isFinite(ev[3]) && Number.isFinite(ev[4])) s.impact = { x: ev[3], y: ev[4] };
+				}
 				break;
 			}
 			case 'lob':
@@ -625,6 +704,7 @@ export class Game {
 		const vt = this.view.tm;
 		for (const [id, s] of this.hostile) {
 			if (vt >= s.end) {
+				if (s.impact) this.rings.push({ ...s.impact, t: 0, life: .16, r0: 5, r1: 21, color: '#ffb06d' });
 				this.hostile.delete(id);
 				continue;
 			}
@@ -667,8 +747,52 @@ export class Game {
 			// Effects play when the render clock reaches their snapshot; never lag more than two snapshots.
 			if (s.applied || (s.tm > rt + 0.001 && i >= n - 2)) continue;
 			s.applied = true;
+			this.fxTm = s.tm;
 			for (const ev of s.fx) if (Array.isArray(ev)) this.effect(ev);
+			this.fxTm = null;
 		}
+	}
+
+	// Server time the telegraphs count in: the render clock, but never past the newest snapshot. A telegraph's age is
+	// this clock minus its snapshot's time, so it stands still while the server is paused (also when the pause starts
+	// and ends between two frames), keeps pace at any frame rate and is right on the first frame after frames stop.
+	teleClock() {
+		const last = this.latest();
+		return last && this.renderTm !== null ? Math.min(this.renderTm, last.tm) : null;
+	}
+
+	// Where the telegraph clock is now, also between frames: the render clock's target, never past the newest snapshot.
+	teleNow() {
+		const tm = this.latest()?.tm ?? 0;
+		return this.clockRef === null ? tm : Math.min(tm, performance.now() / 1000 - this.clockRef);
+	}
+
+	// Warnings of a snapshot are as old as its server time says; they wait while the telegraph clock is not there yet
+	// (or not set: no frame since the run began). Without a snapshot they start fresh.
+	addTelegraph(list, item) {
+		if (this.fxTm !== null) {
+			item.born = this.fxTm;
+			// Over by the newest snapshot (frames stopped for long): never shown, not kept either.
+			if (item.born + item.life <= this.teleNow()) return;
+			if (this.teleTm === null || this.teleTm < item.born) {
+				this.teleWait.push([list, item]);
+				return;
+			}
+			item.t = this.teleTm - item.born;
+			if (item.t >= item.life) return;
+		}
+		list.push(item);
+	}
+
+	telegraphEvent(ev) {
+		if (ev[0] === 'bline') this.addTelegraph(this.blines, { x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
+		else if (ev[0] === 'warn') this.addTelegraph(this.warns, { x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+	}
+
+	clearTelegraphs() {
+		this.warns.length = 0;
+		this.blines.length = 0;
+		this.teleWait.length = 0;
 	}
 
 	effect(ev) {
@@ -676,7 +800,8 @@ export class Game {
 		switch (ev[0]) {
 			case 'hit': {
 				const crit = ev[4] === 1;
-				if (this.numbers.length < MAX_NUMBERS || crit) {
+				const shown = this.visual.numbers === 'all' || (this.visual.numbers === 'crits' && crit);
+				if (shown && (this.numbers.length < MAX_NUMBERS || crit)) {
 					this.numbers.push({ x: +ev[1] + (Math.random() - 0.5) * 10, y: +ev[2] - 10, v: Math.round(+ev[3] || 0), t: 0, crit, mine: crit && ev[5] === this.me });
 				}
 				if (crit) this.burst(+ev[1], +ev[2] - 6, ev[5] === this.me ? '#ffee58' : '#fff59d', ev[5] === this.me ? 6 : 3, 2);
@@ -703,7 +828,7 @@ export class Game {
 				this.zaps.push({ pts: jagged(+ev[1], +ev[2], +ev[3], +ev[4]), t: 0 });
 				break;
 			case 'slash':
-				this.slashes.push({ pid: ev[1], dir: ev[2] < 0 ? -1 : 1, range: +ev[3] || 110, width: +ev[4] || 40, t: 0 });
+				this.slashes.push({ pid: ev[1], dir: ev[2] < 0 ? -1 : 1, range: +ev[3] || 110, width: +ev[4] || 40, x: ev.length >= 7 ? +ev[5] : null, y: ev.length >= 7 ? +ev[6] : null, impactAt: +ev[7] || 0, t: 0 });
 				break;
 			case 'hurt':
 				if (ev[1] === this.me) {
@@ -744,10 +869,8 @@ export class Game {
 				break;
 			}
 			case 'bline':
-				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
-				break;
 			case 'warn':
-				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+				this.telegraphEvent(ev);
 				break;
 			case 'frost': {
 				// v28: a wave at a point (Ледяные силки: ['frost', pid, r, x, y]) instead of around the hero.
@@ -965,7 +1088,14 @@ export class Game {
 		this.onEvent('dawn', this.lordDie ? 2 : 1);
 	}
 
+	// New visual settings; numbers already on screen that the new mode hides go away at once.
+	setVisual(v) {
+		this.visual = v;
+		if (v.numbers !== 'all') this.numbers = this.numbers.filter((n) => v.numbers === 'crits' && n.crit);
+	}
+
 	burst(x, y, color, n, spread) {
+		if (this.visual.effects === 'lite') n = Math.ceil(n / 4); // simplified effects: a quarter of the particles
 		for (let i = 0; i < n && this.particles.length < MAX_PARTICLES; i++) {
 			const a = Math.random() * Math.PI * 2;
 			const s = 40 + Math.random() * (80 + spread * 4);
@@ -992,8 +1122,13 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		compact(this.warns, (w) => (w.t += dt) < w.life);
-		compact(this.blines, (l) => (l.t += dt) < l.life);
+		// Telegraphs count down the server's windups on the telegraph clock (teleClock); those added without it count
+		// frame time, and the server stands still while paused.
+		const tc = this.teleTm, tdt = this.frozen ? 0 : dt;
+		if (tc !== null) compact(this.teleWait, ([list, item]) => tc < item.born || void list.push(item));
+		const age = (w) => (w.born === undefined ? (w.t += tdt) : (w.t = tc === null ? w.t : Math.max(0, tc - w.born))) < w.life;
+		compact(this.warns, age);
+		compact(this.blines, age);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);
