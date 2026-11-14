@@ -117,6 +117,7 @@ export class Game {
 	reset() {
 		this.cancelDash();
 		this.moveEpoch = 0;
+		this.dashConfirmedEpoch = 0;
 		this.dashReadyAt = 0;
 		this.dashSyncAt = 0;
 		this.dashTravel = null;
@@ -393,13 +394,16 @@ export class Game {
 		const staleDash = mobility && mobility[1] < (this.moveEpoch ?? 0);
 		if (mobility && !staleDash) {
 			this.dashReadyAt = mobility[2];
-			if (mine && (mobility[1] > (this.moveEpoch ?? 0) || this.dashTravel && mobility[1] === this.moveEpoch)) {
+			const end = mobility[2] - DASH.cooldown + DASH.duration;
+			const completed = mobility[1] > this.dashConfirmedEpoch && (mobility[3] === 0 || mobility[3] === undefined && tm >= end);
+			if (mine && (completed || mobility[1] > (this.moveEpoch ?? 0) || this.dashTravel && mobility[1] === this.moveEpoch)) {
 				this.moveEpoch = mobility[1];
 				this.cancelDash();
 				this.local.x = mine[P.x]; this.local.y = mine[P.y];
 				this.dashSyncAt = mobility[2] - DASH.cooldown + DASH.duration;
-				const left = Math.min(DASH.duration, Math.max(0, this.dashSyncAt - tm));
+				const left = Math.min(DASH.duration, Math.max(0, mobility[3] ?? this.dashSyncAt - tm));
 				this.dashTravel = left > 1e-8 ? { x: mine[P.fx] ?? this.local.fx, y: mine[P.fy] ?? this.local.fy, left } : null;
+				if (!this.dashTravel) { this.dashConfirmedEpoch = mobility[1]; this.discardPrediction(mine); }
 			}
 		}
 		if (mine && !staleDash && (mine[P.st] === 1 || snap.tm >= this.dashSyncAt)) {
@@ -501,8 +505,10 @@ export class Game {
 		if (!msg.ok) return;
 		if (![msg.x, msg.y, msg.dx, msg.dy, msg.readyAt].every(Number.isFinite)) return;
 		const elapsed = Number.isFinite(msg.serverNow) ? Math.max(0, Math.min(DASH.duration, (Date.now() + this.serverOffset - msg.serverNow) / 1000)) : 0;
-		this.local.x = msg.x + msg.dx * DASH.distance * elapsed / DASH.duration;
-		this.local.y = msg.y + msg.dy * DASH.distance * elapsed / DASH.duration;
+		const fin = this.finale();
+		const ring = fin ? { cx: fin.cx, cy: fin.cy, r: Math.max(0, fin.r - PLAYER_RADIUS) } : null;
+		const travel = clipDash(msg.x, msg.y, msg.dx, msg.dy, elapsed, ring);
+		this.local.x = travel.x; this.local.y = travel.y;
 		this.local.fx = msg.dx; this.local.fy = msg.dy;
 		this.dashTravel = elapsed < DASH.duration ? { x: msg.dx, y: msg.dy, left: DASH.duration - elapsed } : null;
 		this.dashReadyAt = msg.readyAt;
@@ -542,7 +548,7 @@ export class Game {
 					this.local.x = travel.x; this.local.y = travel.y;
 					d.left -= t;
 					if (d.left < 1e-8) this.dashTravel = null;
-				} else if (!unacknowledged && !this.dashWaiting && (v.x || v.y)) {
+				} else if (!unacknowledged && !this.dashWaiting && this.dashConfirmedEpoch === this.moveEpoch && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -557,7 +563,7 @@ export class Game {
 				this.local.x = Math.max(-100000, Math.min(100000, this.local.x));
 				this.local.y = Math.max(-100000, Math.min(100000, this.local.y));
 				this.posTimer -= dt;
-				if (this.posTimer <= 0 && this.me !== null && !this.dashWaiting && !this.dashTravel) {
+				if (this.posTimer <= 0 && this.me !== null && !this.dashWaiting && !this.dashTravel && this.dashConfirmedEpoch === this.moveEpoch) {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
 					const seq = ++this.posSeq;

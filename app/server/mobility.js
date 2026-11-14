@@ -77,4 +77,4 @@ export function dashContactTime(h, sx, sy, ex, ey, dt, radius, from = 0, to = dt
 	return null;
 }
 
-export const mobilitySnapshot = room => [...room.heroes.values()].map(h => [h.pid, h.moveEpoch ?? 0, h.dashReadyAt ?? 0]);
+export const mobilitySnapshot = room => [...room.heroes.values()].map(h => [h.pid, h.moveEpoch ?? 0, h.dashReadyAt ?? 0, h.dash?.left ?? 0]);
