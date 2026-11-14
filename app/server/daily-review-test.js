@@ -28,14 +28,14 @@ test('CEO54-1: midnight direct start refreshes all readiness before another expl
 	} finally { Date.now = before; }
 });
 
-test('CEO54-3: legacy participant blocks daily start; downgraded reconnect gets no battle snapshots', () => {
+for (const legacy of [24, 29]) test(`CEO54-3: legacy ${legacy} participant blocks daily start; downgraded reconnect gets no battle snapshots`, () => {
 	const sent = [], r = new Room('OLD', (pid, msg) => sent.push([pid, msg]));
 	r.addPlayer(1, 'Host', 'witch'); r.addPlayer(2, 'Old', 'ranger');
-	r.handle(1, { t: 'daily', enabled: true }); clientProto.set(2, 24);
+	r.handle(1, { t: 'daily', enabled: true }); clientProto.set(2, legacy);
 	try {
 		r.start(); assert.equal(r.state, 'lobby');
 		clientProto.set(2, PROTO); r.start(); assert.equal(r.state, 'play');
-		clientProto.set(2, 24); sent.length = 0;
+		clientProto.set(2, legacy); sent.length = 0;
 		r.resync(2); r.snapshot();
 		assert.ok(!sent.some(([pid, msg]) => pid === 2 && ['start', 's'].includes(msg.t)));
 	} finally { clientProto.delete(2); }
