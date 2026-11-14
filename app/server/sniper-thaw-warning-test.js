@@ -60,7 +60,8 @@ function tick(f, step) {
 			assert.equal(orbs.length, FAN);
 			for (const [i, o] of orbs.entries()) {
 				const s = r.hostile.find(s => s.id === o[1]), lane = fan.lanes[i];
-				assert.equal(lane.x1, Math.round(s.x)); assert.equal(lane.y1, Math.round(s.y));
+				// JSON wire coordinates normalize -0 to 0; preserve strict checks for every other value.
+				assert.equal(lane.x1, Math.round(s.x) + 0); assert.equal(lane.y1, Math.round(s.y) + 0);
 				const endX = s.x + s.vx * s.life, endY = s.y + s.vy * s.life;
 				assert.ok(Math.abs(lane.x2 - endX) <= 1 && Math.abs(lane.y2 - endY) <= 1, `${f.label}: orb ${i} flies along its lane`);
 			}
