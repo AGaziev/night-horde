@@ -12,9 +12,11 @@ export function healSupport(room, owner, target, amount, field = false) {
  if(field)target.fieldHealAmount+=healed;
  owner.support.healing+=healed;return healed;
 }
-export function controlTick(e, now, dt) {
- // Priority resolves overlap once per enemy per simulation tick, not once per caster.
- const owner=e.frozenT>now?e.frozenOwner:e.rootT>now?e.rootOwner:e.slowT>now&&e.slow>0?e.slowOwner:e.dragT>now&&e.drag>0?e.dragOwner:null;
+export function controlTick(e, now, dt, applied = 'movement') {
+ // The caller selects an AI branch that actually uses this control; status alone earns nothing.
+ const owner=applied==='lock'
+  ? (e.frozenT>now?e.frozenOwner:e.rootT>now?e.rootOwner:null)
+  : (e.slowT>now&&e.slow>0?e.slowOwner:e.dragT>now&&e.drag>0?e.dragOwner:null);
  if(owner)owner.support.control+=dt;
 }
 

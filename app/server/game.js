@@ -1804,7 +1804,6 @@ export class Room {
 				if (e.outpost && e.guardReadyAt > now) continue;
 				resolveControl(e, 'slow', now);
 				resolveControl(e, 'drag', now);
-				controlTick(e, now, dt);
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
@@ -1822,7 +1821,9 @@ export class Room {
 				}
 				if (!best && e.outpost) {
 					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
-					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
+					const locked = e.frozenT > now || e.rootT > now;
+					const step = locked ? 0 : Math.min(d, e.speed * dt);
+					if (locked && e.speed > 0 && (dx || dy)) controlTick(e, now, dt, 'lock');
 					e.x += dx / d * step;
 					e.y += dy / d * step;
 					e.bs = 0;
@@ -1832,6 +1833,7 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
+					controlTick(e, now, dt, 'lock');
 					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
 					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
 					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
@@ -1845,6 +1847,7 @@ export class Room {
 				dx /= d;
 				dy /= d;
 				// Stop at contact distance so enemies don't stack on the player.
+				const controlScale = (e.slowT > now ? 1 - e.slow : 1) * (e.dragT > now ? 1 - e.drag : 1);
 				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
 				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
 				if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
@@ -1907,6 +1910,7 @@ export class Room {
 					dy = zy / l;
 				}
 				const step = Math.min(speed * dt, maxStep);
+				if (controlScale < 1 && step < Math.min(speed / controlScale * dt, maxStep)) controlTick(e, now, dt, 'movement');
 				e.x += dx * step;
 				e.y += dy * step;
 
@@ -1984,11 +1988,11 @@ export class Room {
 					return true;
 				}
 				const [kmin, kmax] = E.keep;
-				if (d < kmin) this.bossStep(e, -dx, -dy, speed, dt);
+				if (d < kmin) this.bossStep(e, -dx, -dy, speed, dt, true);
 				else if (d <= kmax) {
 					const sg = Math.sin(e.phase + this.time * 0.3) >= 0 ? 1 : -1;
-					this.bossStep(e, -dy * sg, dx * sg, speed * 0.6, dt);
-				} else this.bossStep(e, dx, dy, speed, dt);
+					this.bossStep(e, -dy * sg, dx * sg, speed * 0.6, dt, true);
+				} else this.bossStep(e, dx, dy, speed, dt, true);
 				return true;
 			}
 			case 'twin':
@@ -2028,10 +2032,12 @@ export class Room {
 		return false;
 	}
 
-	bossStep(e, dx, dy, speed, dt) {
+	bossStep(e, dx, dy, speed, dt, controlled = false) {
+		const ox = e.x, oy = e.y;
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
 		confineGuard(e);
+		if (controlled && (e.x !== ox || e.y !== oy)) controlTick(e, this.time, dt, 'movement');
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.

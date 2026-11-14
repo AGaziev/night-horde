@@ -43,7 +43,7 @@ assert.ok(!JSON.stringify(log).includes('sharedWard'),'owner object graph is nev
 }
 {
  r.enemies=[];r.time=500;const target=r.spawnEnemy('ghoul',[h],1);
- Object.assign(target,{x:100,y:0,speed:0,dmg:0});
+ Object.assign(target,{x:100,y:0,speed:20,dmg:0});
  const beforeH=h.support.control,beforeA=a.support.control;
  r.slowEnemy(target,.3,.5,h);r.useItem(a,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h,a,b,c]);
  assert.equal(target.slowOwner,a,'the time-sand collector owns the replacement slow');

@@ -12,7 +12,7 @@ test('CEO41.3 stronger expiry reveals only the weaker still-active source',()=>{
  r.time=107.1;r.moveEnemies(.1,[a,b]);assert.equal(e.slow,0);assert.equal(e.slowOwner,null);
 });
 test('CEO41.4 Pitch is real native non-cold control, overlaps count once',()=>{
- const {r,a,b,e}=arena();e.speed=0;r.rebuildGrid();r.puddles=[{id:900,x:0,y:0,r:100,life:3,t:0,tick:.5,dmg:1,drag:.35,owner:a,src:{weapon:'pitch',tags:[]}}];r.updatePuddles(1/30);assert.equal(e.dragOwner,a);assert.ok(e.dragT>r.time);
+ const {r,a,b,e}=arena();r.rebuildGrid();r.puddles=[{id:900,x:0,y:0,r:100,life:3,t:0,tick:.5,dmg:1,drag:.35,owner:a,src:{weapon:'pitch',tags:[]}}];r.updatePuddles(1/30);assert.equal(e.dragOwner,a);assert.ok(e.dragT>r.time);
  r.moveEnemies(.1,[a,b]);assert.ok(Math.abs(a.support.control-.1)<1e-9);
  r.slowEnemy(e,.4,2,b);r.moveEnemies(.1,[a,b]);assert.ok(Math.abs(a.support.control+b.support.control-.2)<1e-9,'one union interval, no double credit');
 });
