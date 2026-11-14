@@ -12,12 +12,13 @@ export function healSupport(room, owner, target, amount, field = false) {
  if(field)target.fieldHealAmount+=healed;
  owner.support.healing+=healed;return healed;
 }
-export function controlTick(e, now, dt, applied = 'movement') {
+export function controlTick(e, now, dt, applied = 'movement', credited = null) {
  // The caller selects an AI branch that actually uses this control; status alone earns nothing.
+ if(credited?.has(e))return;
  const owner=applied==='lock'
   ? (e.frozenT>now?e.frozenOwner:e.rootT>now?e.rootOwner:null)
   : (e.slowT>now&&e.slow>0?e.slowOwner:e.dragT>now&&e.drag>0?e.dragOwner:null);
- if(owner)owner.support.control+=dt;
+ if(owner){owner.support.control+=dt;credited?.add(e);}
 }
 
 // Keep each owner's active strength/lifetime instead of lending a stronger

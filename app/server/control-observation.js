@@ -12,7 +12,8 @@ const moved=(e,x,y,grid,radius,limit)=>{const a=projectControlPoint(e,e.x,e.y),b
 // A lock can prevent locomotion or an available action. Contact root does not stop
 // ordinary body damage; freeze does. Pending actions are inspected, never replayed.
 export function lockDelivered(e,target,alive,now,dt,speedMul,grid,radius,limit) {
- if(e.frozenT>now&&e.dmg>0&&!(e.immuneT>now)&&e.ai!=='exploder'&&alive.some(h=>h.st===0&&h.iframes<=dt&&(h.x-e.x)**2+(h.y-e.y)**2<(e.r+PLAYER_RADIUS)**2))return true;
+ // Body prevention is observed in updatePlayers after early projectiles, where
+ // actual protection/contact eligibility is known. This observer covers AI only.
  let dx=target.x-e.x,dy=target.y-e.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
  const E=e.def,keep=e.outpost&&e.ai==='sniper'?OUTPOST.sniperKeep:E.keep;
  if(e.ai==='shield'){

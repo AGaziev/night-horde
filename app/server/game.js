@@ -510,6 +510,7 @@ export class Room {
 
 	resetSim() {
 		this.time = 0;
+		this.controlCredited = new Set();
 		this.bossKills = 0;
 		this.tscale = timeScale(this.runLength);
 		this.xpMul = MODES[this.mode].seconds === this.runLength ? MODES[this.mode].xpMul : this.tscale;
@@ -1372,6 +1373,7 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		this.controlCredited.clear();
 		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
@@ -1797,6 +1799,8 @@ export class Room {
 	}
 
 	moveEnemies(dt, alive) {
+		// A direct AI step also starts a new contribution interval for native callers.
+		this.controlCredited.clear();
 		this.rebuildGrid();
 		const near = this.q1;
 		const taunters = alive.filter((p) => p.trait.taunt > 0);
@@ -1834,7 +1838,7 @@ export class Room {
 					if (locked) {
 						const actualEnd = projectControlPoint(e, e.x, e.y), plainStep = Math.min(d, e.speed * dt);
 						const plainEnd = projectControlPoint(e, e.x + dx / d * plainStep, e.y + dy / d * plainStep);
-						if (controlPointDiffers(actualEnd[0], actualEnd[1], plainEnd)) controlTick(e, now, dt, 'lock');
+						if (controlPointDiffers(actualEnd[0], actualEnd[1], plainEnd)) controlTick(e, now, dt, 'lock', this.controlCredited);
 					}
 					e.x += dx / d * step;
 					e.y += dy / d * step;
@@ -1845,7 +1849,7 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
-					if (lockDelivered(e, best, alive, now, dt, speedMul * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1), this.grid, e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS)) controlTick(e, now, dt, 'lock');
+					if (lockDelivered(e, best, alive, now, dt, speedMul * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1), this.grid, e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS)) controlTick(e, now, dt, 'lock', this.controlCredited);
 					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
 					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
 					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
@@ -1955,7 +1959,7 @@ export class Room {
 				// Compare independently projected separation, never the slowed displacement.
 				// Random-overlap frames have no identifiable deterministic counterfactual.
 				confineGuard(e);
-				if (controlPlainEnd && !controlRandomOverlap && controlPointDiffers(e.x, e.y, controlPlainEnd)) controlTick(e, now, dt, 'movement');
+				if (controlPlainEnd && !controlRandomOverlap && controlPointDiffers(e.x, e.y, controlPlainEnd)) controlTick(e, now, dt, 'movement', this.controlCredited);
 			}
 		}
 	}
@@ -2061,7 +2065,7 @@ export class Room {
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
 		confineGuard(e);
-		if (plainEnd && controlPointDiffers(e.x, e.y, plainEnd)) controlTick(e, this.time, dt, 'movement');
+		if (plainEnd && controlPointDiffers(e.x, e.y, plainEnd)) controlTick(e, this.time, dt, 'movement', this.controlCredited);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -3015,6 +3019,9 @@ export class Room {
 					}
 					continue;
 				}
+				// Observe the body event that freeze suppresses only after early shots
+				// have established this hero's actual endpoint protection.
+				if (e.frozenT > now && h.iframes <= 0 && e.dmg > 0 && !(e.immuneT > now)) controlTick(e, now, dt, 'lock', this.controlCredited);
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
@@ -5296,6 +5303,7 @@ export class Room {
 		this.grade = grade;
 		this.snapshot();
 		this.state = 'over';
+		this.controlCredited.clear();
 		this.paused = false;
 		this.frozen = false;
 		for (const h of this.heroes.values()) {
