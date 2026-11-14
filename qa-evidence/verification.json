@@ -12,6 +12,12 @@
     "status": "PASS"
   },
   {
+    "archive": "v36-caravans-signatures-main45-complete.tar.gz",
+    "sha256": "85002f7a79ebf959f94b3448e21bdfc9a92a1369a1a47e8e3427b775c5c9604d",
+    "files": 11461,
+    "status": "PASS"
+  },
+  {
     "archive": "v36-causal-armor-fusions.tar.gz",
     "sha256": "40be7797f243dd0a09894fb8bd14ae1cbab3d516301f25b39addd8bad3e74612",
     "files": 4418,

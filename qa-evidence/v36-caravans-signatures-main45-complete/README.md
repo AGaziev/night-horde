@@ -1,0 +1,9 @@
+# Complete current-combat-base caravans and signatures
+
+Two600-terminal matrices: actual #21 source2a7b4e2 and #31source679190c, matched to published actuala957600 baseline/logicalmain0ab. Each600 and allper-attempt native Room.finish/over/log/actualNodeexit/tuples/source hashes pass the included independent helper audit; both controllerparents exited0 and owned jobs were removed. No selected retries or unknown/missing attempts.
+
+#21 outcomes carry only through the supplied exact runtime proof to UI411, then to policy-only21dd42e: actual raw labels remain2a7. Fresh81 actualWS/browser states validate411 jointicon/label placement; earlier timing-sensitive failed harness attempts remain preserved. All10paired95 outcome intervals include0; human4Lunch21/60 vs20/60. Human1Night andhuman2/3Lunch point estimates remain above40 and human3Night below25, with uncertainty crossing target. This is no proof of equivalence or final overall acceptance.
+
+#31 has a material solo outcome decline: human1Night9/60 vs28/60, paired−31.67pp95[−44.42,−18.92],20lost/1gained. SmartNight23vs42 andSmartLunch18vs41 also decline. Fixed-scene strength evidence was scoped and never promised unchanged full-match balance; no cause or correction is established here. Groupcells have no paired interval excluding0. The included full tables expose all baseline deviations, deaths/progression/boss/finale metrics. #31 balance remains open. No postmeasurement retuning or v4/newcode outcome appears here.
+
+Raw/harness/source manifests, CI primary, protocol29→30 realbrowser transition, caravan fixes/screenshots/source carry and closed analysis are included. The rootlater-policy merge and mainb62 change no game/pm bytes.5–8functional, applicable quiet CPU/browser performance and final currentcandidateCI remain separate gates. Old independent reports retain their actual historical scope. Archive checksums/member manifests preserve original bytes.
