@@ -259,6 +259,7 @@ export class Room {
 		this.send = send;
 		this.mode = DEFAULT_MODE;
 		this.dailySelected = false;
+		this.dailyPreview = dailyFor();
 		this.daily = null;
 		this.runLength = RUN_SECONDS; // setMode() or a sim may change it before start(); peaks, bosses and waves follow it
 		this.tscale = 1;
@@ -385,7 +386,7 @@ export class Room {
 	lobbyMsg() {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
-			dailySelected: this.dailySelected, daily: this.daily ?? dailyFor(),
+			dailySelected: this.dailySelected, daily: this.daily ?? this.dailyPreview,
 			startsAt: this.startsAt, serverNow: Date.now(),
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
 		};
@@ -405,6 +406,7 @@ export class Room {
 
 	// Re-sends current state to a reconnected player.
 	resync(pid) {
+		if (this.daily && isLegacy(pid)) { this.send(pid, { t: 'err', msg: 'Обновите страницу, чтобы участвовать в испытании дня' }); return; }
 		if (this.state === 'lobby') {
 			this.send(pid, this.lobbyMsg());
 			return;
@@ -449,6 +451,7 @@ export class Room {
 				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Испытание выбирает хост' });
 				else if (typeof msg.enabled === 'boolean') {
 					this.dailySelected = msg.enabled;
+					this.dailyPreview = dailyFor();
 					this.daily = null;
 					for (const member of this.members.values()) member.ready = false;
 					this.sendLobby();
@@ -596,6 +599,21 @@ export class Room {
 	}
 
 	start() {
+		if (this.dailySelected && [...this.members.keys()].some(pid => isLegacy(pid))) {
+			if (this.startsAt !== null) this.cancelStart();
+			this.send(this.host, { t: 'err', msg: 'Перед испытанием дня всем игрокам нужно обновить страницу' });
+			return false;
+		}
+		if (this.dailySelected && !this.daily && this.startsAt === null) {
+			const next = dailyFor();
+			if (next.day !== this.dailyPreview.day || next.version !== this.dailyPreview.version) {
+				this.dailyPreview = next;
+				for (const member of this.members.values()) member.ready = false;
+				this.sendLobby();
+				this.send(this.host, { t: 'err', msg: 'Условия дня изменились. Проверьте их и начните заново' });
+				return false;
+			}
+		}
 		this.lockDaily();
 		if (this.daily) this.daily = Object.freeze({ ...this.daily, players: this.members.size });
 		this.startsAt = null;
@@ -5377,6 +5395,7 @@ export class Room {
 		const out = this.snapCodec.encode(msg);
 		let delta = null, key = null, plain = null;
 		for (const pid of this.members.keys()) {
+			if (this.daily && isLegacy(pid)) continue;
 			let json;
 			if (isLegacy(pid)) json = plain ??= JSON.stringify(msg);
 			else if (out.isKey || this.needKey.has(pid)) json = key ??= JSON.stringify(out.key());

@@ -54,7 +54,7 @@ export function setupRunHistory() {
 			if (!best.length) title.textContent += ' Рекордов пока нет.';
 			box.replaceChildren(title, records);
 		}
-		status.textContent = rows.length ? '' : 'Забегов пока нет.';
+		status.textContent = rows.length ? '' : daily && scope === 'mine' && !data.personal ? 'Полные личные логи доступны через Битрикс24; рекорды этого браузера показаны выше.' : 'Забегов пока нет.';
 		for (const run of rows) {
 			const row = document.createElement('li');
 			const info = document.createElement('div');

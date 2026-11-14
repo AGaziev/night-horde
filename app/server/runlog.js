@@ -659,6 +659,7 @@ export class RunStore {
 		this.runs = [];
 		this.index = new Map();
 		this.dailyBest = new Map();
+		this.dailyDirty = false;
 		this.dir = null;
 	}
 
@@ -683,8 +684,8 @@ export class RunStore {
 		this.remember(record);
 		try {
 			if (this.dir) this.write(record);
+			if (this.dailyDirty) this.writeDaily();
 			this.prune();
-			if (log.daily) this.writeDaily();
 		} catch (e) {
 			console.error('run archive write:', e.code ?? e.message);
 		}
@@ -734,6 +735,7 @@ export class RunStore {
 			this.runs = [];
 			this.index.clear();
 			this.dailyBest.clear();
+			this.dailyDirty = false;
 			try {
 				const rows = JSON.parse(fs.readFileSync(path.join(dir, '.daily-best'), 'utf8'));
 				if (Array.isArray(rows)) for (const record of rows) {
@@ -750,6 +752,7 @@ export class RunStore {
 				const record = this.read(dir, id);
 				if (record) this.remember(record);
 			}
+			if (this.dailyDirty) this.writeDaily();
 			this.prune();
 		} catch (e) {
 			console.error('run archive startup:', e.code ?? e.message);
@@ -767,12 +770,14 @@ export class RunStore {
 		if (!this.validDaily(row.daily)) return;
 		for (const uid of uids) {
 			const key = uid + ':' + dailyKey(row.daily), old = this.dailyBest.get(key);
-			this.dailyBest.set(key, { uid, best: !old || compareDaily(row, old.best) > 0 ? row : old.best,
-				completed: !!(old?.completed || row.win) });
+			const best = !old || compareDaily(row, old.best) > 0 ? row : old.best;
+			const completed = !!(old?.completed || row.win);
+			if (!old || best.id !== old.best.id || completed !== old.completed) this.dailyDirty = true;
+			this.dailyBest.set(key, { uid, best, completed });
 		}
 		const days = [...new Set([...this.dailyBest.values()].map(r => r.best.daily.day))].sort().reverse();
 		const keep = new Set(days.slice(0, 90));
-		for (const [key, record] of this.dailyBest) if (!keep.has(record.best.daily.day)) this.dailyBest.delete(key);
+		for (const [key, record] of this.dailyBest) if (!keep.has(record.best.daily.day)) { this.dailyBest.delete(key); this.dailyDirty = true; }
 	}
 
 	writeDaily() {
@@ -781,6 +786,7 @@ export class RunStore {
 		try {
 			fs.writeFileSync(tmp, JSON.stringify([...this.dailyBest.values()]), { mode: 0o600, flush: true });
 			fs.renameSync(tmp, file);
+			this.dailyDirty = false;
 		} finally { fs.rmSync(tmp, { force: true }); }
 	}
 
