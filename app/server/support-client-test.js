@@ -11,7 +11,7 @@ let Game,Renderer,Net,wardCharges;
 try {
  fs.writeFileSync(path.join(tmp,'package.json'),'{"type":"module"}');
  const dir=new URL('../public/js/',import.meta.url);
- for(const name of fs.readdirSync(dir).filter(n=>n.endsWith('.js')))fs.writeFileSync(path.join(tmp,name),fs.readFileSync(new URL(name,dir),'utf8').replaceAll("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href)));
+ for(const name of fs.readdirSync(dir).filter(n=>n.endsWith('.js')))fs.writeFileSync(path.join(tmp,name),fs.readFileSync(new URL(name,dir),'utf8').replaceAll("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href)).replaceAll("'/shared/combat-geometry.js'",JSON.stringify(new URL('../public/shared/combat-geometry.js',import.meta.url).href)));
  ({Game,wardCharges}=await import(pathToFileURL(path.join(tmp,'game.js'))));({Renderer}=await import(pathToFileURL(path.join(tmp,'render.js'))));({Net}=await import(pathToFileURL(path.join(tmp,'net.js'))));
 } finally {fs.rmSync(tmp,{recursive:true,force:true});}
 function pick(r,h,card){h.offer=[card];r.sendOffer(h);r.handle(h.pid,{t:'pick',i:0,offerEpoch:h.offerEpoch});}
