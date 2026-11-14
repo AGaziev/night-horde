@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room, Hub } from './game.js';
-import { dailyFor } from '../public/shared/daily.js';
+import { DAILY_VERSION, dailyFor } from '../public/shared/daily.js';
 
 let glassDay = Date.UTC(2026, 10, 14);
 while (dailyFor(glassDay).id !== 'glass') glassDay += 86400000;
@@ -16,12 +16,12 @@ function lobby(mode, n = 1) {
 }
 
 for (const mode of ['lunch', 'night']) for (let n = 1; n <= 8; n++) {
-	test(`Glass v4 ${mode}/${n}: preview, locked native damage and upgrades agree`, () => {
+	test(`Glass v${DAILY_VERSION} ${mode}/${n}: preview, locked native damage and upgrades agree`, () => {
 		const r = lobby(mode, n), multiplier = mode === 'lunch' ? 1.1 : 1.2;
 		assert.equal(r.lobbyMsg().daily.mods.damage, multiplier);
 		assert.match(r.lobbyMsg().daily.description, mode === 'lunch' ? /\+10%/ : /\+20%/);
 		r.lockDaily(glassDay); r.start();
-		assert.equal(r.daily.version, 4);
+		assert.equal(r.daily.version, DAILY_VERSION);
 		assert.equal(r.daily.mods.damage, multiplier);
 		assert.equal(r.daily.mods.hp, .7);
 		const h = r.heroes.get(1), locked = structuredClone(r.daily);

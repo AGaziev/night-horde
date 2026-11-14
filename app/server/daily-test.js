@@ -85,8 +85,8 @@ test('XP, armor/speed, and pickup/enemy health apply at their actual consumers',
 	swarm.spawn(0.01, [sh]); ordinary.spawn(0.01, [...ordinary.heroes.values()]);
 	assert.ok(Math.abs(swarm.spawnAcc / ordinary.spawnAcc - 1.15) < 1e-9);
 	const { r: armor } = make('armor'); armor.start(); const ah = armor.heroes.get(1);
-	assert.equal(ah.mods.armor, 1); assert.equal(ah.mods.speedMul, 0.9);
-	armor.hurtPlayer(ah, 10); assert.equal(ah.hp, ah.maxHp - 9);
+	assert.equal(ah.mods.armor, .5); assert.equal(ah.mods.speedMul, 0.9);
+	armor.hurtPlayer(ah, 10); assert.equal(ah.hp, ah.maxHp - 9.5);
 	const { r: gather } = make('gather'); gather.start(); const gh = gather.heroes.get(1);
 	assert.equal(gh.mods.magnetMul, 1.3);
 	for (const type of ['skel', 'boss']) {
@@ -106,8 +106,8 @@ test('run result and reconnect retain contract; daily runs never grant ordinary 
 	assert.ok(compareDaily({ grade: 0, time: 90, kills: 1 }, { grade: 0, time: 50, kills: 900 }) > 0);
 });
 
-test('v4 leaves locked v2 armor and persisted v1/v2/v3 personal bests intact', t => {
-	assert.equal(DAILY_VERSION, 4);
+test('v5 leaves locked v2 armor and all older personal bests intact', t => {
+	assert.equal(DAILY_VERSION, 5);
 	const { r } = make('armor');
 	r.daily = { ...r.daily, version: 2, mods: { armor: 2, speed: .9 } };
 	r.start(); const h = r.heroes.get(1), locked = structuredClone(r.daily);
@@ -116,14 +116,14 @@ test('v4 leaves locked v2 armor and persisted v1/v2/v3 personal bests intact', t
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-daily-versions-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	const store = new RunStore(); store.persist(dir);
-	for (const version of [1, 2, 3, 4]) store.add({ id: `VER00${version}`, at: new Date().toISOString(),
+	for (const version of [1, 2, 3, 4, 5]) store.add({ id: `VER00${version}`, at: new Date().toISOString(),
 		mode: 'lunch', team: [{ name: 'Player', hero: 'witch', level: 1 }], summary: [], win: true,
 		grade: version, time: 600, kills: 3, daily: { ...locked, version } }, ['111']);
 	const restored = new RunStore(); restored.persist(dir);
 	const best = restored.history('111').daily.best;
-	assert.equal(best.length, 4);
-	assert.deepEqual(best.map(record => record.daily.version).sort(), [1, 2, 3, 4]);
-	for (const version of [1, 2, 3, 4]) assert.equal(best.find(record => record.daily.version === version).id, `VER00${version}`);
+	assert.equal(best.length, 5);
+	assert.deepEqual(best.map(record => record.daily.version).sort(), [1, 2, 3, 4, 5]);
+	for (const version of [1, 2, 3, 4, 5]) assert.equal(best.find(record => record.daily.version === version).id, `VER00${version}`);
 });
 
 

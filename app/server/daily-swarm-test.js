@@ -21,7 +21,7 @@ function begin(r, c) {
 	return r.enemies.filter(e => e.swarmCohort === c);
 }
 
-for (const version of [2, 3, 4]) for (const mode of ['lunch', 'night']) test(`Swarmv${version} ${mode}: cumulative cohort, two finite rewards, down/offline recipients`, () => {
+for (const version of [2, 3, 4, 5]) for (const mode of ['lunch', 'night']) test(`Swarmv${version} ${mode}: cumulative cohort, two finite rewards, down/offline recipients`, () => {
 	const r = setup(mode, 2, version), h = r.heroes.get(1), down = r.heroes.get(2);
 	assert.deepEqual(r.swarm.cohorts.map(c => c.id), ['ring', 'tide']);
 	assert.ok(r.swarm.cohorts.every(c => c.end <= r.finPlan.pre));
@@ -49,7 +49,7 @@ for (const version of [2, 3, 4]) for (const mode of ['lunch', 'night']) test(`Sw
 });
 
 test('unsupported future Swarm contracts never silently acquire current cohort rewards', () => {
-	const r = setup('night', 1, 5);
+	const r = setup('night', 1, 6);
 	assert.equal(r.swarm, null);
 	assert.equal(initSwarm(r), null);
 });

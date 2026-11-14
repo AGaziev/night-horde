@@ -1,7 +1,7 @@
 import { xpForNext } from '../public/shared/content.js';
 
 export function initSwarm(room) {
-	if (room.daily?.id !== 'swarm' || ![2, 3, 4].includes(room.daily.version)) return null;
+	if (room.daily?.id !== 'swarm' || ![2, 3, 4, 5].includes(room.daily.version)) return null;
 	return { wins: 0, cohorts: room.peaks.filter(p => ['ring', 'tide'].includes(p.id)
 		&& p.at + p.dur <= (room.finPlan?.pre ?? room.runLength)).slice(0, 2)
 		.map(p => ({ id: p.id, at: p.at, end: p.at + p.dur, spawned: 0, killed: 0, resolved: false, success: false })) };

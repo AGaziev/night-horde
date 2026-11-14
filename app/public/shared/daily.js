@@ -1,5 +1,5 @@
 // Server chooses the UTC day. Clients only display the received contract.
-export const DAILY_VERSION = 4;
+export const DAILY_VERSION = 5;
 const rule = (id, name, description, mods) => Object.freeze({ id, name, description, mods: Object.freeze(mods) });
 export const DAILY_RULES = Object.freeze([
 	rule('glass', 'Хрупкая мощь', 'Максимум здоровья −30%, ваш урон +20%.', { hp: 0.7, damage: 1.2 }),
@@ -16,12 +16,16 @@ export function dailyFor(now = Date.now()) {
 // Resolve only the new contract; reconnects and already locked older versions
 // retain their original rules. The lobby and start use the same displayed terms.
 export function dailyInMode(daily, mode) {
-	if (daily.version !== 4 || daily.id !== 'glass') return daily;
 	const lunch = mode === 'lunch';
-	return Object.freeze({ ...daily,
+	if ([4, 5].includes(daily.version) && daily.id === 'glass') return Object.freeze({ ...daily,
 		description: lunch ? 'Максимум здоровья −30%, ваш урон +10%.' : 'Максимум здоровья −30%, ваш урон +20%.',
 		mods: Object.freeze({ ...daily.mods, damage: lunch ? 1.1 : 1.2 }),
 	});
+	if (daily.version === 5 && daily.id === 'armor') return Object.freeze({ ...daily,
+		description: lunch ? 'Броня +0,5, скорость передвижения −10%.' : 'Броня +1, скорость передвижения −10%.',
+		mods: Object.freeze({ ...daily.mods, armor: lunch ? .5 : 1 }),
+	});
+	return daily;
 }
 export function dailyKey(daily) {
 	return `${daily.version}:${daily.day}:${daily.mode}:${daily.players}`;
