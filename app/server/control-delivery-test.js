@@ -5,7 +5,16 @@ import {DUOS,ITEM_TYPES} from '../public/shared/content.js';
 const dt=1/30;
 function arena(type='shield'){const r=new Room('CTRL-AI',()=>{});r.addPlayer(1,'Owner','ranger');r.start();r.time=100;r.enemies=[];const h=r.heroes.get(1);h.x=1000;h.y=0;h.weapons.clear();h.perk.readyAt=Infinity;const e=r.spawnEnemy(type,[h],1);Object.assign(e,{x:0,y:0,hp:1e6,maxHp:1e6,bs:'dash',bt:.75,bvx:1,bvy:0});return {r,h,e};}
 function path(type,mode,frames=23){const {r,h,e}=arena(type),points=[];
- if(mode==='sand')r.useItem(h,{type:ITEM_TYPES.indexOf('slowtime'),x:0,y:0},[h]);
+ if(mode==='sand'){
+  h.x=100;
+  const item=r.dropItem('slowtime',h.x,h.y);
+  assert.equal(item.type,ITEM_TYPES.indexOf('slowtime'));
+  r.updateItems(dt,[h]);
+  assert.ok(!r.items.includes(item),'the collector actually picks up the sand');
+  assert.equal(e.slowOwner,h,'sand must reach the charging target before measuring control');
+  assert.ok(e.slow>0&&e.slowT>r.time,'the target has an active slow, not merely an unaffected path');
+  h.x=1000;
+ }
  if(mode==='pitch'){h.weapons=new Map(DUOS.pitch.parts.map(id=>[id,{lvl:3,t:0}]));h.offer=[r.duoCard(h,{id:'pitch',a:'flask',b:'trail'})];r.sendOffer(h);r.handle(h.pid,{t:'pick',i:0,offerEpoch:h.offerEpoch});assert.ok(h.weapons.has('pitch'));}
  for(let i=0;i<frames;i++){
   r.time+=dt;
