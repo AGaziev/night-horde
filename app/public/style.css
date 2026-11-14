@@ -916,3 +916,18 @@ input[type="text"]:focus { border-color: var(--accent); }
 .daily-records { border-bottom: 1px solid var(--panel-border); padding-bottom: 10px; margin-bottom: 14px; }
 .daily-records ul { padding-left: 20px; max-height: 220px; overflow: auto; }
 .daily-records li { margin: 8px 0; }
+
+/* Challenge text occupies its own row, so results and long UTC badges cannot size the health columns. */
+.hud-challenge { grid-column: 1 / -1; min-width: 0; display: grid; gap: 3px; text-align: center; }
+.hud-challenge .hud-mode { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+ .hud-top { grid-template-columns: minmax(112px, 1fr) minmax(0, 1fr) auto; }
+ .hud-center { min-width: 0; }
+ .hud-center .hud-peak { max-width: 100%; white-space: normal; }
+ .hud-right { max-width: 100px; }
+}
+/* While the existing offer is open, use its footer gap for passive feedback rather than cover choice cards. */
+body:has(#levelup:not([hidden])) .hud-challenge { position: fixed; left: 88px; right: 8px; bottom: 3px; }
+body:has(#levelup:not([hidden])) #hud-daily { display: none; }
+body:has(#hud-swarm:not([hidden])) #levelup { bottom: max(54px, calc(env(safe-area-inset-bottom) + 48px)); }
+@media (max-height: 420px) { .levelup { max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain; } }
