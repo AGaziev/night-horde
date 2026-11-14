@@ -6,3 +6,6 @@ for(const distance of [500,700,1000])for(const movingAlly of[false,true])test(`C
  const r=room(),h=r.heroes.get(1),a=r.heroes.get(2);a.x=distance;if(movingAlly)dash(r,a);
  r.hostile.push({id:r.nextId++,x:-3,y:20.99,vx:230,vy:0,life:5,dmg:8,from:'spitter:shot'});r.step(dt);assert.equal(h.hp,100);assert.equal(r.hostile.length,1);
 });
+for(const movingAlly of[false,true])test(`CEO55-r13 ordinary endpoint hit still applies with remote dash${movingAlly}`,()=>{
+ const r=room(),h=r.heroes.get(1),a=r.heroes.get(2);a.x=1000;if(movingAlly)dash(r,a);r.hostile.push({id:r.nextId++,x:0,y:20,vx:0,vy:0,life:5,dmg:8,from:'spitter:shot'});r.step(dt);assert.equal(h.hp,92);assert.equal(r.hostile.length,0);
+});
