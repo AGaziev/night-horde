@@ -25,6 +25,27 @@ function controls(net, roundId = 'round-1') {
 function retry(ui) { ui.inflight.sentAt -= 4000; ui.retryPending(); }
 const settle = () => new Promise((resolve) => queueMicrotask(resolve));
 
+test('Escape cancels placement from a focused troop button while Space stays native', (t) => {
+	const handlers = new Map();
+	const node = () => ({ dataset: {}, addEventListener() {}, setAttribute() {}, appendChild() {} });
+	const documentBefore = Object.getOwnPropertyDescriptor(globalThis, 'document');
+	const eventsBefore = Object.getOwnPropertyDescriptor(globalThis, 'addEventListener');
+	Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: node, createElement: node } });
+	Object.defineProperty(globalThis, 'addEventListener', { configurable: true, value: (name, handler) => handlers.set(name, handler) });
+	t.after(() => {
+		for (const [key, previous] of [['document', documentBefore], ['addEventListener', eventsBefore]]) {
+			if (previous) Object.defineProperty(globalThis, key, previous); else delete globalThis[key];
+		}
+	});
+	const ui = new HordeUI({ game: { running: true, isDirector: () => true }, net: {}, renderer: {}, canvas: node(), ui: {} });
+	ui.enabled = true; ui.selected = 'swarm';
+	let centered = false, prevented = false;
+	ui.select = (id) => { ui.selected = id; }; ui.center = () => { centered = true; };
+	const key = (code) => handlers.get('keydown')({ code, target: { closest: () => ({ tagName: 'BUTTON' }) }, preventDefault() { prevented = true; } });
+	key('Space'); assert.equal(centered, false); assert.equal(prevented, false);
+	key('Escape'); assert.equal(ui.selected, null); assert.equal(prevented, true);
+});
+
 test('a lost SSE POST retries the identical round, sequence and payload until private acknowledgement', async (t) => {
 	const net = transport(), ui = controls(net), delivered = [];
 	t.mock.method(globalThis, 'fetch', async (url, options) => { delivered.push(JSON.parse(options.body)); if (delivered.length === 1) throw Error('lost request'); return new Response('ok'); });
