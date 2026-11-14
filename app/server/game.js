@@ -5315,7 +5315,7 @@ export class Room {
 				: w.imprint ? [id, w.lvl, h.mods.amount, w.oc ?? 0, w.imprint]
 				: w.oc ? [id, w.lvl, h.mods.amount, w.oc]
 				: (id === 'orbit' || id === 'windmill' || id === 'firewheel') && h.mods.amount > 0 ? [id, w.lvl, h.mods.amount] : [id, w.lvl])),
-			h.ward + (h.sharedWard?.until > this.time ? 1 : 0), heroShieldReady(h, this.time) ? 1 : 0,
+			h.ward, heroShieldReady(h, this.time) ? 1 : 0,
 		]);
 		const e = [];
 		for (const en of this.enemies) {
@@ -5350,6 +5350,7 @@ export class Room {
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
+			wardGift: ps.filter(h => h.sharedWard?.until > this.time).map(h => [h.pid, h.sharedWard.until]),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];
