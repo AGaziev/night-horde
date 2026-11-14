@@ -25,7 +25,7 @@ import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, 
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
-import { requestDash, stepMobility, mobilitySnapshot, dashContactTime } from './mobility.js';
+import { requestDash, stepMobility, mobilitySnapshot, dashContactTime, hasActualDash } from './mobility.js';
 import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -1804,7 +1804,7 @@ export class Room {
 
 	moveEnemies(dt, alive) {
 		// Capture the whole cohort before any AI side effects; read endpoints after finally/confineGuard.
-		if (alive.some(h => h.dashPath)) {
+		if (alive.some(hasActualDash)) {
 			for (const e of this.enemies) if (!e.dead) e.dashMotion = { x: e.x, y: e.y, tick: this.tickNo, warped: false };
 		}
 		this.rebuildGrid();
@@ -2287,7 +2287,7 @@ export class Room {
 		const order = (a,b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
 		// Dash bodies join the existing projectile timeline; ordinary bodies retain main's endpoint phase.
 		for (const h of this.heroes.values()) {
-			if (h.st !== 0 || !h.dashPath) continue;
+			if (h.st !== 0 || !hasActualDash(h)) continue;
 			for (const e of this.enemies) {
 				if (e.dead || e.born > now || e.outpost && e.guardReadyAt > now) continue;
 				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null, radius = e.r + PLAYER_RADIUS;
@@ -2312,7 +2312,7 @@ export class Room {
 				if (h.st !== 0) continue;
 				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				let at;
-				if (h.dashPath && (h.dashPath.moveX !== 0 || h.dashPath.moveY !== 0)) {
+				if (hasActualDash(h)) {
 					// Follow the real dash ray and later wall projection; birth and TTL share main's motion clip.
 					const t = dashContactTime(h,ox,oy,s.x,s.y,dt,radius,start-frameStart,start-frameStart+step);
 					at = t === null ? null : frameStart+t;
@@ -2347,7 +2347,7 @@ export class Room {
 					for(let i=events.length-1;i>=0;i--) if(events[i].e===changed) events.splice(i,1);
 					if (changed.dead || changed.born > now || changed.outpost && changed.guardReadyAt > now) continue;
 					for (const hero of this.heroes.values()) {
-						if (hero.st !== 0 || !hero.dashPath) continue;
+						if (hero.st !== 0 || !hasActualDash(hero)) continue;
 						const entry = dashContactTime(hero,changed.x,changed.y,changed.x,changed.y,dt,
 							changed.r+PLAYER_RADIUS,Math.min(dt,Math.max(0,at-frameStart,(changed.born ?? frameStart)-frameStart)),dt);
 						if (entry !== null) events.push({at:frameStart+entry,h:hero,e:changed,id:changed.id,kind:0});
@@ -3042,8 +3042,8 @@ export class Room {
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
 			// A fast crossing enemy can end outside the hero segment's grid cells.
-			// Only a dash scans the room's bounded enemy list; ordinary movement keeps its point query.
-			const contacts = h.dashPath ? [] : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
+			// Only real dash travel uses the early body pass; a wholly rejected ray keeps ordinary endpoint contact.
+			const contacts = hasActualDash(h) ? [] : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of contacts) {
 				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
