@@ -182,20 +182,37 @@ export class HordeMode {
 
 	resyncState() {
 		const room = this.room, time = room.time, combat = this.combat.resyncState();
-		return {
+		const state = {
 			t: 'horde-resync', roundId: this.roundId, time,
 			warnings: [
 				...this.pending.filter((p) => p.at > time).map((p) => ({ x: p.x, y: p.y, r: PACK_RADIUS + 24, remaining: p.at - time })),
 				...combat.warnings,
 				...room.blasts.filter((b) => b.pdmg > 0 && b.t > time).map((b) => ({ x: b.x, y: b.y, r: b.r, remaining: b.t - time })),
+				...room.timers.filter((t) => t.warning && !t.carrier?.dead && t.t > time).map((t) => ({ ...t.warning, remaining: t.t - time })),
 			],
 			shots: [...combat.shots, ...room.hostile.filter((s) => s.life > 0).map((s) => ({
 				id: s.id, x: s.x, y: s.y, vx: s.vx, vy: s.vy, remaining: s.life, r: s.r ?? HOSTILE_R,
 			}))],
 			lanes: this.nativeLanes(),
-			// The next snapshot can still carry these old events. Clients skip each once after restoring live state.
-			fxBefore: room.fx.map((ev) => [...ev]),
 		};
+		const covered = new Map();
+		const remember = (kind, values) => {
+			const key = JSON.stringify([kind, ...values.map(Math.round)]);
+			covered.set(key, (covered.get(key) ?? 0) + 1);
+		};
+		for (const w of state.warnings) remember('warn', [w.x, w.y, w.r]);
+		for (const lane of state.lanes) remember('bline', [lane.x1, lane.y1, lane.x2, lane.y2, lane.w]);
+		// Only suppress events covered by this authoritative recovery. Hero shots and unrelated FX still need delivery.
+		state.fxBefore = room.fx.filter((ev) => {
+			// Hostile recovery is complete, including the absence of projectiles that have already ended.
+			if (['eshot', 'eorb', 'epend'].includes(ev[0])) return true;
+			const width = ev[0] === 'warn' ? 3 : ev[0] === 'bline' ? 5 : 0;
+			if (!width) return false;
+			const key = JSON.stringify(ev.slice(0, width + 1)), count = covered.get(key) ?? 0;
+			if (!count) return false;
+			covered.set(key, count - 1); return true;
+		}).map((ev) => [...ev]);
+		return state;
 	}
 
 	sendResync(pid) { this.room.send(pid, this.resyncState()); }

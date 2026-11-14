@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import fs from 'node:fs';
 import { Hub } from './game.js';
 import { HORDE_COMBAT, HORDE_LIMITS } from '../public/shared/horde-content.js';
+
+const clientSource = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8')
+	.replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
+const { Game } = await import('data:text/javascript;base64,' + Buffer.from(clientSource).toString('base64'));
 
 const raw = { weapon: 'other', tags: [], raw: true };
 const close = (a, b, label) => assert.ok(Math.abs(a - b) < 1e-8, `${label}: ${a} !== ${b}`);
@@ -60,6 +65,49 @@ test('Hub join and live session replacement restore only the remaining paid warn
 	f.room.time = warning;
 	f.mode.tick(0, f.heroes);
 	assert.deepEqual(stateSentTo(f, 2).warnings, [], 'born cohorts no longer have a spawn warning');
+});
+
+test('Lord call warning survives Hub resync before and after its first key', () => {
+	const f = encounter(), hero = f.heroes[0];
+	const boss = f.room.spawnBoss('boss', [hero]);
+	boss.x = -200; boss.y = 0; boss.bcd = 0; boss.bt2 = 1;
+	f.room.time = 10;
+	f.room.lordTick(boss, hero, 200, 0, false);
+	const deadline = f.room.time + boss.def.call.warn;
+	for (const flushed of [false, true]) {
+		if (flushed) f.room.snapshot();
+		f.room.time += 0.1;
+		const state = stateSentTo(f, hero.pid);
+		assert.deepEqual(state.warnings, [{ x: hero.x, y: hero.y, r: boss.def.call.ring + 20, remaining: deadline - f.room.time }]);
+		const game = new Game({ send() {} }); game.me = hero.pid;
+		game.begin(f.room.startMsg()); game.onHordeResync(state);
+		const snap = f.room.snapshot(); game.onSnapshot(snap); game.view.tm = snap.tm; game.applyEffects();
+		assert.equal(game.warns.length, 1, 'the first key neither removes nor restarts the restored Lord warning');
+		close(game.warns[0].life, deadline - f.room.time, 'restored remaining warning');
+	}
+	f.room.time = deadline; f.room.updateTimers();
+	assert.equal(f.room.enemies.filter((e) => e.hordeSource === 'boss-add').length, 12);
+	assert.deepEqual(stateSentTo(f, hero.pid).warnings, []);
+});
+
+test('resync suppression excludes fresh knife shots and unrepresented warnings from the pre-key queue', () => {
+	const f = encounter(), hero = f.heroes[0];
+	f.room.time = 10; hero.weapons = new Map([['knives', { lvl: 1, t: 0 }]]);
+	const enemy = f.room.spawnEnemy('brute', [hero], 1, [150, 0]);
+	f.room.rebuildGrid();
+	f.room.updateWeapon(hero, 'knives', hero.weapons.get('knives'), 0.1);
+	assert.ok(f.room.fx.some((ev) => ev[0] === 'shot'), 'native knife launch is genuinely queued');
+	const unknown = ['warn', 500, 500, 60, 1]; f.room.fx.push(unknown);
+	const state = stateSentTo(f, hero.pid);
+	assert.ok(!state.fxBefore.some((ev) => ev[0] === 'shot'), 'unrestored hero projectiles must reach the first key');
+	assert.ok(!state.fxBefore.some((ev) => JSON.stringify(ev) === JSON.stringify(unknown)));
+	const shot = f.room.fx.find((ev) => ev[0] === 'shot');
+	const game = new Game({ send() {} }); game.me = hero.pid;
+	game.begin(f.room.startMsg()); game.onHordeResync(state);
+	const snap = f.room.snapshot(); game.onSnapshot(snap); game.view.tm = snap.tm; game.applyEffects();
+	assert.ok(game.shots.has(shot[1]), 'the native knife survives the real first-key client path');
+	assert.equal(game.warns.length, 1, 'an unrestored queued warning is still delivered normally');
+	assert.ok(!enemy.dead);
 });
 
 test('storm windup survives Hub resync and expires at the original damaging deadline', () => {

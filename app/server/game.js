@@ -2242,7 +2242,8 @@ export class Room {
 		}
 		const tx = t.x, ty = t.y;
 		this.fx.push(['warn', Math.round(tx), Math.round(ty), E.call.ring + 20, round3(E.call.warn)]);
-		this.after(E.call.warn, () => !e.dead && this.summon(e, E.call, tx, ty));
+		this.after(E.call.warn, () => !e.dead && this.summon(e, E.call, tx, ty),
+			this.isHorde ? { x: tx, y: ty, r: E.call.ring + 20 } : null, e);
 		return false;
 	}
 
@@ -4548,8 +4549,8 @@ export class Room {
 		}
 	}
 
-	after(delay, fn) {
-		this.timers.push({ t: this.time + delay, fn });
+	after(delay, fn, warning = null, carrier = null) {
+		this.timers.push({ t: this.time + delay, fn, ...(warning ? { warning, carrier } : {}) });
 	}
 
 	updateTimers() {
