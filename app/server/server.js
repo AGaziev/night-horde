@@ -7,7 +7,7 @@ import { WebSocketServer } from 'ws';
 import { Hub, sanitizeName } from './game.js';
 import { runStore, logText } from './runlog.js';
 import { readFeedback, saveFeedback } from './feedback.js';
-import { createLobbyInvites } from './lobby-invites.js';
+import { createLobbyInvites, inviteCapacity, inviteDelivery } from './lobby-invites.js';
 import { PROTO, clientProto } from './snapshot-codec.js';
 import { TICK_HZ, GAME_VERSION, MAX_PLAYERS } from '../public/shared/content.js';
 import { ProgressStore, vibeBackend, bitrixUid, progressMsg, unlockedOf, isoWeek } from './storage.js';
@@ -442,39 +442,72 @@ async function handleLobbyInvites(req, res, url) {
 			const employees = await lobbyInvites.list();
 			if (hub.hostLobby(session.pid, code) !== room) return reject(409, 'Комната изменилась. Откройте форму ещё раз.');
 			const members = new Set([...room.members.values()].map((member) => member.uid));
-			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: MAX_PLAYERS - room.size });
+			const batch = room.inviteBatch?.startsAt === room.startsAt ? room.inviteBatch : null;
+			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: inviteCapacity(room, MAX_PLAYERS),
+				warning: lobbyInvites.warning, delivery: batch?.result ?? null, startsAt: room.startsAt,
+				batchId: room.inviteBatch?.id ?? null, revision: room.inviteRevision, serverNow: Date.now() });
 		}
 		const input = await readSmallJson(req, res);
 		if (res.writableEnded) return;
-		if (!START_DELAYS.has(input?.minutes) || !Array.isArray(input?.ids) || input.ids.length > MAX_PLAYERS - 1
+		if (!START_DELAYS.has(input?.minutes) || !Array.isArray(input?.ids) || input.ids.length > (room.maxMembers ?? MAX_PLAYERS) - 1
 			|| input.ids.some((id) => !bitrixUid(id))) {
 			return reject(400, 'Проверьте время старта и список сотрудников.');
 		}
 		const ids = [...new Set(input.ids)];
-		if (room.startsAt !== null) return reject(409, 'Отсчёт уже идёт.');
+		const batch = room.inviteBatch;
+		const requestedRetry = input.startsAt != null || input.batchId != null;
+		if (requestedRetry && (typeof input.batchId !== 'string' || !input.batchId)) {
+			return reject(409, 'Обновите страницу игры, чтобы повторить недоставленные приглашения.');
+		}
+		const retry = requestedRetry && room.startsAt !== null && batch?.startsAt === room.startsAt
+			&& typeof input.batchId === 'string' && input.batchId === batch.id && input.startsAt === batch.startsAt;
+		if (requestedRetry && !retry) return reject(409, 'Эта рассылка уже отменена или изменена. Откройте форму ещё раз.');
+		if (room.startsAt !== null && !retry) return reject(409, 'Отсчёт уже идёт.');
+		if (retry && (batch.sending || ids.some((id) => !batch.ids.includes(id)))) return reject(409, 'Дождитесь результата текущей отправки.');
 		const employees = await lobbyInvites.list(true);
+		// Access lookup can outlive a WS cancel/restart, host change, or room start.
+		// A retry belongs only to the exact batch/deadline captured before the await.
+		if (!session.conn || hub.hostLobby(session.pid, code) !== room
+			|| (retry && (room.inviteBatch !== batch || input.batchId !== batch.id || room.startsAt !== batch.startsAt))) {
+			return reject(409, 'Отсчёт или комната изменились. Откройте форму ещё раз.');
+		}
 		const allowed = new Set(employees.map(({ id }) => id));
 		if (ids.some((id) => !allowed.has(id))) return reject(409, 'Список доступа изменился. Откройте форму ещё раз.');
 		const members = new Set([...room.members.values()].map((member) => member.uid));
-		if (ids.includes(uid) || ids.filter((id) => !members.has(id)).length > MAX_PLAYERS - room.size) {
+		if (ids.includes(uid) || ids.filter((id) => !members.has(id)).length > inviteCapacity(room, MAX_PLAYERS)) {
 			return reject(409, 'В комнате изменилось число свободных мест. Откройте форму ещё раз.');
 		}
 		const now = Date.now();
-		if (ids.length && (inviteTimes.get(uid) ?? 0) > now) return reject(429, 'Подождите несколько секунд перед новой отправкой.');
-		const startsAt = now + input.minutes * 60_000;
-		if (!session.conn || !hub.scheduleStart(room, session.pid, startsAt)) {
+		if (!retry && ids.length && (inviteTimes.get(uid) ?? 0) > now) return reject(429, 'Подождите несколько секунд перед новой отправкой.');
+		const startsAt = retry ? batch.startsAt : now + input.minutes * 60_000;
+		const delivery = retry ? batch : { id: crypto.randomUUID(), startsAt, minutes: input.minutes, ids, result: null };
+		if (!session.conn || (retry ? hub.hostLobby(session.pid, code) !== room : !hub.scheduleStart(room, session.pid, startsAt, delivery))) {
 			return reject(409, 'Комната изменилась или отсчёт уже идёт.');
 		}
-		if (ids.length) {
+		// Set synchronously before awaiting the platform: concurrent retries cannot send duplicates.
+		if (delivery.sending) return reject(409, 'Дождитесь результата текущей отправки.');
+		delivery.sending = true;
+		room.inviteBatch = delivery;
+		if (ids.length && !retry) {
 			for (const [id, until] of inviteTimes) if (until <= now) inviteTimes.delete(id);
 			inviteTimes.set(uid, now + INVITE_COOLDOWN);
 		}
-		const result = await lobbyInvites.send(ids, authorization, { code, startsAt, minutes: input.minutes, host: session.portalName || 'Хост' });
-		if (ids.length && result.sent === 0) {
-			if (room.cancelStart(startsAt) && room.size === 0) hub.rooms.delete(room.code);
-			return reject(502, 'Приглашения не доставлены. Отсчёт остановлен.');
+		try {
+			const membersNow = new Set([...room.members.values()].map((member) => member.uid));
+			const recipients = (retry ? ids : delivery.ids).filter((id) => !membersNow.has(id));
+			const result = await lobbyInvites.send(recipients, authorization, {
+				code, startsAt, batchId: delivery.id, minutes: delivery.minutes, host: session.portalName || 'Хост',
+			}, delivery.result?.recipients);
+			const outcomes = new Map((delivery.result?.recipients ?? []).map((r) => [r.id, r]));
+			for (const recipient of result.recipients) outcomes.set(recipient.id, recipient);
+			delivery.result = inviteDelivery([...outcomes.values()]);
+		} finally { delivery.sending = false; }
+		// A complete, confirmed rejection should not leave a scheduled empty lobby behind.
+		if (delivery.result.failed > 0 && delivery.result.sent === 0 && delivery.result.unknown === 0) {
+			if (room.inviteBatch === delivery && room.cancelStart(startsAt) && room.size === 0) hub.rooms.delete(room.code);
 		}
-		return sendJson(res, 200, { active: room.startsAt === startsAt, ...result });
+		return sendJson(res, 200, { active: room.inviteBatch === delivery && room.startsAt === startsAt, startsAt,
+			batchId: delivery.id, revision: room.inviteBatch === delivery ? room.inviteRevision : delivery.revision, serverNow: Date.now(), ...delivery.result });
 	} catch {
 		if (!res.destroyed) return reject(503, 'Не удалось получить доступ к Битрикс24. Попробуйте ещё раз.');
 	}

@@ -6,7 +6,7 @@ import {spawn,execFileSync} from 'node:child_process';import {once} from 'node:e
 import {createRequire} from 'node:module';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const root=new URL('../',import.meta.url).pathname,require=createRequire(new URL('../app/package.json',import.meta.url));const WebSocket=require('ws');
-const base=process.env.LEGACY_SOURCE||'14ad26604d7cc32cfe6830bf9684cba30ed80158',legacyProto=Number(process.env.LEGACY_PROTO||28),port=34612,url=`http://127.0.0.1:${port}`;
+const base=process.env.LEGACY_SOURCE||'a25f4f6aeb4e3f61e408905a84f281957844e5e9',legacyProto=Number(process.env.LEGACY_PROTO||28),port=34612,url=`http://127.0.0.1:${port}`;
 const out=process.env.REVIEW_OUTPUT||path.join(os.tmpdir(),'daily-legacy-browser');fs.mkdirSync(out,{recursive:true});
 const dir=fs.mkdtempSync(path.join(os.tmpdir(),'legacy-browser-'));const child=spawn(process.execPath,['app/server/server.js'],{cwd:root,env:{...process.env,PORT:String(port),HORDE_RUNS_DIR:dir,VIBE_APP_KEY:''},stdio:'ignore'});const exited=once(child,'exit');let browser,control;
 try{

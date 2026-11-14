@@ -270,6 +270,7 @@ export class Room {
 		this.frozen = false; // pause or a solo level-up offer: the tick stands still
 		this.state = 'lobby';
 		this.startsAt = null;
+		this.inviteRevision = 0;
 		this.members = new Map(); // pid -> {pid, name, hero, ready, color}
 		this.host = null;
 		this.heroes = new Map();
@@ -389,6 +390,7 @@ export class Room {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
 			dailySelected: this.dailySelected, daily: this.daily ?? this.dailyPreview,
 			startsAt: this.startsAt, serverNow: Date.now(),
+			inviteBatchId: this.inviteBatch?.id ?? null, inviteRevision: this.inviteRevision,
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
 		};
 	}
@@ -592,6 +594,7 @@ export class Room {
 		if (this.state !== 'lobby' || startsAt === null || this.startsAt !== startsAt) return false;
 		this.startsAt = null;
 		this.daily = null;
+		this.inviteRevision++;
 		this.sendLobby();
 		return true;
 	}
@@ -5567,10 +5570,13 @@ export class Hub {
 		return room?.host === pid && room.code === code && room.state === 'lobby' ? room : null;
 	}
 
-	scheduleStart(room, pid, startsAt) {
+	scheduleStart(room, pid, startsAt, batch = null) {
 		if (this.hostLobby(pid, room.code) !== room || room.startsAt !== null) return false;
 		if (!room.prepareDaily()) return false;
 		room.startsAt = startsAt;
+		room.inviteBatch = batch;
+		room.inviteRevision++;
+		if (batch) batch.revision = room.inviteRevision;
 		room.sendLobby();
 		return true;
 	}
