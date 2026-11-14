@@ -1,5 +1,5 @@
 import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot, swarmResultSnapshot } from './daily-swarm.js';
-import { dailyFor } from '../public/shared/daily.js';
+import { dailyFor, dailyInMode } from '../public/shared/daily.js';
 import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
@@ -390,7 +390,7 @@ export class Room {
 	lobbyMsg() {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
-			dailySelected: this.dailySelected, daily: this.daily ?? this.dailyPreview,
+			dailySelected: this.dailySelected, daily: this.daily ?? dailyInMode(this.dailyPreview, this.mode),
 			startsAt: this.startsAt, serverNow: Date.now(),
 			inviteBatchId: this.inviteBatch?.id ?? null, inviteRevision: this.inviteRevision,
 			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
@@ -602,7 +602,7 @@ export class Room {
 	}
 
 	lockDaily(now = Date.now(), contract = this.daily ?? dailyFor(now)) {
-		this.daily = this.dailySelected ? Object.freeze({ ...contract, mode: this.mode }) : null;
+		this.daily = this.dailySelected ? Object.freeze({ ...dailyInMode(contract, this.mode), mode: this.mode }) : null;
 	}
 
 	// Compare and lock the same UTC snapshot for direct and scheduled starts.

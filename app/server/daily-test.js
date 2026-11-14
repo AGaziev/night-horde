@@ -64,12 +64,13 @@ test('only host can select; countdown freezes day/mode; cancel and retry obtain 
 test('health/damage modifiers survive upgrades without compounding; normal modes keep baseline', () => {
 	for (const mode of Object.keys(MODES)) {
 		const { r } = make('glass', mode); r.start(); const h = r.heroes.get(1);
+		const damage = mode === 'lunch' ? 1.1 : 1.2;
 		assert.equal(r.runLength, MODES[mode].seconds);
-		assert.equal(h.hp, HEROES.witch.hp * 0.7); assert.equal(h.mods.dmgMul, 1.2);
+		assert.equal(h.hp, HEROES.witch.hp * 0.7); assert.equal(h.mods.dmgMul, damage);
 		h.passives.set('vigor', 1); r.recalcMods(h);
 		const maximum = h.maxHp; r.recalcMods(h);
 		assert.equal(h.maxHp, maximum); assert.equal(maximum, (HEROES.witch.hp + 20) * 0.7);
-		assert.ok(Math.abs(h.mods.dmgMul - 1.025 * 1.2) < 1e-9);
+		assert.ok(Math.abs(h.mods.dmgMul - 1.025 * damage) < 1e-9);
 		const { r: ordinary } = make(null, mode); ordinary.start();
 		assert.equal(ordinary.heroes.get(1).hp, HEROES.witch.hp);
 		assert.equal(ordinary.heroes.get(1).mods.dmgMul, 1);
@@ -105,8 +106,8 @@ test('run result and reconnect retain contract; daily runs never grant ordinary 
 	assert.ok(compareDaily({ grade: 0, time: 90, kills: 1 }, { grade: 0, time: 50, kills: 900 }) > 0);
 });
 
-test('v3 armor leaves locked v2 contracts and persisted v1/v2 personal bests intact', t => {
-	assert.equal(DAILY_VERSION, 3);
+test('v4 leaves locked v2 armor and persisted v1/v2/v3 personal bests intact', t => {
+	assert.equal(DAILY_VERSION, 4);
 	const { r } = make('armor');
 	r.daily = { ...r.daily, version: 2, mods: { armor: 2, speed: .9 } };
 	r.start(); const h = r.heroes.get(1), locked = structuredClone(r.daily);
@@ -115,14 +116,14 @@ test('v3 armor leaves locked v2 contracts and persisted v1/v2 personal bests int
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'horde-daily-versions-'));
 	t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 	const store = new RunStore(); store.persist(dir);
-	for (const version of [1, 2, 3]) store.add({ id: `VER00${version}`, at: new Date().toISOString(),
+	for (const version of [1, 2, 3, 4]) store.add({ id: `VER00${version}`, at: new Date().toISOString(),
 		mode: 'lunch', team: [{ name: 'Player', hero: 'witch', level: 1 }], summary: [], win: true,
 		grade: version, time: 600, kills: 3, daily: { ...locked, version } }, ['111']);
 	const restored = new RunStore(); restored.persist(dir);
 	const best = restored.history('111').daily.best;
-	assert.equal(best.length, 3);
-	assert.deepEqual(best.map(record => record.daily.version).sort(), [1, 2, 3]);
-	for (const version of [1, 2, 3]) assert.equal(best.find(record => record.daily.version === version).id, `VER00${version}`);
+	assert.equal(best.length, 4);
+	assert.deepEqual(best.map(record => record.daily.version).sort(), [1, 2, 3, 4]);
+	for (const version of [1, 2, 3, 4]) assert.equal(best.find(record => record.daily.version === version).id, `VER00${version}`);
 });
 
 
