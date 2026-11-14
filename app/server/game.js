@@ -2416,7 +2416,7 @@ export class Room {
 			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
 			const gain = Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
 			e.markOwner.supportDamage += gain;
-			if(h !== e.markOwner) e.markOwner.support.allyDamage += gain;
+			if(h && h !== e.markOwner) e.markOwner.support.allyDamage += gain;
 		}
 		if (!src.raw && src.markSupport) {
 			// A reaction can carry another target's mark into this hit. Credit that
@@ -2424,7 +2424,7 @@ export class Room {
 			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
 			const gain = Math.max(0, Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
 			src.markSupport.owner.supportDamage += gain;
-			if(h !== src.markSupport.owner) src.markSupport.owner.support.allyDamage += gain;
+			if(h && h !== src.markSupport.owner) src.markSupport.owner.support.allyDamage += gain;
 		}
 		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
