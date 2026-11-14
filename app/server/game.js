@@ -2272,7 +2272,8 @@ export class Room {
 			const ox = s.x, oy = s.y;
 			s.life -= elapsed; s.x += s.vx * step; s.y += s.vy * step;
 			motions.set(s, {start, step, ox, oy});
-			if (step <= 0) continue;
+			// Positive-life newborns may overlap at their birth endpoint, but never traverse pre-birth history.
+			if (step <= 0 && !(elapsed === 0 && s.life > 0 && start <= this.time)) continue;
 			const from = dt > 0 ? (start - (this.time - dt)) / dt : 1, to = Math.min(1, from + step / dt);
 			for (const h of this.heroes.values()) {
 				if (h.st !== 0) continue;

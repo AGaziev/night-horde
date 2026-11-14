@@ -47,3 +47,6 @@ test('CEO45.1 chronological contacts trigger innate shield once',()=>{
  const {r,h}=arena();h.hero='knight';h.perk.readyAt=0;r.hostile=[shot(r,2,.022,20),shot(r,1,.005,7)];r.tick(dt);assert.equal(h.hp,100);assert.ok(h.perk.readyAt>r.time);// Actual perk state, no mocked damage callback.
  const ready=h.perk.readyAt;r.hostile=[shot(r,3,.005,20)];r.tick(dt);assert.equal(h.perk.readyAt,ready,'protected subsequent contact cannot trigger the perk again');assert.equal(h.hp,100);
 });
+for(const life of [1,0,-1])test('CEO45.1 newborn zero-travel birth overlap, life '+life,()=>{
+ const {r,h}=arena();r.hostile=[{id:1,x:0,y:0,vx:600,vy:0,life,dmg:20,bornAt:r.time+dt}];r.tick(dt);assert.equal(h.hp,life>0?80:100,'birth endpoint is a contact only while alive');
+});
