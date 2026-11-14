@@ -23,6 +23,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 import { requestDash, stepMobility, mobilitySnapshot, dashContactTime } from './mobility.js';
 import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
@@ -522,8 +523,7 @@ export class Room {
 		this.frozen = false;
 		this.kills = 0;
 		this.tickNo = 0;
-		this.dashHostileTick = -1;
-		this.dashContactFrames = null;
+		this.contactFrames = null;
 		this.nextId = 1;
 		this.enemies = [];
 		this.projectiles = [];
@@ -1377,12 +1377,12 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
-		this.dashContactFrames = alive.some(h => h.dash) ? new Map(alive.map(h => [h, contactFrame(h, this.time, dt)])) : null;
 		stepMobility(this, dt);
 
 		this.updatePeaks(alive);
@@ -1394,11 +1394,10 @@ export class Room {
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
-		if (alive.some(h => h.dashPath)) this.updateDashContacts(dt);
+		this.updateHostile(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
-		this.updateHostile(dt);
 		this.updateBlasts();
 		this.updateOrbs(dt);
 		this.updateTimers();
@@ -2279,126 +2278,95 @@ export class Room {
 	}
 
 	updateHostile(dt) {
-		const dashFrame = this.dashHostileTick === this.tickNo;
-		if (!dashFrame && [...this.heroes.values()].some(h => h.dashPath)) { this.updateDashContacts(dt); return this.updateHostile(dt); }
-		let j = 0;
-		for (const s of this.hostile) {
-			// A legacy-handler shot advances here, in its original phase and array order.
-			// A surviving continuous-handler shot has already advanced exactly once.
-			if (s.dashAdvancedTick !== this.tickNo) { s.life -= dt; s.x += s.vx * dt; s.y += s.vy * dt; }
-			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
-			if (!done) {
-				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				// No ordinary actor is cached: earlier shots, bodies and revives can change eligibility.
-				for (const h of this.heroes.values()) {
-					const distance = dist2(s.x, s.y, h.x, h.y);
-					if (h.st !== 0 || dashFrame && h.dashPath && !s.dashTargets?.has(h.pid) || distance >= min * min) continue;
-					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
-					done = true;
-					break;
-				}
-			}
-			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
-			else this.hostile[j++] = s;
-		}
-		this.hostile.length = j;
-	}
-
-	// Only dash frames need a shared timeline: a moving hero may meet bodies and shots
-	// between endpoints. Resolve those contacts before any weapon can kill their source.
-	updateDashContacts(dt) {
-		if (this.dashHostileTick === this.tickNo) return;
-		this.dashHostileTick = this.tickNo;
-		const frames = this.dashContactFrames ?? new Map();
-		const events = [], now = this.time, start = now - dt;
-		const order = (a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
+		const frames = this.contactFrames ?? new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
+		this.contactFrames = null;
+		// Early AI hazards keep their legacy phase priority; preserve their new grant.
+		for (const [h, frame] of frames) if (h.iframes > frame.protectedUntil - frame.start + 1e-9)
+			frame.protectedUntil = Math.max(frame.protectedUntil, this.time + h.iframes);
+		const events = [], motions = new Map(), now = this.time, frameStart = now - dt;
+		const order = (a,b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
+		// Dash bodies join the existing projectile timeline; ordinary bodies retain main's endpoint phase.
 		for (const h of this.heroes.values()) {
 			if (h.st !== 0 || !h.dashPath) continue;
-			let frame = frames.get(h);
-			if (!frame) frames.set(h, frame = contactFrame(h, now, dt));
-			// Hazards processed by AI keep their existing priority over the contact phase.
-			if (h.iframes > frame.protectedUntil - frame.start + 1e-9) frame.protectedUntil = Math.max(frame.protectedUntil, now + h.iframes);
 			for (const e of this.enemies) {
 				if (e.dead || e.outpost && e.guardReadyAt > now) continue;
-				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null;
-				const radius = e.r + PLAYER_RADIUS;
-				const at = motion?.warped ? (dist2(e.x, e.y, h.x, h.y) < radius ** 2 ? dt : null)
-					: dashContactTime(h, motion?.x ?? e.x, motion?.y ?? e.y, e.x, e.y, dt, radius);
-				if (at !== null) events.push({ at: start + at, h, e, id: e.id, kind: 0 });
+				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null, radius = e.r + PLAYER_RADIUS;
+				const at = motion?.warped ? (dist2(e.x,e.y,h.x,h.y) < radius ** 2 ? dt : null)
+					: dashContactTime(h,motion?.x ?? e.x,motion?.y ?? e.y,e.x,e.y,dt,radius);
+				if (at !== null) events.push({at:frameStart+at,h,e,id:e.id,kind:0});
 			}
 		}
 		for (const s of this.hostile) {
-			const from = Math.max(0, Math.min(dt, (s.bornAt ?? start) - start));
-			const life = s.life, travel = Math.max(0, Math.min(dt - from, life));
-			const sx = s.x, sy = s.y, ex = sx + s.vx * travel, ey = sy + s.vy * travel;
-			const legacyX = sx + s.vx * dt, legacyY = sy + s.vy * dt, radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-			const candidates = [];
-			delete s.dashTargets;
-			s.dashDone = false;
-			if (life > 0) for (const h of this.heroes.values()) {
-				if (h.st !== 0 || !h.dashPath) continue;
-				const at = dashContactTime(h, sx, sy, ex, ey, dt, radius, from, from + travel);
-				if (at !== null) candidates.push({ at: start + at, h, s, id: s.id, kind: 1 });
-			}
-			// No real dash intersection: this projectile stays completely in the legacy handler.
-			if (!candidates.length) continue;
-			candidates.sort(order);
-			s.dashTargets = new Set(candidates.map(c => c.h.pid));
-			let ordinary = null;
-			if (life > dt && !(s.outpost && dist2(legacyX, legacyY, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) {
-				// Ordinary targets are a Map-ordered channel, never a time-sorted actor list.
-				for (const h of this.heroes.values()) {
-					if (h.st !== 0 || h.dashPath || dist2(legacyX, legacyY, h.x, h.y) >= radius ** 2) continue;
-					const at = dashContactTime(h, sx, sy, legacyX, legacyY, dt, radius);
-					if (at !== null) ordinary = { at: start + Math.max(from, at), h, s, id: s.id, kind: 1 };
-					break;
+			const start = Math.max(this.time - dt, s.bornAt ?? this.time - dt);
+			const elapsed = Math.max(0, this.time - start), step = Math.min(elapsed, Math.max(0, s.life));
+			const ox = s.x, oy = s.y;
+			s.life -= elapsed; s.x += s.vx * step; s.y += s.vy * step;
+			motions.set(s, {start, step, ox, oy});
+			// Positive-life newborns may overlap at their birth endpoint, but never traverse pre-birth history.
+			if (step <= 0 && !(elapsed === 0 && s.life > 0 && start <= this.time)) continue;
+			const from = dt > 0 ? (start - (this.time - dt)) / dt : 1, to = Math.min(1, from + step / dt);
+			for (const h of this.heroes.values()) {
+				if (h.st !== 0) continue;
+				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
+				let at;
+				if (h.dashPath) {
+					// A stopped/clipped dash stays still for the remaining frame; birth and TTL share main's motion clip.
+					const t = dashContactTime(h,ox,oy,s.x,s.y,dt,radius,start-frameStart,start-frameStart+step);
+					at = t === null ? null : frameStart+t;
+				} else {
+					const prev = h.hostilePos ?? h;
+					const hx0 = prev.x + (h.x - prev.x) * from, hy0 = prev.y + (h.y - prev.y) * from;
+					const hx1 = prev.x + (h.x - prev.x) * to, hy1 = prev.y + (h.y - prev.y) * to;
+					const t = movingCircleImpact(ox,oy,s.x,s.y,hx0,hy0,hx1,hy1,radius);
+					at = t === null ? null : start+t*step;
 				}
+				if (at !== null) events.push({s,h,at,id:s.id,kind:1});
 			}
-			// Choose the handler, not its eventual ordinary recipient. Recheck the whole Map later.
-			if (ordinary && order(ordinary, candidates[0]) <= 0) continue;
-			s.x = legacyX; s.y = legacyY; s.life -= dt;
-			s.dashAdvancedTick = this.tickNo;
-			events.push(...candidates);
 		}
 		events.sort(order);
+		const impacts = new Map();
 		this.dashContactChanged = new Set();
 		try {
 		while (events.length) {
-			const ev = events.shift();
-			const { h, e, s, at } = ev;
-			if (h.st !== 0 || e?.dead || s?.dashDone) continue;
+			const {s,h,e,at} = events.shift();
+			if (h.st !== 0 || e?.dead || s && impacts.has(s)) continue;
 			if (s) {
-				applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
-				s.dashDone = true; // Protection still intercepts and consumes a shot.
+				impacts.set(s,at); // A protected entry still consumes its projectile, exactly as on main.
+				applyContact(h,frames.get(h),at,()=>this.hurtPlayer(h,s.dmg,s.from));
 			} else if (e.ai === 'exploder') {
-				if (e.fuseT <= 0) { e.fuseT = e.def.fuse; e.fuseBy = null; }
+				if (e.fuseT <= 0) {e.fuseT=e.def.fuse;e.fuseBy=null;}
 			} else if (e.dmg > 0 && !(e.frozenT > now) && !(e.immuneT > now)) {
-				applyContact(h, frames.get(h), at, () => this.bodyContact(h, e));
-			}			// A real impulse is a discontinuity, not an extension of the old AI trajectory.
-			// Replace only future body events, and search the stationary new position from this event onward.
+				applyContact(h,frames.get(h),at,()=>this.bodyContact(h,e));
+			}
+			// A real impulse invalidates future body trajectories; do not sweep across the teleport itself.
 			if (this.dashContactChanged.size) {
 				for (const changed of this.dashContactChanged) {
-					for (let i = events.length - 1; i >= 0; i--) if (events[i].e === changed) events.splice(i, 1);
+					for(let i=events.length-1;i>=0;i--) if(events[i].e===changed) events.splice(i,1);
 					if (changed.dead || changed.outpost && changed.guardReadyAt > now) continue;
 					for (const hero of this.heroes.values()) {
 						if (hero.st !== 0 || !hero.dashPath) continue;
-						const contact = dashContactTime(hero, changed.x, changed.y, changed.x, changed.y, dt,
-							changed.r + PLAYER_RADIUS, Math.max(0, at - start), dt);
-						if (contact !== null) events.push({ at: start + contact, h: hero, e: changed, id: changed.id, kind: 0 });
+						const entry = dashContactTime(hero,changed.x,changed.y,changed.x,changed.y,dt,
+							changed.r+PLAYER_RADIUS,Math.max(0,at-frameStart),dt);
+						if (entry !== null) events.push({at:frameStart+entry,h:hero,e:changed,id:changed.id,kind:0});
 					}
 				}
-				this.dashContactChanged.clear();
-				events.sort(order);
+				this.dashContactChanged.clear();events.sort(order);
 			}
 		}
-		} finally { this.dashContactChanged = null; }
-		for (const [h, frame] of frames) if (h.dashPath) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
+		} finally {this.dashContactChanged=null;}
 		let j = 0;
 		for (const s of this.hostile) {
-			if (s.dashAdvancedTick === this.tickNo && (s.dashDone || s.life <= 0 || s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) this.fx.push(['epend', s.id, round3(now)]);
-			else this.hostile[j++] = s;
+			const {start, step, ox, oy} = motions.get(s), at = impacts.get(s);
+			const done = at !== undefined || s.life <= 0 || (s.outpost && dist2(s.x,s.y,s.outpost.x,s.outpost.y) > OUTPOST.shotRange ** 2);
+			if (done) {
+				const travel = at === undefined ? step : at - start;
+				this.fx.push(['epend',s.id,round3(start+travel),round3(ox+s.vx*travel),round3(oy+s.vy*travel),at === undefined ? 0 : 1]);
+			} else this.hostile[j++] = s;
 		}
 		this.hostile.length = j;
+		for (const [h,frame] of frames) {
+			finishContactFrame(h,frame);h.contactFrameEnd=this.time;h.hostilePos={x:h.x,y:h.y};
+		}
 	}
 
 	bodyContact(h, e) {
@@ -3061,7 +3029,6 @@ export class Room {
 	}
 
 	updatePlayers(dt, alive) {
-		if (alive.some(h => h.dashPath)) this.updateDashContacts(dt);
 		const near = this.q1;
 		const now = this.time;
 		const fog = this.events.active?.id === 'fog';
@@ -4316,7 +4283,7 @@ export class Room {
 		const dir = target.x >= h.x ? 1 : -1;
 		const hit = [];
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			this.slashHits(h, d, range, width, L.dmg * h.mods.dmgMul, SRC.riposte, hit);
 			this.breakAround(h.x + (d * range) / 2, h.y, range / 2, h);
 		}
@@ -4374,11 +4341,11 @@ export class Room {
 		if (!target) return false;
 		const dir = target.x >= h.x ? 1 : -1, now = this.time;
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			const cx = h.x + (d * range) / 2;
 			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
 			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
-				if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+				if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 				this.hurtEnemy(e, L.dmg * h.mods.dmgMul * (e.rootT > now ? L.rootMul : 1), h, SRC.abatis);
 			}
 			this.breakAround(cx, h.y, range / 2, h);
@@ -4585,7 +4552,7 @@ export class Room {
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
-			if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, src);
 			if (!e.dead) hit.push(e);
 		}
@@ -4863,14 +4830,13 @@ export class Room {
 	}
 
 	slash(h, dir, range, width, dmg) {
-		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width)]);
+		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 		const cx = h.x + dir * range / 2;
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.x + e.r < x0 || e.x - e.r > x1) continue;
-			if (Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (!circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, SRC.whip);
 		}
 		this.breakAround(cx, h.y, range / 2, h);

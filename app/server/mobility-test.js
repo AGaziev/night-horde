@@ -55,7 +55,7 @@ for (const mode of ['night', 'lunch']) for (const n of [1, 2, 4, 8]) {
 	Object.assign(e, { x: 100, y: 0, speed: 0 });
 	h.weapons.clear(); const hp = h.hp;
 	action(r, 1, { x: 1, y: 0 }); stepMobility(r, 1);
-	r.rebuildGrid(); r.updatePlayers(1 / 30, [h]);
+	r.rebuildGrid(); r.updateHostile(1 / 30); r.updatePlayers(1 / 30, [h]);
 	assert.ok(h.hp < hp, 'crossing an enemy takes contact damage even when endpoint is clear');
 }
 

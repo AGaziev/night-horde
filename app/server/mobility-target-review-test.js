@@ -15,12 +15,12 @@ test('r16 ordinary endpoint eligibility does not always take priority over an ea
 for(const reverse of[false,true])test(`r16 simultaneous entry has deterministic hero tie, reversedMap${reverse}`,()=>{
  const{r,h,d,damage}=setup({dasherX:10});if(reverse)r.heroes=new Map([[2,d],[1,h]]);r.step(dt);assert.equal(h.hp,100-damage);assert.equal(d.hp,100);
 });
-for(const protect of[.01,1])test(`r16 ordinary protection is still evaluated at legacy endpoint phase ${protect}`,()=>{
- const{r,h,d,damage}=setup({protect});r.step(dt);assert.equal(h.hp,protect>dt?100:100-damage);assert.equal(d.hp,100);assert.equal(r.hostile.length,0);
+for(const protect of[.01,1])test(`main45 ordinary protection is evaluated at entry ${protect}`,()=>{
+ const{r,h,d,damage}=setup({protect});r.step(dt);assert.equal(h.hp,100);assert.equal(d.hp,100);assert.equal(r.hostile.length,0);
 });
 for(const type of['ward','shield'])test(`r16 selected ordinary ${type} absorbs once and protects the later dasher`,()=>{
  const{r,h,d}=setup({hero:type==='shield'?'knight':'witch',ward:type==='ward'?1:0});if(type==='shield')h.perk.readyAt=0;r.step(dt);assert.equal(h.hp,100);assert.equal(d.hp,100);assert.equal(r.hostile.length,0);if(type==='ward')assert.equal(h.ward,0);else assert.ok(h.perk.readyAt>r.time);
 });
-test('r16 ordinary Ward callbacks remain after weapon/body phase rather than geometric selection time',()=>{
- const{r,h,d}=setup({ward:1});let observed=false;r.updateWeapon=()=>{};d.weapons.set('bolt',{lvl:1});r.updateWeapon=owner=>{if(owner===d){observed=true;assert.equal(h.ward,1,'selection reserves the shot but cannot trigger the ordinary callback early');}};r.step(dt);assert.ok(observed);assert.equal(h.ward,0);
+test('main45 ordinary Ward commits before weapon/body phase',()=>{
+ const{r,h,d}=setup({ward:1});let observed=false;r.updateWeapon=()=>{};d.weapons.set('bolt',{lvl:1});r.updateWeapon=owner=>{if(owner===d){observed=true;assert.equal(h.ward,0,'main45 has already committed the ordinary Ward contact at entry');}};r.step(dt);assert.ok(observed);assert.equal(h.ward,0);
 });

@@ -91,7 +91,7 @@ try {
  const {Net:OldNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource).toString('base64'));
  const {Net:PreviousNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 24;')).toString('base64'));
  const {Net:ReleasedNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 25;')).toString('base64'));
- const {Net:MovementNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 28;')).toString('base64'));
+ const {Net:Contract28Net}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 28;')).toString('base64'));
  const {Net}=await import('data:text/javascript;base64,'+Buffer.from(netSource).toString('base64'));
  const {Hub}=await import('./game.js');
  let welcome;const hub=new Hub((pid,msg)=>{if(msg.t==='welcome')welcome=msg;});hub.addPlayer(1,'One');hub.welcome(1);
@@ -114,8 +114,9 @@ try {
   assert.equal(reloads,3,'released PROTO25 page reloads for movement acknowledgements');
   assert.equal(emitted,0,'the released UI cannot resume before loading the new contracts');
   storage.clear();
-  const movement=Object.create(MovementNet.prototype);movement.emit=()=>emitted++;movement.dispatch(welcome);
-  assert.equal(reloads,4,'PROTO28 page reloads for this feature contract');assert.equal(emitted,0);
+  const contract28=Object.create(Contract28Net.prototype);contract28.emit=()=>emitted++;contract28.dispatch(welcome);
+  assert.equal(reloads,4,'PROTO28 pages reload before using the new feature contract');
+  assert.equal(emitted,0,'the previous client contract cannot resume before reload');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
   assert.equal(reloads,4,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {

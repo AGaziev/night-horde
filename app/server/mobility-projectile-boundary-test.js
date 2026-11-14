@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Room } from './game.js';
+// The former a25 late/Map expectations are superseded by merged main45. See pm/DASH-MAIN45-INTEGRATION.md.
 const dt = 1 / 30;
 function setup({ dash = true, shots = 1, ax = 0, bx = 17.50166666666667, reverse = false, competing = false } = {}) {
  const r = new Room('BOUNDARY', () => {});
@@ -21,29 +22,28 @@ for (const dash of [false,true]) test(`new P2 shot1 downs A, fresh legacy shot2 
  const {r,a,b,damage}=setup({dash,shots:2}); a.hp=1; r.step(dt);
  assert.equal(a.st,1); assert.equal(b.hp,100-damage); assert.equal(r.hostile.length,0);
 });
-for (const dash of [false,true]) test(`new P2 ghoul downs A before legacy shot, fallback hits B; far dash=${dash}`,()=>{
+for (const dash of [false,true]) test(`main45 projectile intercepts A before its endpoint body; far dash=${dash}`,()=>{
  const {r,a,b,damage}=setup({dash}); downFromBody(r,a); r.step(dt);
- assert.equal(a.st,1); assert.equal(b.hp,100-damage); assert.equal(r.hostile.length,0);
+ assert.equal(a.st,1); assert.equal(b.hp,100); assert.equal(r.hostile.length,0);
 });
-for (const reverse of [false,true]) for(const dash of [false,true]) test(`new P2 ordinary Map priority is unchanged, reverse=${reverse}, far dash=${dash}`,()=>{
+for (const reverse of [false,true]) for(const dash of [false,true]) test(`main45 earliest ordinary TOI is independent of Map, reverse=${reverse}, far dash=${dash}`,()=>{
  const {r,a,b,damage}=setup({dash,ax:18,bx:0,reverse}); r.step(dt);
- assert.equal(a.hp,reverse?100:100-damage); assert.equal(b.hp,reverse?100-damage:100);
+ assert.equal(a.hp,100); assert.equal(b.hp,100-damage);
 });
-for (const dash of [false,true]) test(`legacy shot is retained if its former endpoint target dies and nobody is valid; far dash=${dash}`,()=>{
+for (const dash of [false,true]) test(`main45 early interception consumes before endpoint body; far dash=${dash}`,()=>{
  const {r,a,b,shotLife}=setup({dash,bx:500}); downFromBody(r,a); r.step(dt);
- assert.equal(a.st,1); assert.equal(b.hp,100); assert.equal(r.hostile.length,1);
- assert.ok(Math.abs(r.hostile[0].x-(-10+230*dt))<1e-10); assert.ok(Math.abs(r.hostile[0].life-(shotLife-dt))<1e-10);
+ assert.equal(a.st,1); assert.equal(b.hp,100); assert.equal(r.hostile.length,0);
 });
-for(const cause of ['shot','body']) test(`real competing dasher does not pin a stale ordinary actor after ${cause}`,()=>{
- const {r,a,b,damage}=setup({competing:true,shots:cause==='shot'?2:1}); if(cause==='shot')a.hp=1;else downFromBody(r,a);r.step(dt);
- assert.equal(a.st,1);assert.equal(b.hp,100-damage);assert.equal(r.hostile.length,0);
+for(const cause of ['shot','body']) test(`main45 real competition commits before later ${cause}`,()=>{
+ const {r,a,b,c,damage}=setup({competing:true,shots:cause==='shot'?2:1}); if(cause==='shot')a.hp=1;else downFromBody(r,a);r.step(dt);
+ assert.equal(a.st,1);assert.equal(b.hp,100);assert.equal(c.hp,cause==='shot'?100-damage:100);assert.equal(r.hostile.length,0);
 });
-test('a real competing dasher can be the fresh legacy endpoint fallback after A is down',()=>{
+test('main45 later endpoint body cannot reopen an already intercepted shot',()=>{
  const {r,a,b,c,damage}=setup({competing:true,bx:500});downFromBody(r,a);r.step(dt);
- assert.equal(a.st,1);assert.equal(b.hp,100);assert.equal(c.hp,100-damage);assert.equal(r.hostile.length,0);
+ assert.equal(a.st,1);assert.equal(b.hp,100);assert.equal(c.hp,100);assert.equal(r.hostile.length,0);
 });
-for(const dash of [false,true])test(`ordinary projectile advance/callback stays after weapons, far dash=${dash}`,()=>{
- const {r,a,b,shotLife}=setup({dash});let observed=false;b.weapons.set('bolt',{lvl:1});r.updateWeapon=()=>{observed=true;assert.equal(r.hostile[0].x,-10);assert.equal(r.hostile[0].life,shotLife);assert.equal(a.hp,100);};r.step(dt);assert.ok(observed);
+for(const dash of [false,true])test(`main45 ordinary projectile commits before weapons, far dash=${dash}`,()=>{
+ const {r,a,b,damage}=setup({dash});let observed=false;b.weapons.set('bolt',{lvl:1});r.updateWeapon=()=>{observed=true;assert.equal(r.hostile.length,0);assert.equal(a.hp,100-damage);};r.step(dt);assert.ok(observed);
 });
 for(const dash of[false,true])test(`revive after hostile phase cannot intercept early but is eligible next tick, far dash=${dash}`,()=>{
  const {r,a,b}=setup({dash,bx:50});Object.assign(a,{st:1,hp:0,rev:99.99});r.step(dt);assert.equal(a.st,0);const revivedHp=a.hp;assert.ok(a.iframes>1);assert.equal(r.hostile.length,1);r.step(dt);assert.equal(a.hp,revivedHp);assert.equal(r.hostile.length,0);assert.equal(b.hp,100);
@@ -53,7 +53,7 @@ test('a real competing lower-pid dasher wins an exact entry tie over the ordinar
 });
 test('legacy fallback cannot hit a dasher from a newborn future endpoint without a real dash contact',()=>{
  const {r,a,b,c}=setup({dash:false});r.hostile=[];r.heroes=new Map([[1,a]]);r.members=new Map([[1,r.members.get(1)]]);a.x=0;a.y=0;
- const e=r.spawnEnemy('spitter',[a],1);Object.assign(e,{x:15,y:0,speed:0,dmg:0,windT:dt/2});r.handle(1,{t:'dash',x:1,y:0,run:r.runLog.id,request:1,expiresAt:Date.now()+1500});r.step(dt);assert.equal(a.x,40);assert.equal(a.hp,100);assert.equal(r.hostile.length,1);assert.ok(Math.abs(r.hostile[0].x-a.x)<21,'legacy future endpoint alone is not dash eligibility');
+ const e=r.spawnEnemy('spitter',[a],1);Object.assign(e,{x:15,y:0,speed:0,dmg:0,windT:dt/2});r.handle(1,{t:'dash',x:1,y:0,run:r.runLog.id,request:1,expiresAt:Date.now()+1500});r.step(dt);assert.equal(a.x,40);assert.equal(a.hp,100);assert.equal(r.hostile.length,1);assert.equal(r.hostile[0].x,15,'main45 does not advance a shot before its birth');assert.ok(Math.abs(r.hostile[0].x-a.x)>21);
 });
 
 for (const protection of ['iframes', 'ward', 'shield']) test(`fresh fallback preserves ${protection} interception and consumes once`, () => {

@@ -29,7 +29,7 @@ for(const kind of ['shield','ward','armor'])test(`CEO55-4 accepted chronology pr
 });
 for(const near of [false,true])test(`CEO55-3 newborn spitter tests only birth position, near ${near}`,()=>{
  const{r,h}=setup();const e=r.spawnEnemy('spitter',[h],1);Object.assign(e,{x:near?40:0,y:20,speed:0,dmg:0,windT:dt/2});r.step(dt);assert.equal(h.x,40);assert.equal(h.hp<100,near);
- if(!near){assert.equal(r.hostile.length,1);assert.ok(r.hostile[0].x>0,'legacy global flight still advances; the dasher only tests birth geometry');assert.equal(r.hostile[0].bornAt,r.time);}
+ if(!near){assert.equal(r.hostile.length,1);assert.equal(r.hostile[0].x,0,'main45 newborn flight starts at birth, without a pre-birth step');assert.equal(r.hostile[0].bornAt,r.time);}
 });
 test('partial last dash tick separates travel and stationary remainder',()=>{
  const{r,h}=setup();h.dash.left=dt/2;shot(r,20,9,{y:30,vy:-1200});r.step(dt);assert.equal(h.x,20);assert.equal(h.dash,null);assert.equal(h.hp,91);
@@ -40,8 +40,8 @@ test('positive partial shot life can hit before expiry; cannot collide after exp
 test('zero lifetime shot cannot deal damage at birth or on swept path',()=>{
  const{r,h}=setup();shot(r,20,99,{life:0});shot(r,40,99,{life:0,bornAt:dt});r.step(dt);assert.equal(h.hp,100);assert.equal(r.hostile.length,0);
 });
-test('ordinary frame retains endpoint-only hostile semantics',()=>{
- const{r,h}=setup('witch',false);shot(r,-50,9,{vx:3000});r.step(dt);assert.equal(h.hp,100);assert.equal(r.hostile.length,1);
+test('main45 ordinary frame retains swept hostile semantics',()=>{
+ const{r,h}=setup('witch',false);shot(r,-50,9,{vx:3000});r.step(dt);assert.equal(h.hp,91);assert.equal(r.hostile.length,0);
 });
 test('early AI hazard retains legacy priority and fresh protection',()=>{
  const{r,h}=setup();r.moveEnemies=()=>r.hurtPlayer(h,5,'test:AI');shot(r,25,99);r.step(dt);assert.equal(h.hp,95);assert.equal(h.iframes,.4);
