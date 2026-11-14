@@ -82,6 +82,9 @@ export class Overlay {
 			p.root.style.transform = `translate(${a.x.toFixed(1)}px,${a.y.toFixed(1)}px)`;
 			p.svg.style.transform = `translate(-50%,-50%) rotate(${a.ang.toFixed(3)}rad) scale(${a.pulse.toFixed(3)})`;
 			// The label sits on the inner side of the arrow and grows away from the nearest side edge, so it is never cut off.
+			p.label.style.width = a.kind === 'caravan' ? '84px' : '';
+			p.label.style.maxWidth = a.kind === 'caravan' ? '84px' : '';
+			p.label.style.whiteSpace = a.kind === 'caravan' ? 'normal' : '';
 			const cos = Math.cos(a.ang);
 			const ax = cos > 0.35 ? '-100%' : cos < -0.35 ? '0%' : '-50%';
 			p.label.style.transform = `translate(calc(${ax} + ${(-cos * 20).toFixed(1)}px), calc(-50% + ${(-Math.sin(a.ang) * 22).toFixed(1)}px))`;
@@ -89,8 +92,7 @@ export class Overlay {
 		}
 	}
 
- // Keep the cargo direction readable when its disclosure occupies the arrow's usual edge.
- // This moves only presentation; the arrow keeps its bearing and gameplay coordinates stay untouched.
+ // Place the edge icon and its wrapping label separately. Both keep the target's hemisphere.
  avoidCaravanDisclosure(p, a) {
   const card = document.getElementById('hud-caravan');
   if (!card || card.hidden) return;
@@ -98,22 +100,32 @@ export class Overlay {
   const key = `${innerWidth}:${innerHeight}:${card.open}:${joy?.hidden}:${panel?.hidden}`;
   const now = performance.now();
   if (!this.objectiveObstacles || this.objectiveObstacles.key !== key || now - this.objectiveObstacles.at > 500) {
-   const nodes = [card, document.querySelector('.hud-top'), document.getElementById('snd'), panel, joy, this.mm];
-   const boxes = nodes.filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width && r.height);
-   this.objectiveObstacles = { key, at: now, boxes };
+   const nodes = [card, ...document.querySelectorAll('.hud-hp, .hud-icon, #hud-time, #hud-mode, #hud-peak, #hud-event, #hud-outposts, .hud-kills, #hud-allies, #hud-pause, #hud-boss'), document.getElementById('snd'), panel, joy, this.mm];
+   this.objectiveObstacles = { key, at: now, boxes: nodes.filter(e => e && !e.hidden)
+    .map(e => e.getBoundingClientRect()).filter(r => r.width && r.height) };
   }
-  const icons = [p.svg.getBoundingClientRect(), p.label.getBoundingClientRect()];
-  const bounds = { left: Math.min(...icons.map(r=>r.left)), right: Math.max(...icons.map(r=>r.right)), top: Math.min(...icons.map(r=>r.top)), bottom: Math.max(...icons.map(r=>r.bottom)) };
-  const relative = { left: bounds.left-a.x, right: bounds.right-a.x, top: bounds.top-a.y, bottom: bounds.bottom-a.y };
-  const boxes = this.objectiveObstacles.boxes, gap = 8;
-  const valid = (x,y) => x+relative.left >= gap && x+relative.right <= innerWidth-gap && y+relative.top >= gap && y+relative.bottom <= innerHeight-gap
-   && boxes.every(b=>x+relative.right <= b.left-gap || x+relative.left >= b.right+gap || y+relative.bottom <= b.top-gap || y+relative.top >= b.bottom+gap);
-  if (valid(a.x,a.y)) return;
-  const xs=[a.x,gap-relative.left,innerWidth-gap-relative.right], ys=[a.y,gap-relative.top,innerHeight-gap-relative.bottom];
-  for(const b of boxes){xs.push(b.left-gap-relative.right,b.right+gap-relative.left);ys.push(b.top-gap-relative.bottom,b.bottom+gap-relative.top);}
-  let best=null, distance=Infinity;
-  for(const x of xs)for(const y of ys){const d=(x-a.x)**2+(y-a.y)**2;if(d<distance&&valid(x,y)){best={x,y};distance=d;}}
-  if(best)p.root.style.transform=`translate(${best.x.toFixed(1)}px,${best.y.toFixed(1)}px)`;
+  const boxes = this.objectiveObstacles.boxes, gap = 6, cx = innerWidth / 2, cy = innerHeight / 2;
+  const dx = Math.cos(a.ang), dy = Math.sin(a.ang);
+  const sameSide = (x,y) => (Math.abs(dx) < .1 || (x-cx)*dx > 0) && (Math.abs(dy) < .1 || (y-cy)*dy > 0);
+  const place = (rect, extra = []) => {
+   const width = rect.width, height = rect.height;
+   const valid = (x,y) => x >= gap && y >= gap && x+width <= innerWidth-gap && y+height <= innerHeight-gap
+    && sameSide(x+width/2,y+height/2)
+    && [...boxes,...extra].every(b => x+width <= b.left-gap || x >= b.right+gap || y+height <= b.top-gap || y >= b.bottom+gap);
+   const xs = [rect.left,gap,innerWidth-gap-width], ys = [rect.top,gap,innerHeight-gap-height];
+   for(const b of [...boxes,...extra]){xs.push(b.left-gap-width,b.right+gap);ys.push(b.top-gap-height,b.bottom+gap);}
+   let best = null, distance = Infinity;
+   for(const x of xs)for(const y of ys){const d=(x-rect.left)**2+(y-rect.top)**2;if(d<distance&&valid(x,y)){best={x,y,left:x,right:x+width,top:y,bottom:y+height};distance=d;}}
+   return best;
+  };
+  const icon = p.svg.getBoundingClientRect(), iconPlace = place(icon);
+  let moveX = 0, moveY = 0;
+  if(iconPlace){moveX=iconPlace.x-icon.left;moveY=iconPlace.y-icon.top;p.root.style.transform=`translate(${(a.x+moveX).toFixed(1)}px,${(a.y+moveY).toFixed(1)}px)`;}
+  const label = p.label.getBoundingClientRect(), labelPlace = place(label,iconPlace?[iconPlace]:[icon]);
+  if(labelPlace){
+   // The root has moved with the icon; convert the independently placed label back into root coordinates.
+   p.label.style.transform=`translate(${(labelPlace.x-a.x-moveX).toFixed(1)}px,${(labelPlace.y-a.y-moveY).toFixed(1)}px)`;
+  }
  }
 
 }
