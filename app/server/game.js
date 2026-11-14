@@ -23,7 +23,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
-import { projectControlPoint, controlPointDiffers, controlScale as observedControlScale, lockDelivered } from './control-observation.js';
+import { projectControlPoint, projectControlSeparation, controlPointDiffers, controlScale as observedControlScale, lockDelivered } from './control-observation.js';
 import { newSupport, supportStats, healSupport, controlTick, timedControl, resolveControl } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
@@ -1802,7 +1802,7 @@ export class Room {
 		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
-			let controlMotion = null;
+			let controlMotion = null, controlPlainEnd = null, controlRandomOverlap = false;
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
@@ -1842,7 +1842,7 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
-					if (lockDelivered(e, best, alive, now, dt, speedMul * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1))) controlTick(e, now, dt, 'lock');
+					if (lockDelivered(e, best, alive, now, dt, speedMul * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1), this.grid, e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS)) controlTick(e, now, dt, 'lock');
 					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
 					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
 					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
@@ -1921,12 +1921,13 @@ export class Room {
 				const step = Math.min(speed * dt, maxStep);
 				if (controlScale < 1) {
 					const plainStep = Math.min(speed / controlScale * dt, maxStep);
-					if (step < plainStep) controlMotion = [dx * (plainStep - step), dy * (plainStep - step)];
+					if (step < plainStep) controlMotion = [e.x + dx * plainStep, e.y + dy * plainStep];
 				}
 				e.x += dx * step;
 				e.y += dy * step;
 
 				this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
+				if (controlMotion) controlPlainEnd = projectControlSeparation(this.grid, e, controlMotion[0], controlMotion[1], e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS);
 				let checked = 0;
 				for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
 					const o = near[i];
@@ -1937,6 +1938,7 @@ export class Room {
 					if (dd >= min * min) continue;
 					checked++;
 					if (dd < 0.0001) {
+						controlRandomOverlap = true;
 						e.x += (Math.random() - 0.5) * 2;
 						continue;
 					}
@@ -1947,10 +1949,10 @@ export class Room {
 					e.y += (oy / l) * push * 0.5;
 				}
 			} finally {
-				// Keep the observed separation displacement; do not replay collision/AI/RNG.
-				const plainEnd = controlMotion && projectControlPoint(e, e.x + controlMotion[0], e.y + controlMotion[1]);
+				// Compare independently projected separation, never the slowed displacement.
+				// Random-overlap frames have no identifiable deterministic counterfactual.
 				confineGuard(e);
-				if (plainEnd && controlPointDiffers(e.x, e.y, plainEnd)) controlTick(e, now, dt, 'movement');
+				if (controlPlainEnd && !controlRandomOverlap && controlPointDiffers(e.x, e.y, controlPlainEnd)) controlTick(e, now, dt, 'movement');
 			}
 		}
 	}
