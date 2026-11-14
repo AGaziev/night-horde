@@ -2289,10 +2289,13 @@ export class Room {
 		for (const h of this.heroes.values()) {
 			if (h.st !== 0 || !h.dashPath) continue;
 			for (const e of this.enemies) {
-				if (e.dead || e.outpost && e.guardReadyAt > now) continue;
+				if (e.dead || e.born > now || e.outpost && e.guardReadyAt > now) continue;
 				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null, radius = e.r + PLAYER_RADIUS;
+				// AI can create a body at the frame endpoint (Twin halves, summons). It has no earlier path.
+				const from = Math.min(dt,Math.max(0,(e.born ?? frameStart)-frameStart)), fraction = dt>0 ? from/dt : 1;
+				const sx = motion ? motion.x+(e.x-motion.x)*fraction : e.x, sy = motion ? motion.y+(e.y-motion.y)*fraction : e.y;
 				const at = motion?.warped ? (dist2(e.x,e.y,h.x,h.y) < radius ** 2 ? dt : null)
-					: dashContactTime(h,motion?.x ?? e.x,motion?.y ?? e.y,e.x,e.y,dt,radius);
+					: dashContactTime(h,sx,sy,e.x,e.y,dt,radius,from,dt);
 				if (at !== null) events.push({at:frameStart+at,h,e,id:e.id,kind:0});
 			}
 		}
@@ -2342,11 +2345,11 @@ export class Room {
 			if (this.dashContactChanged.size) {
 				for (const changed of this.dashContactChanged) {
 					for(let i=events.length-1;i>=0;i--) if(events[i].e===changed) events.splice(i,1);
-					if (changed.dead || changed.outpost && changed.guardReadyAt > now) continue;
+					if (changed.dead || changed.born > now || changed.outpost && changed.guardReadyAt > now) continue;
 					for (const hero of this.heroes.values()) {
 						if (hero.st !== 0 || !hero.dashPath) continue;
 						const entry = dashContactTime(hero,changed.x,changed.y,changed.x,changed.y,dt,
-							changed.r+PLAYER_RADIUS,Math.max(0,at-frameStart),dt);
+							changed.r+PLAYER_RADIUS,Math.min(dt,Math.max(0,at-frameStart,(changed.born ?? frameStart)-frameStart)),dt);
 						if (entry !== null) events.push({at:frameStart+entry,h:hero,e:changed,id:changed.id,kind:0});
 					}
 				}
