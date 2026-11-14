@@ -66,3 +66,20 @@ test('Swarmv2: only ordinary and peak-ring creations enter a cumulative end-reso
  assert.equal(r.daily.mods.xp, undefined);
  assert.equal(r.swarm.cohorts.length, 2);
 });
+
+test('CEO54-r12: one UTC contract snapshot survives midnight between direct-start clock reads', () => {
+ const original=Date.now, before=Date.UTC(2026,10,13,23,59,59,999), after=before+1;
+ try {
+  Date.now=()=>before;const r=new Room('UTC',()=>{});r.addPlayer(1,'P','witch');r.handle(1,{t:'daily',enabled:true});const shown=r.dailyPreview.day;
+  let reads=0;Date.now=()=>++reads===1?before:after;r.start();assert.equal(r.state,'play');assert.equal(r.daily.day,shown,'lock must reuse the contract just checked');
+ }finally{Date.now=original;}
+});
+test('CEO54-r12: countdown shares midnight refresh/readiness gate, then freezes its checked contract', async () => {
+ const {Hub}=await import('./game.js');const original=Date.now,before=Date.UTC(2026,10,13,23,59,59,999),after=before+1;
+ try {
+  Date.now=()=>before;const hub=new Hub(()=>{});hub.addPlayer(1,'P');hub.handle(1,{t:'create',hero:'witch'});const r=hub.players.get(1).room;r.handle(1,{t:'daily',enabled:true});r.members.get(1).ready=true;
+  Date.now=()=>after;assert.equal(hub.scheduleStart(r,1,after+60000),false);assert.equal(r.startsAt,null);assert.equal(r.members.get(1).ready,false);assert.equal(r.dailyPreview.day,dailyFor(after).day);
+  let reads=0;Date.now=()=>++reads===1?after:after+86400000;assert.equal(hub.scheduleStart(r,1,after+60000),true);assert.equal(r.daily.day,dailyFor(after).day);
+  r.start();assert.equal(r.daily.day,dailyFor(after).day,'countdown lock never changes at start');
+ }finally{Date.now=original;}
+});

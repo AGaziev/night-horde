@@ -596,8 +596,24 @@ export class Room {
 		return true;
 	}
 
-	lockDaily(now = Date.now()) {
-		this.daily = this.dailySelected ? Object.freeze({ ...(this.daily ?? dailyFor(now)), mode: this.mode }) : null;
+	lockDaily(now = Date.now(), contract = this.daily ?? dailyFor(now)) {
+		this.daily = this.dailySelected ? Object.freeze({ ...contract, mode: this.mode }) : null;
+	}
+
+	// Compare and lock the same UTC snapshot for direct and scheduled starts.
+	prepareDaily(now = Date.now()) {
+		if (this.dailySelected && !this.daily) {
+			const next = dailyFor(now);
+			if (next.day !== this.dailyPreview.day || next.version !== this.dailyPreview.version) {
+				this.dailyPreview = next;
+				for (const member of this.members.values()) member.ready = false;
+				this.sendLobby();
+				this.send(this.host, { t: 'err', msg: 'Условия дня изменились. Проверьте их и начните заново' });
+				return false;
+			}
+			this.lockDaily(now, next);
+		} else if (!this.dailySelected) this.daily = null;
+		return true;
 	}
 
 	start() {
@@ -606,17 +622,7 @@ export class Room {
 			this.send(this.host, { t: 'err', msg: 'Перед испытанием дня всем игрокам нужно обновить страницу' });
 			return false;
 		}
-		if (this.dailySelected && !this.daily && this.startsAt === null) {
-			const next = dailyFor();
-			if (next.day !== this.dailyPreview.day || next.version !== this.dailyPreview.version) {
-				this.dailyPreview = next;
-				for (const member of this.members.values()) member.ready = false;
-				this.sendLobby();
-				this.send(this.host, { t: 'err', msg: 'Условия дня изменились. Проверьте их и начните заново' });
-				return false;
-			}
-		}
-		this.lockDaily();
+		if (!this.prepareDaily()) return false;
 		if (this.daily) this.daily = Object.freeze({ ...this.daily, players: this.members.size });
 		this.startsAt = null;
 		this.resetSim();
@@ -5563,7 +5569,7 @@ export class Hub {
 
 	scheduleStart(room, pid, startsAt) {
 		if (this.hostLobby(pid, room.code) !== room || room.startsAt !== null) return false;
-		room.lockDaily();
+		if (!room.prepareDaily()) return false;
 		room.startsAt = startsAt;
 		room.sendLobby();
 		return true;
