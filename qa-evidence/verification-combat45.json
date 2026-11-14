@@ -1,0 +1,56 @@
+[
+  {
+    "archive": "historical-balance.tar.gz",
+    "sha256": "58605b9aa851920f5635df12b29fad39fda6a1ee8463188be912ed2a22d8218e",
+    "files": 17566,
+    "status": "PASS"
+  },
+  {
+    "archive": "historical-strength.tar.gz",
+    "sha256": "a5ed3892faa75f0fe4bd3cf9fd700c39de2a7d629c4d7920d0a32009d987d982",
+    "files": 570,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-code-ui-closure.tar.gz",
+    "sha256": "dda47ce58ca1b37b612f36e8cab2391bc90bd882136777d06553a381cec86bda",
+    "files": 8628,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-combat-31-21.tar.gz",
+    "sha256": "835327f32103d65bbd272f912728d17bde50926b215a72c159262aa8a04250aa",
+    "files": 10639,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-combat-45-complete.tar.gz",
+    "sha256": "8504995a1afdedac6f21dd76d856d51ad2a163fd1921a53c57e6f09020d7aea2",
+    "files": 5428,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-daily-v2-complete.tar.gz",
+    "sha256": "2587d02591e6cba797dcb47096df289024eece618995ddd7afbd388ddb9da0a4",
+    "files": 18496,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-platform-final.tar.gz",
+    "sha256": "34ad61f391aea633f6667ce7d2a1c1d32a8248c71f63d99e00697321db51d622",
+    "files": 125,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-prereview.tar.gz",
+    "sha256": "f8b080ece4617ef285475196b09ae602d94e8b483c376890a1d629df66dcc6ba",
+    "files": 11284,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-strength-closure.tar.gz",
+    "sha256": "e8b7370dba74331e3c8d28caeaa0b529097816f97008681e2fef45f08b4a2db1",
+    "files": 1419,
+    "status": "PASS"
+  }
+]
