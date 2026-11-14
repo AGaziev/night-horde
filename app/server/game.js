@@ -643,6 +643,7 @@ export class Room {
 			}
 			if (this.fin) [h.x, h.y] = clampToRing(h.x, h.y, this.fin.cx, this.fin.cy, this.fin.r - PLAYER_RADIUS);
 			h.lastPosT = this.time;
+			if (Number.isSafeInteger(msg.seq) && msg.seq > 0) h.posAck = msg.seq;
 		}
 		const fx = num(msg.fx), fy = num(msg.fy);
 		if (fx !== null && fy !== null) {
@@ -5338,7 +5339,8 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
+			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it,
+			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};
