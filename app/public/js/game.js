@@ -82,6 +82,9 @@ export class Game {
 		this.lobs = new Map(); // petard id -> {x0, y0, x1, y1, st, fuse}
 		this.warns = [];
 		this.blines = []; // boss charge lanes {x1, y1, x2, y2, w, t, life}
+		this.teleWait = []; // telegraphs of a snapshot the telegraph clock has not reached yet: [list, item]
+		this.teleTm = null; // telegraph clock this frame (teleClock)
+		this.fxTm = null; // server time of the snapshot whose effects are being applied
 		this.broken = new Set(); // broken prop tiles, key tx * 100003 + ty
 		this.eliteAffix = new Map(); // enemy id -> index in ELITE_AFFIXES
 		this.orbs = new Map(); // ball lightning id -> {x0, y0, x1, y1, speed, st, life, r}
@@ -130,8 +133,7 @@ export class Game {
 		this.dawnPending = null;
 		this.hostile.clear();
 		this.lobs.clear();
-		this.warns.length = 0;
-		this.blines.length = 0;
+		this.clearTelegraphs();
 		this.broken.clear();
 		this.eliteAffix.clear();
 		this.orbs.clear();
@@ -183,6 +185,7 @@ export class Game {
 		this.clockRef = null;
 		this.renderTm = null;
 		this.lastNow = 0;
+		this.teleTm = null;
 	}
 
 	stop() {
@@ -288,6 +291,7 @@ export class Game {
 			this.shots.clear();
 			this.hostile.clear();
 			this.lobs.clear();
+			this.clearTelegraphs();
 		}
 		const prevTm = this.snaps.length ? this.snaps[this.snaps.length - 1].tm : null;
 		if (prevTm !== null && tm <= prevTm) {
@@ -330,7 +334,20 @@ export class Game {
 		snap.bIdx = indexFlat(snap.b, 5);
 		snap.gIdx = indexFlat(snap.g, 4);
 		this.snaps.push(snap);
-		if (this.snaps.length > MAX_SNAPS) this.snaps.shift();
+		if (this.snaps.length > MAX_SNAPS) {
+			// Frames stopped (a hidden tab): a snapshot leaves unplayed, but its warnings may still be under way.
+			const old = this.snaps.shift();
+			if (!old.applied) {
+				this.fxTm = old.tm;
+				for (const ev of old.fx) if (Array.isArray(ev)) this.telegraphEvent(ev);
+				this.fxTm = null;
+			}
+		}
+		// Warnings over by the render clock are never shown: without frames they would pile up.
+		if (this.teleWait.length) {
+			const over = this.teleNow();
+			compact(this.teleWait, ([, item]) => item.born + item.life > over);
+		}
 
 		this.trackClock(now - tm, prevTm === null ? null : tm - prevTm);
 
@@ -396,6 +413,7 @@ export class Game {
 			this.dawnPending = null;
 		}
 		this.updateView(now);
+		this.teleTm = this.teleClock();
 		this.applyEffects();
 		this.advanceShots();
 		this.advanceHostile();
@@ -669,8 +687,52 @@ export class Game {
 			// Effects play when the render clock reaches their snapshot; never lag more than two snapshots.
 			if (s.applied || (s.tm > rt + 0.001 && i >= n - 2)) continue;
 			s.applied = true;
+			this.fxTm = s.tm;
 			for (const ev of s.fx) if (Array.isArray(ev)) this.effect(ev);
+			this.fxTm = null;
 		}
+	}
+
+	// Server time the telegraphs count in: the render clock, but never past the newest snapshot. A telegraph's age is
+	// this clock minus its snapshot's time, so it stands still while the server is paused (also when the pause starts
+	// and ends between two frames), keeps pace at any frame rate and is right on the first frame after frames stop.
+	teleClock() {
+		const last = this.latest();
+		return last && this.renderTm !== null ? Math.min(this.renderTm, last.tm) : null;
+	}
+
+	// Where the telegraph clock is now, also between frames: the render clock's target, never past the newest snapshot.
+	teleNow() {
+		const tm = this.latest()?.tm ?? 0;
+		return this.clockRef === null ? tm : Math.min(tm, performance.now() / 1000 - this.clockRef);
+	}
+
+	// Warnings of a snapshot are as old as its server time says; they wait while the telegraph clock is not there yet
+	// (or not set: no frame since the run began). Without a snapshot they start fresh.
+	addTelegraph(list, item) {
+		if (this.fxTm !== null) {
+			item.born = this.fxTm;
+			// Over by the newest snapshot (frames stopped for long): never shown, not kept either.
+			if (item.born + item.life <= this.teleNow()) return;
+			if (this.teleTm === null || this.teleTm < item.born) {
+				this.teleWait.push([list, item]);
+				return;
+			}
+			item.t = this.teleTm - item.born;
+			if (item.t >= item.life) return;
+		}
+		list.push(item);
+	}
+
+	telegraphEvent(ev) {
+		if (ev[0] === 'bline') this.addTelegraph(this.blines, { x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
+		else if (ev[0] === 'warn') this.addTelegraph(this.warns, { x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+	}
+
+	clearTelegraphs() {
+		this.warns.length = 0;
+		this.blines.length = 0;
+		this.teleWait.length = 0;
 	}
 
 	effect(ev) {
@@ -747,10 +809,8 @@ export class Game {
 				break;
 			}
 			case 'bline':
-				this.blines.push({ x1: +ev[1], y1: +ev[2], x2: +ev[3], y2: +ev[4], w: +ev[5] || 60, t: 0, life: Math.max(0.1, +ev[6] || 0.8) });
-				break;
 			case 'warn':
-				this.warns.push({ x: +ev[1], y: +ev[2], r: +ev[3] || 60, t: 0, life: Math.max(0.1, +ev[4] || 0.5) });
+				this.telegraphEvent(ev);
 				break;
 			case 'frost': {
 				// v28: a wave at a point (Ледяные силки: ['frost', pid, r, x, y]) instead of around the hero.
@@ -1002,10 +1062,13 @@ export class Game {
 		compact(this.slashes, (s) => (s.t += dt) < 0.22);
 		compact(this.rings, (r) => (r.t += dt) < r.life);
 		compact(this.coldWaves, (w) => (w.t += dt) < w.life);
-		// Telegraphs count down the server's windups, and the server stands still while paused.
-		const tdt = this.frozen ? 0 : dt;
-		compact(this.warns, (w) => (w.t += tdt) < w.life);
-		compact(this.blines, (l) => (l.t += tdt) < l.life);
+		// Telegraphs count down the server's windups on the telegraph clock (teleClock); those added without it count
+		// frame time, and the server stands still while paused.
+		const tc = this.teleTm, tdt = this.frozen ? 0 : dt;
+		if (tc !== null) compact(this.teleWait, ([list, item]) => tc < item.born || void list.push(item));
+		const age = (w) => (w.born === undefined ? (w.t += tdt) : (w.t = tc === null ? w.t : Math.max(0, tc - w.born))) < w.life;
+		compact(this.warns, age);
+		compact(this.blines, age);
 		compact(this.iceTrail, (p) => (p.t += dt) < ICE_TRAIL_LIFE);
 		compact(this.tslashes, (s) => (s.t += dt) < 0.32);
 		compact(this.fans, (f) => (f.t += dt) < 0.45);

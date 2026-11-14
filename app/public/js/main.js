@@ -446,7 +446,11 @@ input.onDigit = pick;
 
 function reroll() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
-	if (game.reroll()) sound.card('reroll');
+	if (game.reroll()) {
+		sound.card('reroll');
+		// Pressing reroll leaves «Изгнать»; the cards change only when the server confirms the reroll (`lvl.rerolled`).
+		ui.setBanMode(false);
+	}
 }
 function skip() {
 	if (ui.screen !== 'game' || ui.levelup.hidden) return;
