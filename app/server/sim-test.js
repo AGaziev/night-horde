@@ -2035,7 +2035,7 @@ console.log('over/again/leave: ok');
 		// Buildcraft calibration applies in both modes, with the fourth value shared by larger groups.
 		for (const [mode, { hp, dmg }] of Object.entries({
 			night: { hp: [1.8, 1.8, 2.16, 2.25], dmg: [0.75, 0.54, 0.48, 0.48] },
-			lunch: { hp: [1.9, 1.8, 2.16, 2.16], dmg: [0.75, 0.54, 0.45, 0.48] },
+			lunch: { hp: [1.9, 1.8, 2.16, 2.16], dmg: [0.75, 0.54, 0.45, 0.54] },
 		})) {
 			for (const players of [1, 2, 3, 4, 8]) {
 				const expected = hp[Math.min(players, 4) - 1];
