@@ -420,6 +420,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 	left: 50%; bottom: max(30px, calc(env(safe-area-inset-bottom) + 24px)); /* above the net indicator */
 	transform: translateX(-50%);
 	width: min(760px, calc(100vw - 16px));
+	/* Keep tall offers below health and the running coop clock at every viewport height. */
+	max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain;
 	z-index: 8;
 	animation: rise 0.2s ease-out;
 }
@@ -930,4 +932,3 @@ input[type="text"]:focus { border-color: var(--accent); }
 body:has(#levelup:not([hidden])) .hud-challenge { position: fixed; left: 88px; right: 8px; bottom: 3px; }
 body:has(#levelup:not([hidden])) #hud-daily { display: none; }
 body:has(#hud-swarm:not([hidden])) #levelup { bottom: max(54px, calc(env(safe-area-inset-bottom) + 48px)); }
-@media (max-height: 420px) { .levelup { max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain; } }
