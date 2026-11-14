@@ -2321,7 +2321,7 @@ export class Room {
 		for (const {s,h,at} of events) {
 			if (impacts.has(s) || h.st !== 0) continue;
 			impacts.set(s, at); // Protection consumes a projectile, just as endpoint contact did.
-			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
+			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from, at));
 		}
 		let j = 0;
 		for (const s of this.hostile) {
@@ -3052,9 +3052,10 @@ export class Room {
 	healSupport(owner, target, amount, field = false) { return healSupport(this, owner, target, amount, field); }
 
 
-	hurtPlayer(h, dmg, from = 'other') {
-		// AI hazards can hit before updatePlayers; expire temporary support here too.
-		if (h.sharedWard?.until <= this.time) h.sharedWard = null;
+	hurtPlayer(h, dmg, from = 'other', contactAt = this.time) {
+		// Swept contacts use their entry time; ordinary/early AI hazards use this.time.
+		// Only gift eligibility uses contactAt: do not rewind the room or other perks.
+		if (h.sharedWard?.until <= contactAt) h.sharedWard = null;
 		const prevented = Math.min(h.hp, Math.max(1, dmg * (h.altarCurseT > this.time ? ALTAR_DEALS[1].takenMul : 1) * h.trait.dmgTaken - h.mods.armor - h.guard));
 		if (h.ward > 0 || h.sharedWard) {
 			(h.sharedWard?.owner ?? h).support.blocked += prevented;
