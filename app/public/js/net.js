@@ -246,6 +246,11 @@ export class Net {
 		}
 	}
 
+	// A timed-out dash must not remain behind an in-flight SSE position POST.
+	cancelDash(run, request) {
+		this.outbox = this.outbox.filter(m => m.t !== 'dash' || m.run !== run || m.request !== request);
+	}
+
 	// POSTs are chained so messages keep their order; whatever queues meanwhile goes as one batch.
 	async flush() {
 		if (this.posting || !this.outbox.length) return;

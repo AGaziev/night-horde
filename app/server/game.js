@@ -395,7 +395,8 @@ export class Room {
 	startMsg() {
 		return {
 			t: 'start', mode: this.mode, len: this.runLength, paused: this.frozen, menu: this.paused,
-			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y) })),
+			mobilityRun: this.runLog?.id, serverNow: Date.now(),
+			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y), fx: h.fx, fy: h.fy, dashRequest: h.dashRequest ?? 0 })),
 			broken: this.brokenList ?? [],
 		};
 	}

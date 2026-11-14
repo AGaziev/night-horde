@@ -110,6 +110,7 @@ export class Game {
 	}
 
 	reset() {
+		this.cancelDash();
 		this.moveEpoch = 0;
 		this.dashReadyAt = 0;
 		this.dashSyncAt = 0;
@@ -161,6 +162,9 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.mobilityRun = msg.mobilityRun;
+		this.serverOffset = Number.isFinite(msg.serverNow) ? msg.serverNow - Date.now() : 0;
+		this.dashRequest = 0;
 		this.running = true;
 		this.frozen = msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
@@ -176,10 +180,11 @@ export class Game {
 				color: p.color || PLAYER_COLORS[i % PLAYER_COLORS.length],
 			});
 			if (p.pid === this.me) {
+				this.dashRequest = p.dashRequest ?? 0;
 				this.local.x = +p.x || 0;
 				this.local.y = +p.y || 0;
-				this.local.fx = 1;
-				this.local.fy = 0;
+				this.local.fx = Number.isFinite(p.fx) ? p.fx : 1;
+				this.local.fy = Number.isFinite(p.fy) ? p.fy : 0;
 			}
 		});
 	}
@@ -194,6 +199,7 @@ export class Game {
 	}
 
 	stop() {
+		this.cancelDash();
 		this.running = false;
 		this.offer = null;
 		this.frozen = false;
@@ -362,13 +368,17 @@ export class Game {
 		const staleDash = mobility && mobility[1] < (this.moveEpoch ?? 0);
 		if (mobility && !staleDash) {
 			this.dashReadyAt = mobility[2];
-			if (mobility[1] > (this.moveEpoch ?? 0) && !this.dashWaiting && !this.dashTravel) {
+			if (mine && (mobility[1] > (this.moveEpoch ?? 0) || this.dashTravel && mobility[1] === this.moveEpoch)) {
 				this.moveEpoch = mobility[1];
-				if (mine) { this.local.x = mine[P.x]; this.local.y = mine[P.y]; }
+				this.cancelDash();
+				this.local.x = mine[P.x]; this.local.y = mine[P.y];
+				this.dashSyncAt = mobility[2] - DASH.cooldown + DASH.duration;
+				const left = Math.min(DASH.duration, Math.max(0, this.dashSyncAt - tm));
+				this.dashTravel = left > 1e-8 ? { x: mine[P.fx] ?? this.local.fx, y: mine[P.fy] ?? this.local.fy, left } : null;
 			}
 		}
 		if (mine && !staleDash && (mine[P.st] === 1 || snap.tm >= this.dashSyncAt)) {
-			if (mine[P.st] === 1) { this.dashTravel = null; this.dashWaiting = 0; }
+			if (mine[P.st] === 1) { this.dashTravel = null; this.cancelDash(); }
 			const sx = +mine[P.x], sy = +mine[P.y];
 			if (mine[P.st] === 1 || Math.hypot(sx - this.local.x, sy - this.local.y) > RECONCILE_DIST) {
 				this.local.x = sx;
@@ -424,31 +434,41 @@ export class Game {
 	}
 
 	requestDash(input) {
-		if (!this.running || this.frozen || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0) return false;
+		if (!this.running || !this.mobilityRun || this.frozen || this.offer || !this.isAlive() || this.dashWaiting || this.dashTravel || this.dashRemaining() > 0) return false;
 		const v = input.vector(), len = Math.hypot(v.x, v.y);
 		const x = len ? v.x / len : this.local.fx, y = len ? v.y / len : this.local.fy;
 		this.dashWaiting = performance.now() + 1500;
-		this.net.send({ t: 'dash', x, y });
+		this.pendingDash = ++this.dashRequest;
+		this.net.send({ t: 'dash', x, y, run: this.mobilityRun, request: this.pendingDash, expiresAt: Date.now() + this.serverOffset + 1500 });
 		return true;
 	}
 
-	acceptDash(msg) {
-		if (!this.running) return;
+	cancelDash() {
+		if (this.pendingDash) this.net.cancelDash?.(this.mobilityRun, this.pendingDash);
+		this.pendingDash = 0;
 		this.dashWaiting = 0;
+	}
+
+	acceptDash(msg) {
+		if (!this.running || !this.pendingDash || msg.run !== this.mobilityRun || msg.request !== this.pendingDash) return;
+		if (performance.now() > this.dashWaiting) { this.cancelDash(); return; }
+		this.cancelDash();
 		if (!Number.isInteger(msg.epoch) || msg.epoch < (this.moveEpoch ?? 0)) return;
 		this.moveEpoch = msg.epoch;
 		if (!msg.ok) return;
 		if (![msg.x, msg.y, msg.dx, msg.dy, msg.readyAt].every(Number.isFinite)) return;
-		this.local.x = msg.x; this.local.y = msg.y;
+		const elapsed = Number.isFinite(msg.serverNow) ? Math.max(0, Math.min(DASH.duration, (Date.now() + this.serverOffset - msg.serverNow) / 1000)) : 0;
+		this.local.x = msg.x + msg.dx * DASH.distance * elapsed / DASH.duration;
+		this.local.y = msg.y + msg.dy * DASH.distance * elapsed / DASH.duration;
 		this.local.fx = msg.dx; this.local.fy = msg.dy;
-		this.dashTravel = { x: msg.dx, y: msg.dy, left: DASH.duration };
+		this.dashTravel = elapsed < DASH.duration ? { x: msg.dx, y: msg.dy, left: DASH.duration - elapsed } : null;
 		this.dashReadyAt = msg.readyAt;
 		this.dashSyncAt = msg.readyAt - DASH.cooldown + DASH.duration;
 	}
 
 	update(dt, input) {
 		const now = performance.now() / 1000;
-		if (this.dashWaiting && now * 1000 >= this.dashWaiting) this.dashWaiting = 0;
+		if (this.dashWaiting && now * 1000 >= this.dashWaiting) this.cancelDash();
 		// Freeze frame on the Lord's last hit: the field stands still, then the dawn burn starts.
 		if (this.hold > 0) {
 			this.hold -= dt;

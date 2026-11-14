@@ -17,7 +17,7 @@ function setup({ type = 'ram', x, y, dx = 0, dy = 0, dash = true, speed, partial
 	Object.assign(enemy, { x, y, bs: 'dash', bt: ENEMIES.ram.dashTime, bvx: dx, bvy: dy, immuneT: 0, frozenT: 0, rootT: 0 });
 	if (speed !== undefined) enemy.def = { ...enemy.def, dashSpeed: speed };
 	if (dash) {
-		room.handle(1, { t: 'dash', x: 1, y: 0 });
+		room.handle(1, { t: 'dash', x: 1, y: 0, run: room.runLog.id, request: 1, expiresAt: Date.now() + 1500 });
 		if (partial) hero.dash.left = dt / 2;
 	}
 	return { room, hero, enemy };
