@@ -229,5 +229,5 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 	const current = Object.create(Net.prototype); current.emit = () => emitted++; current.dispatch(welcome);
 	assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
 	delete globalThis.sessionStorage; delete globalThis.location;
-	console.log('PROTO 25: a page opened before the fix reloads on the welcome, the current one goes on: OK');
+	console.log('PROTO 28: a page opened before the telegraph fix reloads on the welcome, the current one goes on: OK');
 }
