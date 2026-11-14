@@ -1,0 +1,2868 @@
+{
+  "name": "historical-strength",
+  "inputs": [
+    "review/strength-31",
+    "review/ablation-41-boss-slow"
+  ],
+  "primaryBytesPreserved": true,
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "excludedFileKinds": {
+    ".tar": 3,
+    ".png": 141,
+    "no-suffix": 1,
+    ".jpg": 36
+  },
+  "sourceReconstruction": "Use the public Git commit recorded by each source manifest; output-only source variants are included. Binary assets, original source .tar duplicates and node_modules are omitted.",
+  "files": [
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/controller-finished-6762.json",
+      "bytes": 76,
+      "sha256": "cf8da35a16b291f55de605c3e551defa361afa27bbe83760f773fc92855890b0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/patch.diff",
+      "bytes": 386,
+      "sha256": "585533a101a23e57b7454fbbc611c3c1d25fbf8c5482faaf6e8cad0884656243"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/plan.json",
+      "bytes": 20962,
+      "sha256": "0ded08c8dcedc0b521882dbc1f2a8f55cc869d9e512b7375a58a3f61ac4b6440"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i00.json",
+      "bytes": 8378,
+      "sha256": "5eba741c134d0ebce908c133b840b747c1fb85f49706bb306dfabcb6d53b380a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i00.meta.json",
+      "bytes": 2151,
+      "sha256": "88177e7a22a0178ef48f5df881b622fd9f33363e82b4b597becf16891a378170"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i00.start.json",
+      "bytes": 1443,
+      "sha256": "16d6f7434f3f534e797a5d00f94330d8147016043d33e2a8ec196ae8a4da8b91"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i00.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i01.json",
+      "bytes": 10238,
+      "sha256": "3de5c90dd39a110055f3326e43e8d10cc58113aa83bc691df0fc0400b933691e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i01.meta.json",
+      "bytes": 2156,
+      "sha256": "df4d7c21356ba52d963efe100251275ab1dce5796105799251ef0a281ca45eb0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i01.start.json",
+      "bytes": 1442,
+      "sha256": "4afa347b19801d0e62f862aeadd0f4197e5e9ed3ef03f3272e5eb14b38d0c765"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i01.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i02.json",
+      "bytes": 17944,
+      "sha256": "509202f6bb7452657a9a5a399f60b397003c1127c8702b9df59a769aefac03b9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i02.meta.json",
+      "bytes": 2150,
+      "sha256": "60ff35fc1ff3a852d492fcda6770131b5ab980fa81d791981c2daeb874ff385a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i02.start.json",
+      "bytes": 1443,
+      "sha256": "f13ab8339bfab4269e017ffbb5f6e36998b6937b5c771603644fffc98469ba19"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i02.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i03.json",
+      "bytes": 17332,
+      "sha256": "6bd9d6cee97f7903eb5a6905b611ff223c33fc59a1a37989119cde1ad87da4aa"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i03.meta.json",
+      "bytes": 2155,
+      "sha256": "6701a83a2cae8fd52cfabd73d4b472a8c6789101f5f9a75e3b286f25d59c1e2f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i03.start.json",
+      "bytes": 1443,
+      "sha256": "11415894448edd16916bdbf31d36dadd03ef9fda4b8b3b43277fb30a7a4abb78"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i03.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i04.json",
+      "bytes": 7349,
+      "sha256": "a1ab74c674a1a244cc5b70a0149a54deb8033f0bae376a98515d5451a4cc22da"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i04.meta.json",
+      "bytes": 2156,
+      "sha256": "7a6d783f766c508c5d7d0feea3ed60a8cd46e28083b2049300e9e41b8e8445dd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i04.start.json",
+      "bytes": 1442,
+      "sha256": "ae4b4ee4a6a58e716d6a652dabb1a72a7e992873e76164ac6cafedf435fa37f4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i04.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i05.json",
+      "bytes": 16595,
+      "sha256": "60a909f3f435123ad622ce44ef40d5d093e0701ea141c9a9dfa27d0ba475dac5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i05.meta.json",
+      "bytes": 2171,
+      "sha256": "1ad83342201933c81adf9a9f874be520297f4cf0a60c98ff6fb84588a09b131e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i05.start.json",
+      "bytes": 1448,
+      "sha256": "eff6e6f4422414830d3cecc3a679e77f10fc81f43ecdb8b3f6082222d1c7e74e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i05.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i06.json",
+      "bytes": 19324,
+      "sha256": "cf47d4c2d0480d67cec980dfc6d09ef5f7999630142d2ded4287ff5c55ba5c50"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i06.meta.json",
+      "bytes": 2164,
+      "sha256": "90ce3277556e75704e73604f85607fab9c6e415d13b78cc9a8c2892e3dcfba60"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i06.start.json",
+      "bytes": 1446,
+      "sha256": "f7769804602f2157363287c371fdccd9a8703b6715732f8f4284eb748ca68cfa"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i06.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i07.json",
+      "bytes": 10504,
+      "sha256": "0daeaeafe2828ad62066a18d49cf3fdf9d518c0f031dfa9681ee1f6b2f6c9a48"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i07.meta.json",
+      "bytes": 2173,
+      "sha256": "b03871b9ac9f731332ac10e5e2a192af10cfff9d077cd7200a2c0600b06469fe"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i07.start.json",
+      "bytes": 1448,
+      "sha256": "8a30781b06f7e2249d0620c604036bddddda94b8c0d6d9b52e1f87f02cf0cbfd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i07.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i08.json",
+      "bytes": 6764,
+      "sha256": "3b171d16502b031ad8740a2dff3b7e2169859c448ef0ad33ca227c4f57d9894f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i08.meta.json",
+      "bytes": 2158,
+      "sha256": "17448e3f6667211b881fd4763c04fa53b7391e47d4f989598bfdfd09d8f3e508"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i08.start.json",
+      "bytes": 1443,
+      "sha256": "60f4aa23a4b64b0c9ecef0e6d50fa26fa08639e8b8c128661a14fcbd572b76fd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i08.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i09.json",
+      "bytes": 19754,
+      "sha256": "a1a66a958d604e46a88bd45ee87b7a8089f96057d5bbc78efa7ad18346cf39bd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i09.meta.json",
+      "bytes": 2152,
+      "sha256": "b680652a05dd217c7d562aadaa87a5bfb906bfdcd408495c2197d224260bdd76"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i09.start.json",
+      "bytes": 1442,
+      "sha256": "8a175871fc09585ed6761736668cc0dc0e7f267888013adfe2635dd852a2c1ab"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i09.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i10.json",
+      "bytes": 9255,
+      "sha256": "419856257732742a5b8da3c228e58431a65420a5576a4f52ef879804a4224f2f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i10.meta.json",
+      "bytes": 2160,
+      "sha256": "a0b4b605c9ae6dc241d3759ecf06c407afe70df4986d2abbc8d0186e5b50ef8d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i10.start.json",
+      "bytes": 1445,
+      "sha256": "e80e4f8bbca90577cb3764d893c30b0998ae7394415752d77e491c65d0e957d0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i10.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i11.json",
+      "bytes": 18127,
+      "sha256": "c7ee4a55a7079a9966f38aa478812aca6f8a0f156f5f1ab5c466cea016f152ec"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i11.meta.json",
+      "bytes": 2159,
+      "sha256": "6590b3e886faed08f732ed321c7abed8bc278fa4d5da6ce2ac7d4cc529d12419"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i11.start.json",
+      "bytes": 1445,
+      "sha256": "6fa863b6226a71e422f40817debdcd7ff7695a4120ad439e1e853f8300abba6e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i11.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i12.json",
+      "bytes": 6442,
+      "sha256": "0fa7023fbbd9ac14829cc8838b0f7ec50d2b293ea3101335326cad5ebd4dee00"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i12.meta.json",
+      "bytes": 2157,
+      "sha256": "44c7a492ded0782e8383ea0460971bd6cf4468137ae479e94478ca0a9335be63"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i12.start.json",
+      "bytes": 1444,
+      "sha256": "439c0705d6aec72ac54891b1858a869ba6e27efff9925f05721cb2b77c2f4a93"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i12.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i13.json",
+      "bytes": 18415,
+      "sha256": "8356ec8f3c30b4ada1d43d166ed58437b722eba3ee189f62e63ac2894c712546"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i13.meta.json",
+      "bytes": 2173,
+      "sha256": "89ff6fdd6074839d7973fe0fd0fe81d51d5a6f8296b29ac7cf43bbec28db2ea1"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i13.start.json",
+      "bytes": 1450,
+      "sha256": "9e03fe80fcd7dc14df8e3097059156ae1a0362392cc76187fd859881c4d1e1c4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i13.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i14.json",
+      "bytes": 12977,
+      "sha256": "4785df125ff53555a4e765c135affa9ed5d0eebe64f9b912780b78ce3c9fca2d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i14.meta.json",
+      "bytes": 2170,
+      "sha256": "633312e8782c1f5d8dcb4f0f8bd4c5b766063d183ee2073eb94d2d12a541b161"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i14.start.json",
+      "bytes": 1448,
+      "sha256": "1a8a6da6b3ed694070d2cc884a16af821775c7bc323d566da44dae66ca58c203"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i14.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i15.json",
+      "bytes": 11679,
+      "sha256": "22608dfcd78ae762bb4937e7c564d95eb2c32816f5efafda906604e97586cfde"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i15.meta.json",
+      "bytes": 2175,
+      "sha256": "8239f1bfdd63db688a9fdb123496b8e13955ea65a22121da560cffa5c42b3972"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i15.start.json",
+      "bytes": 1450,
+      "sha256": "36e372d7c6bbe0498bbf388d7a36114e6cde79afec46553e70bd85ba2c40d27b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i15.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i16.json",
+      "bytes": 8541,
+      "sha256": "2ba0953a5e311f386a1df0db8efd28fba174cb0475c6448ce4389cf914aecfc3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i16.meta.json",
+      "bytes": 2160,
+      "sha256": "fe44e6b7391e9a1fedc6e1286b26115c82a26ebeeb274a6081bbec2bd1b37b6d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i16.start.json",
+      "bytes": 1445,
+      "sha256": "43e4931a7d9c2d0af5ca7c94d51a9b68fa9ebf599151dca0697f39d5388ab002"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i16.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i17.json",
+      "bytes": 18275,
+      "sha256": "e331fde9667eccff88adfcaaa8c0401be56c13e37ec5c8ad4d67b3ca6d6791ea"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i17.meta.json",
+      "bytes": 2155,
+      "sha256": "cde6899b882227bd3b78854d5a5f5c918ac3aa1be150f26ba1992b71f6a3c389"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i17.start.json",
+      "bytes": 1444,
+      "sha256": "76748caf8d34a9027175969959138fdcc145009e5192e030d23b8a659e011f17"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i17.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i18.json",
+      "bytes": 8304,
+      "sha256": "cfe7dc24b0c634a17e104c39fe64c2002ec9b475692796c49659f741ecfbfddd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i18.meta.json",
+      "bytes": 2162,
+      "sha256": "051ebb298fad9fffbdd6b258bc6e02a3ba739b8cce38d297a76e38819849adf4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i18.start.json",
+      "bytes": 1445,
+      "sha256": "3797fe1091a7fed6a23db2df7e00ab70ebab703d031ed8b9a7be23a44dc63206"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i18.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i19.json",
+      "bytes": 17273,
+      "sha256": "a0d62da586139c919c91c0d95506eefaee1523cd57a08bdf4f2235bc92c8d15b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i19.meta.json",
+      "bytes": 2159,
+      "sha256": "41b0ee23adfb7ae2960e048037d4054757b1072927ab4d5cb8cdbe9f2a9b429b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i19.start.json",
+      "bytes": 1445,
+      "sha256": "6e3301d65dd193cbd6ed8893ea4cc5c1ba0878b2f05cabc605bd19d4de45969f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i19.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i20.json",
+      "bytes": 18871,
+      "sha256": "1465a8a5400be7fadc67dbbf218f1145252ec5c1baf0b3ee556393eacbe89ce8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i20.meta.json",
+      "bytes": 2155,
+      "sha256": "1f27b3dc37081e6f44b9e76955a625ba7dacf3aabdf77e177914881909584a7f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i20.start.json",
+      "bytes": 1444,
+      "sha256": "f64f6222633985a71504dd7e38f5f07653b7b8c48ce4e6a93fb991a0b8cdb5b3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i20.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i21.json",
+      "bytes": 20083,
+      "sha256": "69d096b4fdb5cee7e49b235711740f41e8b5a725970d0ff44d959b7f092248be"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i21.meta.json",
+      "bytes": 2175,
+      "sha256": "027e673626937c8b069e1061ccb3820c7557f1e00cd9678eda03407bc856df31"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i21.start.json",
+      "bytes": 1450,
+      "sha256": "f9d4869fb214c33445e8bc00a997fe8c3fbc33ba26343876affac630a2f0c2cb"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i21.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i22.json",
+      "bytes": 11521,
+      "sha256": "422b3200c63c9c797bddb481f158e173c4a2030477f136918808e07e09301250"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i22.meta.json",
+      "bytes": 2170,
+      "sha256": "6114a0af425f9194c7a4324083e8cb4e9b8bbf8355fe33be183c70f0612804a0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i22.start.json",
+      "bytes": 1448,
+      "sha256": "5f5e09652918374694953bca457a9c27612714e34d393f95563dce3265835934"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i22.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i23.json",
+      "bytes": 20032,
+      "sha256": "072025da1951a798e358eea6fedf4fff594599270782d37bf6217c52ae9c87e4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i23.meta.json",
+      "bytes": 2176,
+      "sha256": "ea454a4881ad98c7ce50a6483af93291be148ceb58ee25206232a69446e3ff6d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i23.start.json",
+      "bytes": 1450,
+      "sha256": "d6651463f684b371577623a98689fc53791d583b066b9ae16dcbd9443d374e33"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i23.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i24.json",
+      "bytes": 18608,
+      "sha256": "a37239005c7abfe81f1dd9063874595aa365fcd66a293ddf5b60e2a4783aa12a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i24.meta.json",
+      "bytes": 2158,
+      "sha256": "0b3af8a4ee783952da078326b19d702993a247c304cdec0e70d599f9b898fc39"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i24.start.json",
+      "bytes": 1445,
+      "sha256": "dee5ed7e9e40c4ac99d5977a00ed86f3203522a99c920d000c8b97dd08cdcbc6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i24.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i25.json",
+      "bytes": 7113,
+      "sha256": "958a87d3931c4147a1d6362c2831b83c7497240c5e486ef2f52a0a94302e4ec9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i25.meta.json",
+      "bytes": 2158,
+      "sha256": "a5e76aec3d5e22313bec593849d06f429b523d99f67dcb06c962664501c02178"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i25.start.json",
+      "bytes": 1444,
+      "sha256": "fc5669edd4de656b81a281bf5a1d389a830eecd1ee741b7bbf921f1ef012a276"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i25.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i26.json",
+      "bytes": 6321,
+      "sha256": "a8b70ed025b02564e6a5db84c788d2b64a49e9f757924e9b6d4fd66dec2153c3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i26.meta.json",
+      "bytes": 2162,
+      "sha256": "4a828fb7f888009c8039eedb1522f24150018fff961f813d34f039c04a5ce3c1"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i26.start.json",
+      "bytes": 1445,
+      "sha256": "227752111a41c0f98410da86e63574c0a74df0d3d602249fe789bab6f67e6c8b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i26.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i27.json",
+      "bytes": 10180,
+      "sha256": "9265481c4d4e2fef34bf7232e60ad2525601193c79acb5cdd619afd476357de7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i27.meta.json",
+      "bytes": 2162,
+      "sha256": "2cffcd64ab86a629a26850163e12187809af05c93e205727c587835d8f747da1"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i27.start.json",
+      "bytes": 1445,
+      "sha256": "65b1dd3f716ce8d6a61085d0feac3872c1f6dd314ba426e462ff9dfa1f51e5ca"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i27.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i28.json",
+      "bytes": 11373,
+      "sha256": "5b70d8ee4332cb55f539a80fce220f4354dd80f869be5a63614b336a8d8739c3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i28.meta.json",
+      "bytes": 2158,
+      "sha256": "615a55c00acab2076d641b1d9ebe568c9045a3f4185065ff90b45b658b468271"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i28.start.json",
+      "bytes": 1444,
+      "sha256": "310df12bdb73aa6853ee7273ce5a4eda9c8fc8d0e147cbb65f3eb84f082b3538"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i28.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i29.json",
+      "bytes": 6258,
+      "sha256": "c569fbf9819400622a74378a1dc146ac1799ac89649ad26e863ea2366a779b16"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i29.meta.json",
+      "bytes": 2175,
+      "sha256": "85c93f56c5051f8f8d0451078b6ed0f5e5b6a29b9bb6f6ffc6560a4b10d1e3b5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i29.start.json",
+      "bytes": 1450,
+      "sha256": "f3a6af216a6324e9f47e92bf17e395bc485d9e7dada3737e1378be7c8bff0398"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i29.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i30.json",
+      "bytes": 10326,
+      "sha256": "9733b48e1dba797681a3f80283b6336202b2e51472aedadf3e3d8947fd11fbdb"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i30.meta.json",
+      "bytes": 2169,
+      "sha256": "f1d5842814e1018b1cdfc9c13cc7344adbd53f518da5576f4672d06a019f5335"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i30.start.json",
+      "bytes": 1448,
+      "sha256": "a357ab70b1a3a3f3a5ea39fc88b84f5fa97b29345310227db9557fb94a131fc7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i30.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i31.json",
+      "bytes": 19460,
+      "sha256": "3b20e7720623357413a07dfa62b6fc524212ea6963d80fbd972579222e60b208"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i31.meta.json",
+      "bytes": 2174,
+      "sha256": "948f3142d35b8da0b6cc941e23d29fbf646a0660eee6fb0be4fa26398b46ed2a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i31.start.json",
+      "bytes": 1450,
+      "sha256": "0c2349cd242e44159ea177961b1b84e9721b8b203de428c9457bb920036b62bf"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i31.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i32.json",
+      "bytes": 17306,
+      "sha256": "bcb5b9d0cc9ba086344a1a3f35a5b097c3578a581aa590d0bfc102b0cdc4abb4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i32.meta.json",
+      "bytes": 2161,
+      "sha256": "7a89b6b28c371960e81fad0131d19e3e4734879abf09c9434591a1a974c6f423"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i32.start.json",
+      "bytes": 1445,
+      "sha256": "a829b03dab50647474e96c568abeb52efea0277086836df3a321ff2f797b4e1d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i32.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i33.json",
+      "bytes": 10667,
+      "sha256": "800222c106bf9273175c75560ee769615c9bec74c45da8b439c4fda9ffc8f7b4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i33.meta.json",
+      "bytes": 2158,
+      "sha256": "9b30c21520d2490f97e4177f40a527fab43f9d15efdc7266aca0fbbbb27f44fd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i33.start.json",
+      "bytes": 1444,
+      "sha256": "7cc29dfcf30eeb0bb308698b6db631215407ab8e689e0856a7e65fd88a7f3761"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i33.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i34.json",
+      "bytes": 16073,
+      "sha256": "d57183a4aaf805c5b2d076b90ea74f6663ebfa4ac134c38e8faf3c72774acd98"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i34.meta.json",
+      "bytes": 2161,
+      "sha256": "6c0fae0ee9dbc53012f971c51820bdc5a900164a2c8a433f691deb1e8c84cde8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i34.start.json",
+      "bytes": 1445,
+      "sha256": "078ecd00fd341dd1cf5a85c23675f8e1eebfc148b865f961cf17a63e4e65b22e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i34.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i35.json",
+      "bytes": 17685,
+      "sha256": "32d20451d9857bdc1b2ef7946a8c17ce1cdf1f3ab10a453f659a723d190b4964"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i35.meta.json",
+      "bytes": 2161,
+      "sha256": "b8a58efd6c4030ed8243f7b26fbb32171ce9573e1b565c08ec0b6e0352f03e8d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i35.start.json",
+      "bytes": 1445,
+      "sha256": "2077e00336ed05d214a21e3394fc6df7f6d26883d02924e146042b357afe76bc"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i35.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i36.json",
+      "bytes": 18581,
+      "sha256": "c2012d8e176f35aef91609fb5510a7e3789113d8960c1ad6d2a19df1f7799b83"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i36.meta.json",
+      "bytes": 2156,
+      "sha256": "7b0198396cb6e7a38dd6381c03b2fcea42244c6247c31f71b4a574de1e2b0dc3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i36.start.json",
+      "bytes": 1444,
+      "sha256": "92d0fb153192ca401fc1977b92d2f544679db6722986cc7ecd35917bfe2fac12"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i36.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i37.json",
+      "bytes": 18254,
+      "sha256": "793af6a0f7e6f30b7c837242e79a9ac1a9ea851141ccbef4629e416c4de533dc"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i37.meta.json",
+      "bytes": 2173,
+      "sha256": "fbad9a311e38ec8059ceafd384315336d87b41ff1e9a139470094acd0ecdda96"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i37.start.json",
+      "bytes": 1450,
+      "sha256": "c303979cba74af74442aaf43cbabdee81985ea31455f0edce99fa343afcd4222"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i37.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i38.json",
+      "bytes": 18511,
+      "sha256": "d19ab31416a818a6fc11e9ff241dcfc499aab23e0b0c5bc427fc9c4c8ad6db56"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i38.meta.json",
+      "bytes": 2168,
+      "sha256": "325d06d51141d768aa011060756644660bdc9aa410fdf33213d8d56c5fb320d0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i38.start.json",
+      "bytes": 1448,
+      "sha256": "64b95cfc4a36f30f06ad83e9bb94b29d9edc47a53ba8e9fa50891aa5628531fb"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i38.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i39.json",
+      "bytes": 8387,
+      "sha256": "0e792f8d33685b51e2c4b57408e78c0d973575a348789808cae2a7f9411ae0e2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i39.meta.json",
+      "bytes": 2176,
+      "sha256": "0f1747461631820df72942eaa6b76b37db391785f0dda68acf53d29b7dd1ae07"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i39.start.json",
+      "bytes": 1450,
+      "sha256": "ae98e2b9dfa54a1e0baffa998faeabcb3a963d7ecbcce72b6149f9ab62984cf0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i39.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i40.json",
+      "bytes": 9245,
+      "sha256": "ecaf3364205fe4be90e01acf83da384f58aefdef3924c4ab62b771e83be32fa5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i40.meta.json",
+      "bytes": 2161,
+      "sha256": "d1e0e88e1ad5373afef98fe62bc8963fa095bd6841afbf764d2a354acdd0ffa2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i40.start.json",
+      "bytes": 1445,
+      "sha256": "c90fc9b7e5a5efc5f653f376279f78833c7065a165dc4c874eb1a59b0822bf40"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i40.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i41.json",
+      "bytes": 16834,
+      "sha256": "79cd1fb484fc406023d90f4e9a07281f1d2cec134a57cfa14d6e113b17b47d48"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i41.meta.json",
+      "bytes": 2155,
+      "sha256": "2a19990ddfc422460ef1aef6afe27af8e9af350e448cc726ef25f7937c0bb380"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i41.start.json",
+      "bytes": 1444,
+      "sha256": "0a86abc209438ebef7ab01383c734801b7f9cfc6c78ccd9af887c8c62b4ee1f4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i41.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i42.json",
+      "bytes": 18710,
+      "sha256": "0aaf567c3e51067d997a340bcd05def15b8bb9272dc697800cc5bd7deeecbd99"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i42.meta.json",
+      "bytes": 2158,
+      "sha256": "11671e82a6edb5e22c2fb72a3f4448e8e434f51662dbe2045d6e8a999a757ab5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i42.start.json",
+      "bytes": 1445,
+      "sha256": "64145d2fb3e767045e59898320d9f0be7adc58cbbac852d0101a381dcf82b96a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i42.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i43.json",
+      "bytes": 17520,
+      "sha256": "f30f184954916666eee50b250f3acb18d1f8c58850174b968ee8062ae7230962"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i43.meta.json",
+      "bytes": 2159,
+      "sha256": "7006f608d1e22a7118701d25c215ceeb6279830b9177589bcd83dfa4ede3a3e5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i43.start.json",
+      "bytes": 1445,
+      "sha256": "d2ca39b21d44f765511c2a23037f2616bbf5e9446aabf3be4f8f8216c23229d5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i43.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i44.json",
+      "bytes": 8120,
+      "sha256": "54a18e6bcedce3cd0a61459eb9c33004cb5d94d1d7ec02957467e2f74ee430b4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i44.meta.json",
+      "bytes": 2157,
+      "sha256": "21ec708d1fbf57b66a810ef8f7a219fe4df4d05f1119944bae02958b8fc445b6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i44.start.json",
+      "bytes": 1444,
+      "sha256": "7db31cc5abb1a63a355ca47782d176ad059fa3d0e999edd650e318f5b6864424"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i44.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i45.json",
+      "bytes": 18756,
+      "sha256": "8d0d2f8c3da29e4f70839b9e975204eda9e8fada02f9701c8744bd9d3168f5d7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i45.meta.json",
+      "bytes": 2173,
+      "sha256": "6c28c5a0b5a5cf38fde2c71267b77c158c4fdf2f6510d5aae1c311caf116756c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i45.start.json",
+      "bytes": 1450,
+      "sha256": "a128fa2f6b89c82f8a8265e27d04b776c6f44cdf938dcf63054ff3a63b7a365c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i45.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i46.json",
+      "bytes": 19668,
+      "sha256": "9876f290e6704dbf2eb9cabf313be923d710ac600e2d156869b9b6f52dce977d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i46.meta.json",
+      "bytes": 2168,
+      "sha256": "514967e7e534054c285555e84ac214c72732c146870d4d8e310a89e8c7bdf1e0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i46.start.json",
+      "bytes": 1448,
+      "sha256": "756513c82a53753d57dba68e3cd37820cfcbf35197b53acc9b707fed99c36410"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i46.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i47.json",
+      "bytes": 18494,
+      "sha256": "9d25dcac1ed2e038ffa598b89bb111377d0b8b0a7da7a3103adfd6bea7e0f46a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i47.meta.json",
+      "bytes": 2174,
+      "sha256": "e52ad8db6e2dc1aca5b7676684dfc82ef333e29bd61eae742678321ee40fb665"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i47.start.json",
+      "bytes": 1450,
+      "sha256": "89c08915b522b9c373ec5b5c3b79e0c7630d1d33fd6250ccbe639d9a1476cdd6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i47.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i48.json",
+      "bytes": 9687,
+      "sha256": "965e2aaeef2348b2154ca7471b9e157bac164ef76a9b3ee3d79d81e2f1690c18"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i48.meta.json",
+      "bytes": 2161,
+      "sha256": "6d8bafa634f45662d2ce93d1819e7ee1f740385098c7e265e9351eeaf3b65637"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i48.start.json",
+      "bytes": 1445,
+      "sha256": "a584b3c40ae00a0a7c5b04237c5ce82d80cf2409be70a92a638325f0aac32782"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i48.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i49.json",
+      "bytes": 17700,
+      "sha256": "ed5538ee3f8aa19a746ea5a03165100715225e80528cfd415276f62861fda43e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i49.meta.json",
+      "bytes": 2156,
+      "sha256": "f302d070164e4d87d601c3f2bc5f89b755ec638c9370f6e68749d1479648c525"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i49.start.json",
+      "bytes": 1444,
+      "sha256": "1e01ee643f6c7e7e782f67bc2ed0906725128af4dcdc82e4423ac9d71396e852"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i49.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i50.json",
+      "bytes": 19376,
+      "sha256": "945ea62f42d41c386289834ef3091f418c9c454c9c3a13f4d2c1c864195372c2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i50.meta.json",
+      "bytes": 2161,
+      "sha256": "eff6abdf32a77725936d684db67383d8e31b7b8b1133bb89be6dc780cbe18083"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i50.start.json",
+      "bytes": 1445,
+      "sha256": "670e13f732dc202cb02eba71b633b7dc4c05de3ab1d3cf6f1eecfd295a6f706a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i50.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i51.json",
+      "bytes": 18359,
+      "sha256": "72f4d0d398aa8054b7d7d431f9e6f1f94951ca1594a86ee557209fad552e312f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i51.meta.json",
+      "bytes": 2158,
+      "sha256": "8aeb4cdc7bea37eb6da1f57933e345a6d3790a0533945c8c2dbd0664d909306c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i51.start.json",
+      "bytes": 1445,
+      "sha256": "ad21fd1e11a77ce9df4124a234c6b0388cd2c092f9efba6ef12c1d7ddeb021e7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i51.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i52.json",
+      "bytes": 7865,
+      "sha256": "0bf0719cc4e44fd5ee9feb4c1767f1394aca4be104d453496b68e04a300779f3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i52.meta.json",
+      "bytes": 2157,
+      "sha256": "f209a1d703df2b4dcefb13c475050e9bda5753afa29fbab88001e094eaf34883"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i52.start.json",
+      "bytes": 1444,
+      "sha256": "c400cd1118ca25c3ad7c8645175cfe02b2acbc2a7fb8bdbee276570bb2638c2e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i52.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i53.json",
+      "bytes": 18860,
+      "sha256": "d93217a0ec311e649ef6d20365624ef32659bbb5c165c72f40b0c3c9756a43da"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i53.meta.json",
+      "bytes": 2173,
+      "sha256": "d56ca7405dbef14a657695b354a19f9c01bb48d6d0b9d9939f667636ea30052b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i53.start.json",
+      "bytes": 1450,
+      "sha256": "f9f38bde87531bb177e8c18c8b1c1df3987b90aa879846ba7842744b27b99293"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i53.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i54.json",
+      "bytes": 18680,
+      "sha256": "603d26472de2b2aec49c9f1ad8bdb3e64c9cf4fb3c57ba571ca97d1a162ae260"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i54.meta.json",
+      "bytes": 2168,
+      "sha256": "591f785f875f26ec3be9400d4edd1b96928b6bb7cd89d97cfcffda0a5176a760"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i54.start.json",
+      "bytes": 1448,
+      "sha256": "28ae6d782a79706104c3e8431c9351d0367479eea6dfc413f0dbcd9b533ae6ff"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i54.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i55.json",
+      "bytes": 17827,
+      "sha256": "75126002dba617cc3d6d819df7885666fa56a2c4d3c5c9fe835a548bf16a2b1d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i55.meta.json",
+      "bytes": 2173,
+      "sha256": "e58fe064019c21f1277144429a6292be7933975b0d1d57cf46b5dcb0f815c85f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i55.start.json",
+      "bytes": 1450,
+      "sha256": "ce9161be47025e6b214f9c6aa1fd6946a9650fb794d3c1cb96a2796edd03f841"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i55.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i56.json",
+      "bytes": 17754,
+      "sha256": "aeef42aa2594bb99727e0551a6dc0473f882b3799add652fd9dcedb4d4604f69"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i56.meta.json",
+      "bytes": 2159,
+      "sha256": "2a0aefd816717bc5ca19d466d37353f7e73371613875e3812900f9aa330f7fc4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i56.start.json",
+      "bytes": 1445,
+      "sha256": "1bb9c7c48ab5f72a361a276f80157b1e3f620432c745ce663a5e799af97120f6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i56.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i57.json",
+      "bytes": 18447,
+      "sha256": "4e88f07f234b23a5a1a54f56ca1bbec0f6ec60c09152e467f7a6d928662a9c7e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i57.meta.json",
+      "bytes": 2156,
+      "sha256": "d33eb4ce1da7303b29f91cbaba092666758ed84ce9039b345b851bca91deb076"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i57.start.json",
+      "bytes": 1444,
+      "sha256": "751ca015da09bd82ff0ea7e10947913b129198e51d215babb61697b12f46cd82"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i57.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i58.json",
+      "bytes": 18336,
+      "sha256": "6ebd250bfdde4c7dd81b3c7dc7c784315602f04047b8d50581992257bdd5fa4b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i58.meta.json",
+      "bytes": 2158,
+      "sha256": "d2f8ac7585688ef0101e87c34b27640bbdbc4bad1a6b3731d0bdac6bdedaaee7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i58.start.json",
+      "bytes": 1445,
+      "sha256": "80a52b1d4842ce8ea13859c640b8a9b94ab670ee1d2058f607bca46ba2d8acaf"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i58.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i59.json",
+      "bytes": 18090,
+      "sha256": "571ff5b2900075151b0f825388b8230c51e085033ed43399c2834a057136acf0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i59.meta.json",
+      "bytes": 2151,
+      "sha256": "b69c342b52648275156dee2427f1390e0981c4ba6d4a5e2c2845e72bd5da8633"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i59.start.json",
+      "bytes": 1445,
+      "sha256": "560ad7f3a6bfe6fbf5b9b50a87efae7b44fd7c9f278afe73068dfbb1eb117475"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/raw/c00-i59.stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source-after.sha256.json",
+      "bytes": 25426,
+      "sha256": "c23979bd3cfc6e239e9a65a5714325f5c7c114538477cfc73f625b5dce12e7d8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source-audit.json",
+      "bytes": 187,
+      "sha256": "37077054af39b38707ce7ab1b4fef467a532ccafaf425cd197d33c6f21a6b363"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source-before.sha256.json",
+      "bytes": 25426,
+      "sha256": "e2d35099a8e25b2ba77daa5d7a5db318140d993792c076b39bc60836524854a5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/SOURCE_SHA",
+      "bytes": 41,
+      "sha256": "948feecf3608f125320f1d533fafd5dccf1fd763bdd971fe829f79058a41ec73"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/DESIGN.md",
+      "bytes": 103989,
+      "sha256": "eba0ae7ee3d2c0fa8df1448455c96fe7676ed84ea7c4cb6434c75465f5041cb9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/package-lock.json",
+      "bytes": 888,
+      "sha256": "12a3b4a9434ee8c7f666288c62c6f9b93b308d8cec1dd577c274ce53764fbf5b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/package.json",
+      "bytes": 212,
+      "sha256": "abfbe34e5828025131592c476837677ab857af0c7ee5fb4ecc5ba86a5e162fa0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/index.html",
+      "bytes": 16198,
+      "sha256": "ce92ca619834de8f92fbc2490fbf7038ea648b1886832cfd9decaa54806b60f7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/audio.js",
+      "bytes": 38393,
+      "sha256": "0b6d2c832c369ac8b11816d969afa38c798bde138a30cf4c10ad95a093ead0c2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/combinations.js",
+      "bytes": 3922,
+      "sha256": "6341b1a90ac7b7153998c56ee1f4ea6367d42c47b34986872ff01f7ce66cda10"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/display.js",
+      "bytes": 5840,
+      "sha256": "4c294723ee111c15e4de06ff4486653554c6e76d2d5cb6019173bf9aebce678a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/feedback.js",
+      "bytes": 2402,
+      "sha256": "789478d92f1ca844a5e359389dd845427d2cba75550310b7ee654a85e436e4d4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/game.js",
+      "bytes": 39228,
+      "sha256": "afbe9d9ba0e529869c797f2467d4d3c668a7e5776dc3da8b465ad14b6350fb29"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/input.js",
+      "bytes": 3287,
+      "sha256": "1cfecd84b30207606f6a2e0f7439dec90b32ddc73945e7e8caf8fe21e1a81f15"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/lobby-invites.js",
+      "bytes": 5065,
+      "sha256": "b828de27ea84899b57b9d3737bea491a7d76b1f686312dfe27e4090885b2e0fe"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/main.js",
+      "bytes": 23741,
+      "sha256": "74e1571c3a7f6f1764e6741edb41a3ff98b51e24d88919e33e5ddb390991235a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/net.js",
+      "bytes": 7053,
+      "sha256": "57513b1688990df8cca05fa6115f998ac721d5953f9e1dd5543ecc320feee75a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/render.js",
+      "bytes": 131855,
+      "sha256": "43ab1a4a736f8a1a5985e0737baca4df51ba30ab1ebf08709b1c31cdac3ff25b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/results.js",
+      "bytes": 20691,
+      "sha256": "b6a73ba49c96d934c075e6748e2b7532cf2d6cc38b266e8f122b414d8767e646"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/run-history.js",
+      "bytes": 4875,
+      "sha256": "af1a5a6009971e283a7733f5afd0af9da32c378a0515be88489921ca528e2ed9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/snapshot-codec.js",
+      "bytes": 6803,
+      "sha256": "4ab3021c1c38128d3137e4738956e30034c5bbdac73bded922b7feade1d0831a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/sprites.js",
+      "bytes": 7350,
+      "sha256": "16686eb11a9d0119e843fe9e40dbc1d72ff766953ab8c3f32174f06c52353699"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/js/ui.js",
+      "bytes": 43012,
+      "sha256": "8924b942fa0d15feaa7d6d79699f81bb59c771e859b898a76977ceeb9aeb9eb3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/shared/confluences.js",
+      "bytes": 4082,
+      "sha256": "b2c387cc483b0408bc7baf99aa352e67e98471c67b54ed875b3a821989773fd3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/shared/content.js",
+      "bytes": 99057,
+      "sha256": "7ef54d3fa4e78cca0f4f2cc77676ec73fcc486ff8d5026e9406e68c0b27f1ba8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/sprites/manifest.json",
+      "bytes": 6728,
+      "sha256": "64bdfe573981cc2a003e1d5fe6e05d4b6853a0e4df55687e7e5e89cce7a2006a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/public/style.css",
+      "bytes": 45261,
+      "sha256": "5b232e7cffd14ed508f94c80de781acee60af36d005d786cc32391869c435c6a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/artifacts-test.js",
+      "bytes": 3408,
+      "sha256": "df8c0648f4c09165913f81b0b89c11433746a45cec2b344ef1e5e269c9cc6b17"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/builds-test.js",
+      "bytes": 6000,
+      "sha256": "572fd96d7e0138aa444edefbc424e98d387ddeaf127cbca863094d1c515228ad"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/codec-test.js",
+      "bytes": 5324,
+      "sha256": "3f4c82f6919e3524a6b6357b21bd91b5286cc5c56b2f4ed3b0f31dd697cd0607"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/confluences-test.js",
+      "bytes": 2018,
+      "sha256": "b143f00014cc3bc4e96e07fd5460596f47722d7ca99ed84abfc78059a0872609"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/confluences.js",
+      "bytes": 2998,
+      "sha256": "19a858957d0129533d1dc6f9c549d8dd683be9ca6c2983d5399648b31236b8e2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/duos2-test.js",
+      "bytes": 18789,
+      "sha256": "79df642dceb3d7835e263fc096c8345f7ffa10ef6ffad8a42e67ed01e62571f7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/events.js",
+      "bytes": 10939,
+      "sha256": "07be59df7624cdf4363fd5633185aa40f5623651cd4f7a541e6ff0ebd37118eb"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/feedback-test.js",
+      "bytes": 3555,
+      "sha256": "5e06d1ec8dc8b36b3394cd5cbc5a6ad9f41f08a19351f8d817dc5603356806b4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/feedback.js",
+      "bytes": 529,
+      "sha256": "9a5ea97955fb836e0b34e45d0278ddfa4a110b25535c270f746b8858e41f3e5a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/finale-test.js",
+      "bytes": 23749,
+      "sha256": "c92f4e7c240b1a85d57d75d71dbeac72c6af467a231b42e811d205c400f815f6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/flash-support-test.js",
+      "bytes": 8112,
+      "sha256": "ae95712c3746b7884e70bc31701d140ba3f77696790a3c54d185f3bcadd784b6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/fortune-forge-test.js",
+      "bytes": 4000,
+      "sha256": "5cff962b35f3bb23fccc633498bc8f3c9ae987254ed5ca36ebe0d007268364b5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/fusion-inheritance-test.js",
+      "bytes": 2079,
+      "sha256": "b93dd87e93f0d6124deba3f1482c5c00457e59af4e580d041062556f294b9258"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/game.js",
+      "bytes": 215367,
+      "sha256": "7907a1e56bb67a96768e0fa931def17a1e3f38aef58d76de77df86066fb9386b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/hero-perks-test.js",
+      "bytes": 12454,
+      "sha256": "0428415f7c3e6746f97c577a5d2dd758caf5f4929e721498eb60a945b47e7b32"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/hero-perks.js",
+      "bytes": 8931,
+      "sha256": "efa7c7403cf1be5cebe154fad83c54e481b047d2c529b1981f589fe272e8fd46"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/lobby-invites-test.js",
+      "bytes": 3849,
+      "sha256": "3acd2907bda345491ae18a62bd03eefa44bf1644e72c25f291a2ef5940dec00b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/lobby-invites.js",
+      "bytes": 2767,
+      "sha256": "93137be44d3a737f0f176d248eaf7bab777378f9bed149035735b73b9a871032"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/mr1-review-test.js",
+      "bytes": 8977,
+      "sha256": "f893d3eba410001286963728bfa43d138185a7e5e11e1b7506a74272ef11c173"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/offer-identity-test.js",
+      "bytes": 12403,
+      "sha256": "2cd052c4218b78215242e3fbe541be2ec47d6054600c411ba2a20a14ce3542d5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-client-test.js",
+      "bytes": 1544,
+      "sha256": "fa85072421b77e9315ff5178e066d3fb9f142694396068b5b75efa864264339c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-cohort-test.js",
+      "bytes": 4682,
+      "sha256": "50b2a0c32f453de16aa9fabf1b8b54394774faf90ba41dcee204a19e5de59789"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-duo-offer-test.js",
+      "bytes": 6076,
+      "sha256": "febc392d1c1377cb8ed7c149d7ea680bab7e581786c7b99b0d29d6fa8fa6eeb3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-safe-position-test.js",
+      "bytes": 6353,
+      "sha256": "6462ef7fe8ec01a3948161ab78adf663675d5affa1f3431b5697e604e419dce8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-sniper-test.js",
+      "bytes": 7368,
+      "sha256": "a5c5b290ae502cc3808f1d4be63e3c7ce76943a4a56f30ebef6c1dc6e40de323"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-sniper-warning-test.js",
+      "bytes": 2572,
+      "sha256": "138a69279a970d96dd2b85e28c589d750a287447d059f485c3cd5310da7356d6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outpost-spawn-budget-test.js",
+      "bytes": 2819,
+      "sha256": "dbc508377c448fed867cfb2d2238607ae80e8278fe6cbccd5b1e4fd001580646"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outposts-density-client-test.js",
+      "bytes": 4889,
+      "sha256": "a4866687012fc2e078c9dc9acc51101f62c5f9c86483f9d957ad352d1a20e9d4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outposts-density-test.js",
+      "bytes": 7367,
+      "sha256": "7ef437eac2bd47d2b305fb92caba7d11f09927622bd678ea593357e43a87df98"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outposts-test.js",
+      "bytes": 9995,
+      "sha256": "1f16552c8592b658ce9d744de17e79d2aefcce55fef99fccc1009cbca4ef4763"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/outposts.js",
+      "bytes": 8718,
+      "sha256": "630536a7eb8b4899efa6ef4e613b4e64e69ea774262cf6d085c1d1e6deed8f45"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/reaction-support-test.js",
+      "bytes": 9027,
+      "sha256": "8d0e30401ea04f53378942090b6ad3f72e9ae829e97ec51c02a400ba36db9115"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/results-test.js",
+      "bytes": 7363,
+      "sha256": "7710175f2d6fde556e26c3d7a02052ec1f035b09c8d99f8162608ddcb8bd2dba"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/run-history-test.js",
+      "bytes": 6066,
+      "sha256": "7b5980204e57db018e2d98407e8afa00cf9cde4dd482ccbdda25835f40db163b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/runlog.js",
+      "bytes": 41064,
+      "sha256": "3464466b73cf59de3eee5130098f113edb91548f0a4bb040b0c8f7cbb832e73a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/server.js",
+      "bytes": 22289,
+      "sha256": "5fb410ea3ac525ad1c9e04f2c9143c5e60b47b741f1aa5a20a80d072e639fb3d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/sim-runner-test.js",
+      "bytes": 4667,
+      "sha256": "ab35535356979d47429a94e9aae83fe0c37822c22a867a8a6cc1029509123c30"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/sim-test.js",
+      "bytes": 97127,
+      "sha256": "d546fae80745cc1fbcd2da23efe2528e2df33c6f57845f2213138b6b2180965b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/snapshot-codec.js",
+      "bytes": 6721,
+      "sha256": "b8d6a08b837b7edbdbda7aae4b3ce6b911d4dfe6cf265c4b073a49e8359b76bf"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/storage.js",
+      "bytes": 16399,
+      "sha256": "ebccdb8deab8c566738903a71185f66f313ef19098003b2b65341196c4fce3c9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/support-test.js",
+      "bytes": 3690,
+      "sha256": "adb5c4d77c209d2a2978f55e2bdd8bf6c04f60be73626e0ca1737c1c66d9d3e8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/support.js",
+      "bytes": 1117,
+      "sha256": "3ef05043b2b3bde8391b8a560f34f3db59c01445593a103242da818da94e6c5b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/telegraph-pause-client-test.js",
+      "bytes": 1685,
+      "sha256": "b38e81c56f53f6fcd276a14763b494662920a6826b429c1a9586608fdb288922"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/v19-test.js",
+      "bytes": 9217,
+      "sha256": "54fa6e2a9af0bfdaee4e75338cc79a08c747d5e888766d8e03c5d9205e75d3c5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/v20-test.js",
+      "bytes": 22187,
+      "sha256": "eb50fbcdbabd9dc6df1706b0d0a2af6ab35a5c55a24e5365d99a480b6e45916f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/v22-test.js",
+      "bytes": 14734,
+      "sha256": "442d430c8243aabecea66064ec79bf0ee328bf792dbfad3754c081fa6bba38f2"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/v29-test.js",
+      "bytes": 2488,
+      "sha256": "74ecfd9be1f3440b85352b339f833503ec79b8e0f5ddda9cb0447d216cc0bf79"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/wave2-test.js",
+      "bytes": 10434,
+      "sha256": "e257b102ce2fbafe1d24bbb9de4ba534468d2e1f4ba6bbe655c681566073d79a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/wave4-test.js",
+      "bytes": 21003,
+      "sha256": "327fc8a1288ad4303860009dca163bd236fc539d497f9f4548f093a3a4467c67"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/app/server/weapon-roles-test.js",
+      "bytes": 4288,
+      "sha256": "a36f8cbe48276a976dfcb856a2203f8aa0c5e1b84a71f61e6854ae18d1b7ae3d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/BUILDCRAFT-RESULTS.md",
+      "bytes": 11253,
+      "sha256": "b95183889737d4c5a75864cc33faa2e4b752bcea096343ca6c3f10af0ed729e3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/DUOS-v2-design.md",
+      "bytes": 35510,
+      "sha256": "9964537eb3fda636aef63175761f30ee477fe690dbb5b0f84d30401fb6561660"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/FINALE-design.md",
+      "bytes": 68238,
+      "sha256": "8ba9fca3096d301e58371c273c5640e5518684e73aaeb8d1621150949918362f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/PERF-REPORT.md",
+      "bytes": 21952,
+      "sha256": "e0cdb5444954762d56939511e6debfcc9c54ec05661f1f2d2a457238ae6b34d5"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/PLAYTESTS.md",
+      "bytes": 23164,
+      "sha256": "98ad2ddcadc82c89ee800cf31080405bb8a27ce0a76d00f93cc4c80b06acebdd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/PRODUCT-PLAN.md",
+      "bytes": 91694,
+      "sha256": "9a25c0809e29e7cfff22370a113180ea461cd7239feb7d8c7056788802690bda"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/RESEARCH-similar-games.md",
+      "bytes": 51212,
+      "sha256": "4e4d348f400fcf767e0d5bf005e726dbcd8237b6a6b5c66cbebee4185a6fb710"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/ROADMAP.md",
+      "bytes": 15437,
+      "sha256": "491576a304a23f1d38d889e8160e2ecb22d00967b44956707370717a704767f6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/STORAGE-options.md",
+      "bytes": 7395,
+      "sha256": "0196e8969eb9fbd674f590aef60afdb80b192136fd0c849ca057a72880a13e75"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/SUPPORT-BUILDS.md",
+      "bytes": 5071,
+      "sha256": "23640755622a606611a1a2743cae1a7088e9f1bc0793e94a51859390bf7ed646"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/aff-sum.mjs",
+      "bytes": 1345,
+      "sha256": "73f862b8498a77608461761d647d7ed38475cc07c9865c50bca38f7b94af3a42"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/allies-arrows.md",
+      "bytes": 7530,
+      "sha256": "6b3d814f1991b7d7e3ff87fa399f5d18ec7ef83585db2373718634456185f498"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/allies-arrows/run.mjs",
+      "bytes": 4488,
+      "sha256": "6b0b8bdb6fcc47bd9b304b8316abc81104ebf602673140405c43bd904e39731e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/allies-arrows/smoke-allies.mjs",
+      "bytes": 1014,
+      "sha256": "76d3d9c5a4e858780c26998606ecd55fcfababd2036ef362701ea235a2d02ec3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/audit-v18.md",
+      "bytes": 29067,
+      "sha256": "dc98b8acda1092fdb54988dc779d016d7db2179ae5d0af54bb70b6cf1a08f601"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-buildcraft-terminal.md",
+      "bytes": 6021,
+      "sha256": "145c7e679a072399797ad97cbf98ab63680f5f3ce9d5035c278a383871819e5e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-buildcraft.md",
+      "bytes": 10510,
+      "sha256": "a937f4d9eb652ecf9c7b5ddbe80e21d1c3155665cfaeb34ed702726b9364abb0"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-sim.js",
+      "bytes": 4339,
+      "sha256": "0c7ef85a1cd415a29332322fdfe29b81238a24fe5721139cd38dbcc174c64277"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v15.md",
+      "bytes": 20377,
+      "sha256": "e1fa589b288ff151a52185401f62993c513607f57e64d1a27ee0c72184644647"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v16.md",
+      "bytes": 9252,
+      "sha256": "8e092799604709c90e3d8a3ea3e9dfd46f7d9be7aec3e80fd7b0881f431c8d3e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v17.md",
+      "bytes": 5173,
+      "sha256": "b85d7a651651712ec7cec4f2971a9de2132659fb985ea91897a33c83a05b947a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v18.1.md",
+      "bytes": 6544,
+      "sha256": "6ff3b362ecd09e52cea81c0c177607770c5036b3306985db1447fa3870555b65"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v18.md",
+      "bytes": 14572,
+      "sha256": "923114b0a39818b395f53c665ae754b1b8ba1dd52726f346b256cbcc5348aaee"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v19.md",
+      "bytes": 7480,
+      "sha256": "7472b56ed8997b79b6ccae97a9b80c55a5976e590d2344847c20476b4c62dc5b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v20.md",
+      "bytes": 22528,
+      "sha256": "7ee7da0332a6474af6f99847cbad9fcc37bafc7927c1be1649b6900cea0f1e49"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v21.md",
+      "bytes": 16542,
+      "sha256": "e574dd33a9820a4fdc2823857d2bb35fe4d55397cf7ffdd0f5d36d1b7d9055cc"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v22.md",
+      "bytes": 9565,
+      "sha256": "58c7486a1b13828eb479984719328a92bb519496adc4c41ae93841b747b28d80"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v23.md",
+      "bytes": 11330,
+      "sha256": "053b7e28028280e4463030ea1e8199408f802bc2d1f10809dcdc9c159effad90"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v24.1.md",
+      "bytes": 11007,
+      "sha256": "72036c8fea459b3e2ce540dd4f3ef7f091cdbf476fe981e42a69d27df73e741b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v24.md",
+      "bytes": 14143,
+      "sha256": "0fa2688c9d896d5d32484cd791f3055b53a6bceacb1a1f5b77cce82ddbd0182c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v28.md",
+      "bytes": 6110,
+      "sha256": "9e3a666390ebef10d78af5e4b72405ba74153dc0de931664623106a19988cb68"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v29.md",
+      "bytes": 4681,
+      "sha256": "c97c874cb4eb64e1cb32a025549d64f74b6ec4957722147c5503139648f32532"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/balance-v30.md",
+      "bytes": 2631,
+      "sha256": "57a9e4f21ee6266eb4918e62d1b47b739e9cd6053d2d7d2f274ec39fbd0a3b67"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/batch.mjs",
+      "bytes": 999,
+      "sha256": "601e2b8096b8c38a1cc618c70f638b56425bf8c50f63ef2f5e8e25e280818e35"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-bench.mjs",
+      "bytes": 4994,
+      "sha256": "9c7e03cbc38906135702554fe5195cd48a666edf022ceb4fa2970a4fae7cd246"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-cases.csv",
+      "bytes": 91789,
+      "sha256": "b1c66195c7a82eb6473b0be082ea26ac12a9e5e1772067077c490dbc748ec5d3"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-load-results.json",
+      "bytes": 356,
+      "sha256": "d9bde24110d4bf9eedc3b39a5836ba523557a8d5aa6612d1ffe9e03f0343663e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-load.mjs",
+      "bytes": 3008,
+      "sha256": "b5860c8f6f6e3479b7ddd390cbbcf13a1236bc3ef6d908d36a7d24a975ea4038"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-results.json",
+      "bytes": 14614,
+      "sha256": "6632b6727cd49edb1a56ee9bb8644231611cfb4c0e522481a593f085e090a11e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/buildcraft-test-results.json",
+      "bytes": 1831,
+      "sha256": "9affd9067a1bf6c1f3a113e1a914a5bd56f2575ac89c760c1e4dc828add9a88b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/calm.mjs",
+      "bytes": 1552,
+      "sha256": "c9b004a24075f5457d32b1d75424bc343c5009dafd1e4bcbf22e5806d811eecd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/deaths.mjs",
+      "bytes": 1353,
+      "sha256": "13e9412b6b025ca2a4a3a4666e5281c906e4db944ca2c4982215c66bf181ae48"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/duo-bench.mjs",
+      "bytes": 6510,
+      "sha256": "742159812ccc79f86d4abc9875a2717b24342dab6fea26d4b9cf8745828be319"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/duo-cap.mjs",
+      "bytes": 1553,
+      "sha256": "529db77ba82780a03755a3570c1f533dc51ade2d4f3f45fb1c49e00340db6303"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/duo-fit.mjs",
+      "bytes": 1498,
+      "sha256": "d88a5bb1af9ad2121fb9472ff1c07e9a60b9018566d4e39801bb513593ae5572"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/duo-try.mjs",
+      "bytes": 608,
+      "sha256": "77e7b3c866e660cd9b4de94836a86b4ae7b401509aadecec75a911d6b44944d7"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/duo-tune.mjs",
+      "bytes": 1747,
+      "sha256": "88d16c6e5c4e9da18898d221388cb065fba959f425a5c4a5b7487ec9757327ce"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/ember-share.mjs",
+      "bytes": 1923,
+      "sha256": "51c721b4dc2a3760d4ae0979408217e1c7b9a5d070b2fc7ae2a9ec8fbb4c5361"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fall-minutes.mjs",
+      "bytes": 1112,
+      "sha256": "c6415fd156ccd3bb11747034dc732876b0140de28d4c8c3164100f6d6a9dde22"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fin-report.mjs",
+      "bytes": 3401,
+      "sha256": "b6b358cb4168b26ad6da7fc83ad195b0a86297f3cf1c7dace8a3c828440886a1"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fix1k.json",
+      "bytes": 1043,
+      "sha256": "a6280987ccd326d0b3cd76f463a52063fa6c2be94e7f1e41fe432a021f9bc578"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fix1w.json",
+      "bytes": 1137,
+      "sha256": "ed28d5533fb39d15531e3b59775970186353a1d56ac65d634d4066a143653595"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fix4.json",
+      "bytes": 1369,
+      "sha256": "9eb991cd63c5275cb82866ca91f532bf124c8957b1585da454c35534c746ce13"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/fixtures/sim-runner-checkpoint.mjs",
+      "bytes": 1659,
+      "sha256": "f63873cd797ded2668f66b9f363bc81e4e8c14060a8d55468daa012b6c601ae4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/gold-stats.mjs",
+      "bytes": 869,
+      "sha256": "11c4b8df30625b0b0fc56fb4afe1402901070f9cc1960c1859b6c277dc1f13d6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/groups.mjs",
+      "bytes": 997,
+      "sha256": "35965ab8e3ed7873cf9c2fb8329d8482871df243e4dd845ce9e05d146da8eb23"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/merge-v27.md",
+      "bytes": 12213,
+      "sha256": "ea1187c915606e03a910cdc67851c5491020cea651f68d80c0bbd0e77d0bd6e6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite1-knight.json",
+      "bytes": 960,
+      "sha256": "35ca4d9e5f7327b17e4b361b49bbec839889286e3ba30df891c026fa23974944"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite1-ranger.json",
+      "bytes": 1014,
+      "sha256": "efcd4ec95a5065e7eaf8b194a7f515c4f947d5f0cfbde288056590dae4c320f9"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite1-witch.json",
+      "bytes": 926,
+      "sha256": "dda6aafbefe5d0c6720271ace428b254f203e43818090fe6173bcd59fae8c9cd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite2.json",
+      "bytes": 798,
+      "sha256": "eff3d444d5320a52bca90d66f2d360904580f7564460159d2f0e582ab687bd59"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite4.json",
+      "bytes": 1049,
+      "sha256": "5df1bff2702301a0b304b8648c50962de275831d011ef9e49b4eb2e593f4ee46"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/out-kite8.json",
+      "bytes": 813,
+      "sha256": "601105ca8c35511157e17f0fbd695201623145562947c1f8a45e87d628224b43"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/ovr-bench.mjs",
+      "bytes": 3088,
+      "sha256": "a4b5ee993f07755399d1efab1c25bfd18f2121eddee02e2bd54bdbadf2a18bf4"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/ovr-ratio.mjs",
+      "bytes": 599,
+      "sha256": "c25a491d74df50598556bfa6e91dad191936d651ad046431bc1b51620c28a385"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/power.mjs",
+      "bytes": 1567,
+      "sha256": "140efee093b45a3c30eaafd70f1d36e295cb1efa595a7ac26661899f729c18d8"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/report.cjs",
+      "bytes": 289,
+      "sha256": "d01fb238d2a80bc9b8a6c8601dd1fb84072042198875978662adfa1552da86dd"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/results-screen.md",
+      "bytes": 9146,
+      "sha256": "7370c533320ba3bc2a912a184dadab62fa191c079b3c18fa72e7942f4fc8c213"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/review-dev2-v25-v26.md",
+      "bytes": 3621,
+      "sha256": "0088b9ce7f57201b3d0e6bc03f308809fbf169d4bfc504004aa382ac3cfd8b78"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/run-sim.mjs",
+      "bytes": 12417,
+      "sha256": "b270c568e42c7c6527a2ec4a523884445d1f8490d598420a060288b21c5a3c39"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/run-tests.mjs",
+      "bytes": 1536,
+      "sha256": "cef0e82b6089bcc31fc2c8fb718a75ae6bcd85b67ff81abd9d0444d4cdd02e24"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/sim-report.mjs",
+      "bytes": 3876,
+      "sha256": "4f87cd8b69a53f54062fce78bce4ed32110e6a96c8e02d5dbba5b4d5a5ac973a"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/sim-runner.mjs",
+      "bytes": 3279,
+      "sha256": "a35bd680d83d209442631c9e59e2d181d7fb577967125be8b2a2e27d7a152017"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/slots-report.mjs",
+      "bytes": 2332,
+      "sha256": "03d97756a6865a7b0ed4b892dc7eba324e26f17aec85a8f2cf6f9fbd1fbb8b37"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/storage-probe/probe.mjs",
+      "bytes": 3518,
+      "sha256": "bb1e7eb2dba03fb360e9bdcae2b0bf857db643271c667faa6c2a5fe342eb261d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/storage-probe/run1.json",
+      "bytes": 3970,
+      "sha256": "889980ac38ef77e173364f2ce35a916728db9666664d492b2bd80f2fbf2bbb7b"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/storage-probe/v22-drive.mjs",
+      "bytes": 2660,
+      "sha256": "1add6d82a72c4b3a29786619b97a0bdb966b6d8a1dc2cb949cb120f783eba17d"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/storage-probe/v22-server.mjs",
+      "bytes": 1015,
+      "sha256": "9b99d9265b7af5bb81a6b49c9784040924260c44a1caafbd7debe79c22bf034e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/support-bench.mjs",
+      "bytes": 1485,
+      "sha256": "ca7bd7f672aacee0f6cba998de55ef8641b28d80e519ba6d7731660139befd86"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/support-screens.mjs",
+      "bytes": 3315,
+      "sha256": "e32619aaba79e4c07e106c78b2a34d50e515181c029731c7b8772cc32b28da83"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/test-runtime.mjs",
+      "bytes": 419,
+      "sha256": "0be94f0b84a34fe1992dc3b07f28c902ea1f29d412e4e42fa7ff8b4e623b1ac6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/v18-visual.mjs",
+      "bytes": 1733,
+      "sha256": "b565164d40085e8bcd42fb6eeb70725228b3f6a52e251a1669052ff92541ee6e"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/v20-visual.mjs",
+      "bytes": 2243,
+      "sha256": "82155a488bc13c0c65e40c17cdbe0f578d7135e4885af720d73e23581b8ea032"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/v21-visual.mjs",
+      "bytes": 1809,
+      "sha256": "ede1fa2c3f8b7be73c120063f4020d4faee6f4dbf2247fb95f47ed057f2999fb"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/v23-visual.mjs",
+      "bytes": 2759,
+      "sha256": "8b30ad08a2867ef6f34eb79fa992bed206fd4b6032155b742527e46e4a03c945"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/v24-visual.mjs",
+      "bytes": 1276,
+      "sha256": "05c65600df34ae087441ef4f510b4d4be5031518334ca5c1504793235e554f5f"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/wave4-stats.mjs",
+      "bytes": 1447,
+      "sha256": "2372a5dba922d03fec9cca12b522ddc46e86e3654de1ca7bedca50ad9e1f8fb6"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/wins.mjs",
+      "bytes": 691,
+      "sha256": "baa79c612079317f47115fcabd422f085d860d0712d0f825657f402c91a43d31"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/source/pm/zero-min.mjs",
+      "bytes": 881,
+      "sha256": "ce7b94accdaba600e39665337fcacd7b9b3c2df9125ab735f7610741762eb17c"
+    },
+    {
+      "path": "issue-split/review/ablation-41-boss-slow/summary.json",
+      "bytes": 723,
+      "sha256": "8c7f3a10ba97d3ee2844b95f011a98a35703c649efe3cdc4cdb2f5cd150f2400"
+    },
+    {
+      "path": "issue-split/review/strength-31/bench.mjs",
+      "bytes": 10696,
+      "sha256": "12a7ab1bf815d85215e2d470bc70c623d0ec4c7eef781e6765e0b6fce77a5dd9"
+    },
+    {
+      "path": "issue-split/review/strength-31/dependency-closure.json",
+      "bytes": 5092,
+      "sha256": "3d91039fd97c15113875ca98349342131eddabfd6ba17066a87fd0cffa933c3e"
+    },
+    {
+      "path": "issue-split/review/strength-31/plan.json",
+      "bytes": 1824,
+      "sha256": "ee8307a7ec88861671da5b85ea9f9473fdb6f10ddb82ec6f15fc900b00a93529"
+    },
+    {
+      "path": "issue-split/review/strength-31/progress.jsonl",
+      "bytes": 5037,
+      "sha256": "a092f43e22769539f35d8b6e9e3a621d76a8692cc458c58c66f845fcc2d32479"
+    },
+    {
+      "path": "issue-split/review/strength-31/raw.jsonl",
+      "bytes": 8644054,
+      "sha256": "fc79f71e45dda3fbee6532f1afa14f63b16fcbd1b5fde4998ea7ec4f2aa88c54"
+    },
+    {
+      "path": "issue-split/review/strength-31/results.json",
+      "bytes": 1282074,
+      "sha256": "af5de2a50d035a38e0d77bb9335a07092acf86ffd7f48a8433e347a5abf0fe77"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/SOURCE_SHA",
+      "bytes": 41,
+      "sha256": "db9ce2f66fdd5bb570b6fffb676d8097458cfd3354d99671c2bb6ceaf674ee02"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/DESIGN.md",
+      "bytes": 103989,
+      "sha256": "eba0ae7ee3d2c0fa8df1448455c96fe7676ed84ea7c4cb6434c75465f5041cb9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/package-lock.json",
+      "bytes": 888,
+      "sha256": "12a3b4a9434ee8c7f666288c62c6f9b93b308d8cec1dd577c274ce53764fbf5b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/package.json",
+      "bytes": 212,
+      "sha256": "abfbe34e5828025131592c476837677ab857af0c7ee5fb4ecc5ba86a5e162fa0"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/index.html",
+      "bytes": 16156,
+      "sha256": "27be6d67f592a5da8ddc7394df4cde1dab217578755cf41cf1a8ce9d81bd5b22"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/audio.js",
+      "bytes": 38393,
+      "sha256": "0b6d2c832c369ac8b11816d969afa38c798bde138a30cf4c10ad95a093ead0c2"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/combinations.js",
+      "bytes": 3922,
+      "sha256": "6341b1a90ac7b7153998c56ee1f4ea6367d42c47b34986872ff01f7ce66cda10"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/display.js",
+      "bytes": 5840,
+      "sha256": "4c294723ee111c15e4de06ff4486653554c6e76d2d5cb6019173bf9aebce678a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/feedback.js",
+      "bytes": 2402,
+      "sha256": "789478d92f1ca844a5e359389dd845427d2cba75550310b7ee654a85e436e4d4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/game.js",
+      "bytes": 39228,
+      "sha256": "afbe9d9ba0e529869c797f2467d4d3c668a7e5776dc3da8b465ad14b6350fb29"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/input.js",
+      "bytes": 3287,
+      "sha256": "1cfecd84b30207606f6a2e0f7439dec90b32ddc73945e7e8caf8fe21e1a81f15"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/lobby-invites.js",
+      "bytes": 5065,
+      "sha256": "b828de27ea84899b57b9d3737bea491a7d76b1f686312dfe27e4090885b2e0fe"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/main.js",
+      "bytes": 23741,
+      "sha256": "74e1571c3a7f6f1764e6741edb41a3ff98b51e24d88919e33e5ddb390991235a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/net.js",
+      "bytes": 7053,
+      "sha256": "57513b1688990df8cca05fa6115f998ac721d5953f9e1dd5543ecc320feee75a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/render.js",
+      "bytes": 131855,
+      "sha256": "43ab1a4a736f8a1a5985e0737baca4df51ba30ab1ebf08709b1c31cdac3ff25b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/results.js",
+      "bytes": 20320,
+      "sha256": "5f785e42a9427ed4411de21086033e2fb3b5c96c2015fe32ef82bafca40c81da"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/run-history.js",
+      "bytes": 4875,
+      "sha256": "af1a5a6009971e283a7733f5afd0af9da32c378a0515be88489921ca528e2ed9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/snapshot-codec.js",
+      "bytes": 6816,
+      "sha256": "e66910966f04360a324bd082bf38f645af0e2e0f2c628aab264f3a741bcaa5d4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/sprites.js",
+      "bytes": 7350,
+      "sha256": "16686eb11a9d0119e843fe9e40dbc1d72ff766953ab8c3f32174f06c52353699"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/js/ui.js",
+      "bytes": 42797,
+      "sha256": "e5d80215f45c9f9ceabb1822569dac18130c9b5c82e31ac8ce9286731780b800"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/shared/confluences.js",
+      "bytes": 4082,
+      "sha256": "b2c387cc483b0408bc7baf99aa352e67e98471c67b54ed875b3a821989773fd3"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/shared/content.js",
+      "bytes": 99057,
+      "sha256": "7ef54d3fa4e78cca0f4f2cc77676ec73fcc486ff8d5026e9406e68c0b27f1ba8"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/sprites/manifest.json",
+      "bytes": 6728,
+      "sha256": "64bdfe573981cc2a003e1d5fe6e05d4b6853a0e4df55687e7e5e89cce7a2006a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/public/style.css",
+      "bytes": 45187,
+      "sha256": "699860bf22a8117aabbebee4fc33cec08563436e21f5c479ebba705e4acc3593"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/artifacts-test.js",
+      "bytes": 3408,
+      "sha256": "df8c0648f4c09165913f81b0b89c11433746a45cec2b344ef1e5e269c9cc6b17"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/builds-test.js",
+      "bytes": 6000,
+      "sha256": "572fd96d7e0138aa444edefbc424e98d387ddeaf127cbca863094d1c515228ad"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/codec-test.js",
+      "bytes": 5324,
+      "sha256": "3f4c82f6919e3524a6b6357b21bd91b5286cc5c56b2f4ed3b0f31dd697cd0607"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/confluences-test.js",
+      "bytes": 2018,
+      "sha256": "b143f00014cc3bc4e96e07fd5460596f47722d7ca99ed84abfc78059a0872609"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/confluences.js",
+      "bytes": 2998,
+      "sha256": "19a858957d0129533d1dc6f9c549d8dd683be9ca6c2983d5399648b31236b8e2"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/duos2-test.js",
+      "bytes": 18789,
+      "sha256": "79df642dceb3d7835e263fc096c8345f7ffa10ef6ffad8a42e67ed01e62571f7"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/events.js",
+      "bytes": 10939,
+      "sha256": "07be59df7624cdf4363fd5633185aa40f5623651cd4f7a541e6ff0ebd37118eb"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/feedback-test.js",
+      "bytes": 3555,
+      "sha256": "5e06d1ec8dc8b36b3394cd5cbc5a6ad9f41f08a19351f8d817dc5603356806b4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/feedback.js",
+      "bytes": 529,
+      "sha256": "9a5ea97955fb836e0b34e45d0278ddfa4a110b25535c270f746b8858e41f3e5a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/finale-test.js",
+      "bytes": 23749,
+      "sha256": "eae1fd1625d7d5dbcbc76f8037d240955028fb040b47f3026eee85d60f95ab16"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/flash-support-test.js",
+      "bytes": 8112,
+      "sha256": "ae95712c3746b7884e70bc31701d140ba3f77696790a3c54d185f3bcadd784b6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/fortune-forge-test.js",
+      "bytes": 4000,
+      "sha256": "5cff962b35f3bb23fccc633498bc8f3c9ae987254ed5ca36ebe0d007268364b5"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/fusion-inheritance-test.js",
+      "bytes": 2079,
+      "sha256": "b93dd87e93f0d6124deba3f1482c5c00457e59af4e580d041062556f294b9258"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/game.js",
+      "bytes": 213807,
+      "sha256": "9f58156c931c51785a8e38b84021caf5efa734cd8762c3e2407dfd6a425e0a57"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/hero-perks-test.js",
+      "bytes": 12454,
+      "sha256": "0428415f7c3e6746f97c577a5d2dd758caf5f4929e721498eb60a945b47e7b32"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/hero-perks.js",
+      "bytes": 8959,
+      "sha256": "050a71a57a0b8c04dc22c3f0c45b484d66d096328c57b5b40361270a36a3248b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/lobby-invites-test.js",
+      "bytes": 3849,
+      "sha256": "3acd2907bda345491ae18a62bd03eefa44bf1644e72c25f291a2ef5940dec00b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/lobby-invites.js",
+      "bytes": 2767,
+      "sha256": "93137be44d3a737f0f176d248eaf7bab777378f9bed149035735b73b9a871032"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/mr1-review-test.js",
+      "bytes": 8977,
+      "sha256": "f893d3eba410001286963728bfa43d138185a7e5e11e1b7506a74272ef11c173"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/offer-identity-test.js",
+      "bytes": 12403,
+      "sha256": "888ad28a1c42066a161744dfa3232a3b02af89891e41be29a548060b6efeb23e"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-client-test.js",
+      "bytes": 1544,
+      "sha256": "fa85072421b77e9315ff5178e066d3fb9f142694396068b5b75efa864264339c"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-cohort-test.js",
+      "bytes": 4682,
+      "sha256": "50b2a0c32f453de16aa9fabf1b8b54394774faf90ba41dcee204a19e5de59789"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-duo-offer-test.js",
+      "bytes": 6076,
+      "sha256": "febc392d1c1377cb8ed7c149d7ea680bab7e581786c7b99b0d29d6fa8fa6eeb3"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-safe-position-test.js",
+      "bytes": 6353,
+      "sha256": "6462ef7fe8ec01a3948161ab78adf663675d5affa1f3431b5697e604e419dce8"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-sniper-test.js",
+      "bytes": 7368,
+      "sha256": "a5c5b290ae502cc3808f1d4be63e3c7ce76943a4a56f30ebef6c1dc6e40de323"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-sniper-warning-test.js",
+      "bytes": 2572,
+      "sha256": "138a69279a970d96dd2b85e28c589d750a287447d059f485c3cd5310da7356d6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outpost-spawn-budget-test.js",
+      "bytes": 2819,
+      "sha256": "dbc508377c448fed867cfb2d2238607ae80e8278fe6cbccd5b1e4fd001580646"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outposts-density-client-test.js",
+      "bytes": 4889,
+      "sha256": "a4866687012fc2e078c9dc9acc51101f62c5f9c86483f9d957ad352d1a20e9d4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outposts-density-test.js",
+      "bytes": 7367,
+      "sha256": "7ef437eac2bd47d2b305fb92caba7d11f09927622bd678ea593357e43a87df98"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outposts-test.js",
+      "bytes": 9995,
+      "sha256": "1f16552c8592b658ce9d744de17e79d2aefcce55fef99fccc1009cbca4ef4763"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/outposts.js",
+      "bytes": 8718,
+      "sha256": "630536a7eb8b4899efa6ef4e613b4e64e69ea774262cf6d085c1d1e6deed8f45"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/reaction-support-test.js",
+      "bytes": 9027,
+      "sha256": "8d0e30401ea04f53378942090b6ad3f72e9ae829e97ec51c02a400ba36db9115"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/results-test.js",
+      "bytes": 7363,
+      "sha256": "7710175f2d6fde556e26c3d7a02052ec1f035b09c8d99f8162608ddcb8bd2dba"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/run-history-test.js",
+      "bytes": 6066,
+      "sha256": "7b5980204e57db018e2d98407e8afa00cf9cde4dd482ccbdda25835f40db163b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/runlog.js",
+      "bytes": 40865,
+      "sha256": "fbe2f246e59c0e0893e8c52bb2bd78b76c38f477044717500c0931dc3f644bb0"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/server.js",
+      "bytes": 22289,
+      "sha256": "5fb410ea3ac525ad1c9e04f2c9143c5e60b47b741f1aa5a20a80d072e639fb3d"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/sim-runner-test.js",
+      "bytes": 4667,
+      "sha256": "ab35535356979d47429a94e9aae83fe0c37822c22a867a8a6cc1029509123c30"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/sim-test.js",
+      "bytes": 97127,
+      "sha256": "d546fae80745cc1fbcd2da23efe2528e2df33c6f57845f2213138b6b2180965b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/snapshot-codec.js",
+      "bytes": 6721,
+      "sha256": "b8d6a08b837b7edbdbda7aae4b3ce6b911d4dfe6cf265c4b073a49e8359b76bf"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/storage.js",
+      "bytes": 16399,
+      "sha256": "ebccdb8deab8c566738903a71185f66f313ef19098003b2b65341196c4fce3c9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/telegraph-pause-client-test.js",
+      "bytes": 1685,
+      "sha256": "b38e81c56f53f6fcd276a14763b494662920a6826b429c1a9586608fdb288922"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/v19-test.js",
+      "bytes": 9217,
+      "sha256": "54fa6e2a9af0bfdaee4e75338cc79a08c747d5e888766d8e03c5d9205e75d3c5"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/v20-test.js",
+      "bytes": 22187,
+      "sha256": "21cc7cc37e494eea9ff4b89f30b43c945bd7f03029c5db3a478de9e526956af7"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/v22-test.js",
+      "bytes": 14734,
+      "sha256": "6d142f76cbad84eb6545b30ec4187b4f5017e95a09df770349ea8c681bbab06a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/v29-test.js",
+      "bytes": 2488,
+      "sha256": "74ecfd9be1f3440b85352b339f833503ec79b8e0f5ddda9cb0447d216cc0bf79"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/wave2-test.js",
+      "bytes": 10434,
+      "sha256": "e257b102ce2fbafe1d24bbb9de4ba534468d2e1f4ba6bbe655c681566073d79a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/wave4-test.js",
+      "bytes": 21003,
+      "sha256": "327fc8a1288ad4303860009dca163bd236fc539d497f9f4548f093a3a4467c67"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/baseline/app/server/weapon-roles-test.js",
+      "bytes": 4288,
+      "sha256": "a36f8cbe48276a976dfcb856a2203f8aa0c5e1b84a71f61e6854ae18d1b7ae3d"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/SOURCE_SHA",
+      "bytes": 41,
+      "sha256": "30c23b5fbdd9c995524847368fef439511d5c211d05e1bd5a2484312d77f2920"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/DESIGN.md",
+      "bytes": 103989,
+      "sha256": "eba0ae7ee3d2c0fa8df1448455c96fe7676ed84ea7c4cb6434c75465f5041cb9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/package-lock.json",
+      "bytes": 888,
+      "sha256": "12a3b4a9434ee8c7f666288c62c6f9b93b308d8cec1dd577c274ce53764fbf5b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/package.json",
+      "bytes": 212,
+      "sha256": "abfbe34e5828025131592c476837677ab857af0c7ee5fb4ecc5ba86a5e162fa0"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/index.html",
+      "bytes": 16156,
+      "sha256": "27be6d67f592a5da8ddc7394df4cde1dab217578755cf41cf1a8ce9d81bd5b22"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/audio.js",
+      "bytes": 38393,
+      "sha256": "0b6d2c832c369ac8b11816d969afa38c798bde138a30cf4c10ad95a093ead0c2"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/combinations.js",
+      "bytes": 3907,
+      "sha256": "420248699c24b98941eab2cb427531dae1111d2eb8b0c8156490af77b3d77782"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/display.js",
+      "bytes": 5840,
+      "sha256": "4c294723ee111c15e4de06ff4486653554c6e76d2d5cb6019173bf9aebce678a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/feedback.js",
+      "bytes": 2402,
+      "sha256": "789478d92f1ca844a5e359389dd845427d2cba75550310b7ee654a85e436e4d4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/game.js",
+      "bytes": 39768,
+      "sha256": "a402ffb28d690cc32849d7fb5798ddc8376f8a9138f836ffd83f96f61f1d699b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/input.js",
+      "bytes": 3287,
+      "sha256": "1cfecd84b30207606f6a2e0f7439dec90b32ddc73945e7e8caf8fe21e1a81f15"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/lobby-invites.js",
+      "bytes": 5065,
+      "sha256": "b828de27ea84899b57b9d3737bea491a7d76b1f686312dfe27e4090885b2e0fe"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/main.js",
+      "bytes": 23741,
+      "sha256": "74e1571c3a7f6f1764e6741edb41a3ff98b51e24d88919e33e5ddb390991235a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/net.js",
+      "bytes": 7053,
+      "sha256": "57513b1688990df8cca05fa6115f998ac721d5953f9e1dd5543ecc320feee75a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/render.js",
+      "bytes": 131637,
+      "sha256": "82c8f656a7523425a826e4c4d05628bd40840ad1c5c316269b1fdbcc38159ef4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/results.js",
+      "bytes": 20320,
+      "sha256": "5f785e42a9427ed4411de21086033e2fb3b5c96c2015fe32ef82bafca40c81da"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/run-history.js",
+      "bytes": 4875,
+      "sha256": "af1a5a6009971e283a7733f5afd0af9da32c378a0515be88489921ca528e2ed9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/snapshot-codec.js",
+      "bytes": 6803,
+      "sha256": "4ab3021c1c38128d3137e4738956e30034c5bbdac73bded922b7feade1d0831a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/sprites.js",
+      "bytes": 7350,
+      "sha256": "16686eb11a9d0119e843fe9e40dbc1d72ff766953ab8c3f32174f06c52353699"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/js/ui.js",
+      "bytes": 42797,
+      "sha256": "e5d80215f45c9f9ceabb1822569dac18130c9b5c82e31ac8ce9286731780b800"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/shared/confluences.js",
+      "bytes": 4469,
+      "sha256": "2011082b31b72ec15016e84179d6caac5cf233a036652a6a2b371a83b418f91f"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/shared/content.js",
+      "bytes": 99354,
+      "sha256": "1745f15580eba1eb0fbd5f96d065d69cda8c792f3b9730f9afdb18f41b0da20f"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/sprites/manifest.json",
+      "bytes": 6728,
+      "sha256": "64bdfe573981cc2a003e1d5fe6e05d4b6853a0e4df55687e7e5e89cce7a2006a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/public/style.css",
+      "bytes": 45187,
+      "sha256": "699860bf22a8117aabbebee4fc33cec08563436e21f5c479ebba705e4acc3593"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/artifacts-test.js",
+      "bytes": 3408,
+      "sha256": "df8c0648f4c09165913f81b0b89c11433746a45cec2b344ef1e5e269c9cc6b17"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/builds-test.js",
+      "bytes": 6000,
+      "sha256": "572fd96d7e0138aa444edefbc424e98d387ddeaf127cbca863094d1c515228ad"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/codec-test.js",
+      "bytes": 5610,
+      "sha256": "4cbf64c3926f7f27fb8cc355901cdd3407e0c93a2fe59b6ead91043626fea420"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/confluences-test.js",
+      "bytes": 2018,
+      "sha256": "b143f00014cc3bc4e96e07fd5460596f47722d7ca99ed84abfc78059a0872609"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/confluences.js",
+      "bytes": 3254,
+      "sha256": "04466bea7a776018e787903de36cb3305f16216eeb78ecb2264b64766229bd18"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/duos2-test.js",
+      "bytes": 18789,
+      "sha256": "79df642dceb3d7835e263fc096c8345f7ffa10ef6ffad8a42e67ed01e62571f7"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/events.js",
+      "bytes": 10939,
+      "sha256": "07be59df7624cdf4363fd5633185aa40f5623651cd4f7a541e6ff0ebd37118eb"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/feedback-test.js",
+      "bytes": 3555,
+      "sha256": "5e06d1ec8dc8b36b3394cd5cbc5a6ad9f41f08a19351f8d817dc5603356806b4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/feedback.js",
+      "bytes": 529,
+      "sha256": "9a5ea97955fb836e0b34e45d0278ddfa4a110b25535c270f746b8858e41f3e5a"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/finale-test.js",
+      "bytes": 23749,
+      "sha256": "c92f4e7c240b1a85d57d75d71dbeac72c6af467a231b42e811d205c400f815f6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/flash-support-test.js",
+      "bytes": 8112,
+      "sha256": "ae95712c3746b7884e70bc31701d140ba3f77696790a3c54d185f3bcadd784b6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/fortune-forge-test.js",
+      "bytes": 4000,
+      "sha256": "5cff962b35f3bb23fccc633498bc8f3c9ae987254ed5ca36ebe0d007268364b5"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/fusion-focus-test.js",
+      "bytes": 1216,
+      "sha256": "7d2daaf9d24286cd6fd52eaaba9b557ece8a2cc55c2fd19c24ea0dfbc8598998"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/fusion-inheritance-test.js",
+      "bytes": 2163,
+      "sha256": "535a8e78a8ace58d5a59c5c212c7ef8d5eac4f452eaccb052c266c43eb94a956"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/fusion-signature-test.js",
+      "bytes": 3031,
+      "sha256": "b70c54db0875daa893f1f4bdb6b9f02a81247db7cf2a0b5b4c238ba0b914f096"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/game.js",
+      "bytes": 213809,
+      "sha256": "88e383d55003a5130e276f9ad881ed9bcbf32aa0fbb014705a8940dc4940b208"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/hero-perks-test.js",
+      "bytes": 12524,
+      "sha256": "c2e4516d97f22a080c858ae30841ad5211ff125836a78cae67ef11e4f5980785"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/hero-perks.js",
+      "bytes": 8959,
+      "sha256": "050a71a57a0b8c04dc22c3f0c45b484d66d096328c57b5b40361270a36a3248b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/lobby-invites-test.js",
+      "bytes": 3849,
+      "sha256": "3acd2907bda345491ae18a62bd03eefa44bf1644e72c25f291a2ef5940dec00b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/lobby-invites.js",
+      "bytes": 2767,
+      "sha256": "93137be44d3a737f0f176d248eaf7bab777378f9bed149035735b73b9a871032"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/mr1-review-test.js",
+      "bytes": 8890,
+      "sha256": "863a97f52a56120e74aa298c4b1cf27f69fd29a1899fc4754f7d653363103a79"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/offer-identity-test.js",
+      "bytes": 12403,
+      "sha256": "2cd052c4218b78215242e3fbe541be2ec47d6054600c411ba2a20a14ce3542d5"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-client-test.js",
+      "bytes": 1544,
+      "sha256": "fa85072421b77e9315ff5178e066d3fb9f142694396068b5b75efa864264339c"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-cohort-test.js",
+      "bytes": 4682,
+      "sha256": "50b2a0c32f453de16aa9fabf1b8b54394774faf90ba41dcee204a19e5de59789"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-duo-offer-test.js",
+      "bytes": 6076,
+      "sha256": "febc392d1c1377cb8ed7c149d7ea680bab7e581786c7b99b0d29d6fa8fa6eeb3"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-safe-position-test.js",
+      "bytes": 6353,
+      "sha256": "6462ef7fe8ec01a3948161ab78adf663675d5affa1f3431b5697e604e419dce8"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-sniper-test.js",
+      "bytes": 7368,
+      "sha256": "a5c5b290ae502cc3808f1d4be63e3c7ce76943a4a56f30ebef6c1dc6e40de323"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-sniper-warning-test.js",
+      "bytes": 2572,
+      "sha256": "138a69279a970d96dd2b85e28c589d750a287447d059f485c3cd5310da7356d6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outpost-spawn-budget-test.js",
+      "bytes": 2819,
+      "sha256": "dbc508377c448fed867cfb2d2238607ae80e8278fe6cbccd5b1e4fd001580646"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outposts-density-client-test.js",
+      "bytes": 4889,
+      "sha256": "a4866687012fc2e078c9dc9acc51101f62c5f9c86483f9d957ad352d1a20e9d4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outposts-density-test.js",
+      "bytes": 7367,
+      "sha256": "7ef437eac2bd47d2b305fb92caba7d11f09927622bd678ea593357e43a87df98"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outposts-test.js",
+      "bytes": 9995,
+      "sha256": "1f16552c8592b658ce9d744de17e79d2aefcce55fef99fccc1009cbca4ef4763"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/outposts.js",
+      "bytes": 8718,
+      "sha256": "630536a7eb8b4899efa6ef4e613b4e64e69ea774262cf6d085c1d1e6deed8f45"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/reaction-support-test.js",
+      "bytes": 9027,
+      "sha256": "8d0e30401ea04f53378942090b6ad3f72e9ae829e97ec51c02a400ba36db9115"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/results-test.js",
+      "bytes": 7363,
+      "sha256": "7710175f2d6fde556e26c3d7a02052ec1f035b09c8d99f8162608ddcb8bd2dba"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/run-history-test.js",
+      "bytes": 6066,
+      "sha256": "7b5980204e57db018e2d98407e8afa00cf9cde4dd482ccbdda25835f40db163b"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/runlog.js",
+      "bytes": 40865,
+      "sha256": "fbe2f246e59c0e0893e8c52bb2bd78b76c38f477044717500c0931dc3f644bb0"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/server.js",
+      "bytes": 22289,
+      "sha256": "5fb410ea3ac525ad1c9e04f2c9143c5e60b47b741f1aa5a20a80d072e639fb3d"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/sim-runner-test.js",
+      "bytes": 4667,
+      "sha256": "ab35535356979d47429a94e9aae83fe0c37822c22a867a8a6cc1029509123c30"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/sim-test.js",
+      "bytes": 98039,
+      "sha256": "2c37d429d52182c6dfce131627564581800902f98bbc13013d2ade651697d3a4"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/snapshot-codec.js",
+      "bytes": 6721,
+      "sha256": "b8d6a08b837b7edbdbda7aae4b3ce6b911d4dfe6cf265c4b073a49e8359b76bf"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/storage.js",
+      "bytes": 16399,
+      "sha256": "ebccdb8deab8c566738903a71185f66f313ef19098003b2b65341196c4fce3c9"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/telegraph-pause-client-test.js",
+      "bytes": 1685,
+      "sha256": "b38e81c56f53f6fcd276a14763b494662920a6826b429c1a9586608fdb288922"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/v19-test.js",
+      "bytes": 9217,
+      "sha256": "54fa6e2a9af0bfdaee4e75338cc79a08c747d5e888766d8e03c5d9205e75d3c5"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/v20-test.js",
+      "bytes": 22187,
+      "sha256": "eb50fbcdbabd9dc6df1706b0d0a2af6ab35a5c55a24e5365d99a480b6e45916f"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/v22-test.js",
+      "bytes": 14734,
+      "sha256": "442d430c8243aabecea66064ec79bf0ee328bf792dbfad3754c081fa6bba38f2"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/v29-test.js",
+      "bytes": 2488,
+      "sha256": "74ecfd9be1f3440b85352b339f833503ec79b8e0f5ddda9cb0447d216cc0bf79"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/wave2-test.js",
+      "bytes": 10795,
+      "sha256": "e4221cc7a20f99ee6280c67e416a07604e3f9f1cef4c8d05035b93b645f143a6"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/wave4-test.js",
+      "bytes": 21003,
+      "sha256": "327fc8a1288ad4303860009dca163bd236fc539d497f9f4548f093a3a4467c67"
+    },
+    {
+      "path": "issue-split/review/strength-31/source/candidate/app/server/weapon-roles-test.js",
+      "bytes": 4288,
+      "sha256": "a36f8cbe48276a976dfcb856a2203f8aa0c5e1b84a71f61e6854ae18d1b7ae3d"
+    },
+    {
+      "path": "issue-split/review/strength-31/sources.json",
+      "bytes": 3530,
+      "sha256": "9e5543eb1c09d9616359154cda31d8142137afe807a8dfe30d854cc2d88d8c3c"
+    },
+    {
+      "path": "issue-split/review/strength-31/stderr.txt",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "issue-split/review/strength-31/summarize.py",
+      "bytes": 5463,
+      "sha256": "e7d54e141ac6ef6e5c7036538551e5413c0bf088564bb65eaefd600575ff734a"
+    },
+    {
+      "path": "issue-split/review/strength-31/summary.json",
+      "bytes": 13884,
+      "sha256": "a430d9b90f5a72737908d471f2087b7a1829662459e99797bdc3994cd942d8b9"
+    },
+    {
+      "path": "issue-split/review/strength-31/table.md",
+      "bytes": 15585,
+      "sha256": "a5063c11e70128e1105e7ea0986c8b4f146676b915572d358822bf768e75e7bb"
+    },
+    {
+      "path": "issue-split/review/strength-31/transfer-73c5511.json",
+      "bytes": 3799,
+      "sha256": "96569dfd8f78994449d4c6883aa215b1e8bb93662785db4b285e0cf3b67e1c32"
+    },
+    {
+      "path": "issue-split/review/strength-31/whirlwind-pull.json",
+      "bytes": 7457,
+      "sha256": "035a09f584cf846ceb8e8964f4b1893d08a381cff93008d4af10c7535c5be021"
+    },
+    {
+      "path": "issue-split/review/strength-31/whirlwind-pull.mjs",
+      "bytes": 2888,
+      "sha256": "74325f56a6a93afaa054e327c8a02ab634cc13ad1fb71648182bef00eafe803f"
+    }
+  ]
+}

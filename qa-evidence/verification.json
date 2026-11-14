@@ -1,0 +1,20 @@
+[
+  {
+    "archive": "historical-balance.tar.gz",
+    "sha256": "58605b9aa851920f5635df12b29fad39fda6a1ee8463188be912ed2a22d8218e",
+    "files": 17566,
+    "status": "PASS"
+  },
+  {
+    "archive": "historical-strength.tar.gz",
+    "sha256": "a5ed3892faa75f0fe4bd3cf9fd700c39de2a7d629c4d7920d0a32009d987d982",
+    "files": 570,
+    "status": "PASS"
+  },
+  {
+    "archive": "v36-prereview.tar.gz",
+    "sha256": "f8b080ece4617ef285475196b09ae602d94e8b483c376890a1d629df66dcc6ba",
+    "files": 11284,
+    "status": "PASS"
+  }
+]
