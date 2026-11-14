@@ -23,6 +23,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { projectControlPoint, controlPointDiffers, controlScale as observedControlScale, lockDelivered } from './control-observation.js';
 import { newSupport, supportStats, healSupport, controlTick, timedControl, resolveControl } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
@@ -1801,6 +1802,7 @@ export class Room {
 		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
+			let controlMotion = null;
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
@@ -1826,7 +1828,11 @@ export class Room {
 					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
 					const locked = e.frozenT > now || e.rootT > now;
 					const step = locked ? 0 : Math.min(d, e.speed * dt);
-					if (locked && e.speed > 0 && (dx || dy)) controlTick(e, now, dt, 'lock');
+					if (locked) {
+						const actualEnd = projectControlPoint(e, e.x, e.y), plainStep = Math.min(d, e.speed * dt);
+						const plainEnd = projectControlPoint(e, e.x + dx / d * plainStep, e.y + dy / d * plainStep);
+						if (controlPointDiffers(actualEnd[0], actualEnd[1], plainEnd)) controlTick(e, now, dt, 'lock');
+					}
 					e.x += dx / d * step;
 					e.y += dy / d * step;
 					e.bs = 0;
@@ -1836,7 +1842,7 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
-					controlTick(e, now, dt, 'lock');
+					if (lockDelivered(e, best, alive, now, dt, speedMul * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1))) controlTick(e, now, dt, 'lock');
 					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
 					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
 					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
@@ -1913,7 +1919,10 @@ export class Room {
 					dy = zy / l;
 				}
 				const step = Math.min(speed * dt, maxStep);
-				if (controlScale < 1 && step < Math.min(speed / controlScale * dt, maxStep)) controlTick(e, now, dt, 'movement');
+				if (controlScale < 1) {
+					const plainStep = Math.min(speed / controlScale * dt, maxStep);
+					if (step < plainStep) controlMotion = [dx * (plainStep - step), dy * (plainStep - step)];
+				}
 				e.x += dx * step;
 				e.y += dy * step;
 
@@ -1937,7 +1946,12 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally { confineGuard(e); }
+			} finally {
+				// Keep the observed separation displacement; do not replay collision/AI/RNG.
+				const plainEnd = controlMotion && projectControlPoint(e, e.x + controlMotion[0], e.y + controlMotion[1]);
+				confineGuard(e);
+				if (plainEnd && controlPointDiffers(e.x, e.y, plainEnd)) controlTick(e, now, dt, 'movement');
+			}
 		}
 	}
 
@@ -2037,10 +2051,12 @@ export class Room {
 
 	bossStep(e, dx, dy, speed, dt, controlled = false) {
 		const ox = e.x, oy = e.y;
+		const scale = controlled ? observedControlScale(e, this.time) : 1;
+		const plainEnd = scale < 1 ? projectControlPoint(e, ox + dx * speed / scale * dt, oy + dy * speed / scale * dt) : null;
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
 		confineGuard(e);
-		if (controlled && (e.x !== ox || e.y !== oy)) controlTick(e, this.time, dt, 'movement');
+		if (plainEnd && controlPointDiffers(e.x, e.y, plainEnd)) controlTick(e, this.time, dt, 'movement');
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
