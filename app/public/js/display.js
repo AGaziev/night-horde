@@ -7,6 +7,32 @@ function el(tag, cls, parent) {
 	return e;
 }
 
+// Both parts must fit in the bearing's quadrant. A narrower gap is preferable to overlap.
+export function caravanPlacement(icon, label, boxes, width, height, angle) {
+ const dx = Math.cos(angle), dy = Math.sin(angle), cx = width / 2, cy = height / 2;
+ const sameSide = (x,y) => (Math.abs(dx) < .1 || (x-cx)*dx > 0) && (Math.abs(dy) < .1 || (y-cy)*dy > 0);
+ const place = (rect, avoid, gap) => {
+  const w = rect.width, h = rect.height;
+  const xs = new Set([rect.left,gap,width-gap-w]), ys = new Set([rect.top,gap,height-gap-h]);
+  for (const b of avoid) { xs.add(b.left-gap-w); xs.add(b.right+gap); ys.add(b.top-gap-h); ys.add(b.bottom+gap); }
+  let best = null, distance = Infinity;
+  for (const x of xs) for (const y of ys) {
+   const d = (x-rect.left)**2+(y-rect.top)**2;
+   if (d >= distance || x < gap || y < gap || x+w > width-gap || y+h > height-gap || !sameSide(x+w/2,y+h/2)) continue;
+   if (avoid.some(b => x+w > b.left-gap && x < b.right+gap && y+h > b.top-gap && y < b.bottom+gap)) continue;
+   best = {left:x,top:y,right:x+w,bottom:y+h,width:w,height:h}; distance=d;
+  }
+  return best;
+ };
+ for (const gap of [6,4]) {
+  const ip = place(icon, boxes, gap); if (!ip) continue;
+  const moved = {width:label.width,height:label.height,left:label.left+ip.left-icon.left, top:label.top+ip.top-icon.top};
+  const lp = place(moved, boxes.concat(ip), gap);
+  if (lp) return {icon:ip,label:lp,gap};
+ }
+ return null;
+}
+
 export class Overlay {
 	constructor() {
 		const body = document.body;
@@ -104,27 +130,12 @@ export class Overlay {
    this.objectiveObstacles = { key, at: now, boxes: nodes.filter(e => e && !e.hidden)
     .map(e => e.getBoundingClientRect()).filter(r => r.width && r.height) };
   }
-  const boxes = this.objectiveObstacles.boxes, gap = 6, cx = innerWidth / 2, cy = innerHeight / 2;
-  const dx = Math.cos(a.ang), dy = Math.sin(a.ang);
-  const sameSide = (x,y) => (Math.abs(dx) < .1 || (x-cx)*dx > 0) && (Math.abs(dy) < .1 || (y-cy)*dy > 0);
-  const place = (rect, extra = []) => {
-   const width = rect.width, height = rect.height;
-   const valid = (x,y) => x >= gap && y >= gap && x+width <= innerWidth-gap && y+height <= innerHeight-gap
-    && sameSide(x+width/2,y+height/2)
-    && [...boxes,...extra].every(b => x+width <= b.left-gap || x >= b.right+gap || y+height <= b.top-gap || y >= b.bottom+gap);
-   const xs = [rect.left,gap,innerWidth-gap-width], ys = [rect.top,gap,innerHeight-gap-height];
-   for(const b of [...boxes,...extra]){xs.push(b.left-gap-width,b.right+gap);ys.push(b.top-gap-height,b.bottom+gap);}
-   let best = null, distance = Infinity;
-   for(const x of xs)for(const y of ys){const d=(x-rect.left)**2+(y-rect.top)**2;if(d<distance&&valid(x,y)){best={x,y,left:x,right:x+width,top:y,bottom:y+height};distance=d;}}
-   return best;
-  };
-  const icon = p.svg.getBoundingClientRect(), iconPlace = place(icon);
-  let moveX = 0, moveY = 0;
-  if(iconPlace){moveX=iconPlace.x-icon.left;moveY=iconPlace.y-icon.top;p.root.style.transform=`translate(${(a.x+moveX).toFixed(1)}px,${(a.y+moveY).toFixed(1)}px)`;}
-  const label = p.label.getBoundingClientRect(), labelPlace = place(label,iconPlace?[iconPlace]:[icon]);
-  if(labelPlace){
-   // The root has moved with the icon; convert the independently placed label back into root coordinates.
-   p.label.style.transform=`translate(${(labelPlace.x-a.x-moveX).toFixed(1)}px,${(labelPlace.y-a.y-moveY).toFixed(1)}px)`;
+  const icon = p.svg.getBoundingClientRect(), label = p.label.getBoundingClientRect();
+  const result = caravanPlacement(icon, label, this.objectiveObstacles.boxes, innerWidth, innerHeight, a.ang);
+  if (result) {
+   const x = a.x + result.icon.left-icon.left, y = a.y + result.icon.top-icon.top;
+   p.root.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px)`;
+   p.label.style.transform = `translate(${(result.label.left-x).toFixed(1)}px,${(result.label.top-y).toFixed(1)}px)`;
   }
  }
 
