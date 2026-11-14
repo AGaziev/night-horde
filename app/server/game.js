@@ -2334,8 +2334,12 @@ export class Room {
 				if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
 			}
 		}
-		events.sort((a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid);
-		for (const ev of events) {
+		const order = (a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
+		events.sort(order);
+		this.dashContactChanged = new Set();
+		try {
+		while (events.length) {
+			const ev = events.shift();
 			const { h, e, s, at } = ev;
 			if (h.st !== 0 || e?.dead || s?.dashDone) continue;
 			if (s) {
@@ -2345,8 +2349,24 @@ export class Room {
 				if (e.fuseT <= 0) { e.fuseT = e.def.fuse; e.fuseBy = null; }
 			} else if (e.dmg > 0 && !(e.frozenT > now) && !(e.immuneT > now)) {
 				applyContact(h, frames.get(h), at, () => this.bodyContact(h, e));
+			}			// A real impulse is a discontinuity, not an extension of the old AI trajectory.
+			// Replace only future body events, and search the stationary new position from this event onward.
+			if (this.dashContactChanged.size) {
+				for (const changed of this.dashContactChanged) {
+					for (let i = events.length - 1; i >= 0; i--) if (events[i].e === changed) events.splice(i, 1);
+					if (changed.dead) continue;
+					for (const hero of this.heroes.values()) {
+						if (hero.st !== 0 || !hero.dashPath) continue;
+						const contact = dashContactTime(hero, changed.x, changed.y, changed.x, changed.y, dt,
+							changed.r + PLAYER_RADIUS, Math.max(0, at - start), dt);
+						if (contact !== null) events.push({ at: start + contact, h: hero, e: changed, id: changed.id, kind: 0 });
+					}
+				}
+				this.dashContactChanged.clear();
+				events.sort(order);
 			}
 		}
+		} finally { this.dashContactChanged = null; }
 		for (const [h, frame] of frames) if (h.dashPath) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
 		let j = 0;
 		for (const s of this.hostile) {
@@ -4492,11 +4512,13 @@ export class Room {
 		if (e.knockT > this.time) return;
 		e.knockT = this.time + KNOCK_EVERY;
 		if (e.elite) dist *= 0.5;
+		const oldX = e.x, oldY = e.y;
 		const dx = e.x - fromX, dy = e.y - fromY;
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
 		confineGuard(e);
+		if (e.x !== oldX || e.y !== oldY) this.dashContactChanged?.add(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
