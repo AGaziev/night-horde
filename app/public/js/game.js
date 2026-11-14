@@ -115,6 +115,7 @@ export class Game {
 	}
 
 	reset() {
+		this.daily = null;
 		this.snaps.length = 0;
 		this.resetClock();
 		this.passives = {};
@@ -161,6 +162,7 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.daily = msg.daily ?? null;
 		this.running = true;
 		this.frozen = msg.paused === true;
 		this.menuPause = this.frozen && msg.menu === true;
@@ -255,7 +257,7 @@ export class Game {
 	passiveLevel(id) { return this.passives[id] || 0; }
 	// Accumulated artifact value: card rarity makes it differ from perLevel × level (server recalcMods does the same).
 	passiveVal(id) { return this.pvals[id] ?? PASSIVES[id].perLevel * this.passiveLevel(id); }
-	speedMul() { return 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0); }
+	speedMul() { return (1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0)) * (this.daily?.mods.speed ?? 1); }
 	inBanner() {
 		for (const b of this.banners) if (b.t < b.life && Math.hypot(this.local.x - b.x, this.local.y - b.y) < b.r) return true;
 		return false;
@@ -340,6 +342,8 @@ export class Game {
 			it: Array.isArray(msg.it) ? msg.it : EMPTY,
 			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
 			boss: Array.isArray(msg.boss) ? msg.boss : null,
+			swarm: msg.swarm ?? null,
+			swarmResult: msg.swarmResult ?? null,
 			pk: Array.isArray(msg.pk) && PEAKS[msg.pk[0]] ? msg.pk : null,
 			ev: Array.isArray(msg.ev) && EVENTS[msg.ev[0]] ? msg.ev : null,
 			applied: false,

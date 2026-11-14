@@ -59,6 +59,12 @@
 			<h2>Режим</h2>
 			<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
 			<p id="lobby-mode-hint" class="muted small mode-hint"></p>
+			<div class="daily-pick">
+				<label class="daily-toggle"><input id="lobby-daily" type="checkbox" aria-describedby="lobby-daily-description lobby-daily-hint"> Испытание дня</label>
+				<p id="lobby-daily-title" class="daily-title"></p>
+				<p id="lobby-daily-description" class="small"></p>
+				<p id="lobby-daily-hint" class="muted small" role="status"></p>
+			</div>
 			<h2>Выберите героя</h2>
 			<div id="lobby-heroes" class="hero-grid"></div>
 			<h2>Игроки <span id="lobby-count" class="muted"></span></h2>
@@ -136,6 +142,11 @@
 				<button id="run-history-mine" class="btn btn-small" aria-pressed="true">Мои</button>
 				<button id="run-history-recent" class="btn btn-small" aria-pressed="false">Общие</button>
 			</div>
+			<div class="run-history-actions" role="group" aria-label="Вид забегов">
+				<button id="run-history-normal" class="btn btn-small" aria-pressed="true">Обычные</button>
+				<button id="run-history-daily" class="btn btn-small" aria-pressed="false">Испытания</button>
+			</div>
+			<div id="run-history-best" class="daily-records small" hidden></div>
 			<p id="run-history-status" class="muted small" role="status"></p>
 			<ul id="run-history-list" class="run-history-list"></ul>
 		</div>
@@ -183,7 +194,7 @@
 			</div>
 			<div class="hud-center">
 				<div id="hud-time" class="hud-time">00:00</div>
-				<div id="hud-mode" class="hud-mode"></div>
+				<div id="hud-swarm" class="hud-mode" hidden></div><div id="hud-mode" class="hud-mode"></div><div id="hud-daily" class="hud-mode" hidden></div>
 				<div id="hud-peak" class="hud-peak" hidden></div>
 				<div id="hud-event" class="hud-peak hud-event" hidden></div>
 				<div id="hud-outposts" class="hud-outposts" hidden aria-live="polite" title="Зачистите все аванпосты: Знамя победителя и легендарная перековка каждому. Каждый сундук даёт команде опыт и лечение."></div>

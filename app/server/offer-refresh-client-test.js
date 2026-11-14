@@ -5,10 +5,12 @@ import { Room } from './game.js';
 
 // Actual Room messages -> production UI.showOffer. Only the DOM, clock and timers are adapted.
 const contentUrl = JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href);
-const gameSource = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8').replace("'/shared/content.js'", contentUrl);
+const gameSource = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8').replace("'/shared/content.js'", contentUrl)
+	.replace("'/shared/daily.js'", JSON.stringify(new URL('../public/shared/daily.js', import.meta.url).href));
 const gameUrl = 'data:text/javascript;base64,' + Buffer.from(gameSource).toString('base64');
 const uiSource = fs.readFileSync(new URL('../public/js/ui.js', import.meta.url), 'utf8')
 	.replace("'/shared/content.js'", contentUrl)
+	.replace("'/shared/daily.js'", JSON.stringify(new URL('../public/shared/daily.js', import.meta.url).href))
 	.replace("import { drawHeroPreview } from './render.js';", '')
 	.replace("import { sprites } from './sprites.js';", '')
 	.replace("import { renderResults } from './results.js';", '')
