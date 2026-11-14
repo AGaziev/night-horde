@@ -17,7 +17,7 @@ test('CEO41.4 Pitch is real native non-cold control, overlaps count once',()=>{
  r.slowEnemy(e,.4,2,b);r.moveEnemies(.1,[a,b]);assert.ok(Math.abs(a.support.control+b.support.control-.2)<1e-9,'one union interval, no double credit');
 });
 test('CEO41.4 ordinary affinity Drag credits its owner and shares the control union',()=>{
- const {r,a,b,e}=arena();a.weapons.set('aura',{lvl:1,t:0});a.weapons.set('flask',{lvl:1,t:0});
- r.affinity(e,a,'aura');assert.equal(r.affinity(e,a,'flask'),'drag');assert.equal(e.dragOwner,a);r.moveEnemies(.1,[a,b]);assert.equal(a.support.control,.1);
+ const {r,a,b,e}=arena();a.weapons.set('orbit',{lvl:1,t:0});a.weapons.set('flask',{lvl:1,t:0});
+ r.affinity(e,a,'orbit');assert.equal(r.affinity(e,a,'flask'),'drag');assert.equal(e.dragOwner,a);r.moveEnemies(.1,[a,b]);assert.equal(a.support.control,.1);
  r.slowEnemy(e,.4,2,b);r.moveEnemies(.1,[a,b]);assert.ok(Math.abs(a.support.control+b.support.control-.2)<1e-9);
 });
