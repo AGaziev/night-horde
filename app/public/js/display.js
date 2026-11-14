@@ -15,26 +15,42 @@ function caravanSafe(r, avoid, width, height, angle, gap) {
   && avoid.every(b => r.right <= b.left-gap || r.left >= b.right+gap || r.bottom <= b.top-gap || r.top >= b.bottom+gap);
 }
 
-// A finite obstacle-edge grid, nearest first; never scan the viewport pixel by pixel.
+// A finite obstacle-edge grid. Precompute safe label space before trying icon positions.
 export function caravanPlacement(icon, label, boxes, width, height, angle) {
- const place = (rect, avoid, gap) => {
-  const w = rect.width, h = rect.height;
-  const xs = new Set([rect.left,gap,width-gap-w]), ys = new Set([rect.top,gap,height-gap-h]);
-  for (const b of avoid) { xs.add(b.left-gap-w); xs.add(b.right+gap); ys.add(b.top-gap-h); ys.add(b.bottom+gap); }
-  const candidates = [];
-  for (const x of xs) for (const y of ys) {
-   if (x < gap || y < gap || x+w > width-gap || y+h > height-gap) continue;
-   candidates.push({left:x,top:y,right:x+w,bottom:y+h,width:w,height:h,d:(x-rect.left)**2+(y-rect.top)**2});
+ const candidates = (rect, gap) => {
+  const w=rect.width,h=rect.height,dx=Math.cos(angle),dy=Math.sin(angle);
+  const xs=new Set([rect.left,gap,width-gap-w]),ys=new Set([rect.top,gap,height-gap-h]);
+  if(Math.abs(dx)>=.1)xs.add(width/2-w/2+(dx>0?.1:-.1));
+  if(Math.abs(dy)>=.1)ys.add(height/2-h/2+(dy>0?.1:-.1));
+  for(const b of boxes){xs.add(b.left-gap-w);xs.add(b.right+gap);ys.add(b.top-gap-h);ys.add(b.bottom+gap);}
+  const result=[];
+  for(const x of xs)for(const y of ys){
+   if(x<gap||y<gap||x+w>width-gap||y+h>height-gap)continue;
+   result.push({left:x,top:y,right:x+w,bottom:y+h,width:w,height:h,d:(x-rect.left)**2+(y-rect.top)**2});
   }
-  candidates.sort((a,b) => a.d-b.d);
-  for (const r of candidates.slice(0,4096)) if (caravanSafe(r,avoid,width,height,angle,gap)) return r;
-  return null;
+  result.sort((a,b)=>a.d-b.d);
+  return result.slice(0,4096).filter(r=>caravanSafe(r,boxes,width,height,angle,gap));
  };
- for (const gap of [6,4]) {
-  const ip = place(icon, boxes, gap); if (!ip) continue;
-  const moved = {width:label.width,height:label.height,left:label.left+ip.left-icon.left,top:label.top+ip.top-icon.top};
-  const lp = place(moved, boxes.concat(ip), gap);
-  if (lp) return {icon:ip,label:lp,gap};
+ const separate=(a,b,gap)=>a.right<=b.left-gap||a.left>=b.right+gap||a.bottom<=b.top-gap||a.top>=b.bottom+gap;
+ for(const gap of[6,4]){
+  const labels=candidates(label,gap);
+  if(!labels.length)continue; // No icon can make an impossible label fit.
+  // If any globally safe label can avoid an icon, at least one of these four extremes can.
+  // This makes each icon test constant-size, rather than a quadratic icon×label search.
+  const extremes=[labels[0]];
+  for(const[key,sign]of[['right',1],['left',-1],['bottom',1],['top',-1]])
+   extremes.push(labels.reduce((best,r)=>sign*r[key]<sign*best[key]?r:best));
+  for(const ip of candidates(icon,gap)){
+   const moved={width:label.width,height:label.height,left:label.left+ip.left-icon.left,top:label.top+ip.top-icon.top};
+   moved.right=moved.left+moved.width;moved.bottom=moved.top+moved.height;
+   let best=null,distance=Infinity;
+   for(const lp of extremes)if(separate(lp,ip,gap)){
+    const d=(lp.left-moved.left)**2+(lp.top-moved.top)**2;
+    if(d<distance){best=lp;distance=d;}
+   }
+   if(separate(moved,ip,gap)&&caravanSafe(moved,boxes,width,height,angle,gap))best=moved;
+   if(best)return{icon:ip,label:best,gap};
+  }
  }
  return null;
 }
