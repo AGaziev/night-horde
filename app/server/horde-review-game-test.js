@@ -97,6 +97,35 @@ test('normal paced Horde movement remains available without a per-message moveme
 	close(hero.x, hero.speed * 2);
 });
 
+test('idle position packets cannot bank a later leap or cancel a paid spawn', () => {
+	const { room, heroes: [hero] } = encounter();
+	hero.speed = 150;
+	for (let i = 0; i <= 41; i++) { room.time = i / 10; room.onPos(hero.pid, { x: 0, y: 0 }); }
+	assert.equal(room.horde.buy(HORDE_PACKS.swarm, 750, 0), null);
+	for (let i = 42; i <= 61; i++) {
+		room.time = i / 10;
+		const before = hero.x;
+		room.onPos(hero.pid, { x: 1700, y: 0 });
+		assert.ok(hero.x - before <= 150 * 0.1 * 1.1 + 1e-7, 'unused idle allowance cannot become a single-packet leap');
+	}
+	room.horde.tick(0, [hero]);
+	assert.equal(room.enemies.filter((e) => e.hordeSource === 'manual').length, 12, 'normal movement cannot cancel this paid formation');
+});
+
+test('idle credit cannot bypass a current chill and escape its warned blast', () => {
+	const { room, heroes: [hero] } = encounter();
+	hero.speed = 150;
+	for (let i = 0; i <= 100; i++) { room.time = i / 25; room.onPos(hero.pid, { x: 0, y: 0 }); }
+	room.horde.combat.chill(hero, { duration: 1 });
+	room.addBlast(0, 0, 100, 8, 0, null, 1, 0.04);
+	const hp = hero.hp;
+	room.time += 0.04;
+	room.onPos(hero.pid, { x: 1700, y: 0 });
+	assert.ok(hero.x <= 150 * 0.82 * 0.04 * 1.1 + 1e-7);
+	room.updateBlasts();
+	assert.ok(hero.hp < hp, 'the last slowed tick cannot erase an already warned hit');
+});
+
 test('Horde terminal heroes-left results retain the whole original hero roster and statistics', () => {
 	const { room, heroes } = encounter(2);
 	heroes[0].kills = 7; heroes[1].kills = 11;

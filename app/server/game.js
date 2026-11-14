@@ -759,7 +759,8 @@ export class Room {
 			}
 			const dx = tx - h.x, dy = ty - h.y;
 			const d = Math.hypot(dx, dy);
-			if (this.isHorde) h.hordeMoveCredit = Math.max(0, h.hordeMoveCredit - Math.min(d, maxStep));
+			// Credit belongs to this position interval. Standing still cannot bank it for a later leap.
+			if (this.isHorde) h.hordeMoveCredit = 0;
 			if (d > 0.5) {
 				h.mvx = dx / d;
 				h.mvy = dy / d;
