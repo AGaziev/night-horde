@@ -255,7 +255,7 @@ input[type="text"]:focus { border-color: var(--accent); }
 
 /* HUD */
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
-.hud-dash { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: max(28px, env(safe-area-inset-bottom)); min-width: 104px; min-height: 56px; border: 2px solid #7ad9de; border-radius: 16px; background: #172a35ed; color: #d6ffff; font: inherit; font-weight: 700; pointer-events: auto; touch-action: none; cursor: pointer; }
+.hud-dash { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: max(120px, calc(env(safe-area-inset-bottom) + 100px)); min-width: 104px; min-height: 56px; border: 2px solid #7ad9de; border-radius: 16px; background: #172a35ed; color: #d6ffff; font: inherit; font-weight: 700; pointer-events: auto; touch-action: none; cursor: pointer; }
 .hud-dash:disabled { border-color: #687c87; color: #acb8c0; background: #202631eb; cursor: default; }
 .hud-dash:focus-visible { outline: 3px solid #ffe082; outline-offset: 4px; }
 .hud-xp {

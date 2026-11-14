@@ -32,7 +32,10 @@ const sound = new Sound();
 game.sound = sound;
 input.onDash = () => game.requestDash(input);
 net.on('dash', msg => game.acceptDash(msg));
-$('hud-dash').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); input.onDash(); });
+$('hud-dash').addEventListener('pointerdown', e => {
+	if (e.pointerType === 'mouse' && e.button !== 0) return;
+	e.preventDefault(); e.stopPropagation(); input.onDash();
+});
 $('hud-dash').addEventListener('click', e => { if (e.detail === 0) input.onDash(); });
 game.visual = loadVisual();
 
