@@ -1819,7 +1819,15 @@ export class Room {
 				}
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
-				if (e.frozenT > now || e.rootT > now) continue;
+				if (e.frozenT > now || e.rootT > now) {
+					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
+					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
+					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
+						e.windT = e.shotT = 0;
+						e.aimAfter = now + 1 / SNAPSHOT_HZ;
+					}
+					continue;
+				}
 				let dx = best.x - e.x, dy = best.y - e.y;
 				const d = Math.sqrt(bd) || 1;
 				dx /= d;
@@ -2172,10 +2180,6 @@ export class Room {
 	// Sniper: a lane telegraph (as bosses' charges) for `windup` s, then one slow big orb along it. True while standing.
 	sniperTick(e, target, d, dt) {
 		const E = e.def;
-		if (e.outpost && e.windT > 0 && e.guardAim && (e.x !== e.guardAim.x || e.y !== e.guardAim.y)) {
-			e.windT = 0;
-			e.shotT = 0;
-		}
 		if (e.windT > 0) {
 			e.windT -= dt;
 			if (e.windT <= 0) {
@@ -2184,8 +2188,9 @@ export class Room {
 				const dmg = E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				for (let i = 0; i < E.fan; i++) {
 					const a = a0 + (i - (E.fan - 1) / 2) * E.spread;
+					// From where it aimed, even if knocked or pulled since: the volley follows the lanes on screen.
 					const s = {
-						id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
+						id: this.nextId++, x: e.aimX ?? e.x, y: e.aimY ?? e.y, vx: Math.cos(a) * E.shotSpeed, vy: Math.sin(a) * E.shotSpeed, r: E.shotR,
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
@@ -2198,7 +2203,7 @@ export class Room {
 		}
 		e.shotT -= dt;
 		const keep = e.outpost ? OUTPOST.sniperKeep : E.keep;
-		if (e.shotT <= 0 && d < keep[1] + 150) {
+		if (e.shotT <= 0 && d < keep[1] + 150 && !(e.aimAfter > this.time)) {
 			// Aim where the target will be in `lead` s if it keeps moving (the lane shows it; turning dodges).
 			const moving = target.movedT !== undefined && this.time - target.movedT < 0.3;
 			const lead = moving ? E.lead * target.speed * (target.mods?.speedMul ?? 1) : 0;
@@ -2208,7 +2213,8 @@ export class Room {
 			e.bvy = (ty - e.y) / l;
 			e.windT = E.windup;
 			e.shotT = E.shotCd;
-			if (e.outpost) e.guardAim = { x: e.x, y: e.y };
+			e.aimX = e.x;
+			e.aimY = e.y;
 			// v19: one lane per orb of the fan, so the safe gaps are where the picture shows them.
 			const a0 = Math.atan2(e.bvy, e.bvx);
 			for (let i = 0; i < E.fan; i++) {
