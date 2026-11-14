@@ -127,6 +127,9 @@ export class Renderer {
 		const view = game.view;
 		const inGame = game.running && view.b;
 		this.game = game;
+		// Simplified effects (Issue #11): no shake, flashes, glow blur, trails or lightning halos, fewer particles.
+		// Warnings, enemy shots and everything else needed to dodge stay as they are.
+		const lite = this.lite = game.visual?.effects === 'lite';
 
 		if (inGame) {
 			this.camX = game.local.x;
@@ -137,7 +140,7 @@ export class Renderer {
 			this.camY = Math.sin(this.idle * 0.1) * 120;
 		}
 		let sx = 0, sy = 0;
-		if (game.shake > 0) {
+		if (game.shake > 0 && !lite) {
 			sx = (Math.random() - 0.5) * game.shake;
 			sy = (Math.random() - 0.5) * game.shake;
 		}
@@ -186,7 +189,7 @@ export class Renderer {
 		}
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-		if (inGame && game.evoFlash) {
+		if (inGame && game.evoFlash && !lite) {
 			// Own evolution: a 120 ms full-screen flash in the weapon colour.
 			ctx.globalAlpha = 0.35 * (1 - game.evoFlash.t / 0.12);
 			ctx.fillStyle = game.evoFlash.color;
@@ -1165,7 +1168,7 @@ export class Renderer {
 		}
 		ctx.stroke();
 		ctx.shadowColor = '#e040fb';
-		ctx.shadowBlur = 18;
+		ctx.shadowBlur = this.lite ? 0 : 18;
 		ctx.fillStyle = color;
 		ctx.beginPath();
 		ctx.ellipse(0, 0, r * 0.95, r * 0.8, 0, 0, TAU);
@@ -1323,7 +1326,7 @@ export class Renderer {
 		}
 		ctx.fill();
 		ctx.shadowColor = '#ff1744';
-		ctx.shadowBlur = 20;
+		ctx.shadowBlur = this.lite ? 0 : 20;
 		ctx.fillStyle = '#d32f2f';
 		ctx.beginPath();
 		ctx.arc(0, 0, r * 0.85, 0, TAU);
@@ -1594,7 +1597,7 @@ export class Renderer {
 		};
 		// Motion trails make fast projectiles readable.
 		ctx.lineCap = 'round';
-		for (const [kind, color, len, width] of [[0, 'rgba(206,147,216,0.45)', 26, 6], [1, 'rgba(236,239,241,0.35)', 22, 3]]) {
+		for (const [kind, color, len, width] of this.lite ? [] : [[0, 'rgba(206,147,216,0.45)', 26, 6], [1, 'rgba(236,239,241,0.35)', 22, 3]]) {
 			ctx.strokeStyle = color;
 			ctx.lineWidth = width;
 			ctx.beginPath();
@@ -1664,7 +1667,7 @@ export class Renderer {
 		if (sheets.some((x) => !x)) return false;
 		// Motion trails keep fast projectiles readable.
 		ctx.lineCap = 'round';
-		for (const [kind, color, len, width] of [[0, 'rgba(206,147,216,0.45)', 26, 6], [1, 'rgba(236,239,241,0.35)', 22, 3], [SPEAR_K, 'rgba(255,224,178,0.35)', 60, 7]]) {
+		for (const [kind, color, len, width] of this.lite ? [] : [[0, 'rgba(206,147,216,0.45)', 26, 6], [1, 'rgba(236,239,241,0.35)', 22, 3], [SPEAR_K, 'rgba(255,224,178,0.35)', 60, 7]]) {
 			ctx.strokeStyle = color;
 			ctx.lineWidth = width;
 			ctx.beginPath();
@@ -2255,7 +2258,7 @@ export class Renderer {
 				g.addColorStop(1, `rgba(64,196,255,${0.75 * fade})`);
 				ctx.fillStyle = g;
 				ctx.shadowColor = '#40c4ff';
-				ctx.shadowBlur = s.big ? 26 : 16;
+				ctx.shadowBlur = this.lite ? 0 : s.big ? 26 : 16;
 				ctx.beginPath();
 				ctx.ellipse(cx, p.y, rx, ry, 0, a0, a1);
 				ctx.ellipse(cx - dir * rx * 0.35, p.y + ry * 0.15, rx * 0.8, ry * 0.62, 0, a1, a0, true);
@@ -3084,12 +3087,15 @@ export class Renderer {
 				ctx.beginPath();
 				ctx.moveTo(pts[0], pts[1]);
 				for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
-				ctx.strokeStyle = z.color ?? 'rgba(129,212,250,0.45)';
-				ctx.lineWidth = 9;
-				ctx.stroke();
+				if (!this.lite) {
+					ctx.strokeStyle = z.color ?? 'rgba(129,212,250,0.45)';
+					ctx.lineWidth = 9;
+					ctx.stroke();
+				}
 				ctx.strokeStyle = '#ffffff';
 				ctx.lineWidth = 2.5;
 				ctx.stroke();
+				if (this.lite) continue;
 				ctx.fillStyle = 'rgba(179,229,252,0.5)';
 				ctx.beginPath();
 				ctx.arc(pts[pts.length - 2], pts[pts.length - 1], 16 * (1 - k) + 4, 0, TAU);
