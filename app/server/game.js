@@ -1509,7 +1509,7 @@ export class Room {
 			if (!cap || this.time < this.specialT[id]) continue;
 			this.specialT[id] = this.time + S.every / this.tscale;
 			let n = 0;
-			for (const e of this.enemies) if (!e.dead && !e.outpost && e.def === ENEMIES[id]) n++;
+			for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan && e.def === ENEMIES[id]) n++;
 			if (n >= cap) continue;
 			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
 			count++;

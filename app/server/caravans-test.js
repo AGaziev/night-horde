@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Room } from './game.js';
 import { CARAVAN, updateCaravan, claimCaravan, caravanGuardKilled, caravanSnapshot } from './caravans.js';
-import { ENEMIES, enemyHpScale, xpForNext } from '../public/shared/content.js';
+import { ENEMIES, enemyHpScale, xpForNext, SPECIALS, specialCap } from '../public/shared/content.js';
 function setup(n, mode) {
 	const r = new Room('CARGO', () => {}); r.setMode(mode);
 	for (let i = 1; i <= n; i++) r.addPlayer(i, 'P' + i, 'knight');
@@ -58,4 +58,14 @@ console.log('Caravan: both modes, 1–8 heroes, finite escort, leash, reward-onc
  assert.deepEqual(snapshot.cv, caravanSnapshot(r));
  assert.equal(snapshot.mob, undefined, 'caravan has no dependency on dash metadata');
  const c = r.caravan; r.resync(1); assert.equal(r.caravan, c, 'reconnect does not create a second caravan');
+}
+
+for (const mode of ['lunch', 'night']) for (const n of [1, 8]) {
+ const { r, hs } = setup(n, mode); r.time = r.runLength * .46; updateCaravan(r, hs, 1 / 30);
+ const cap = specialCap(SPECIALS.shield, .46, n);
+ for (let i = 0; i < cap - 1; i++) r.spawnEnemy('shield', hs, 1);
+ r.specialT.shield = 0; r.specialT.sniper = Infinity;
+ r.spawnSpecials(hs);
+ assert.equal(r.enemies.filter(e => !e.caravan && !e.outpost && e.def === ENEMIES.shield).length, cap,
+  `${mode}/${n}: caravan shield must not consume the last ordinary special slot`);
 }
