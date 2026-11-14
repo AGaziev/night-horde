@@ -7,3 +7,8 @@ for(const offset of[-1/524288,0,1/524288])test(`own dash contact TTL is exclusiv
 for(const life of[1,0,-1])test(`positive-life newborn at dash tick end still tests birth overlap, life${life}`,()=>{
  const{r,h}=setup();r.hostile.push({id:r.nextId++,x:h.x,y:0,vx:512,vy:0,bornAt:dt,life,dmg:8,from:'spitter:shot'});r.step(dt);assert.equal(h.hp,life>0?92:100);
 });
+for(const offset of[-1/524288,0,1/524288])test(`moving dash contact TTL is exclusive at expiry, offset${offset}`,()=>{
+ const{r,h}=setup(),life=1/64;h.x=0;h.hostilePos={x:0,y:0};
+ r.hostile.push({id:r.nextId++,x:21+(1200-512)*(life+offset),y:0,vx:512,vy:0,life,dmg:8,from:'spitter:shot'});
+ r.step(dt);assert.equal(h.x,40);assert.equal(h.hp,offset<0?92:100);assert.equal(r.hostile.length,0);
+});

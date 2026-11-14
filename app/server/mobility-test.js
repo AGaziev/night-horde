@@ -53,9 +53,11 @@ for (const mode of ['night', 'lunch']) for (const n of [1, 2, 4, 8]) {
 	const { r, h } = setup();
 	const e = r.spawnEnemy('skel', [h], 1);
 	Object.assign(e, { x: 100, y: 0, speed: 0 });
-	h.weapons.clear(); const hp = h.hp;
-	action(r, 1, { x: 1, y: 0 }); stepMobility(r, 1);
-	r.rebuildGrid(); r.updateHostile(1 / 30); r.updatePlayers(1 / 30, [h]);
+	h.weapons.clear(); h.perk.readyAt = Infinity; const hp = h.hp;
+	r.spawn = () => {}; r.breakAround = () => {}; r.events.next = Infinity;
+	action(r, 1, { x: 1, y: 0 });
+	for (let i = 0; i < 5; i++) r.step(1 / 30);
+	assert.equal(h.x, DASH.distance);
 	assert.ok(h.hp < hp, 'crossing an enemy takes contact damage even when endpoint is clear');
 }
 

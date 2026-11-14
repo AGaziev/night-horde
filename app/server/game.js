@@ -2312,8 +2312,8 @@ export class Room {
 				if (h.st !== 0) continue;
 				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				let at;
-				if (h.dashPath) {
-					// A stopped/clipped dash stays still for the remaining frame; birth and TTL share main's motion clip.
+				if (h.dashPath && (h.dashPath.moveX !== 0 || h.dashPath.moveY !== 0)) {
+					// Follow the real dash ray and later wall projection; birth and TTL share main's motion clip.
 					const t = dashContactTime(h,ox,oy,s.x,s.y,dt,radius,start-frameStart,start-frameStart+step);
 					at = t === null ? null : frameStart+t;
 				} else {

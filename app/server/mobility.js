@@ -35,7 +35,10 @@ export function stepMobility(room, dt) {
 		const d = h.dash, time = Math.min(dt, d.left);
 		const ring = room.fin ? { cx: room.fin.cx, cy: room.fin.cy, r: Math.max(0, room.fin.r - PLAYER_RADIUS) } : null;
 		const travel = clipDash(h.x, h.y, d.x, d.y, time, ring);
-		h.dashPath = { x: travel.startX, y: travel.startY, duration: travel.duration };
+		const moveX = travel.x-travel.startX, moveY = travel.y-travel.startY, stationary = moveX===0 && moveY===0;
+		h.dashPath = { x: travel.startX, y: travel.startY, duration: travel.duration, moveX, moveY,
+			fromX: stationary ? h.hostilePos?.x ?? travel.startX : travel.startX,
+			fromY: stationary ? h.hostilePos?.y ?? travel.startY : travel.startY };
 		h.x = travel.x; h.y = travel.y;
 		h.movedT = h.lastPosT = room.time;
 		d.left -= time;
@@ -56,12 +59,18 @@ export function dashShotDistance2(h, sx, sy, ex, ey, dt) {
 }
 
 // Contact time in seconds from this tick's start. The object exists only in [from,to].
-// Split at the actual dash stop; the hero stays at its endpoint for the rest of the tick.
+// Split at the actual dash stop. A later wall projection retains its ordinary full-tick motion.
 export function dashContactTime(h, sx, sy, ex, ey, dt, radius, from = 0, to = dt) {
 	const path = h.dashPath;
 	const stop = path ? Math.min(dt, path.duration) : 0;
-	const heroAt = t => !path || t >= stop || stop <= 0 ? [h.x, h.y]
-		: [path.x + (h.x - path.x) * t / stop, path.y + (h.y - path.y) * t / stop];
+	const heroAt = t => {
+		if (!path) return [h.x,h.y];
+		const x = path.fromX ?? path.x, y = path.fromY ?? path.y;
+		const dx = path.moveX ?? (stop>0 ? h.x-path.x : 0), dy = path.moveY ?? (stop>0 ? h.y-path.y : 0);
+		const ordinary = dt>0 ? t/dt : 1, dash = stop>0 ? Math.min(1,t/stop) : 0;
+		// Keep the actual dash ray; a later wall projection is its own ordinary movement component.
+		return [x+(h.x-x-dx)*ordinary+dx*dash,y+(h.y-y-dy)*ordinary+dy*dash];
+	};
 	if (to === from) {
 		const [hx, hy] = heroAt(from);
 		return (sx - hx) ** 2 + (sy - hy) ** 2 < radius ** 2 ? from : null;

@@ -38,7 +38,8 @@ g.shotEvent(['eshot',9,0,0,600,0,1,10]);g.shotEvent(['epend',9,10.02]);assert.eq
  const end=room.fx.findLast(e=>e[0]==='epend');assert.ok(end[2]>=born[7]);assert.ok(hero.hp<100);
  const client=new Game({send(){}});client.shotEvent(born);client.shotEvent(end);client.view.tm=end[2];client.advanceHostile();
  assert.equal(client.hostile.size,0);assert.equal(client.rings.length,1,'short-lived hit remains visible as impact, never a ghost projectile');
- hero.hp=100;hero.iframes=0;hero.x=0;hero.dashPath={x:100,y:0};
+ // Isolate the short-lived projectile from the still-living shooter's body contact.
+ room.enemies=[];hero.hp=100;hero.iframes=0;hero.x=0;hero.dashPath={x:100,y:0,duration:1/30,moveX:-100,moveY:0};
  room.hostile=[{id:999,x:0,y:0,vx:0,vy:0,life:.003,dmg:10}];
  room.time+=1/30;room.updateHostile(1/30);assert.equal(hero.hp,100,'hero cannot collide after the projectile has expired');
 }
