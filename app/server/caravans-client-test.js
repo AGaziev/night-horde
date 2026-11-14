@@ -5,6 +5,9 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 // Exercise the production snapshot consumer, HUD, cargo drawing and direction arrow.
+const originalDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+const card = { open: false, contains: () => false };
+Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: () => card } });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'caravan-client-'));
 try {
 	fs.writeFileSync(path.join(tmp, 'package.json'), '{"type":"module"}');
@@ -46,4 +49,4 @@ try {
 	assert.equal(written.get('hud-caravan.hidden'), true);
 	assert.equal(renderer.arrowList(game, 0).filter(arrow => arrow.kind === 'caravan').length, 0);
 	console.log('Caravan client: real snapshot, HUD guarded/open/closed, cargo drawing and offscreen direction: OK');
-} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+} finally { fs.rmSync(tmp, { recursive: true, force: true }); if (originalDocument) Object.defineProperty(globalThis, 'document', originalDocument); else delete globalThis.document; }
