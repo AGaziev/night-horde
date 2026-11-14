@@ -27,7 +27,7 @@ try {
 	ui.cache = { passives: '{}', embers: '{}', allies: '' };
 	ui.set = (id, prop, value) => written.set(`${id}.${prop}`, value);
 	ui.updateHud(game);
-	assert.equal(written.get('hud-caravan.text'), '◆ Караван · охрана 0/14 · 120 с');
+	assert.equal(written.get('hud-caravan-status.text'), '◆ Караван · охрана 0/14 · 120 с · необязательно');
 	const renderer = Object.create(Renderer.prototype);
 	Object.assign(renderer, { vx0: -1e6, vx1: 1e6, vy0: -1e6, vy1: 1e6, arrowBuf: [], allyArrows: [], itemArrows: [], tmp: {} });
 	renderer.toScreen = () => ({ x: -100, y: 0 });
@@ -40,7 +40,7 @@ try {
 	assert.ok(renderer.arrowList(game, 0).some(arrow => arrow.kind === 'caravan' && arrow.name.includes('1200')));
 	game.onSnapshot({ tm: 220, p: [], e: [], fx: [], cv: { ...cv, status: 'open', killed: 14 } });
 	game.view.b = game.latest(); ui.updateHud(game);
-	assert.match(written.get('hud-caravan.text'), /заберите груз/);
+	assert.match(written.get('hud-caravan-status.text'), /заберите груз/);
 	game.onSnapshot({ tm: 330, p: [], e: [], fx: [], cv: null });
 	game.view.b = game.latest(); ui.updateHud(game);
 	assert.equal(written.get('hud-caravan.hidden'), true);

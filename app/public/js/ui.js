@@ -762,7 +762,7 @@ export class UI {
 		if (!snap) return;
 		const cv = snap.cv;
 		this.set('hud-caravan', 'hidden', !cv);
-		if (cv) this.set('hud-caravan', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с`);
+		if (cv) this.set('hud-caravan-status', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с · необязательно`);
 		const op = snap.op;
 		this.set('hud-outposts', 'hidden', !op);
 		if (op) {
