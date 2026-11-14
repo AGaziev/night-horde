@@ -19,7 +19,7 @@ export function scene({kind='root',near=true,guard=false,type='ghoul',attack=fal
  return {path,control:h.support.control,hp:h.hp,draws};
  } finally {Math.random=original;}
 }
-const cases=[['contact-root',{kind:'root',near:true}],['leash-ghoul',{kind:'sand',guard:true,near:true}],['leash-skel',{kind:'sand',guard:true,near:true}],['far-root',{kind:'root',near:false}],['inset-sand',{kind:'sand',guard:true,near:false}],['contact-freeze',{kind:'freeze',near:true}],['attack-root',{kind:'root',near:true,type:'spitter',attack:true}]];
+const cases=[['contact-root',{kind:'root',near:true}],['leash-ghoul',{kind:'sand',guard:true,near:true}],['leash-skel',{kind:'sand',guard:true,near:true,type:'skel'}],['far-root',{kind:'root',near:false}],['inset-sand',{kind:'sand',guard:true,near:false}],['contact-freeze',{kind:'freeze',near:true}],['attack-root',{kind:'root',near:true,type:'spitter',attack:true}]];
 const results=[];
 for(const [id,options] of cases)test('r16 '+id+' contribution follows an actual path or attack difference',()=>{
  const plain=scene({...options,kind:null}),controlled=scene(options),equal=JSON.stringify(plain.path)===JSON.stringify(controlled.path),negative=id==='contact-root'||id.startsWith('leash-');
