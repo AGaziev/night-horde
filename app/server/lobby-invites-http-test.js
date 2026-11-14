@@ -164,6 +164,32 @@ test('HTTP: состав, владелец, частичная доставка 
 			assert.deepEqual(calls.slice(countBefore + 2).map((x) => x.userId), [103]);
 			await page.locator('#lobby-cancel-start').click();
 			await page.waitForFunction(() => document.querySelector('#lobby-countdown').hidden);
+			// Hold an actual partial POST response from room A, then enter a different room B.
+			let releaseResponse, responseHeld;
+			const held = new Promise((resolve) => { responseHeld = resolve; });
+			await page.route('**/api/lobby/invites?**', async (route) => {
+				if (route.request().method() !== 'POST') return route.continue();
+				const response = await route.fetch();
+				responseHeld(); await new Promise((resolve) => { releaseResponse = resolve; });
+				await route.fulfill({ response });
+			});
+			await page.locator('#lobby-invite').click();
+			await page.locator('#lobby-invite-search').fill('Вера');
+			await page.locator('#lobby-invite-list input').check();
+			retry = false;
+			await page.locator('#lobby-invite-form [type=submit]').click(); await held;
+			const oldCode = await page.locator('#lobby-code').textContent();
+			await page.locator('#lobby-invite-dialog header button').click();
+			await page.locator('#lobby-leave').click();
+			await page.locator('#menu-create').click();
+			await page.waitForFunction((old) => document.querySelector('#lobby-code').textContent !== old, oldCode);
+			releaseResponse(); await page.unrouteAll({ behavior: 'wait' });
+			assert.equal(await page.locator('#lobby-invite-dialog').evaluate((e) => e.open), false, 'delayed room A partial response cannot reopen over room B');
+			await page.locator('#lobby-invite').click();
+			await page.locator('#lobby-invite-fields').waitFor({ state: 'visible' });
+			await page.waitForFunction(() => !document.querySelector('#lobby-invite-fields').disabled);
+			assert.equal(await page.locator('#lobby-invite-status').textContent(), '', 'new room does not inherit old delivery errors or retry state');
+
 		} finally { await browser.close(); }
 	}
 

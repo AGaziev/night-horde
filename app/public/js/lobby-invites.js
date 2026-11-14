@@ -17,11 +17,26 @@ export function setupLobbyInvites(net, toast) {
 	const timer = $('lobby-countdown-time');
 	const cancel = $('lobby-cancel-start');
 	const start = $('lobby-start');
-	let lobby, clock, load, sending = false, employees = [], slots = 0;
+	let lobby, viewer, clock, load, sending = null, employees = [], slots = 0, generation = 0;
 	let retryAt = null;
 	const selected = new Set();
 	const employeeNames = new Map();
 	const submit = form.querySelector('[type=submit]');
+
+	function context() { return { generation, code: lobby.code, host: lobby.host, viewer }; }
+	function current(request) {
+		return request.generation === generation && request.code === lobby?.code
+			&& request.host === lobby.host && request.viewer === viewer && lobby.host === viewer;
+	}
+	function invalidate() {
+		generation++;
+		load?.abort();
+		sending = null;
+		retryAt = null;
+		selected.clear();
+		employees = [];
+		employeeNames.clear();
+	}
 
 	function url(code) {
 		return '/api/lobby/invites?' + new URLSearchParams({ sid: net.sid, room: code });
@@ -82,8 +97,10 @@ export function setupLobbyInvites(net, toast) {
 	}
 
 	open.addEventListener('click', async () => {
-		if (!lobby || dialog.open || sending) return;
-		const code = lobby.code;
+		if (!lobby || lobby.host !== viewer || dialog.open || sending) return;
+		generation++;
+		const requestContext = context();
+		const code = requestContext.code;
 		load?.abort();
 		load = new AbortController();
 		const { signal } = load;
@@ -101,7 +118,7 @@ export function setupLobbyInvites(net, toast) {
 		dialog.showModal();
 		try {
 			const data = await request(url(code), { signal });
-			if (signal.aborted) return;
+			if (signal.aborted || !current(requestContext) || !dialog.open) return;
 			employees = data.employees;
 			for (const employee of employees) employeeNames.set(employee.id, employee.name);
 			slots = data.slots;
@@ -114,48 +131,50 @@ export function setupLobbyInvites(net, toast) {
 				fields.disabled = true;
 			} else showEmployees();
 		} catch (error) {
-			if (!signal.aborted) status.textContent = error.message;
+			if (!signal.aborted && current(requestContext) && dialog.open) status.textContent = error.message;
 		}
 	});
 	search.addEventListener('input', showEmployees);
 	dialog.addEventListener('close', () => load?.abort());
 	form.addEventListener('submit', async (event) => {
 		event.preventDefault();
-		if (!lobby || sending) return;
-		sending = true;
+		if (!lobby || lobby.host !== viewer || sending) return;
+		const requestContext = context();
+		sending = requestContext;
 		const minutes = Number(form.elements.minutes.value);
 		fields.disabled = true;
 		status.textContent = 'Запускаем отсчёт…';
 		try {
-			const data = await request(url(lobby.code), {
+			const data = await request(url(requestContext.code), {
 				method: 'POST', headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ ids: [...selected], minutes, startsAt: retryAt }),
 			});
-if (data.failed || data.unknown) {
-				// The lobby broadcast may arrive before the HTTP delivery result; keep the errors reviewable.
-				if (!dialog.open && lobby) dialog.showModal();
+			if (!current(requestContext) || !dialog.open) return;
+			if (data.failed || data.unknown) {
 				showDelivery(data);
 			} else {
 				dialog.close();
 				toast((data.active ? 'Отсчёт запущен.' : 'Отсчёт остановлен.') + ` Доставлено ${data.sent}.`);
 			}
 		} catch (error) {
-			if (dialog.open) status.textContent = error.message;
-			else toast(error.message);
-			fields.disabled = false;
+			if (current(requestContext) && dialog.open) {
+				status.textContent = error.message;
+				fields.disabled = false;
+			}
 		} finally {
-			sending = false;
+			if (sending === requestContext) sending = null;
 		}
 	});
 	cancel.addEventListener('click', () => net.send({ t: 'cancel-start' }));
 
 	return {
 		update(next, me) {
-			const changedRoom = next?.code !== lobby?.code;
+			const changedContext = next?.code !== lobby?.code || next?.host !== lobby?.host || me !== viewer;
 			lobby = next;
+			viewer = me;
 			const active = next?.startsAt != null;
 			const isHost = !!next && next.host === me;
-			if (changedRoom || !isHost) dialog.close();
+			if (changedContext || !isHost) { invalidate(); dialog.close(); }
 			open.hidden = !net.invites || !isHost;
 			start.disabled = active;
 			countdown.hidden = !active;
