@@ -209,7 +209,7 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 
 // 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
 {
-	assert.equal(PROTO, 28);
+	assert.equal(PROTO, 29);
 	const netFile = new URL('../public/js/net.js', import.meta.url);
 	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
 	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
