@@ -15,9 +15,9 @@ test('CEO31.3 lost cancel is recovered by a requested wire key, unrelated shots 
  const game=new Game(net);game.onEvent=()=>{};net.on('s',s=>game.onSnapshot(s));
  r.fx.push(['shot',901,0,0,0,100,0,3,0,100],['shot',902,0,0,0,100,0,3,0,100]);r.snapshot();net.receive(JSON.stringify(wire.at(-1)));
  assert.ok(game.shots.has(901)&&game.shots.has(902));
- assert.ok(r.fuseDuo(h,{id:'orb',parts:['bolt','lightning'],level:1}));r.time+=.1;r.snapshot(); // intentionally lose the only cancel packet
- r.time+=.1;r.snapshot();net.receive(JSON.stringify(wire.at(-1)));assert.equal(requested.at(-1)?.t,'kf');assert.ok(game.shots.has(901));
- r.needKey.add(1);r.time+=.1;r.snapshot();net.receive(JSON.stringify(wire.at(-1)));
+ assert.ok(r.fuseDuo(h,{id:'orb',parts:['bolt','lightning'],level:1}));r.snapshot(); // intentionally lose the only cancel packet
+ r.snapshot();net.receive(JSON.stringify(wire.at(-1)));assert.equal(requested.at(-1)?.t,'kf');assert.ok(game.shots.has(901));
+ r.needKey.add(1);r.snapshot();net.receive(JSON.stringify(wire.at(-1)));
  assert.equal(game.shots.has(901),false,'accepted key removes the consumed projectile immediately');assert.ok(game.shots.has(902),'unrelated live attack remains');
  net.receive(JSON.stringify(wire.at(-1)));assert.ok(game.shots.has(902),'repeated key is idempotent');
  game.shotEvent(['shot',901,0,0,0,100,0,3,0,100]);assert.equal(game.shots.has(901),false,'late spawn from a consumed attack cannot resurrect');

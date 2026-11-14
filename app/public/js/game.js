@@ -299,8 +299,9 @@ export class Game {
 		}
 		const prevTm = this.snaps.length ? this.snaps[this.snaps.length - 1].tm : null;
 		if (prevTm !== null && tm <= prevTm) {
-			// Duplicate or stale snapshot: keep projectile events, skip the rest.
+			// Duplicate or stale snapshot: keep projectile events and retirement recovery.
 			if (Array.isArray(msg.fx)) for (const ev of msg.fx) if (Array.isArray(ev)) this.shotEvent(ev);
+			for (const [kind, id] of msg.consumedAttacks ?? []) this.shotEvent(['cancel', kind, id]);
 			return;
 		}
 		const snap = {
