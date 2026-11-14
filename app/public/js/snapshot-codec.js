@@ -3,6 +3,8 @@
 // Format reference: DESIGN.md, «Снимок s».
 
 export const PROTO = 28; // Updated client state contracts require older pages to reload before resuming.
+// 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
+// 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 
 // Row channels: x/y are the row offsets sent as small moves. Row width comes from the server (key `w`).
 // `n`: the channel is an array of rows instead of a flat array.

@@ -90,6 +90,7 @@ try {
  const oldSource="const PROTO = 23;\n"+netSource.replace('import { PROTO, SnapshotDecoder }','import { SnapshotDecoder }');
  const {Net:OldNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource).toString('base64'));
  const {Net:PreviousNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 24;')).toString('base64'));
+ const {Net:ReleasedNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 25;')).toString('base64'));
  const {Net}=await import('data:text/javascript;base64,'+Buffer.from(netSource).toString('base64'));
  const {Hub}=await import('./game.js');
  let welcome;const hub=new Hub((pid,msg)=>{if(msg.t==='welcome')welcome=msg;});hub.addPlayer(1,'One');hub.welcome(1);
@@ -107,13 +108,17 @@ try {
   const previous=Object.create(PreviousNet.prototype);previous.emit=()=>emitted++;previous.dispatch(welcome);
   assert.equal(reloads,2,'PROTO24 page reloads to load movement acknowledgements and bounded prediction');
   assert.equal(emitted,0,'the previous production UI cannot resume before reload');
+  storage.clear();
+  const released=Object.create(ReleasedNet.prototype);released.emit=()=>emitted++;released.dispatch(welcome);
+  assert.equal(reloads,3,'released PROTO25 page reloads for movement acknowledgements');
+  assert.equal(emitted,0,'the released UI cannot resume before loading the new contracts');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
-  assert.equal(reloads,2,'matching current browser is not reloaded');assert.equal(emitted,1);
+  assert.equal(reloads,3,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
   if(previousStorage)Object.defineProperty(globalThis,'sessionStorage',previousStorage);else delete globalThis.sessionStorage;
   if(previousLocation)Object.defineProperty(globalThis,'location',previousLocation);else delete globalThis.location;
  }
- console.log('Client protocol: actual welcome reloads PROTO23/24 browsers and resumes current browser: OK');
+ console.log('Client protocol: actual welcome reloads PROTO23/24/25 browsers and resumes current browser: OK');
 }
 
 // Real chronological Room -> actual main handlers -> Game -> UI.showOffer path.
