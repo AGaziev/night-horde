@@ -42,8 +42,8 @@ function setBuild(r, h, weapons, passives = ['crit', 'might', 'haste', 'regen', 
 // v24: the only six weapons with no duo pair among the 30 duos; orbit is the weapon under test, ward the last slot.
 const NO_PAIRS = ['orbit', 'flask', 'sickle', 'traps', 'lantern', 'ward']; // no duo pairs, no evolutions with the artifacts above
 
-assert.equal(GAME_VERSION, 'v35');
-assert.equal(PROTO, 24);
+assert.equal(GAME_VERSION, 'v36');
+assert.equal(PROTO, 25);
 
 // --- table: two variants for each plain weapon, one-line descriptions, stats patched only at level 5 ---
 {
