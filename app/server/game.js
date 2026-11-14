@@ -679,7 +679,8 @@ export class Room {
 		this.send(h.pid, { t: 'ps', levels: Object.fromEntries(h.passives), values: { ...h.pval } });
 	}
 
-	sendOffer(h) {
+	// `rerolled` marks the reply to an accepted reroll, so the client deals it as a new draw.
+	sendOffer(h, rerolled = false) {
 		const signature = JSON.stringify(h.offer);
 		if (h.offer !== h.sentOffer || signature !== h.offerSignature) {
 			h.offerEpoch = this.offerSequence = (this.offerSequence ?? 0) + 1;
@@ -690,6 +691,7 @@ export class Room {
 		const closed = !h.offer?.length;
 		this.send(h.pid, {
 			t: 'lvl', choices: closed ? null : h.offer, closed: closed || undefined, offerEpoch: h.offerEpoch, pending: h.queue, rerolls: swap ? 0 : h.rerolls, bans: h.bans, spin: !swap && h.offerSpin ? 1 : undefined, skipXp: swap ? 0 : SKIP_XP,
+			rerolled: rerolled || undefined,
 			slots: [h.weapons.size, MAX_WEAPONS, h.passives.size, MAX_PASSIVES],
 		});
 	}
@@ -911,6 +913,11 @@ export class Room {
 		h.lastReforge = { t: 'reforge', source, result };
 		this.send(h.pid, h.lastReforge);
 		this.runLog?.reforged(this, h, source, result);
+		// A Кузня card names the carrier's current level, which the pick keeps and the log records.
+		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'imprint' && c.id === id)) {
+			h.offerEpochRequired = true;
+			h.offer = h.offer.map(c => (c.kind === 'imprint' && c.id === id ? { ...c, level: result.to } : c));
+		}
 		// A reward can arrive while a card is open: rebase it, or replace a now-maxed card.
 		if (source !== 'forge' && kind === 'weapon' && h.offer?.some(c => c.kind === 'duo' && c.parts?.includes(id))) {
 			// Replace the array even if the tier stays the same: inherited part levels changed.
@@ -1302,7 +1309,7 @@ export class Room {
 		this.runLog?.choice(this, h, 'reroll', null, h.offer);
 		h.rerolls--;
 		h.offer = this.makeChoices(h, true);
-		this.sendOffer(h);
+		this.sendOffer(h, true);
 	}
 
 	// Declining the whole offer gives SKIP_XP instead (no junk in slots).
