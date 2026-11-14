@@ -85,8 +85,37 @@ export class Overlay {
 			const cos = Math.cos(a.ang);
 			const ax = cos > 0.35 ? '-100%' : cos < -0.35 ? '0%' : '-50%';
 			p.label.style.transform = `translate(calc(${ax} + ${(-cos * 20).toFixed(1)}px), calc(-50% + ${(-Math.sin(a.ang) * 22).toFixed(1)}px))`;
+			if (a.kind === 'caravan') this.avoidCaravanDisclosure(p, a);
 		}
 	}
+
+ // Keep the cargo direction readable when its disclosure occupies the arrow's usual edge.
+ // This moves only presentation; the arrow keeps its bearing and gameplay coordinates stay untouched.
+ avoidCaravanDisclosure(p, a) {
+  const card = document.getElementById('hud-caravan');
+  if (!card || card.hidden) return;
+  const joy = document.getElementById('joystick'), panel = document.getElementById('snd-panel');
+  const key = `${innerWidth}:${innerHeight}:${card.open}:${joy?.hidden}:${panel?.hidden}`;
+  const now = performance.now();
+  if (!this.objectiveObstacles || this.objectiveObstacles.key !== key || now - this.objectiveObstacles.at > 500) {
+   const nodes = [card, document.querySelector('.hud-top'), document.getElementById('snd'), panel, joy, this.mm];
+   const boxes = nodes.filter(e => e && !e.hidden).map(e => e.getBoundingClientRect()).filter(r => r.width && r.height);
+   this.objectiveObstacles = { key, at: now, boxes };
+  }
+  const icons = [p.svg.getBoundingClientRect(), p.label.getBoundingClientRect()];
+  const bounds = { left: Math.min(...icons.map(r=>r.left)), right: Math.max(...icons.map(r=>r.right)), top: Math.min(...icons.map(r=>r.top)), bottom: Math.max(...icons.map(r=>r.bottom)) };
+  const relative = { left: bounds.left-a.x, right: bounds.right-a.x, top: bounds.top-a.y, bottom: bounds.bottom-a.y };
+  const boxes = this.objectiveObstacles.boxes, gap = 8;
+  const valid = (x,y) => x+relative.left >= gap && x+relative.right <= innerWidth-gap && y+relative.top >= gap && y+relative.bottom <= innerHeight-gap
+   && boxes.every(b=>x+relative.right <= b.left-gap || x+relative.left >= b.right+gap || y+relative.bottom <= b.top-gap || y+relative.top >= b.bottom+gap);
+  if (valid(a.x,a.y)) return;
+  const xs=[a.x,gap-relative.left,innerWidth-gap-relative.right], ys=[a.y,gap-relative.top,innerHeight-gap-relative.bottom];
+  for(const b of boxes){xs.push(b.left-gap-relative.right,b.right+gap-relative.left);ys.push(b.top-gap-relative.bottom,b.bottom+gap-relative.top);}
+  let best=null, distance=Infinity;
+  for(const x of xs)for(const y of ys){const d=(x-a.x)**2+(y-a.y)**2;if(d<distance&&valid(x,y)){best={x,y};distance=d;}}
+  if(best)p.root.style.transform=`translate(${best.x.toFixed(1)}px,${best.y.toFixed(1)}px)`;
+ }
+
 }
 
 const LEVELS = [2, 1.5, 1.25, 1];
