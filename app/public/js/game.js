@@ -608,7 +608,10 @@ export class Game {
 			}
 			case 'epend': {
 				const s = this.hostile.get(ev[1]);
-				if (s) s.end = Math.max(s.st + MIN_SHOT_VISIBLE, +ev[2] || 0);
+				if (s) {
+					s.end = Math.max(s.st, +ev[2] || 0);
+					if (ev[5] === 1 && Number.isFinite(ev[3]) && Number.isFinite(ev[4])) s.impact = { x: ev[3], y: ev[4] };
+				}
 				break;
 			}
 			case 'lob':
@@ -701,6 +704,7 @@ export class Game {
 		const vt = this.view.tm;
 		for (const [id, s] of this.hostile) {
 			if (vt >= s.end) {
+				if (s.impact) this.rings.push({ ...s.impact, t: 0, life: .16, r0: 5, r1: 21, color: '#ffb06d' });
 				this.hostile.delete(id);
 				continue;
 			}
@@ -824,7 +828,7 @@ export class Game {
 				this.zaps.push({ pts: jagged(+ev[1], +ev[2], +ev[3], +ev[4]), t: 0 });
 				break;
 			case 'slash':
-				this.slashes.push({ pid: ev[1], dir: ev[2] < 0 ? -1 : 1, range: +ev[3] || 110, width: +ev[4] || 40, t: 0 });
+				this.slashes.push({ pid: ev[1], dir: ev[2] < 0 ? -1 : 1, range: +ev[3] || 110, width: +ev[4] || 40, x: ev.length >= 7 ? +ev[5] : null, y: ev.length >= 7 ? +ev[6] : null, impactAt: +ev[7] || 0, t: 0 });
 				break;
 			case 'hurt':
 				if (ev[1] === this.me) {

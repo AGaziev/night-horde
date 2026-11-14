@@ -1,8 +1,9 @@
 // Canvas 2D renderer: everything is procedural.
 import {
-	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
+	ENEMIES, ENEMY_TYPES, HEROES, WEAPONS, HOSTILE_R, orbitAngle, MAX_ENEMIES, ST, ELITE_R_MUL, ELITE_AFFIXES, ITEM_TYPES,
 	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT, weaponLevel,
 } from '/shared/content.js';
+import { slashBounds } from '/shared/combat-geometry.js';
 import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
@@ -2021,6 +2022,12 @@ export class Renderer {
 		if (!game.hostile.size) return;
 		this.drawOrbShots(ctx, game, now);
 		const sh = this.sprites.ready ? this.sprites.get('hostile') : null;
+		ctx.strokeStyle='#f1f8e9';ctx.lineWidth=1;ctx.beginPath();
+		for(const s of game.hostile.values()) {
+			if(!s.show || s.r || !this.visible(s.x,s.y))continue;
+			ctx.moveTo(s.x+HOSTILE_R,s.y);ctx.arc(s.x,s.y,HOSTILE_R,0,TAU);
+		}
+		ctx.stroke();
 		if (sh) {
 			ctx.fillStyle = 'rgba(0,0,0,0.35)';
 			ctx.beginPath();
@@ -3052,24 +3059,23 @@ export class Renderer {
 		}
 		ctx.globalAlpha = 1;
 
-		// Whip slashes.
+		// Instant impact footprint, then a fading afterimage anchored in world space.
 		for (const s of game.slashes) {
-			const p = game.playerPos(s.pid, this.tmp);
+			const p = s.x !== null && s.x !== undefined ? s : game.playerPos(s.pid, this.tmp);
 			if (!p) continue;
-			const k = s.t / 0.22;
-			const cx = p.x + s.dir * (s.range / 2 + 10);
-			const rx = s.range / 2 + 6, ry = s.width / 2;
-			ctx.globalAlpha = 1 - k;
-			ctx.fillStyle = 'rgba(255,255,255,0.85)';
-			ctx.beginPath();
-			ctx.ellipse(cx, p.y, rx, ry, 0, s.dir > 0 ? -Math.PI / 2 : Math.PI / 2, s.dir > 0 ? Math.PI / 2 : Math.PI * 1.5);
-			ctx.ellipse(cx - s.dir * rx * 0.35, p.y + ry * 0.15, rx * 0.8, ry * 0.65, 0, s.dir > 0 ? Math.PI / 2 : Math.PI * 1.5, s.dir > 0 ? -Math.PI / 2 : Math.PI / 2, true);
-			ctx.fill();
-			ctx.strokeStyle = 'rgba(144,202,249,0.9)';
-			ctx.lineWidth = 2;
-			ctx.stroke();
+			const k = s.t / 0.22, box=slashBounds(p.x,p.y,s.dir,s.range,s.width);
+			const cx=p.x+s.dir*s.range/2, rx=s.range/2, ry=s.width/2;
+			ctx.globalAlpha=1-k;
+			ctx.fillStyle='rgba(144,202,249,0.12)';ctx.fillRect(box.x,box.y,box.width,box.height);
+			ctx.strokeStyle='rgba(144,202,249,0.65)';ctx.lineWidth=1;
+			ctx.strokeRect(box.x+.5,box.y+.5,box.width-1,box.height-1);
+			ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.width,box.height);ctx.clip();
+			ctx.fillStyle='rgba(255,255,255,0.85)';ctx.beginPath();
+			ctx.ellipse(cx,p.y,rx,ry,0,s.dir>0?-Math.PI/2:Math.PI/2,s.dir>0?Math.PI/2:Math.PI*1.5);
+			ctx.ellipse(cx-s.dir*rx*.35,p.y+ry*.15,rx*.8,ry*.65,0,s.dir>0?Math.PI/2:Math.PI*1.5,s.dir>0?-Math.PI/2:Math.PI/2,true);
+			ctx.fill();ctx.restore();
 		}
-		ctx.globalAlpha = 1;
+		ctx.globalAlpha=1;
 
 		// Lightning.
 		if (game.zaps.length) {
