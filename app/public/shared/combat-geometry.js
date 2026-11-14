@@ -11,3 +11,10 @@ export function movingCircleImpact(ax, ay, bx, by, cx, cy, dx, dy, radius) {
  return t>=0&&t<=1?t:null;
 }
 export const slashBounds=(x,y,dir,range,width)=>({ x:dir>0?x:x-range,y:y-width/2,width:range,height:width });
+
+// Circle against the visible rectangle: the Minkowski corners are rounded.
+export function circleOverlapsRect(x, y, radius, rect) {
+ const dx=Math.max(rect.x-x,0,x-(rect.x+rect.width));
+ const dy=Math.max(rect.y-y,0,y-(rect.y+rect.height));
+ return dx*dx+dy*dy<=radius*radius;
+}

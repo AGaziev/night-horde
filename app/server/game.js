@@ -24,7 +24,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
-import { movingCircleImpact } from '../public/shared/combat-geometry.js';
+import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -4272,7 +4272,7 @@ export class Room {
 			const cx = h.x + (d * range) / 2;
 			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
 			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
-				if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+				if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 				this.hurtEnemy(e, L.dmg * h.mods.dmgMul * (e.rootT > now ? L.rootMul : 1), h, SRC.abatis);
 			}
 			this.breakAround(cx, h.y, range / 2, h);
@@ -4477,7 +4477,7 @@ export class Room {
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
-			if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, src);
 			if (!e.dead) hit.push(e);
 		}
@@ -4761,8 +4761,7 @@ export class Room {
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.x + e.r < x0 || e.x - e.r > x1) continue;
-			if (Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (!circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, SRC.whip);
 		}
 		this.breakAround(cx, h.y, range / 2, h);

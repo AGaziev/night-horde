@@ -1,0 +1,7 @@
+# Contact timing after CEO review
+
+Hostile projectiles are clipped to their actual birth and remaining lifetime. All projectile/hero contact entries are sorted by absolute time, projectile ID and hero ID. A protected entry still consumes its projectile, while a hero already down from an earlier contact cannot consume a later projectile intended for another living target. Protection is captured before the frame countdown and tested at entry, not at the frame endpoint. Each accepted damage callback runs once, preserving ward, armor and innate-block behavior. Remaining protection is normalized once at the end of the contact pass; updatePlayers skips its second countdown for that same frame.
+
+In this Issue's ordinary movement contract, hostile contacts run before endpoint body contacts (t=1) and weapon casts. Early enemy AI hazards retain their existing phase priority; a protection grant from that earlier phase is preserved. This is a scoped contact pass, not a deferred damage engine for every hazard. Relative hero motion uses this branch's existing previous-position path; partial dash/body swept contact is owned separately by Issue17.
+
+The slash hit model is circle versus the visible rectangle. The expanded corners are rounded rather than a larger axis-aligned box. At range110/width40, a real ghoul of radius14 at (123,33) misses, while (123,25) overlaps. Both directions and shared slash users follow this geometry, without changing enemy radii or the rectangular visual footprint.
