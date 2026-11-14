@@ -427,7 +427,8 @@ async function handleLobbyInvites(req, res, url) {
 			const members = new Set([...room.members.values()].map((member) => member.uid));
 			const batch = room.inviteBatch?.startsAt === room.startsAt ? room.inviteBatch : null;
 			return sendJson(res, 200, { employees: employees.filter(({ id }) => !members.has(id)), slots: inviteCapacity(room, MAX_PLAYERS),
-				warning: lobbyInvites.warning, delivery: batch?.result ?? null, startsAt: room.startsAt });
+				warning: lobbyInvites.warning, delivery: batch?.result ?? null, startsAt: room.startsAt,
+				batchId: room.inviteBatch?.id ?? null, revision: room.inviteRevision, serverNow: Date.now() });
 		}
 		const input = await readSmallJson(req, res);
 		if (res.writableEnded) return;
@@ -437,8 +438,9 @@ async function handleLobbyInvites(req, res, url) {
 		}
 		const ids = [...new Set(input.ids)];
 		const batch = room.inviteBatch;
-		const requestedRetry = input.startsAt !== undefined && input.startsAt !== null;
-		const retry = requestedRetry && room.startsAt !== null && batch?.startsAt === room.startsAt && input.startsAt === batch.startsAt;
+		const requestedRetry = input.startsAt != null || input.batchId != null;
+		const retry = requestedRetry && room.startsAt !== null && batch?.startsAt === room.startsAt
+			&& typeof input.batchId === 'string' && input.batchId === batch.id && input.startsAt === batch.startsAt;
 		if (requestedRetry && !retry) return reject(409, 'Эта рассылка уже отменена или изменена. Откройте форму ещё раз.');
 		if (room.startsAt !== null && !retry) return reject(409, 'Отсчёт уже идёт.');
 		if (retry && (batch.sending || ids.some((id) => !batch.ids.includes(id)))) return reject(409, 'Дождитесь результата текущей отправки.');
@@ -446,7 +448,7 @@ async function handleLobbyInvites(req, res, url) {
 		// Access lookup can outlive a WS cancel/restart, host change, or room start.
 		// A retry belongs only to the exact batch/deadline captured before the await.
 		if (!session.conn || hub.hostLobby(session.pid, code) !== room
-			|| (retry && (room.inviteBatch !== batch || room.startsAt !== batch.startsAt))) {
+			|| (retry && (room.inviteBatch !== batch || input.batchId !== batch.id || room.startsAt !== batch.startsAt))) {
 			return reject(409, 'Отсчёт или комната изменились. Откройте форму ещё раз.');
 		}
 		const allowed = new Set(employees.map(({ id }) => id));
@@ -458,10 +460,10 @@ async function handleLobbyInvites(req, res, url) {
 		const now = Date.now();
 		if (!retry && ids.length && (inviteTimes.get(uid) ?? 0) > now) return reject(429, 'Подождите несколько секунд перед новой отправкой.');
 		const startsAt = retry ? batch.startsAt : now + input.minutes * 60_000;
-		if (!session.conn || (retry ? hub.hostLobby(session.pid, code) !== room : !hub.scheduleStart(room, session.pid, startsAt))) {
+		const delivery = retry ? batch : { id: crypto.randomUUID(), startsAt, minutes: input.minutes, ids, result: null };
+		if (!session.conn || (retry ? hub.hostLobby(session.pid, code) !== room : !hub.scheduleStart(room, session.pid, startsAt, delivery))) {
 			return reject(409, 'Комната изменилась или отсчёт уже идёт.');
 		}
-		const delivery = retry ? batch : { startsAt, minutes: input.minutes, ids, result: null };
 		// Set synchronously before awaiting the platform: concurrent retries cannot send duplicates.
 		if (delivery.sending) return reject(409, 'Дождитесь результата текущей отправки.');
 		delivery.sending = true;
@@ -474,7 +476,7 @@ async function handleLobbyInvites(req, res, url) {
 			const membersNow = new Set([...room.members.values()].map((member) => member.uid));
 			const recipients = (retry ? ids : delivery.ids).filter((id) => !membersNow.has(id));
 			const result = await lobbyInvites.send(recipients, authorization, {
-				code, startsAt, minutes: delivery.minutes, host: session.portalName || 'Хост',
+				code, startsAt, batchId: delivery.id, minutes: delivery.minutes, host: session.portalName || 'Хост',
 			}, delivery.result?.recipients);
 			const outcomes = new Map((delivery.result?.recipients ?? []).map((r) => [r.id, r]));
 			for (const recipient of result.recipients) outcomes.set(recipient.id, recipient);
@@ -482,9 +484,10 @@ async function handleLobbyInvites(req, res, url) {
 		} finally { delivery.sending = false; }
 		// A complete, confirmed rejection should not leave a scheduled empty lobby behind.
 		if (delivery.result.failed > 0 && delivery.result.sent === 0 && delivery.result.unknown === 0) {
-			if (room.cancelStart(startsAt) && room.size === 0) hub.rooms.delete(room.code);
+			if (room.inviteBatch === delivery && room.cancelStart(startsAt) && room.size === 0) hub.rooms.delete(room.code);
 		}
-		return sendJson(res, 200, { active: room.startsAt === startsAt, startsAt, ...delivery.result });
+		return sendJson(res, 200, { active: room.inviteBatch === delivery && room.startsAt === startsAt, startsAt,
+			batchId: delivery.id, revision: room.inviteBatch === delivery ? room.inviteRevision : delivery.revision, serverNow: Date.now(), ...delivery.result });
 	} catch {
 		if (!res.destroyed) return reject(503, 'Не удалось получить доступ к Битрикс24. Попробуйте ещё раз.');
 	}

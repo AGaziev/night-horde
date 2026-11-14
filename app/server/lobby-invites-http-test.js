@@ -12,7 +12,7 @@ import { PROTO } from './snapshot-codec.js';
 
 const runtime = new URL('../../pm/test-runtime.mjs', import.meta.url).pathname;
 test('HTTP: состав, владелец, частичная доставка и безопасный повтор, ссылка, отмена и рестарт', async (t) => {
-	let retry = false, gateAccess = false, releaseAccess;
+	let retry = false, unknown = true, gateAccess = false, releaseAccess, gateNotification = false, releaseNotification;
 	const calls = [];
 	const fixture = createServer(async (req, res) => {
 		let body = ''; for await (const chunk of req) body += chunk;
@@ -23,7 +23,8 @@ test('HTTP: состав, владелец, частичная доставка 
 		else if (req.url === '/v1/infra/servers/fixture') data = { accessPolicy: 'NAMED_USERS' };
 		else if (req.url === '/v1/notifications') {
 			data = JSON.parse(body); calls.push(data);
-			if (data.userId === 1000) { req.socket.destroy(); return; }
+			if (data.userId === 103 && gateNotification) { gateNotification = false; await new Promise((resolve) => { releaseNotification = resolve; }); }
+			if (data.userId === 1000 && unknown) { req.socket.destroy(); return; }
 			if (data.userId === 103 && !retry) { res.writeHead(422, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ success: false, error: { code: 'NOTIFICATION_NOT_DELIVERED' } })); return; }
 			data = { notificationId: calls.length };
 		}
@@ -35,8 +36,8 @@ test('HTTP: состав, владелец, частичная доставка 
 	const child = spawn(process.execPath, ['--import', runtime, '--import', new URL('../../pm/lobby-platform-fixture.mjs', import.meta.url).pathname, new URL('./server.js', import.meta.url).pathname], {
 		env: { ...process.env, PORT: '34381', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: 'local-fixture-key', HORDE_VIBE_SERVER_ID: 'fixture', HORDE_APP_ORIGIN: 'https://game.example', HORDE_TEST_PLATFORM_URL: `http://127.0.0.1:${fixture.address().port}` }, stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
 	});
-	const exited = once(child, 'exit'); let ws, guest, racingHost, staleHost;
-	t.after(async () => { ws?.terminate(); guest?.terminate(); racingHost?.terminate(); staleHost?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
+	const exited = once(child, 'exit'); let ws, guest, racingHost, staleHost, collisionHost;
+	t.after(async () => { ws?.terminate(); guest?.terminate(); racingHost?.terminate(); staleHost?.terminate(); collisionHost?.terminate(); child.kill(); await exited; await new Promise((r) => fixture.close(r)); rmSync(dir, { recursive: true, force: true }); });
 	for (let i = 0; i < 70; i++) { if (await fetch(base + '/health').then((r) => r.ok, () => false)) break; await delay(40); }
 	const headers = { 'X-Vibe-User-Id': '101', 'X-Vibe-User-Name': encodeURIComponent('Хост'), 'X-Vibe-Authorization': 'Bearer vibe_session_fixture' };
 	const { sid } = await (await fetch(base + '/api/session', { headers })).json();
@@ -67,11 +68,11 @@ test('HTTP: состав, владелец, частичная доставка 
 
 	assert.equal((await get()).delivery.failed, 1);
 	retry = true;
-	const second = await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt });
+	const second = await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt, batchId: first.body.batchId });
 	assert.equal(second.body.sent, 2); assert.equal(second.body.failed, 0);
 	assert.deepEqual(calls.slice(0, 2).map((x) => x.userId).sort(), [102, 103]);
 	assert.deepEqual(calls.slice(2).map((x) => x.userId), [103]);
-	await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt });
+	await post({ minutes: 5, ids: ['102', '103'], startsAt: first.body.startsAt, batchId: first.body.batchId });
 	assert.equal(calls.length, 3);
 	ws.send(JSON.stringify({ t: 'cancel-start' })); await delay(30); assert.equal((await get()).startsAt, null);
 	const restart = await post({ minutes: 1, ids: [] }); assert.equal(restart.status, 200); assert.equal(restart.body.active, true);
@@ -95,7 +96,7 @@ test('HTTP: состав, владелец, частичная доставка 
 	assert.equal(raceFirst.body.failed, 1);
 	const callsBeforeRace = calls.length;
 	gateAccess = true;
-	const pendingRetry = racePost({ minutes: 5, ids: ['103'], startsAt: raceFirst.body.startsAt });
+	const pendingRetry = racePost({ minutes: 5, ids: ['103'], startsAt: raceFirst.body.startsAt, batchId: raceFirst.body.batchId });
 	for (let i = 0; i < 100 && !releaseAccess; i++) await delay(5);
 	assert.ok(releaseAccess, 'retry is blocked in actual HTTP access lookup');
 	racingHost.send(JSON.stringify({ t: 'cancel-start' }));
@@ -125,16 +126,81 @@ test('HTTP: состав, владелец, частичная доставка 
 	const staleFirst = await stalePost({ minutes: 5, ids: ['103', '1000'] });
 	assert.equal(staleFirst.body.failed, 1); assert.equal(staleFirst.body.unknown, 1);
 	retry = true;
-	const acceptedRetry = await stalePost({ minutes: 5, ids: ['103'], startsAt: staleFirst.body.startsAt });
+	const acceptedRetry = await stalePost({ minutes: 5, ids: ['103'], startsAt: staleFirst.body.startsAt, batchId: staleFirst.body.batchId });
 	assert.equal(acceptedRetry.body.sent, 1); assert.equal(acceptedRetry.body.unknown, 1);
 	const clockAdvanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 16000 }); await clockAdvanced;
 	staleHost.send(JSON.stringify({ t: 'cancel-start' }));
 	for (let i = 0; i < 100 && staleMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
 	assert.equal(staleMessages.findLast((m) => m.t === 'lobby').startsAt, null);
 	const callsBeforeStale = calls.length;
-	const obsolete = await stalePost({ minutes: 5, ids: ['103', '1000'], startsAt: staleFirst.body.startsAt });
+	const obsolete = await stalePost({ minutes: 5, ids: ['103', '1000'], startsAt: staleFirst.body.startsAt, batchId: staleFirst.body.batchId });
 	assert.equal(obsolete.status, 409, 'cancelled batch identity cannot become a new batch after cooldown');
 	assert.equal(calls.length, callsBeforeStale, 'neither known success nor unknown outcome is resent');
+
+
+	// Distinct generations can share exactly the same deadline: A3min +120s then B1min.
+	let advanced = once(child, 'message'); child.send({ t: 'freeze-test-clock', now: 1800000000000 }); await advanced;
+	const collisionHeaders = { ...headers, 'X-Vibe-User-Id': '107' };
+	const collisionSid = (await (await fetch(base + '/api/session', { headers: collisionHeaders })).json()).sid;
+	collisionHost = new WebSocket(base.replace('http', 'ws') + `/ws?sid=${collisionSid}&v=${PROTO}`, { headers: collisionHeaders });
+	const collisionMessages = []; collisionHost.on('message', (raw) => collisionMessages.push(JSON.parse(raw)));
+	await once(collisionHost, 'open'); collisionHost.send(JSON.stringify({ t: 'create', hero: 'knight' }));
+	for (let i = 0; i < 50 && !collisionMessages.some((m) => m.t === 'lobby'); i++) await delay(10);
+	const collisionCode = collisionMessages.findLast((m) => m.t === 'lobby').code;
+	const collisionRoute = base + `/api/lobby/invites?sid=${collisionSid}&room=${collisionCode}`;
+	const collisionPost = async (data) => { const res = await fetch(collisionRoute, { method: 'POST', headers: { ...collisionHeaders, 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); return { status: res.status, body: await res.json() }; };
+	retry = false; unknown = true;
+	const a = await collisionPost({ minutes: 3, ids: ['102', '103', '1000'] });
+	assert.equal(a.status, 200); assert.equal(a.body.sent, 1); assert.equal(a.body.failed, 1); assert.equal(a.body.unknown, 1);
+	advanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 120000 }); await advanced;
+	collisionHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && collisionMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	unknown = false;
+	const b = await collisionPost({ minutes: 1, ids: ['102', '103', '1000'] });
+	assert.equal(b.status, 200); assert.equal(b.body.sent, 2); assert.equal(b.body.failed, 1); assert.equal(b.body.unknown, 0);
+	assert.equal(a.body.startsAt, b.body.startsAt, 'actual deadlines collide to the millisecond');
+	const callsBeforeCollision = calls.length;
+	const oldRetry = await collisionPost({ minutes: 3, ids: ['103', '1000'], startsAt: a.body.startsAt, batchId: a.body.batchId });
+	assert.equal(oldRetry.status, 409, 'opaque batch identity rejects old A despite identical B deadline');
+	assert.equal(calls.length, callsBeforeCollision, 'stale retry sends neither B failed recipient nor old unknown recipient');
+	assert.ok(a.body.batchId && b.body.batchId); assert.notEqual(a.body.batchId, b.body.batchId);
+	const legacyRetry = await collisionPost({ minutes: 1, ids: ['103'], startsAt: b.body.startsAt });
+	assert.equal(legacyRetry.status, 409, 'legacy retry without nonce is not interpreted as a fresh batch');
+	const currentList = await (await fetch(collisionRoute, { headers: collisionHeaders })).json();
+	assert.equal(currentList.batchId, b.body.batchId);
+	retry = true;
+	const bRetry = await collisionPost({ minutes: 1, ids: ['102', '103', '1000'], startsAt: b.body.startsAt, batchId: b.body.batchId });
+	assert.equal(bRetry.status, 200); assert.equal(bRetry.body.batchId, b.body.batchId); assert.equal(bRetry.body.sent, 3); assert.equal(bRetry.body.failed, 0);
+	assert.deepEqual(calls.slice(callsBeforeCollision).map((x) => x.userId), [103], 'valid B retry preserves sent and unknown safeguards');
+
+
+	// The completion of old all-failed A cannot cancel a newer B with the same deadline.
+	collisionHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && collisionMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	advanced = once(child, 'message'); child.send({ t: 'advance-test-clock', ms: 16000 }); await advanced;
+	retry = false; gateNotification = true;
+	const oldAllFailed = collisionPost({ minutes: 1, ids: ['103'] });
+	for (let i = 0; i < 100 && !releaseNotification; i++) await delay(5);
+	assert.ok(releaseNotification);
+	collisionHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && collisionMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	const newer = await collisionPost({ minutes: 1, ids: [] }); assert.equal(newer.status, 200);
+	releaseNotification(); releaseNotification = null;
+	const oldResult = await oldAllFailed; assert.equal(oldResult.status, 200); assert.equal(oldResult.body.failed, 1);
+	assert.equal(oldResult.body.active, false, 'old completion is not active just because deadline matches');
+	assert.equal(oldResult.body.startsAt, newer.body.startsAt);
+	assert.notEqual(oldResult.body.batchId, newer.body.batchId);
+	assert.equal((await (await fetch(collisionRoute, { headers: collisionHeaders })).json()).startsAt, newer.body.startsAt, 'old all-failed completion cannot auto-cancel newer generation');
+	gateAccess = true;
+	const gatedRetry = collisionPost({ minutes: 1, ids: [], startsAt: newer.body.startsAt, batchId: newer.body.batchId });
+	for (let i = 0; i < 100 && !releaseAccess; i++) await delay(5);
+	assert.ok(releaseAccess);
+	collisionHost.send(JSON.stringify({ t: 'cancel-start' }));
+	for (let i = 0; i < 100 && collisionMessages.findLast((m) => m.t === 'lobby').startsAt !== null; i++) await delay(5);
+	const newestPost = collisionPost({ minutes: 1, ids: [] }); releaseAccess(); releaseAccess = null;
+	assert.equal((await gatedRetry).status, 409, 'same-deadline cancellation while access is pending is checked after the await');
+	const newest = await newestPost; assert.equal(newest.status, 200); assert.equal(newest.body.startsAt, newer.body.startsAt);
+	assert.notEqual(newest.body.batchId, newer.body.batchId);
 
 	if (process.env.HORDE_BROWSER_CHECK === '1') {
 		const { chromium } = await import('/Users/s.konev/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');

@@ -18,7 +18,7 @@ export function setupLobbyInvites(net, toast) {
 	const cancel = $('lobby-cancel-start');
 	const start = $('lobby-start');
 	let lobby, viewer, clock, load, sending = null, employees = [], slots = 0, generation = 0;
-	let retryAt = null;
+	let retryAt = null, retryBatchId = null;
 	const selected = new Set();
 	const employeeNames = new Map();
 	const submit = form.querySelector('[type=submit]');
@@ -32,7 +32,7 @@ export function setupLobbyInvites(net, toast) {
 		generation++;
 		load?.abort();
 		sending = null;
-		retryAt = null;
+		retryAt = null; retryBatchId = null;
 		selected.clear();
 		employees = [];
 		employeeNames.clear();
@@ -79,6 +79,7 @@ export function setupLobbyInvites(net, toast) {
 		const lines = data.recipients.map((r) => `${byId.get(r.id) || 'Сотрудник ' + r.id}: ${r.status === 'sent' ? 'доставлено' : r.error}`);
 		status.textContent = (data.active ? 'Отсчёт идёт. ' : 'Отсчёт остановлен. ') + lines.join(' ');
 		retryAt = data.active ? data.startsAt : null;
+		retryBatchId = data.active ? data.batchId : null;
 		const failed = new Set(data.recipients.filter((r) => r.status === 'failed').map((r) => r.id));
 		employees = employees.filter((e) => failed.has(e.id));
 		selected.clear();
@@ -105,7 +106,7 @@ export function setupLobbyInvites(net, toast) {
 		load = new AbortController();
 		const { signal } = load;
 		selected.clear();
-		retryAt = null;
+		retryAt = null; retryBatchId = null;
 		form.elements.minutes.disabled = false;
 		submit.disabled = false;
 		submit.textContent = 'Запустить отсчёт';
@@ -125,7 +126,7 @@ export function setupLobbyInvites(net, toast) {
 			searchField.hidden = employees.length < 6;
 			status.textContent = data.warning || '';
 			fields.disabled = false;
-			if (data.delivery) showDelivery({ ...data.delivery, active: true, startsAt: data.startsAt });
+			if (data.delivery) showDelivery({ ...data.delivery, active: true, startsAt: data.startsAt, batchId: data.batchId });
 			else if (data.startsAt !== null) {
 				status.textContent = 'Отсчёт уже идёт. Дождитесь результата отправки или отмените отсчёт.';
 				fields.disabled = true;
@@ -147,7 +148,7 @@ export function setupLobbyInvites(net, toast) {
 		try {
 			const data = await request(url(requestContext.code), {
 				method: 'POST', headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ ids: [...selected], minutes, startsAt: retryAt }),
+				body: JSON.stringify({ ids: [...selected], minutes, startsAt: retryAt, batchId: retryBatchId }),
 			});
 			if (!current(requestContext) || !dialog.open) return;
 			if (data.failed || data.unknown) {

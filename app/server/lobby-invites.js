@@ -75,7 +75,7 @@ export function createLobbyInvites({ key, serverId, origin, fetcher = fetch }) {
 			loading ??= load().finally(() => { loading = null; });
 			return loading;
 		},
-		async send(ids, authorization, { code, startsAt, minutes, host }, previous = []) {
+		async send(ids, authorization, { code, startsAt, batchId, minutes, host }, previous = []) {
 			const url = new URL('/', app);
 			url.searchParams.set('room', code);
 			const name = host.replace(/[\[\]]/g, '');
@@ -88,7 +88,7 @@ export function createLobbyInvites({ key, serverId, origin, fetcher = fetch }) {
 				if (before && before.status !== 'failed') return before;
 				try {
 					const result = await request('/notifications', { authorization, body: {
-						userId: Number(id), message, tag: `night-horde:${code}:${startsAt}:${id}`,
+						userId: Number(id), message, tag: `night-horde:${code}:${batchId ?? startsAt}:${id}`,
 					} });
 					if (Number.isInteger(result?.notificationId) && result.notificationId > 0) {
 						return { id, status: 'sent', notificationId: result.notificationId };
