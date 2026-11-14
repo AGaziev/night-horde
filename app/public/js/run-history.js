@@ -48,7 +48,7 @@ export function setupRunHistory() {
 			const records = document.createElement('ul');
 			for (const run of best.slice(0, 12)) {
 				const item = document.createElement('li');
-				item.textContent = `${run.completed ? '✓ Пройдено' : '◇ Попытка'} · ${run.daily.day} · ${modeOf(run.mode).name} · ${run.daily.players} игр. · ${run.grade === 2 ? 'Владыка повержен' : run.win ? 'победа' : fmtTime(run.time)} · ${run.kills ?? 0} убийств`;
+				item.textContent = `${run.completed ? '✓ Пройдено' : '◇ Попытка'} · ${run.daily.day} · правила v${run.daily.version ?? 1} · ${modeOf(run.mode).name} · ${run.daily.players} игр. · ${run.grade === 2 ? 'Владыка повержен' : run.win ? 'победа' : fmtTime(run.time)} · ${run.kills ?? 0} убийств`;
 				records.append(item);
 			}
 			if (!best.length) title.textContent += ' Рекордов пока нет.';
@@ -62,7 +62,7 @@ export function setupRunHistory() {
 			result.textContent = run.grade === 2 ? 'Владыка повержен' : run.win ? 'Победа' : 'Поражение';
 			result.className = run.win ? 'run-history-win' : 'run-history-loss';
 			const time = document.createElement('span');
-			time.textContent = ` · ${modeOf(run.mode).name} · ${fmtTime(run.time)}` + (run.daily ? ` · ${run.daily.day} UTC · ${run.daily.name} · ${run.daily.players} игр.` : '');
+			time.textContent = ` · ${modeOf(run.mode).name} · ${fmtTime(run.time)}` + (run.daily ? ` · ${run.daily.day} UTC · правила v${run.daily.version ?? 1} · ${run.daily.name} · ${run.daily.players} игр.` : '');
 			const date = document.createElement('time');
 			date.dateTime = run.at;
 			date.textContent = dateTime.format(new Date(run.at));

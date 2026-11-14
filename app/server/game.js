@@ -1,4 +1,4 @@
-import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot } from './daily-swarm.js';
+import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot, swarmResultSnapshot } from './daily-swarm.js';
 import { dailyFor } from '../public/shared/daily.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
@@ -5379,7 +5379,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), k: this.kills, p, e, b, g, z, tr, it,
+			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it,
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),

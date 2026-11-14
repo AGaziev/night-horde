@@ -89,3 +89,11 @@ test('Swarmv1: an already started contract and its XP stay unchanged on reconnec
 	assert.equal(r.swarm, null); r.resync(1); assert.deepEqual(r.daily, before);
 	r.addXp(h, 1); assert.equal(h.xp, 1.15);
 });
+
+test('Swarm result metadata is absent before resolution, then stable and read-only',async()=>{
+ const{swarmResultSnapshot}=await import('./daily-swarm.js');const r=setup(),h=r.heroes.get(1),c=r.swarm.cohorts[0];begin(r,c);
+ assert.equal(swarmResultSnapshot(r),null);for(const e of [...r.enemies])r.killEnemy(e,h);r.time=c.end;resolveSwarm(r);
+ const before=JSON.stringify({swarm:r.swarm,xp:h.xp,hp:h.hp,paused:r.paused,ids:r.nextId});
+ assert.deepEqual(swarmResultSnapshot(r),{end:c.end,success:true,killed:c.killed,spawned:c.spawned});r.snapshot();r.resync(1);
+ assert.equal(JSON.stringify({swarm:r.swarm,xp:h.xp,hp:h.hp,paused:r.paused,ids:r.nextId}),before);
+});

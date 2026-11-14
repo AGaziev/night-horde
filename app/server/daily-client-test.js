@@ -57,6 +57,12 @@ try {
 	game.begin({ players: [] });
 	assert.equal(game.speedMul(), 1, 'ordinary retry cannot retain challenge speed');
 
+ const written = new Map(), hud = Object.create(UI.prototype);hud.set = (id,prop,value) => written.set(id+'.'+prop,value);hud.cache={passives:'{}',embers:'{}',allies:''};
+ game.begin({daily,players:[]});game.onSnapshot({tm:20,p:[],e:[],fx:[],swarm:null,swarmResult:{end:20,success:true,killed:42,spawned:60}});hud.updateHud(game);
+ assert.equal(written.get('hud-swarm.hidden'),false);assert.match(written.get('hud-swarm.text'),/каждому \+15%/);
+ game.onSnapshot({tm:21,p:[],swarmResult:{end:20,success:false,killed:41,spawned:60}});hud.updateHud(game);assert.match(written.get('hud-swarm.text'),/цель не выполнена/);
+ game.onSnapshot({tm:26,p:[],swarmResult:{end:20,success:true,killed:42,spawned:60}});hud.updateHud(game);assert.equal(written.get('hud-swarm.hidden'),true);
+
 	const card = { daily, mode: 'lunch', players: [], win: true, grade: 1, time: 600, kills: 4 };
 	const root = new Node();
 	assert.equal(renderResults(root, card), true);

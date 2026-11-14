@@ -768,8 +768,10 @@ export class UI {
 		this.set('hud-event', 'hidden', !ev);
 		if (ev) this.set('hud-event', 'text', `${eventLabel(ev)} · ${Math.ceil(ev.left)} с`);
 		if (!snap) return;
-		this.set('hud-swarm', 'hidden', !snap.swarm);
+		const result = snap.swarmResult && snap.tm >= snap.swarmResult.end && snap.tm < snap.swarmResult.end + 6 ? snap.swarmResult : null;
+		this.set('hud-swarm', 'hidden', !snap.swarm && !result);
 		if (snap.swarm) this.set('hud-swarm', 'text', `Рой: ${snap.swarm.killed}/${snap.swarm.spawned} · 70% к концу натиска`);
+		else if (result) this.set('hud-swarm', 'text', result.success ? `Натиск выполнен: ${result.killed}/${result.spawned} · каждому +15% опыта уровня` : `Натиск завершён: ${result.killed}/${result.spawned} · цель не выполнена`);
 		const op = snap.op;
 		this.set('hud-outposts', 'hidden', !op);
 		if (op) {

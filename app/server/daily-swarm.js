@@ -38,3 +38,9 @@ export function swarmSnapshot(room) {
 	const c = room.swarm?.cohorts.find(c => !c.resolved && room.time >= c.at && room.time < c.end);
 	return c ? { killed: c.killed, spawned: c.spawned, end: c.end } : null;
 }
+
+// Read-only result metadata; no reward or combat side effects, including on reconnect.
+export function swarmResultSnapshot(room) {
+ const c = room.swarm?.cohorts.findLast(c => c.resolved);
+ return c ? { end: c.end, success: c.success, killed: c.killed, spawned: c.spawned } : null;
+}
