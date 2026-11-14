@@ -59,3 +59,49 @@ test('optional movement epochs reject old acknowledgements without requiring a d
 		f.game.onSnapshot(next); assert.equal(f.game.local.x, 0, 'a real server correction in current epoch still applies');
 	} finally { f.restore(); }
 });
+
+test('live incoming snapshots cannot extend prediction when outgoing positions make no acknowledgement progress', () => {
+	const f = fixture(); const queued = [];
+	try {
+		f.room.snapshot(); f.game.onSnapshot(f.snaps.at(-1));
+		f.game.net.send = (msg) => { if (msg.t === 'pos') queued.push(msg); };
+		for (let frame = 1; frame <= 288; frame++) {
+			f.now(frame * dt); f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) });
+			if (frame % 2 === 0) { f.room.tick(1 / 30); f.game.onSnapshot(f.snaps.at(-1)); }
+		}
+		assert.ok(f.game.local.x <= HEROES.knight.speed * .55, `outgoing outage must be bounded independently of fresh snapshots, x=${f.game.local.x}`);
+		assert.equal(f.room.heroes.get(1).x, 0);
+		const before = f.game.local.x;
+		for (const msg of queued) f.room.handle(1, msg);
+		f.room.snapshot(); f.game.onSnapshot(f.snaps.at(-1));
+		assert.ok(Math.abs(f.game.local.x - before) <= 1, 'recovered acknowledgements do not cause a large rollback');
+		f.game.net.send = (msg) => f.room.handle(1, msg);
+		for (let frame = 289; frame <= 348; frame++) {
+			f.now(frame * dt); f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) });
+			if (frame % 2 === 0) { f.room.tick(1 / 30); f.game.onSnapshot(f.snaps.at(-1)); }
+		}
+		assert.ok(f.game.local.x > before + 100, 'stationary position probes allow movement to recover after the outage');
+	} finally { f.restore(); }
+});
+
+test('an outgoing stall after established 1100ms latency has a bounded tail and recovers without backwards correction', () => {
+	const f = fixture(); const queued = []; let blocked = false, acceptedAtBlock, maxTail = 0;
+	f.game.net.send = (msg) => { if (blocked && msg.t === 'pos') queued.push(msg); else f.room.handle(1, msg); };
+	try {
+		for (let frame = 1; frame <= 600; frame++) {
+			const time = frame * dt; f.now(time);
+			if (frame === 181) { blocked = true; acceptedAtBlock = f.room.heroes.get(1).x; }
+			if (frame === 469) { blocked = false; for (const msg of queued) f.room.handle(1, msg); }
+			while (f.pending[0]?.at <= time) {
+				const before = f.game.local.x; f.game.onSnapshot(f.pending.shift().msg);
+				assert.ok(before - f.game.local.x < 50, `no large recovery rollback at ${time}: ${before} -> ${f.game.local.x}`);
+			}
+			f.game.update(dt, { vector: () => ({ x: 1, y: 0 }) });
+			if (blocked) maxTail = Math.max(maxTail, f.game.local.x - acceptedAtBlock);
+			if (frame % 2 === 0) f.room.tick(1 / 30);
+		}
+		assert.ok(maxTail <= HEROES.knight.speed * 1.55, `acknowledged latency budget cannot grow forever: ${maxTail}`);
+		assert.ok(f.game.local.x > acceptedAtBlock + maxTail + 50, 'motion resumes after acknowledgements recover');
+		assert.ok(f.game.pendingPositions.size <= 256);
+	} finally { f.restore(); }
+});

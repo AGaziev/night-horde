@@ -18,6 +18,9 @@ const TELEPORT_DIST = 200;
 const TELEPORT_SPEED = 400;
 const RECONCILE_DIST = 150;
 const MAX_PREDICTION_AGE = 0.5;
+// Normal delayed acknowledgements may trail input, but never grant an unlimited tail.
+// 1.5 seconds also fits the server's capped one-second movement allowance.
+const MAX_UNACKED_AGE = 1.5;
 const MAX_PENDING_POSITIONS = 256;
 const MAX_SNAPS = 8;
 const MAX_PARTICLES = 700;
@@ -192,6 +195,9 @@ export class Game {
 		this.awaitingSnapshot = false;
 		this.posSeq = 0;
 		this.pendingPositions = new Map();
+		this.ackAt = this.predictionAt;
+		this.ackDelay = 0;
+		this.ackSeq = 0;
 	}
 
 	stop() {
@@ -366,6 +372,11 @@ export class Game {
 			const authored = ack && this.pendingPositions.get(ack[1]);
 			const epoch = this.moveEpoch ?? 0;
 			const matching = authored && (ack[2] ?? 0) === epoch && authored.epoch === epoch;
+			if (matching && ack[1] > this.ackSeq && Number.isFinite(authored.at)) {
+				this.ackSeq = ack[1];
+				this.ackAt = authored.at;
+				this.ackDelay = Math.min(MAX_UNACKED_AGE - MAX_PREDICTION_AGE, Math.max(this.ackDelay, now - authored.at));
+			}
 			// Snapshots describe an earlier authored position. Comparing them with the current
 			// predicted hero made a healthy, delayed connection repeatedly pull the hero backwards.
 			if (mine[P.st] === 1) {
@@ -439,13 +450,14 @@ export class Game {
 
 		// Frozen by the server, or about to be (own offer open in solo): stand still.
 		const stale = now - (this.latest()?.at ?? this.predictionAt) > MAX_PREDICTION_AGE;
+		const unacknowledged = now - this.ackAt > this.ackDelay + MAX_PREDICTION_AGE;
 		const still = this.frozen || this.awaitingSnapshot || stale || (this.offer && this.solo());
 		if (this.running && !still) {
 			const row = this.myRow();
 			const alive = !row || row[P.st] !== 1;
 			if (alive) {
 				const v = input.vector();
-				if (v.x || v.y) {
+				if (!unacknowledged && (v.x || v.y)) {
 					const hero = HEROES[this.meta(this.me).hero] || HEROES.knight;
 					const sp = hero.speed * this.speedMul();
 					this.local.x += v.x * sp * dt;
@@ -462,7 +474,7 @@ export class Game {
 					this.posTimer += 1 / POS_HZ;
 					if (this.posTimer < 0) this.posTimer = 0;
 					const seq = ++this.posSeq;
-					this.pendingPositions.set(seq, { x: this.local.x, y: this.local.y, epoch: this.moveEpoch ?? 0 });
+					this.pendingPositions.set(seq, { x: this.local.x, y: this.local.y, epoch: this.moveEpoch ?? 0, at: now });
 					if (this.pendingPositions.size > MAX_PENDING_POSITIONS) this.pendingPositions.delete(this.pendingPositions.keys().next().value);
 					this.net.send({
 						t: 'pos', seq,
