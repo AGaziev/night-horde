@@ -1,3 +1,4 @@
+import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
 	REVIVE_RADIUS, REVIVE_SECONDS, REVIVE_HP_FRACTION, PLAYER_IFRAMES, MAX_LEVEL,
@@ -23,6 +24,7 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
@@ -1368,6 +1370,7 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
@@ -1383,10 +1386,10 @@ export class Room {
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
+		this.updateHostile(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
-		this.updateHostile(dt);
 		this.updateBlasts();
 		this.updateOrbs(dt);
 		this.updateTimers();
@@ -2128,6 +2131,7 @@ export class Room {
 		for (let i = 0; i < n; i++) {
 			const a = a0 + (i / n) * Math.PI * 2;
 			const s = { id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, dmg: dmg * e.dmgMul, from: enemyKey(e) + ':shot' };
+			s.bornAt = this.time;
 			this.hostile.push(s);
 			this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 		}
@@ -2184,6 +2188,7 @@ export class Room {
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		boundGuardShot(e, s);
+		s.bornAt = this.time;
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2205,6 +2210,7 @@ export class Room {
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
+					s.bornAt = this.time;
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2258,25 +2264,50 @@ export class Room {
 	}
 
 	updateHostile(dt) {
+		const frames = this.contactFrames ?? new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
+		this.contactFrames = null;
+		// Early AI hazards keep their legacy phase priority; preserve their new grant.
+		for (const [h, frame] of frames) if (h.iframes > frame.protectedUntil - frame.start + 1e-9)
+			frame.protectedUntil = Math.max(frame.protectedUntil, this.time + h.iframes);
+		const events = [], motions = new Map();
+		for (const s of this.hostile) {
+			const start = Math.max(this.time - dt, s.bornAt ?? this.time - dt);
+			const elapsed = Math.max(0, this.time - start), step = Math.min(elapsed, Math.max(0, s.life));
+			const ox = s.x, oy = s.y;
+			s.life -= elapsed; s.x += s.vx * step; s.y += s.vy * step;
+			motions.set(s, {start, step, ox, oy});
+			// Positive-life newborns may overlap at their birth endpoint, but never traverse pre-birth history.
+			if (step <= 0 && !(elapsed === 0 && s.life > 0 && start <= this.time)) continue;
+			const from = dt > 0 ? (start - (this.time - dt)) / dt : 1, to = Math.min(1, from + step / dt);
+			for (const h of this.heroes.values()) {
+				if (h.st !== 0) continue;
+				const prev = h.dashPath ?? h.hostilePos ?? h;
+				const hx0 = prev.x + (h.x - prev.x) * from, hy0 = prev.y + (h.y - prev.y) * from;
+				const hx1 = prev.x + (h.x - prev.x) * to, hy1 = prev.y + (h.y - prev.y) * to;
+				const t = movingCircleImpact(ox, oy, s.x, s.y, hx0, hy0, hx1, hy1, (s.r ?? HOSTILE_R) + PLAYER_RADIUS);
+				if (t !== null) events.push({s, h, at: start + t * step});
+			}
+		}
+		events.sort((a,b) => a.at - b.at || a.s.id - b.s.id || a.h.pid - b.h.pid);
+		const impacts = new Map();
+		for (const {s,h,at} of events) {
+			if (impacts.has(s) || h.st !== 0) continue;
+			impacts.set(s, at); // Protection consumes a projectile, just as endpoint contact did.
+			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
+		}
 		let j = 0;
 		for (const s of this.hostile) {
-			s.life -= dt;
-			s.x += s.vx * dt;
-			s.y += s.vy * dt;
-			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
-			if (!done) {
-				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				for (const h of this.heroes.values()) {
-					if (h.st !== 0 || dist2(h.x, h.y, s.x, s.y) >= min * min) continue;
-					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
-					done = true;
-					break;
-				}
-			}
-			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
-			else this.hostile[j++] = s;
+			const {start, step, ox, oy} = motions.get(s), at = impacts.get(s);
+			const done = at !== undefined || s.life <= 0 || (s.outpost && dist2(s.x,s.y,s.outpost.x,s.outpost.y) > OUTPOST.shotRange ** 2);
+			if (done) {
+				const travel = at === undefined ? step : at - start;
+				this.fx.push(['epend',s.id,round3(start+travel),round3(ox+s.vx*travel),round3(oy+s.vy*travel),at === undefined ? 0 : 1]);
+			} else this.hostile[j++] = s;
 		}
 		this.hostile.length = j;
+		for (const [h,frame] of frames) {
+			finishContactFrame(h,frame);h.contactFrameEnd=this.time;h.hostilePos={x:h.x,y:h.y};
+		}
 	}
 
 	eliteTick(e, target, dt) {
@@ -2937,7 +2968,7 @@ export class Room {
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
-			h.iframes = Math.max(0, h.iframes - dt);
+			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
@@ -4184,7 +4215,7 @@ export class Room {
 		const dir = target.x >= h.x ? 1 : -1;
 		const hit = [];
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			this.slashHits(h, d, range, width, L.dmg * h.mods.dmgMul, SRC.riposte, hit);
 			this.breakAround(h.x + (d * range) / 2, h.y, range / 2, h);
 		}
@@ -4242,11 +4273,11 @@ export class Room {
 		if (!target) return false;
 		const dir = target.x >= h.x ? 1 : -1, now = this.time;
 		for (const d of [dir, -dir]) {
-			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width)]);
+			this.fx.push(['slash', h.pid, d, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 			const cx = h.x + (d * range) / 2;
 			const x0 = d > 0 ? h.x : h.x - range, x1 = d > 0 ? h.x + range : h.x;
 			for (const e of this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2)) {
-				if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+				if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 				this.hurtEnemy(e, L.dmg * h.mods.dmgMul * (e.rootT > now ? L.rootMul : 1), h, SRC.abatis);
 			}
 			this.breakAround(cx, h.y, range / 2, h);
@@ -4451,7 +4482,7 @@ export class Room {
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
-			if (e.dead || e.x + e.r < x0 || e.x - e.r > x1 || Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (e.dead || !circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, src);
 			if (!e.dead) hit.push(e);
 		}
@@ -4729,14 +4760,13 @@ export class Room {
 	}
 
 	slash(h, dir, range, width, dmg) {
-		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width)]);
+		this.fx.push(['slash', h.pid, dir, Math.round(range), Math.round(width), round3(h.x), round3(h.y), round3(this.time)]);
 		const cx = h.x + dir * range / 2;
 		const near = this.grid.query(cx, h.y, range / 2 + width / 2 + MAX_ENEMY_R, this.q2);
 		const x0 = dir > 0 ? h.x : h.x - range, x1 = dir > 0 ? h.x + range : h.x;
 		for (const e of near) {
 			if (e.dead) continue;
-			if (e.x + e.r < x0 || e.x - e.r > x1) continue;
-			if (Math.abs(e.y - h.y) > width / 2 + e.r) continue;
+			if (!circleOverlapsRect(e.x, e.y, e.r, {x:x0,y:h.y-width/2,width:range,height:width})) continue;
 			this.hurtEnemy(e, dmg, h, SRC.whip);
 		}
 		this.breakAround(cx, h.y, range / 2, h);

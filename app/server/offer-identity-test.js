@@ -91,6 +91,7 @@ try {
  const {Net:OldNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource).toString('base64'));
  const {Net:PreviousNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 24;')).toString('base64'));
  const {Net:ReleasedNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 25;')).toString('base64'));
+ const {Net:Contract28Net}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 28;')).toString('base64'));
  const {Net}=await import('data:text/javascript;base64,'+Buffer.from(netSource).toString('base64'));
  const {Hub}=await import('./game.js');
  let welcome;const hub=new Hub((pid,msg)=>{if(msg.t==='welcome')welcome=msg;});hub.addPlayer(1,'One');hub.welcome(1);
@@ -103,7 +104,7 @@ try {
   const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
   assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
   assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
-  assert.equal(welcome.v,28,'server and current browser announce the current client-state protocol');
+  assert.equal(welcome.v,29,'server and current browser announce the current client-state protocol');
   storage.clear();
   const previous=Object.create(PreviousNet.prototype);previous.emit=()=>emitted++;previous.dispatch(welcome);
   assert.equal(reloads,2,'PROTO24 page reloads to load movement acknowledgements and bounded prediction');
@@ -112,8 +113,12 @@ try {
   const released=Object.create(ReleasedNet.prototype);released.emit=()=>emitted++;released.dispatch(welcome);
   assert.equal(reloads,3,'released PROTO25 page reloads for movement acknowledgements');
   assert.equal(emitted,0,'the released UI cannot resume before loading the new contracts');
+  storage.clear();
+  const contract28=Object.create(Contract28Net.prototype);contract28.emit=()=>emitted++;contract28.dispatch(welcome);
+  assert.equal(reloads,4,'PROTO28 pages reload before using the new feature contract');
+  assert.equal(emitted,0,'the previous client contract cannot resume before reload');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
-  assert.equal(reloads,3,'matching current browser is not reloaded');assert.equal(emitted,1);
+  assert.equal(reloads,4,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
   if(previousStorage)Object.defineProperty(globalThis,'sessionStorage',previousStorage);else delete globalThis.sessionStorage;
   if(previousLocation)Object.defineProperty(globalThis,'location',previousLocation);else delete globalThis.location;

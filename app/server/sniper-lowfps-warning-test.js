@@ -209,25 +209,27 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 
 // 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
 {
-	assert.equal(PROTO, 28);
+	assert.equal(PROTO, 29);
 	const netFile = new URL('../public/js/net.js', import.meta.url);
 	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
 	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
-	const oldSource = 'const PROTO = 24;\n' + netSource.replace('import { PROTO, SnapshotDecoder }', 'import { SnapshotDecoder }');
-	const { Net: OldNet } = await import('data:text/javascript;base64,' + Buffer.from(oldSource).toString('base64'));
 	const { Net } = await import('data:text/javascript;base64,' + Buffer.from(netSource).toString('base64'));
-	let welcome;
-	const hub = new Hub((pid, msg) => { if (msg.t === 'welcome') welcome = msg; });
-	hub.addPlayer(1, 'One'); hub.welcome(1);
-	const storage = new Map();
-	let reloads = 0, emitted = 0;
-	Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } });
-	Object.defineProperty(globalThis, 'location', { configurable: true, value: { reload() { reloads++; } } });
-	const old = Object.create(OldNet.prototype); old.emit = () => emitted++; old.dispatch(welcome);
-	assert.equal(reloads, 1, 'a PROTO 24 page reloads to the client that ages lanes on server time');
-	assert.equal(emitted, 0, 'the old page does not go on with this welcome');
-	const current = Object.create(Net.prototype); current.emit = () => emitted++; current.dispatch(welcome);
-	assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
-	delete globalThis.sessionStorage; delete globalThis.location;
-	console.log('PROTO 28: a page opened before the telegraph fix reloads on the welcome, the current one goes on: OK');
+	for (const legacy of [24, 25, 28]) {
+		const oldSource = `const PROTO = ${legacy};\n` + netSource.replace('import { PROTO, SnapshotDecoder }', 'import { SnapshotDecoder }');
+		const { Net: OldNet } = await import('data:text/javascript;base64,' + Buffer.from(oldSource).toString('base64'));
+		let welcome;
+		const hub = new Hub((pid, msg) => { if (msg.t === 'welcome') welcome = msg; });
+		hub.addPlayer(1, 'One'); hub.welcome(1);
+		const storage = new Map();
+		let reloads = 0, emitted = 0;
+		Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { getItem: k => storage.get(k), setItem: (k, v) => storage.set(k, v) } });
+		Object.defineProperty(globalThis, 'location', { configurable: true, value: { reload() { reloads++; } } });
+		const old = Object.create(OldNet.prototype); old.emit = () => emitted++; old.dispatch(welcome);
+		assert.equal(reloads, 1, `a PROTO ${legacy} page reloads to the current warning/combat contracts`);
+		assert.equal(emitted, 0, 'the old page does not go on with this welcome');
+		const current = Object.create(Net.prototype); current.emit = () => emitted++; current.dispatch(welcome);
+		assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
+		delete globalThis.sessionStorage; delete globalThis.location;
+	}
+	console.log('PROTO 29: old PROTO 24/25/28 pages reload on welcome, the current one goes on: OK');
 }
