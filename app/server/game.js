@@ -24,7 +24,8 @@ import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
 import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
-import { requestDash, stepMobility, mobilitySnapshot, dashShotDistance2 } from './mobility.js';
+import { requestDash, stepMobility, mobilitySnapshot, dashContactTime } from './mobility.js';
+import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
@@ -519,6 +520,8 @@ export class Room {
 		this.frozen = false;
 		this.kills = 0;
 		this.tickNo = 0;
+		this.dashHostileTick = -1;
+		this.dashContactFrames = null;
 		this.nextId = 1;
 		this.enemies = [];
 		this.projectiles = [];
@@ -1375,6 +1378,7 @@ export class Room {
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
+		this.dashContactFrames = alive.some(h => h.dash) ? new Map(alive.map(h => [h, contactFrame(h, this.time, dt)])) : null;
 		stepMobility(this, dt);
 
 		this.updatePeaks(alive);
@@ -1386,6 +1390,7 @@ export class Room {
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
+		if (alive.some(h => h.dashPath)) this.updateDashContacts(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
@@ -2137,6 +2142,7 @@ export class Room {
 		for (let i = 0; i < n; i++) {
 			const a = a0 + (i / n) * Math.PI * 2;
 			const s = { id: this.nextId++, x: e.x, y: e.y, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life, dmg: dmg * e.dmgMul, from: enemyKey(e) + ':shot' };
+			s.bornAt = this.time;
 			this.hostile.push(s);
 			this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 		}
@@ -2193,6 +2199,7 @@ export class Room {
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		boundGuardShot(e, s);
+		s.bornAt = this.time;
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);
 	}
@@ -2214,6 +2221,7 @@ export class Room {
 						life: E.shotLife, dmg, from: 'sniper:shot',
 					};
 					boundGuardShot(e, s);
+					s.bornAt = this.time;
 					this.hostile.push(s);
 					this.fx.push(['eorb', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time), s.r]);
 				}
@@ -2267,6 +2275,8 @@ export class Room {
 	}
 
 	updateHostile(dt) {
+		if (this.dashHostileTick === this.tickNo) return;
+		if ([...this.heroes.values()].some(h => h.dashPath)) return this.updateDashContacts(dt);
 		let j = 0;
 		for (const s of this.hostile) {
 			const sx = s.x, sy = s.y;
@@ -2277,7 +2287,7 @@ export class Room {
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
 				for (const h of this.heroes.values()) {
-					const distance = h.dashPath ? dashShotDistance2(h, sx, sy, s.x, s.y, dt) : dist2(s.x, s.y, h.x, h.y);
+					const distance = dist2(s.x, s.y, h.x, h.y);
 					if (h.st !== 0 || distance >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
@@ -2288,6 +2298,70 @@ export class Room {
 			else this.hostile[j++] = s;
 		}
 		this.hostile.length = j;
+	}
+
+	// Only dash frames need a shared timeline: a moving hero may meet bodies and shots
+	// between endpoints. Resolve those contacts before any weapon can kill their source.
+	updateDashContacts(dt) {
+		if (this.dashHostileTick === this.tickNo) return;
+		this.dashHostileTick = this.tickNo;
+		const frames = this.dashContactFrames ?? new Map();
+		const events = [], now = this.time, start = now - dt;
+		for (const h of this.heroes.values()) {
+			if (h.st !== 0) continue;
+			let frame = frames.get(h);
+			if (!frame) frames.set(h, frame = contactFrame(h, now, dt));
+			// Hazards processed by AI keep their existing priority over the contact phase.
+			if (h.iframes > frame.protectedUntil - frame.start + 1e-9) frame.protectedUntil = Math.max(frame.protectedUntil, now + h.iframes);
+			if (!h.dashPath) continue;
+			for (const e of this.enemies) {
+				if (e.dead || e.outpost && e.guardReadyAt > now) continue;
+				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null;
+				const radius = e.r + PLAYER_RADIUS;
+				const at = motion?.warped ? (dist2(e.x, e.y, h.x, h.y) < radius ** 2 ? dt : null)
+					: dashContactTime(h, motion?.x ?? e.x, motion?.y ?? e.y, e.x, e.y, dt, radius);
+				if (at !== null) events.push({ at: start + at, h, e, id: e.id, kind: 0 });
+			}
+		}
+		for (const s of this.hostile) {
+			const from = Math.max(0, Math.min(dt, (s.bornAt ?? start) - start));
+			const life = s.life, travel = Math.max(0, Math.min(dt - from, life));
+			const sx = s.x, sy = s.y;
+			s.x += s.vx * travel; s.y += s.vy * travel; s.life -= dt - from;
+			s.dashDone = life <= 0;
+			if (life > 0) for (const h of this.heroes.values()) {
+				if (h.st !== 0) continue;
+				const at = dashContactTime(h, sx, sy, s.x, s.y, dt, (s.r ?? HOSTILE_R) + PLAYER_RADIUS, from, from + travel);
+				if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
+			}
+		}
+		events.sort((a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid);
+		for (const ev of events) {
+			const { h, e, s, at } = ev;
+			if (h.st !== 0 || s?.dashDone) continue;
+			if (s) {
+				applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
+				s.dashDone = true; // Protection still intercepts and consumes a shot.
+			} else if (e.ai === 'exploder') {
+				if (e.fuseT <= 0) { e.fuseT = e.def.fuse; e.fuseBy = null; }
+			} else if (e.dmg > 0 && !(e.frozenT > now) && !(e.immuneT > now)) {
+				applyContact(h, frames.get(h), at, () => this.bodyContact(h, e));
+			}
+		}
+		for (const [h, frame] of frames) { finishContactFrame(h, frame); h.contactFrameEnd = now; }
+		let j = 0;
+		for (const s of this.hostile) {
+			if (s.dashDone || s.life <= 0 || s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2) this.fx.push(['epend', s.id, round3(now)]);
+			else this.hostile[j++] = s;
+		}
+		this.hostile.length = j;
+	}
+
+	bodyContact(h, e) {
+		const fog = this.events.active?.id === 'fog';
+		const cd = (e.steamT > this.time && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
+		const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
+		this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 	}
 
 	eliteTick(e, target, dt) {
@@ -2943,25 +3017,23 @@ export class Room {
 	}
 
 	updatePlayers(dt, alive) {
+		if (alive.some(h => h.dashPath)) this.updateDashContacts(dt);
 		const near = this.q1;
 		const now = this.time;
 		const fog = this.events.active?.id === 'fog';
 		this.updateBuffs(alive);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
-			h.iframes = Math.max(0, h.iframes - dt);
+			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
 			// A fast crossing enemy can end outside the hero segment's grid cells.
 			// Only a dash scans the room's bounded enemy list; ordinary movement keeps its point query.
-			const contacts = h.dashPath ? this.enemies : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
+			const contacts = h.dashPath ? [] : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of contacts) {
 				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
 				const min = e.r + PLAYER_RADIUS;
-				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null;
-				const distance = h.dashPath && !motion?.warped
-					? dashShotDistance2(h, motion?.x ?? e.x, motion?.y ?? e.y, e.x, e.y, dt)
-					: dist2(e.x, e.y, h.x, h.y);
+				const distance = dist2(e.x, e.y, h.x, h.y);
 				if (distance >= min * min) continue;
 				if (e.ai === 'exploder') {
 					if (e.fuseT <= 0) {
@@ -2971,9 +3043,7 @@ export class Room {
 					continue;
 				}
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
-				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
-				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.bodyContact(h, e);
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;

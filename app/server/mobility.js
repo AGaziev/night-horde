@@ -1,5 +1,6 @@
 import { DASH, segmentDistance2 } from '../public/shared/mobility.js';
 import { PLAYER_RADIUS, clampToRing } from '../public/shared/content.js';
+import { contactInterval } from '../public/shared/contact-time.js';
 
 export function requestDash(room, pid, msg) {
 	const h = room.heroes.get(pid);
@@ -52,6 +53,28 @@ export function dashShotDistance2(h, sx, sy, ex, ey, dt) {
 		segmentDistance2(0, 0, sx - from.x, sy - from.y, mx - h.x, my - h.y),
 		segmentDistance2(h.x, h.y, mx, my, ex, ey),
 	);
+}
+
+// Contact time in seconds from this tick's start. The object exists only in [from,to].
+// Split at the actual dash stop; the hero stays at its endpoint for the rest of the tick.
+export function dashContactTime(h, sx, sy, ex, ey, dt, radius, from = 0, to = dt) {
+	const path = h.dashPath;
+	const stop = path ? Math.min(dt, path.duration) : 0;
+	const heroAt = t => !path || t >= stop || stop <= 0 ? [h.x, h.y]
+		: [path.x + (h.x - path.x) * t / stop, path.y + (h.y - path.y) * t / stop];
+	if (to === from) {
+		const [hx, hy] = heroAt(from);
+		return (sx - hx) ** 2 + (sy - hy) ** 2 < radius ** 2 ? from : null;
+	}
+	const cuts = stop > from && stop < to ? [from, stop, to] : [from, to];
+	for (let i = 0; i < cuts.length - 1; i++) {
+		const a = cuts[i], b = cuts[i + 1], u = (a - from) / (to - from), v = (b - from) / (to - from);
+		const [hx, hy] = heroAt(a), [kx, ky] = heroAt(b);
+		const hit = contactInterval(sx + (ex - sx) * u - hx, sy + (ey - sy) * u - hy,
+			sx + (ex - sx) * v - kx, sy + (ey - sy) * v - ky, radius);
+		if (hit) return a + (b - a) * hit[0];
+	}
+	return null;
 }
 
 export const mobilitySnapshot = room => [...room.heroes.values()].map(h => [h.pid, h.moveEpoch ?? 0, h.dashReadyAt ?? 0]);
