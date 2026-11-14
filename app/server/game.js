@@ -2339,7 +2339,7 @@ export class Room {
 			} else if (e.ai === 'exploder') {
 				if (e.fuseT <= 0) {e.fuseT=e.def.fuse;e.fuseBy=null;}
 			} else if (e.dmg > 0 && !(e.frozenT > now) && !(e.immuneT > now)) {
-				applyContact(h,frames.get(h),at,()=>this.bodyContact(h,e));
+				applyContact(h,frames.get(h),at,()=>this.bodyContact(h,e,at));
 			}
 			// A real impulse invalidates future body trajectories; do not sweep across the teleport itself.
 			if (this.dashContactChanged.size) {
@@ -2372,11 +2372,11 @@ export class Room {
 		}
 	}
 
-	bodyContact(h, e) {
+	bodyContact(h, e, contactAt = this.time) {
 		const fog = this.events.active?.id === 'fog';
 		const cd = (e.steamT > this.time && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 		const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-		this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+		this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e), contactAt);
 	}
 
 	eliteTick(e, target, dt) {
