@@ -1,9 +1,9 @@
 // Server chooses the UTC day. Clients only display the received contract.
-export const DAILY_VERSION = 1;
+export const DAILY_VERSION = 2;
 const rule = (id, name, description, mods) => Object.freeze({ id, name, description, mods: Object.freeze(mods) });
 export const DAILY_RULES = Object.freeze([
 	rule('glass', 'Хрупкая мощь', 'Максимум здоровья −30%, ваш урон +20%.', { hp: 0.7, damage: 1.2 }),
-	rule('swarm', 'Щедрая орда', 'Обычные враги появляются на 15% чаще, весь опыт +15%.', { enemyRate: 1.15, xp: 1.15 }),
+	rule('swarm', 'Щедрая орда', 'Враги появляются на 15% чаще. В первых двух натисках уничтожьте не менее 70% их врагов до конца: каждому 15% уровня за успешный натиск.', { enemyRate: 1.15 }),
 	rule('armor', 'Тяжёлый доспех', 'Броня +2, скорость передвижения −10%.', { armor: 2, speed: 0.9 }),
 	rule('gather', 'Охота за опытом', 'Радиус сбора опыта +30%, здоровье всех врагов +15%.', { pickup: 1.3, enemyHp: 1.15 }),
 ]);

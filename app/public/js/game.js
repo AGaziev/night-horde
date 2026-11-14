@@ -319,6 +319,7 @@ export class Game {
 			it: Array.isArray(msg.it) ? msg.it : EMPTY,
 			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
 			boss: Array.isArray(msg.boss) ? msg.boss : null,
+			swarm: msg.swarm ?? null,
 			pk: Array.isArray(msg.pk) && PEAKS[msg.pk[0]] ? msg.pk : null,
 			ev: Array.isArray(msg.ev) && EVENTS[msg.ev[0]] ? msg.ev : null,
 			applied: false,

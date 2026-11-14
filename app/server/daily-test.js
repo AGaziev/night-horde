@@ -79,7 +79,7 @@ test('health/damage modifiers survive upgrades without compounding; normal modes
 
 test('XP, armor/speed, and pickup/enemy health apply at their actual consumers', () => {
 	const { r: swarm } = make('swarm'); swarm.start(); const sh = swarm.heroes.get(1);
-	swarm.addXp(sh, 1); assert.equal(sh.xp, 1.15);
+	swarm.addXp(sh, 1); assert.equal(sh.xp, 1);
 	const { r: ordinary } = make(null); ordinary.start();
 	swarm.spawn(0.01, [sh]); ordinary.spawn(0.01, [...ordinary.heroes.values()]);
 	assert.ok(Math.abs(swarm.spawnAcc / ordinary.spawnAcc - 1.15) < 1e-9);
@@ -100,7 +100,7 @@ test('run result and reconnect retain contract; daily runs never grant ordinary 
 	assert.equal(r.overMsg.daily.players, 2);
 	assert.ok(r.overMsg.stats.every(s => s.ach === null && s.tot === undefined));
 	r.resync(1); assert.equal(sent.at(-1), r.overMsg);
-	assert.equal(dailyKey(r.daily), `1:${r.daily.day}:night:2`);
+	assert.equal(dailyKey(r.daily), `2:${r.daily.day}:night:2`);
 	assert.ok(compareDaily({ grade: 2, time: 50 }, { grade: 1, time: 900 }) > 0);
 	assert.ok(compareDaily({ grade: 0, time: 90, kills: 1 }, { grade: 0, time: 50, kills: 900 }) > 0);
 });

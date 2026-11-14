@@ -1,3 +1,4 @@
+import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot } from './daily-swarm.js';
 import { dailyFor } from '../public/shared/daily.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
@@ -555,6 +556,7 @@ export class Room {
 		// v21 finale: plan (absolute times) or null for runs too short for it; this.fin lives from the prelude on.
 		const fight = finaleFight(this.runLength);
 		this.finPlan = fight ? { warn: this.runLength - fight - FINALE.prelude - FINALE.warn, pre: this.runLength - fight - FINALE.prelude, lord: this.runLength - fight, fight } : null;
+		this.swarm = initSwarm(this);
 		this.fin = null;
 		this.finWarned = false;
 		this.finDmg = 1;
@@ -1413,6 +1415,7 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		resolveSwarm(this);
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
@@ -1537,7 +1540,8 @@ export class Room {
 				this.spawnAcc = 0;
 				break;
 			}
-			this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			const enemy = this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			tagSwarmEnemy(this, enemy);
 			count++;
 		}
 	}
@@ -1628,6 +1632,7 @@ export class Room {
 			this.fx.push(['pring', Math.round(cx), Math.round(cy), Math.round(r)]);
 			for (let i = 0; i < count && ordinary < MAX_ENEMIES + 120; i++) {
 				const e = this.spawnEnemy(R.type ?? this.waveType(wave), alive, hpMul);
+				tagSwarmEnemy(this, e);
 				const a = (i / count) * Math.PI * 2;
 				e.x = cx + Math.cos(a) * r;
 				e.y = cy + Math.sin(a) * r;
@@ -2678,6 +2683,7 @@ export class Room {
 	killEnemy(e, h, src = SRC_NONE) {
 		if (e.dead) return;
 		e.dead = true;
+		killedSwarmEnemy(this, e);
 		if (e.outpost) this.guardKilled(e);
 		this.kills++;
 		if (h) {
@@ -5366,7 +5372,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
+			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
 		};

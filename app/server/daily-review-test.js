@@ -56,3 +56,12 @@ test('CEO54-2: recovered best is durable before full-log rotation', t => {
 	const final = new RunStore(); final.persist(dir);
 	assert.equal(final.history('111').daily.best.length, 1);
 });
+
+test('Swarmv2: only ordinary and peak-ring creations enter a cumulative end-resolved cohort', () => {
+ const r = new Room('SWARM', () => {}); r.addPlayer(1, 'P', 'witch'); r.handle(1, { t: 'daily', enabled: true });
+ let day = Date.UTC(2026, 10, 14); while (dailyFor(day).id !== 'swarm') day += 86400000;
+ r.lockDaily(day); r.start();
+ assert.equal(r.daily.version, 2);
+ assert.equal(r.daily.mods.xp, undefined);
+ assert.equal(r.swarm.cohorts.length, 2);
+});
