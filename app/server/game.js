@@ -2287,13 +2287,17 @@ export class Room {
 			let done = s.life <= 0 || (s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2);
 			if (!done) {
 				const min = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
-				for (const h of this.heroes.values()) {
+				const reserved = advanced && s.ordinaryTarget !== undefined;
+				const targets = reserved ? [this.heroes.get(s.ordinaryTarget)].filter(Boolean) : this.heroes.values();
+				for (const h of targets) {
 					const distance = dist2(s.x, s.y, h.x, h.y);
 					if (h.st !== 0 || advanced && h.dashPath || distance >= min * min) continue;
 					if (h.iframes <= 0) this.hurtPlayer(h, s.dmg, s.from);
 					done = true;
 					break;
 				}
+				// An earlier selected target already intercepted this shot; a later dasher cannot steal it.
+				if (reserved) done = true;
 			}
 			if (done) this.fx.push(['epend', s.id, round3(this.time)]);
 			else this.hostile[j++] = s;
@@ -2331,10 +2335,19 @@ export class Room {
 			// Global flight stays legacy; only a dashing target uses birth/lifetime-clipped contact geometry.
 			s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
 			s.dashDone = life <= 0;
+			delete s.ordinaryTarget;
 			if (life > 0) for (const h of this.heroes.values()) {
-				if (h.st !== 0 || !h.dashPath) continue;
-				const at = dashContactTime(h, sx, sy, ex, ey, dt, (s.r ?? HOSTILE_R) + PLAYER_RADIUS, from, from + travel);
-				if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
+				if (h.st !== 0) continue;
+				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
+				if (h.dashPath) {
+					const at = dashContactTime(h, sx, sy, ex, ey, dt, radius, from, from + travel);
+					if (at !== null) events.push({ at: start + at, h, s, id: s.id, kind: 1 });
+				} else if (s.life > 0 && dist2(s.x, s.y, h.x, h.y) < radius ** 2
+					&& !(s.outpost && dist2(s.x, s.y, s.outpost.x, s.outpost.y) > OUTPOST.shotRange ** 2)) {
+					// Only an endpoint-valid ordinary target joins selection. Its callback stays in the legacy phase.
+					const at = dashContactTime(h, sx, sy, s.x, s.y, dt, radius);
+					if (at !== null) events.push({ at: start + Math.max(from, at), h, s, id: s.id, kind: 1, ordinary: true });
+				}
 			}
 		}
 		const order = (a, b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
@@ -2344,7 +2357,8 @@ export class Room {
 		while (events.length) {
 			const ev = events.shift();
 			const { h, e, s, at } = ev;
-			if (h.st !== 0 || e?.dead || s?.dashDone) continue;
+			if (h.st !== 0 || e?.dead || s?.dashDone || s?.ordinaryTarget !== undefined) continue;
+			if (s && ev.ordinary) { s.ordinaryTarget = h.pid; continue; }
 			if (s) {
 				applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
 				s.dashDone = true; // Protection still intercepts and consumes a shot.
