@@ -4,7 +4,7 @@ import {
 	BREAK_TILE, breakableAt, PROJECTILE_KINDS, DUOS, EVOS, REACTIONS, beaconAngle, SHIELD_DIRS, SHIELD_SHIFT, weaponLevel,
 } from '/shared/content.js';
 import { slashBounds } from '/shared/combat-geometry.js';
-import { P, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from './game.js';
+import { P, wardCharges, lerpEnemy, E_STRIDE, TR_STRIDE, ZK_FIRE, ZK_CLOUD, ZK_LIGHT } from './game.js';
 import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
 import { HORDE_LIMITS, HORDE_PACKS } from '/shared/horde-content.js';
@@ -3070,7 +3070,7 @@ export class Renderer {
 				if (sprite) this.drawHeroSprite(ctx, sprite, x, y, meta.color, fx || 1, fy || 0, now, me, moving, pid);
 				else drawHero(ctx, x, y, meta.hero, meta.color, fx || 1, fy || 0, now, me);
 				const wl = visualWeapons(row[P.w]);
-				this.drawWard(ctx, x, y, row[P.ward] | 0, wl.some((w) => Array.isArray(w) && w[0] === 'bastion'), now);
+				this.drawWard(ctx, x, y, wardCharges(row, game.view.b, game.view.tm), wl.some((w) => Array.isArray(w) && w[0] === 'bastion'), now);
 				if (row[P.heroShield]) {
 					ctx.strokeStyle = '#a5e5ff';
 					ctx.lineWidth = 1.7;

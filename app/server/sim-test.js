@@ -806,12 +806,17 @@ console.log('over/again/leave: ok');
 		assert.ok(b.dead, 'bloater blew up');
 		assert.ok(hp - h.hp >= ENEMIES.bloater.blastDmg * b.dmgMul - 0.01, 'player hurt by the blast');
 		assert.equal(other.hp, 1000 - ENEMIES.bloater.blastEnemyDmg, 'enemies hurt by the blast');
-		const b2 = put(r, 'bloater', 300, 0, 10);
-		r.fx = [];
-		r.hurtEnemy(b2, 50, h);
-		assert.ok(r.fx.some((f) => f[0] === 'warn') && r.blasts.length === 1, 'kill leaves a telegraphed blast');
-		for (let i = 0; i < TICK_HZ; i++) r.tick(dtt);
-		assert.equal(r.blasts.length, 0);
+		// The first blast can drop gold XP and pause solo for an offer. Keep the
+		// independent killed-bloater clock free of that earlier pickup's pause.
+		const killed = mkRoom();
+		const killer = killed.heroes.get(1);
+		killer.weapons = new Map();
+		const b2 = put(killed, 'bloater', 300, 0, 10);
+		killed.fx = [];
+		killed.hurtEnemy(b2, 50, killer);
+		assert.ok(killed.fx.some((f) => f[0] === 'warn') && killed.blasts.length === 1, 'kill leaves a telegraphed blast');
+		for (let i = 0; i < TICK_HZ; i++) killed.tick(dtt);
+		assert.equal(killed.blasts.length, 0);
 		console.log('bloater: ok');
 	}
 

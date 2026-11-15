@@ -44,6 +44,9 @@ export const TR_STRIDE = 5;
 // Player row indexes in snapshot `p`.
 export const P = { pid: 0, x: 1, y: 2, hp: 3, maxHp: 4, level: 5, xp: 6, xpNext: 7, st: 8, rev: 9, fx: 10, fy: 11, w: 12, ward: 13, heroShield: 14 };
 
+// Own charges drive weapon behavior; a temporary Bastion gift is display-only support.
+export const wardCharges = (row, snap, tm) => (row[P.ward] | 0) + (snap?.wardGift?.get(row[P.pid]) > tm ? 1 : 0);
+
 const EMPTY = [];
 
 function indexFlat(arr, stride) {
@@ -464,6 +467,7 @@ export class Game {
 			cv: msg.cv && Number.isFinite(msg.cv.x) && Number.isFinite(msg.cv.y) ? msg.cv : null,
 			trophy: Array.isArray(msg.trophy) ? msg.trophy : EMPTY,
 			support: Array.isArray(msg.support) ? msg.support : EMPTY,
+			wardGift: new Map(Array.isArray(msg.wardGift) ? msg.wardGift : EMPTY),
 			p: Array.isArray(msg.p) ? msg.p : EMPTY,
 			pMap: new Map(),
 			e: Array.isArray(msg.e) ? msg.e : EMPTY,

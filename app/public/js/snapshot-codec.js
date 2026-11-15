@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 33; // Daily and signature-only fusions share the merged Horde/movement and caravan contract; reload both PROTO32 clients.
+export const PROTO = 35; // Refresh prior34 clients for caravan art, guard bounds and legendary cargo receipts.
 // 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
 // 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 
