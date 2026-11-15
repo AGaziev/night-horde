@@ -643,14 +643,18 @@ export class Renderer {
 		if (!c || c.x < this.vx0 - 100 || c.x > this.vx1 + 100 || c.y < this.vy0 - 100 || c.y > this.vy1 + 100) return;
 		ctx.save(); ctx.translate(c.x, c.y);
 		ctx.fillStyle = '#0007'; ctx.beginPath(); ctx.ellipse(0, 15, 53, 27, 0, 0, TAU); ctx.fill();
-		ctx.strokeStyle = '#25262b'; ctx.lineWidth = 8;
-		for (const x of [-35, 35]) { ctx.beginPath(); ctx.moveTo(x, -14); ctx.lineTo(x, 31); ctx.stroke(); }
-		ctx.fillStyle = '#896744'; ctx.fillRect(-41, -19, 82, 46);
-		ctx.strokeStyle = '#d5b878'; ctx.lineWidth = 3; ctx.strokeRect(-41, -19, 82, 46);
-		ctx.fillStyle = c.status === 'open' ? '#ffe082' : '#a94b42'; ctx.fillRect(-24, -38, 48, 38);
-		ctx.strokeStyle = '#f1d28c'; ctx.strokeRect(-24, -38, 48, 38);
-		ctx.fillStyle = '#fff0b8'; ctx.fillRect(-3, -24, 6, 18);
-		ctx.font = 'bold 15px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#11161d';
+		const sprite = this.sprites?.ready ? this.sprites.get('caravan') : null;
+		if (sprite) blit(ctx, sprite, 0, 0, 27, 110 / sprite.cw, false);
+		else {
+			ctx.strokeStyle = '#25262b'; ctx.lineWidth = 8;
+			for (const x of [-35, 35]) { ctx.beginPath(); ctx.moveTo(x, -14); ctx.lineTo(x, 31); ctx.stroke(); }
+			ctx.fillStyle = '#896744'; ctx.fillRect(-41, -19, 82, 46);
+			ctx.strokeStyle = '#d5b878'; ctx.lineWidth = 3; ctx.strokeRect(-41, -19, 82, 46);
+			ctx.fillStyle = c.status === 'open' ? '#ffe082' : '#a94b42'; ctx.fillRect(-24, -38, 48, 38);
+			ctx.strokeStyle = '#f1d28c'; ctx.strokeRect(-24, -38, 48, 38);
+			ctx.fillStyle = '#fff0b8'; ctx.fillRect(-3, -24, 6, 18);
+		}
+		ctx.fillStyle = '#fff0b8'; ctx.font = 'bold 15px system-ui'; ctx.textAlign = 'center'; ctx.lineWidth = 4; ctx.strokeStyle = '#11161d';
 		const label = c.status === 'open' ? '◆ Заберите груз' : `◆ Караван · ${c.killed}/${c.total}`;
 		ctx.strokeText(label, 0, -56); ctx.fillText(label, 0, -56); ctx.restore();
 	}
@@ -3226,9 +3230,6 @@ export class Renderer {
 			const k = s.t / 0.22, box=slashBounds(p.x,p.y,s.dir,s.range,s.width);
 			const cx=p.x+s.dir*s.range/2, rx=s.range/2, ry=s.width/2;
 			ctx.globalAlpha=1-k;
-			ctx.fillStyle='rgba(144,202,249,0.12)';ctx.fillRect(box.x,box.y,box.width,box.height);
-			ctx.strokeStyle='rgba(144,202,249,0.65)';ctx.lineWidth=1;
-			ctx.strokeRect(box.x+.5,box.y+.5,box.width-1,box.height-1);
 			ctx.save();ctx.beginPath();ctx.rect(box.x,box.y,box.width,box.height);ctx.clip();
 			ctx.fillStyle='rgba(255,255,255,0.85)';ctx.beginPath();
 			ctx.ellipse(cx,p.y,rx,ry,0,s.dir>0?-Math.PI/2:Math.PI/2,s.dir>0?Math.PI/2:Math.PI*1.5);
