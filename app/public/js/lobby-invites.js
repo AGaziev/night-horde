@@ -48,7 +48,8 @@ export function setupLobbyInvites(net, toast) {
 	}
 	function paintState() {
 		const active = inviteState?.startsAt != null;
-		start.disabled = active;
+		// UI.renderLobby owns role eligibility. Countdown delivery can disable Start, never override that validator.
+		if (active) start.disabled = true;
 		countdown.hidden = !active;
 		cancel.hidden = !lobby || lobby.host !== viewer;
 		clearInterval(clock);

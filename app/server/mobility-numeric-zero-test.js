@@ -6,7 +6,7 @@ import {stepMobility,hasActualDash} from './mobility.js';
 import {clipDash} from '../public/shared/mobility.js';
 import {Input} from '../public/js/input.js';
 const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8')
- .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+ .replaceAll("'/shared/", "'"+new URL('../public/shared/',import.meta.url).href);
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const dt=1/30;
 function stick(x,y){const i=Object.create(Input.prototype);i.held={};i.joy={active:true,dx:x/50,dy:y/50};i.out={x:0,y:0};return i;}

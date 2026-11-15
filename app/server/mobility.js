@@ -1,5 +1,6 @@
-import { DASH, clipDash, hasDashMovement, segmentDistance2 } from '../public/shared/mobility.js';
+import { DASH, clipDash, dashBounds, hasDashMovement, segmentDistance2 } from '../public/shared/mobility.js';
 import { PLAYER_RADIUS } from '../public/shared/content.js';
+import { HORDE_ARENA } from '../public/shared/horde-content.js';
 import { contactInterval } from '../public/shared/contact-time.js';
 
 // The ring/world may reject the whole ray. Its later ordinary projection is not dash travel.
@@ -40,13 +41,14 @@ export function stepMobility(room, dt) {
 		if (h.st !== 0 || h.offline) { h.dash = null; continue; }
 		const d = h.dash, time = Math.min(dt, d.left);
 		const ring = room.fin ? { cx: room.fin.cx, cy: room.fin.cy, r: Math.max(0, room.fin.r - PLAYER_RADIUS) } : null;
-		const travel = clipDash(h.x, h.y, d.x, d.y, time, ring);
+		const travel = clipDash(h.x, h.y, d.x, d.y, time, ring, dashBounds(room.isHorde ? HORDE_ARENA : null, PLAYER_RADIUS));
 		const moveX = travel.x-travel.startX, moveY = travel.y-travel.startY, stationary = moveX===0 && moveY===0;
 		h.dashPath = { x: travel.startX, y: travel.startY, duration: travel.duration, moveX, moveY,
 			fromX: stationary ? h.hostilePos?.x ?? travel.startX : travel.startX,
 			fromY: stationary ? h.hostilePos?.y ?? travel.startY : travel.startY };
 		h.x = travel.x; h.y = travel.y;
 		h.movedT = h.lastPosT = room.time;
+		if (room.isHorde) { h.hordeMoveAt = room.time; h.hordeMoveCredit = 0; }
 		d.left -= time;
 		if (d.left < 1e-8) h.dash = null;
 	}

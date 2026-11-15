@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8')
- .replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+ .replaceAll("'/shared/", "'"+new URL('../public/shared/',import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const still = { vector: () => ({ x: 0, y: 0 }) }, right = { vector: () => ({ x: 1, y: 0 }) };
 function setup() {

@@ -1,5 +1,10 @@
 export const DASH = Object.freeze({ distance: 180, duration: 0.15, cooldown: 12 });
 
+export const dashBounds = (arena, radius) => arena ? {
+ minX: arena.minX + radius, maxX: arena.maxX - radius,
+ minY: arena.minY + radius, maxY: arena.maxY - radius,
+} : null;
+
 // Several rounded projection/root operations can leave a few coordinate ULPs.
 // Such a residual is stationary, not a path that can enter an earlier hit phase.
 export const hasDashMovement = (dx, dy, scale = 1) =>
@@ -13,9 +18,11 @@ export function segmentDistance2(x, y, ax, ay, bx, by) {
 
 // Move on the requested ray at dash speed until the first world/ring boundary, then stand still.
 // Ring radius is already reduced by the hero radius. Projection of an invalid start is instantaneous.
-export function clipDash(x, y, dx, dy, time, ring = null) {
+export function clipDash(x, y, dx, dy, time, ring = null, bounds = null) {
  const limit = 100000, speed = DASH.distance / DASH.duration;
- x = Math.max(-limit, Math.min(limit, x)); y = Math.max(-limit, Math.min(limit, y));
+ const minX = bounds?.minX ?? -limit, maxX = bounds?.maxX ?? limit;
+ const minY = bounds?.minY ?? -limit, maxY = bounds?.maxY ?? limit;
+ x = Math.max(minX, Math.min(maxX, x)); y = Math.max(minY, Math.min(maxY, y));
  let projectedToRing = false;
  if (ring) {
   const ox = x - ring.cx, oy = y - ring.cy, distance = Math.hypot(ox, oy);
@@ -23,8 +30,8 @@ export function clipDash(x, y, dx, dy, time, ring = null) {
  }
  const startX = x, startY = y, vx = dx * speed, vy = dy * speed;
  let duration = Math.max(0, time);
- if (vx) duration = Math.min(duration, ((vx > 0 ? limit : -limit) - x) / vx);
- if (vy) duration = Math.min(duration, ((vy > 0 ? limit : -limit) - y) / vy);
+ if (vx) duration = Math.min(duration, ((vx > 0 ? maxX : minX) - x) / vx);
+ if (vy) duration = Math.min(duration, ((vy > 0 ? maxY : minY) - y) / vy);
  if (ring) {
   const ox = x - ring.cx, oy = y - ring.cy, a = vx * vx + vy * vy, b = ox * vx + oy * vy;
   const distance = Math.hypot(ox, oy);

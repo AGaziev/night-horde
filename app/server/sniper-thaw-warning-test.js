@@ -10,7 +10,7 @@ import { ENEMIES, enemyHpScale } from '../public/shared/content.js';
 // The server's fx go through the wire codec into the real client Game (the same code as on pages opened before the fix:
 // the client and the protocol are untouched), which keeps what the player sees.
 const file = new URL('../public/js/game.js', import.meta.url);
-const source = fs.readFileSync(file, 'utf8').replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+const source = fs.readFileSync(file, 'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 const dt = 1 / 30, W = ENEMIES.sniper.windup, FAN = ENEMIES.sniper.fan, eps = 1e-6;

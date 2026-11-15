@@ -23,7 +23,7 @@ for(const dir of [-1,1]) {
 }
 // Execute the actual browser state event handler with only its browser-root import adapted for Node.
 const fs=await import('node:fs');
-const client=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8').replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+const client=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(client).toString('base64'));
 const g=new Game({send(){}});g.effect(['slash',1,-1,100,40,25,-8,10]);
 assert.deepEqual([g.slashes[0].x,g.slashes[0].y,g.slashes[0].impactAt],[25,-8,10]);
