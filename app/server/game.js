@@ -30,6 +30,7 @@ import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECON
 import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
+const HORDE_POS_JITTER_SECONDS = 0.2;
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
 const SNAP_STRIDE = { e: 6, g: 4, z: 4, tr: 5, it: 4 };
 const CELL = 64;
@@ -755,10 +756,14 @@ export class Room {
 			if (this.isHorde) {
 				const slow = this.horde.heroSpeedMul(h);
 				const speed = h.speed * h.mods.speedMul * slow;
-				const budgetElapsed = clamp(this.time - (h.hordeMoveAt ?? 0), 0, 1);
-				// One shared jitter allowance, replenished only by server time, never by another packet or resync.
+				const packetElapsed = clamp(this.time - (h.hordeMoveAt ?? 0), 0, 1);
+				const stale = packetElapsed > HORDE_POS_JITTER_SECONDS;
+				// Ordinary jitter may catch up. A stale packet gets only the current tick,
+				// never movement backdated across warnings or a queued formation's birth.
+				const budgetElapsed = stale ? 1 / TICK_HZ : packetElapsed;
+				const credit = stale ? 0 : (h.hordeMoveCredit ?? 30 * slow);
 				h.hordeMoveCredit = Math.min(speed * 1.1 + 30 * slow,
-					(h.hordeMoveCredit ?? 30 * slow) + speed * budgetElapsed * 1.1);
+					credit + speed * budgetElapsed * 1.1);
 				h.hordeMoveAt = this.time;
 				maxStep = h.hordeMoveCredit;
 			}
