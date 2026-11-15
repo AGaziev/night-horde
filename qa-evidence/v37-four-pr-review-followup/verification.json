@@ -1,0 +1,7 @@
+{
+  "sha256": "8bb3796b687167e6cb70a094d6a6b6ce6f9781260d7f0ef655ec18ea10495105",
+  "files": 918,
+  "status": "PASS_SHA256_ALL_MEMBERS_SAFE_REGULAR_EXACT_BYTES",
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "productionMergedOrDeployed": false
+}
