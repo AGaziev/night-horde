@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 32; // Dash epochs and contact paths on the v37 Horde/caravan base.
+export const PROTO = 33; // Dash epochs/contact paths with accepted signature fusions on the v37 Horde/caravan base.
 // 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
 // 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 

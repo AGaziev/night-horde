@@ -15,5 +15,6 @@ for(const pid of[1,2])for(const reverse of[false,true])test(`zero dash retains o
 for(const aPid of[1,2])for(const reverse of[false,true])test(`zero dash cannot insert body damage before the real native Spitter shot, pid${aPid}/reverse${reverse}`,()=>{
  const options={aPid,reverse,body:true},normal=ringShotScene(Room,options),zero=ringShotScene(Room,{...options,press:true});
  assert.equal(zero.path.moveX,0);assert.equal(zero.path.moveY,0);assert.deepEqual(zero.positions,normal.positions);assert.deepEqual(zero.hp,normal.hp);assert.deepEqual(zero.states,normal.states);assert.deepEqual(zero.allTaken,normal.allTaken);assert.deepEqual(zero.impact,normal.impact);
- assert.equal(normal.hp[0],20-normal.damage);assert.ok(Math.abs(normal.hp[0]-7.52)<1e-9);assert.deepEqual(normal.states,[0,0]);assert.deepEqual(normal.allTaken[0],{'spitter:shot':normal.damage});
+ // Accepted signature-fusion tuning in main changes Night4 damage from .60 to .48.
+ assert.equal(normal.hp[0],20-normal.damage);assert.ok(Math.abs(normal.hp[0]-10.016)<1e-9);assert.deepEqual(normal.states,[0,0]);assert.deepEqual(normal.allTaken[0],{'spitter:shot':normal.damage});
 });

@@ -235,12 +235,22 @@ function arena(id, heroes = ['knight'], seconds = 8, setup) {
 	rt.hurtEnemy(a, 1e9, h, S(['phys']));
 	assert.ok(b.burnT > rt.time, 'firepath spreads fire');
 	const { r: rb } = arena('beacon');
-	const hb = hero(rb), e = foe(rb, hb.x + 100, hb.y);
-	e.beaconT = rb.time + 1;
-	const gems = rb.gems.length;
-	rb.hurtEnemy(e, 1e9, hb, S(['phys']));
-	const gem = rb.gems[gems] ?? rb.gems.at(-1);
-	assert.equal(gem.xp, e.xp * EVOS.beacon.levels[0].xpMul * (gem.gold ? GOLD_GEM_MUL : 1), 'beacon mark multiplies normal and gold xp');
+	const hb = hero(rb);
+	for (const gold of [false, true]) {
+		const e = foe(rb, hb.x + 100, hb.y, 'ghoul');
+		e.elite = null;
+		e.beaconT = rb.time + 1;
+		rb.gems.length = 0; // Isolate the drop from gems left by the arena fight.
+		const random = Math.random;
+		try {
+			Math.random = () => gold ? 0 : 0.999999;
+			rb.hurtEnemy(e, 1e9, hb, S(['phys']));
+		} finally {
+			Math.random = random;
+		}
+		assert.equal(rb.gems[0].gold, gold, 'exercise both ordinary and gold rewards');
+		assert.equal(rb.gems[0].xp, e.xp * EVOS.beacon.levels[0].xpMul * (gold ? GOLD_GEM_MUL : 1), 'beacon mark multiplies either reward');
+	}
 	const { r: rn, h: hn } = arena('banner', ['knight', 'witch']);
 	assert.ok(fx.some((f) => f[0] === 'banner'), 'banner planted');
 	const { h: hq } = arena('quagmire');

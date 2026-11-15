@@ -9,12 +9,8 @@ import { sprites, blit, walkFrame, attackFrame } from './sprites.js';
 import { Overlay, DprController } from './display.js';
 import { HORDE_LIMITS, HORDE_PACKS } from '/shared/horde-content.js';
 
-// Inherited orbits and auras must remain visible after fusion; HUD still has one duo slot.
-const visualWeapons = (list) => Array.isArray(list) ? list.flatMap(w => {
-	if (!Array.isArray(w) || !DUOS[w[0]]) return [w];
-	const parts = w[5] ?? DUOS[w[0]].parts.map(id => [id, Math.min(5, w[1] + 2)]);
-	return [w, ...parts.map(([id, level]) => [id, level, w[2] ?? 0])];
-}) : [];
+// The inventory row already describes the only active attack. Parts are lineage metadata.
+const visualWeapons = (list) => Array.isArray(list) ? list : [];
 
 const TILE = 96;
 const GEM_COLORS = ['#4fc3f7', '#81c784', '#f06292', '#ffd54f'];

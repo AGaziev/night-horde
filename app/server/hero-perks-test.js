@@ -292,7 +292,8 @@ console.log('Perks of downed and disconnected heroes; the bell picks the most wo
 	h.weapons = new Map([['spectral', { lvl: 1, t: 0, parts: [{ id: 'prism', lvl: 3, t: 0 }, { id: 'tuning', lvl: 3, t: 0 }] }]]);
 	room.time = 10; foe(room, 50, 0);
 	room.updateWeapon(h, 'spectral', h.weapons.get('spectral'), dt);
-	assert.equal(h.perk.echoPulse ?? null, null, 'an inherited cast cannot also schedule a second fallback echo');
+	assert.equal(h.perk.echoPulse?.weapon, 'spectral', 'only the signature schedules one fallback echo');
+	assert.equal(room.timers.length, 1, 'no hidden component echo is scheduled');
 	assert.equal(h.perk.readyAt, 18);
 }
 {
