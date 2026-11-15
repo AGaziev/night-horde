@@ -106,7 +106,8 @@ test('lost delta recovers Daily, dash, gift, support and retirement in one produ
 	h.weapons.set('bolt', { lvl: 3, t: 0 }); h.weapons.set('lightning', { lvl: 3, t: 0 });
 	r.addProjectile(h, 'bolt', 0, 100, 10, 1, 3, null); const retired = r.projectiles.at(-1).id;
 	r.addProjectile(h, 'knife', 0, 100, 10, 1, 3, null); const independent = r.projectiles.at(-1).id;
-	r.caravan = { status: 'guarded', x: 1200, y: 0, killed: 0, total: 12, expires: r.time + 30 };
+	r.caravan = { status: 'guarded', x: 1200, y: 0, ax: 1200, ay: 0, bx: 2100, by: 0,
+		direction: 1, progress: 0, killed: 0, total: 12, expires: r.time + 30 };
 	h.posAck = 17;
 	const requests = [], net = Object.create(Net.prototype);
 	Object.assign(net, { snapDec: new SnapshotDecoder(), keyAskedAt: -Infinity, handlers: new Map(), outbox: [] });
