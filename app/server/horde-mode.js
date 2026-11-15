@@ -170,9 +170,10 @@ export class HordeMode {
 					w: e.r * 2, remaining: e.bt });
 			} else if (e.ai === 'sniper' && e.windT > 0) {
 				const aim = Math.atan2(e.bvy, e.bvx), length = def.shotSpeed * def.shotLife;
+				const x = e.aimX ?? e.x, y = e.aimY ?? e.y;
 				for (let i = 0; i < def.fan; i++) {
 					const a = aim + (i - (def.fan - 1) / 2) * def.spread;
-					lanes.push({ x1: e.x, y1: e.y, x2: e.x + Math.cos(a) * length, y2: e.y + Math.sin(a) * length,
+					lanes.push({ x1: x, y1: y, x2: x + Math.cos(a) * length, y2: y + Math.sin(a) * length,
 						w: def.shotR * 2 + 8, remaining: e.windT });
 				}
 			}
