@@ -26,6 +26,7 @@ try {
 		append(...children) { this.children.push(...children); }
 		replaceChildren(...children) { this.text = ''; this.children = children; }
 		setAttribute(key, value) { this.attributes[key] = value; }
+		contains(other) { return other === this || this.children.some(child => child.contains?.(other)); }
 		addEventListener() {}
 	}
 	const nodes = new Map();

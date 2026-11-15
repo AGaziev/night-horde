@@ -21,15 +21,19 @@ import {
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
-import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard as confineOutpostGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot } from './caravans.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec.js';
+import { HordeMode } from './horde-mode.js';
+import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_COMBAT, clampHordePosition } from '../public/shared/horde-content.js';
 import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
-import { SnapshotEncoder, PROTO, isLegacy } from './snapshot-codec.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
+const HORDE_POS_JITTER_SECONDS = 0.2;
 // Row widths of the flat snapshot arrays; must match the pushes in Room.snapshot() (the codec relies on them).
 const SNAP_STRIDE = { e: 6, g: 4, z: 4, tr: 5, it: 4 };
 const CELL = 64;
@@ -264,6 +268,8 @@ export class Room {
 		this.dailySelected = false;
 		this.dailyPreview = dailyFor();
 		this.daily = null;
+		this.ruleset = 'pve';
+		this.directorPid = null;
 		this.runLength = RUN_SECONDS; // setMode() or a sim may change it before start(); peaks, bosses and waves follow it
 		this.tscale = 1;
 		this.xpMul = 1;
@@ -282,6 +288,44 @@ export class Room {
 		return this.members.size;
 	}
 
+	get isHorde() { return this.ruleset === HORDE_RULESET; }
+	get heroCount() { return [...this.members.values()].filter((m) => m.role !== 'director').length; }
+	get maxMembers() { return this.isHorde ? HORDE_MAX_HEROES + 1 : MAX_PLAYERS; }
+	resultHeroes() { return this.isHorde ? this.runHeroes : this.heroes; }
+
+	setRuleset(id) {
+		if (this.state !== 'lobby' || (id !== 'pve' && id !== HORDE_RULESET)) return 'Неизвестные правила игры';
+		if (this.startsAt !== null) return 'Остановите отсчёт перед изменением правил игры';
+		if (id === this.ruleset) return null;
+		if (id === HORDE_RULESET) {
+			if ([...this.members.keys()].some((pid) => !isCompatible(pid))) return 'Игра обновилась — обновите страницу (F5), чтобы играть за орду';
+			if (this.size > HORDE_MAX_HEROES + 1) return 'В Орде могут играть до пяти участников';
+			const uids = [...this.members.values()].map((m) => m.uid).filter((uid) => uid !== null && uid !== undefined).map(String);
+			if (new Set(uids).size !== uids.length) return 'В Орде один пользователь может занимать только одно место';
+		}
+		this.ruleset = id;
+		this.dailySelected = false;
+		this.daily = null;
+		this.directorPid = this.isHorde ? this.host : null;
+		this.runLength = this.isHorde ? HORDE_SECONDS : MODES[this.mode].seconds;
+		this.startsAt = null;
+		for (const m of this.members.values()) { m.role = m.pid === this.directorPid ? 'director' : 'hero'; m.ready = false; }
+		return null;
+	}
+
+	setRole(pid, role) {
+		if (!this.isHorde || this.state !== 'lobby' || (role !== 'hero' && role !== 'director')) return 'Роль можно выбрать в лобби Орды';
+		const m = this.members.get(pid);
+		if (!m) return 'Участник не найден';
+		if (role === 'director' && this.directorPid !== null && this.directorPid !== pid) return 'Место полководца уже занято';
+		m.role = role;
+		if (role === 'director') this.directorPid = pid;
+		else if (this.directorPid === pid) this.directorPid = null;
+		m.ready = false;
+		this.startsAt = null;
+		return null;
+	}
+
 	broadcast(msg) {
 		const json = JSON.stringify(msg);
 		for (const pid of this.members.keys()) this.send(pid, msg, json);
@@ -296,18 +340,20 @@ export class Room {
 		const mode = sanitizeMode(id);
 		if (!mode || this.startsAt !== null) return false;
 		this.mode = mode;
-		this.runLength = MODES[mode].seconds;
+		this.runLength = this.isHorde ? HORDE_SECONDS : MODES[mode].seconds;
 		return true;
 	}
 
 	addPlayer(pid, name, hero, unlocked = null, uid = null) {
 		if (this.state !== 'lobby') return 'Игра уже идёт';
-		if (this.members.size >= MAX_PLAYERS) return 'Комната заполнена';
+		if (this.isHorde && !isCompatible(pid)) return 'Игра обновилась — обновите страницу (F5), чтобы играть за орду';
+		if (this.members.size >= this.maxMembers) return 'Комната заполнена';
+		if (this.isHorde && uid !== null && uid !== undefined && [...this.members.values()].some((m) => m.uid !== null && m.uid !== undefined && String(m.uid) === String(uid))) return 'В Орде один пользователь может занимать только одно место';
 		const usedColors = new Set([...this.members.values()].map((m) => m.color));
 		const color = PLAYER_COLORS.find((c) => !usedColors.has(c)) ?? PLAYER_COLORS[0];
 		let pick = sanitizeHero(hero) ?? 'knight';
 		if (unlocked && !unlocked.has(pick)) pick = unlocked.has('knight') ? 'knight' : unlocked.values().next().value;
-		this.members.set(pid, { pid, name, hero: pick, ready: false, color, unlocked, uid });
+		this.members.set(pid, { pid, name, hero: pick, role: 'hero', ready: false, color, unlocked, uid });
 		if (this.host === null) this.host = pid;
 		this.sendLobby();
 		return null;
@@ -319,8 +365,15 @@ export class Room {
 		this.heroes.delete(pid);
 		if (this.host === pid) this.host = this.members.keys().next().value ?? null;
 		if (this.members.size === 0) return;
-		if (this.state === 'lobby') this.sendLobby();
+		if (this.state === 'lobby') {
+			if (this.directorPid === pid) this.directorPid = null;
+			this.sendLobby();
+		}
 		else if (this.state === 'play') {
+			if (this.isHorde && (pid === this.directorPid || this.heroes.size === 0)) {
+				this.finish(pid === this.directorPid, pid === this.directorPid ? 1 : 0, pid === this.directorPid ? 'director-left' : 'heroes-left');
+				return;
+			}
 			if (this.heroes.size && this.heroes.size < had) this.rescaleGroup(had, this.heroes.size);
 			this.checkAllDown();
 			this.updateFrozen();
@@ -331,7 +384,7 @@ export class Room {
 	// so the rest does not fight enemies sized for the old group.
 	rescaleGroup(from, to) {
 		const nt = this.nt;
-		const own = MODES[this.mode].seconds === this.runLength;
+		const own = !this.isHorde && MODES[this.mode].seconds === this.runLength;
 		const hpOld = own ? modeHpMul(this.mode, from) : 1, hpNew = own ? modeHpMul(this.mode, to) : 1;
 		const dmgOld = own ? modeDmgMul(this.mode, from) : 1, dmgNew = own ? modeDmgMul(this.mode, to) : 1;
 		this.modeHp = hpNew;
@@ -345,6 +398,17 @@ export class Room {
 		if (this.fin?.lord) this.finDmg = finaleDmgMul(to);
 		for (const e of this.enemies) {
 			if (e.dead) continue;
+			if (this.isHorde) {
+				// Every cohort keeps its birth-time scaling and its purchased level when a hero leaves.
+				const born = e.hordeNt ?? nt;
+				const scale = e.boss ? bossHpScale : enemyHpScale;
+				const k = scale(born, to) / scale(born, from);
+				e.hp *= k; e.maxHp *= k;
+				if (e.hordeBarrier > 0) e.hordeBarrier *= k;
+				const dk = enemyDmgScale(born, to) / enemyDmgScale(born, from);
+				e.dmg *= dk; e.dmgMul *= dk;
+				continue;
+			}
 			// The finale Lord also follows his own per-group multiplier; the arena keeps its size.
 			const k = e.outpost ? guardHpK : e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
 			e.hp *= k;
@@ -359,12 +423,14 @@ export class Room {
 	// v19: a dropped connection mid-run. The hero lies down at once (allies can lift it) instead of standing as a
 	// free target; with nobody left online the run waits (solo too). The server keeps the hero for PLAY_GRACE.
 	setOffline(pid, off) {
+		if (this.isHorde && pid === this.directorPid) return;
 		const h = this.heroes.get(pid);
 		if (!h || this.state !== 'play' || h.offline === off) return;
 		h.offline = off;
 		this.runLog?.offline(this, h, off);
 		const online = [...this.heroes.values()].some((o) => !o.offline);
-		if (off && online && h.st === 0) this.downHero(h, 'offline');
+		if (off && (online || this.isHorde) && h.st === 0) this.downHero(h, 'offline');
+		if (this.isHorde) this.checkAllDown();
 		this.updateFrozen();
 	}
 
@@ -373,6 +439,7 @@ export class Room {
 		h.st = 1;
 		h.rev = 0;
 		h.downT = this.time;
+		this.horde?.combat.clearHero(h);
 		this.fx.push(['down', h.pid]);
 		this.events.onDown(h);
 		this.runLog?.down(this, h, from);
@@ -390,10 +457,12 @@ export class Room {
 	lobbyMsg() {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
-			dailySelected: this.dailySelected, daily: this.daily ?? dailyInMode(this.dailyPreview, this.mode),
+			dailySelected: this.dailySelected, daily: this.isHorde ? null : this.daily ?? dailyInMode(this.dailyPreview, this.mode),
+			ruleset: this.ruleset, directorPid: this.directorPid,
+			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			startsAt: this.startsAt, serverNow: Date.now(),
 			inviteBatchId: this.inviteBatch?.id ?? null, inviteRevision: this.inviteRevision,
-			players: [...this.members.values()].map(({ pid, name, hero, ready, color }) => ({ pid, name, hero, ready, color })),
+			players: [...this.members.values()].map(({ pid, name, hero, ready, color, role }) => ({ pid, name, hero, ready, color, role })),
 		};
 	}
 
@@ -404,6 +473,9 @@ export class Room {
 	startMsg() {
 		return {
 			t: 'start', mode: this.mode, len: this.runLength, daily: this.daily, paused: this.frozen, menu: this.paused,
+			ruleset: this.ruleset, directorPid: this.directorPid, arena: this.isHorde ? HORDE_ARENA : null,
+			roundId: this.horde?.roundId ?? null,
+			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y) })),
 			broken: this.brokenList ?? [],
 		};
@@ -412,6 +484,10 @@ export class Room {
 	// Re-sends current state to a reconnected player.
 	resync(pid) {
 		if (this.daily && isLegacy(pid)) { this.send(pid, { t: 'err', msg: 'Обновите страницу, чтобы участвовать в испытании дня' }); return; }
+		if (this.isHorde && !isCompatible(pid)) {
+			this.send(pid, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return;
+		}
 		if (this.state === 'lobby') {
 			this.send(pid, this.lobbyMsg());
 			return;
@@ -426,6 +502,9 @@ export class Room {
 				if (h.lastReforge) this.send(pid, h.lastReforge);
 			}
 			if (h?.offer) this.sendOffer(h);
+			if (pid === this.directorPid) this.horde?.sendState();
+			this.horde?.combat.sendStatus(pid);
+			this.horde?.sendResync?.(pid);
 		} else if (this.state === 'over' && this.overMsg) {
 			this.send(pid, this.overMsg);
 		}
@@ -434,7 +513,28 @@ export class Room {
 	handle(pid, msg) {
 		const m = this.members.get(pid);
 		if (!m) return;
+		if (this.isHorde && !isCompatible(pid)) {
+			this.send(pid, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return;
+		}
 		switch (msg.t) {
+			case 'ruleset': {
+				if (this.state !== 'lobby') break;
+				const error = pid === this.host ? this.setRuleset(msg.id) : 'Правила выбирает хост';
+				if (error) this.send(pid, { t: 'err', msg: error });
+				else this.sendLobby();
+				break;
+			}
+			case 'role': {
+				const error = this.setRole(pid, msg.role);
+				if (error) this.send(pid, { t: 'err', msg: error });
+				else this.sendLobby();
+				break;
+			}
+			case 'horde':
+				if (this.state === 'play' && this.isHorde && pid === this.directorPid && m.role === 'director') this.horde.handle(msg);
+				else this.send(pid, { t: 'err', msg: 'Управление ордой доступно только полководцу во время игры' });
+				break;
 			case 'hero': {
 				const hero = sanitizeHero(msg.hero);
 				if (this.state === 'lobby' && hero) {
@@ -452,7 +552,7 @@ export class Room {
 				m.unlocked = sanitizeUnlocked(msg.heroes) ?? m.unlocked;
 				break;
 			case 'daily':
-				if (this.state !== 'lobby' || this.startsAt !== null) break;
+				if (this.isHorde || this.state !== 'lobby' || this.startsAt !== null) break;
 				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Испытание выбирает хост' });
 				else if (typeof msg.enabled === 'boolean') {
 					this.dailySelected = msg.enabled;
@@ -518,6 +618,7 @@ export class Room {
 		this.daily = null;
 		this.startsAt = null;
 		this.state = 'lobby';
+		if (!this.members.has(this.directorPid)) this.directorPid = null;
 		this.paused = false;
 		this.frozen = false;
 		this.heroes.clear();
@@ -528,12 +629,14 @@ export class Room {
 
 	resetSim() {
 		this.time = 0;
+		this.runHeroes = new Map();
 		this.bossKills = 0;
-		this.tscale = timeScale(this.runLength);
-		this.xpMul = MODES[this.mode].seconds === this.runLength ? MODES[this.mode].xpMul : this.tscale;
-		this.bossAt = bossTimes(this.runLength);
-		this.modeHp = MODES[this.mode].seconds === this.runLength ? modeHpMul(this.mode, this.members.size) : 1;
-		this.modeDmg = MODES[this.mode].seconds === this.runLength ? modeDmgMul(this.mode, this.members.size) : 1;
+		if (this.isHorde) this.runLength = HORDE_SECONDS;
+		this.tscale = this.isHorde ? 1 : timeScale(this.runLength);
+		this.xpMul = this.isHorde ? 1 : MODES[this.mode].seconds === this.runLength ? MODES[this.mode].xpMul : this.tscale;
+		this.bossAt = this.isHorde ? [] : bossTimes(this.runLength);
+		this.modeHp = !this.isHorde && MODES[this.mode].seconds === this.runLength ? modeHpMul(this.mode, this.heroCount) : 1;
+		this.modeDmg = !this.isHorde && MODES[this.mode].seconds === this.runLength ? modeDmgMul(this.mode, this.heroCount) : 1;
 		this.paused = false;
 		this.frozen = false;
 		this.kills = 0;
@@ -549,6 +652,8 @@ export class Room {
 		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
 		this.outposts = null;
+		this.caravan = null;
+		this.nextCaravanTry = 0;
 		this.blasts = [];
 		this.traps = [];
 		this.items = [];
@@ -556,9 +661,9 @@ export class Room {
 		this.brokenList = [];
 		this.nextEliteT = ELITE_START / this.tscale;
 		this.nextInvasionT = INVASION.from / this.tscale;
-		this.peaks = peakSchedule(this.runLength, this.bossAt);
+		this.peaks = this.isHorde ? [] : peakSchedule(this.runLength, this.bossAt);
 		// v21 finale: plan (absolute times) or null for runs too short for it; this.fin lives from the prelude on.
-		const fight = finaleFight(this.runLength);
+		const fight = this.isHorde ? 0 : finaleFight(this.runLength);
 		this.finPlan = fight ? { warn: this.runLength - fight - FINALE.prelude - FINALE.warn, pre: this.runLength - fight - FINALE.prelude, lord: this.runLength - fight, fight } : null;
 		this.swarm = initSwarm(this);
 		this.fin = null;
@@ -590,6 +695,8 @@ export class Room {
 		this.SRC_STAR = SRC_STAR;
 		this.specialT = Object.fromEntries(SPECIAL_IDS.map((id) => [id, 0]));
 		this.events = new Events(this);
+		this.horde = this.isHorde ? new HordeMode(this) : null;
+		this.resultReason = null;
 	}
 
 	cancelStart(startsAt = this.startsAt) {
@@ -602,11 +709,12 @@ export class Room {
 	}
 
 	lockDaily(now = Date.now(), contract = this.daily ?? dailyFor(now)) {
-		this.daily = this.dailySelected ? Object.freeze({ ...dailyInMode(contract, this.mode), mode: this.mode }) : null;
+		this.daily = !this.isHorde && this.dailySelected ? Object.freeze({ ...dailyInMode(contract, this.mode), mode: this.mode }) : null;
 	}
 
 	// Compare and lock the same UTC snapshot for direct and scheduled starts.
 	prepareDaily(now = Date.now()) {
+		if (this.isHorde) { this.dailySelected = false; this.daily = null; return true; }
 		if (this.dailySelected && !this.daily) {
 			const next = dailyFor(now);
 			if (next.day !== this.dailyPreview.day || next.version !== this.dailyPreview.version) {
@@ -630,11 +738,22 @@ export class Room {
 		if (!this.prepareDaily()) return false;
 		if (this.daily) this.daily = Object.freeze({ ...this.daily, players: this.members.size });
 		this.startsAt = null;
+		if (this.isHorde && [...this.members.keys()].some((pid) => !isCompatible(pid))) {
+			this.send(this.host, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
+			return false;
+		}
+		if (this.isHorde && (this.members.get(this.directorPid)?.role !== 'director' || this.heroCount < 1 || this.heroCount > HORDE_MAX_HEROES)) {
+			this.send(this.host, { t: 'err', msg: 'Для Орды нужны один полководец и от одного до четырёх героев' });
+			this.sendLobby();
+			return false;
+		}
 		this.resetSim();
 		this.state = 'play';
 		this.heroes.clear();
-		const list = [...this.members.values()];
-		this.runUids = list.map((m) => m.uid).filter(Boolean);
+		const members = [...this.members.values()];
+		this.runDirectorName = this.isHorde ? this.members.get(this.directorPid)?.name ?? '' : null;
+		const list = members.filter((m) => !this.isHorde || m.role === 'hero');
+		this.runUids = members.map((m) => m.uid).filter(Boolean);
 		list.forEach((m, i) => {
 			const a = (i / list.length) * Math.PI * 2;
 			const r = list.length > 1 ? 50 : 0;
@@ -643,16 +762,20 @@ export class Room {
 			h.hp = h.maxHp;
 			this.heroes.set(m.pid, h);
 		});
+		if (this.isHorde) this.runHeroes = new Map(this.heroes);
 		this.runLog = new RunLog(this);
 		this.snapCodec = new SnapshotEncoder(SNAP_STRIDE);
 		this.needKey = new Set();
 		this.broadcast(this.startMsg());
+		this.horde?.sendState();
+		this.horde?.combat.sendStatus();
+		return true;
 	}
 
 	// --- solo pause: the menu (Esc / ⏸) and an open level-up offer both stop the tick ---
 
 	isSolo() {
-		return this.heroes.size === 1;
+		return !this.isHorde && this.heroes.size === 1;
 	}
 
 	setPaused(on) {
@@ -662,6 +785,11 @@ export class Room {
 	}
 
 	updateFrozen() {
+		if (this.isHorde) {
+			this.paused = false;
+			if (this.frozen) { this.frozen = false; this.broadcast({ t: 'pause', on: false, menu: false }); }
+			return;
+		}
 		const solo = this.isSolo();
 		if (!solo) this.paused = false;
 		const offer = solo && [...this.heroes.values()].some((h) => h.offer);
@@ -680,11 +808,28 @@ export class Room {
 		if (!h || h.st !== 0) return;
 		const x = num(msg.x), y = num(msg.y);
 		if (x !== null && y !== null) {
-			const tx = clamp(x, -WORLD_LIMIT, WORLD_LIMIT), ty = clamp(y, -WORLD_LIMIT, WORLD_LIMIT);
+			const pos = this.isHorde ? clampHordePosition(x, y, PLAYER_RADIUS) : { x: clamp(x, -WORLD_LIMIT, WORLD_LIMIT), y: clamp(y, -WORLD_LIMIT, WORLD_LIMIT) };
+			const tx = pos.x, ty = pos.y;
 			const elapsed = clamp(this.time - h.lastPosT, 0, 1);
-			const maxStep = h.speed * h.mods.speedMul * elapsed * 1.5 + 30;
+			let maxStep = h.speed * h.mods.speedMul * elapsed * 1.5 + 30;
+			if (this.isHorde) {
+				const slow = this.horde.heroSpeedMul(h);
+				const speed = h.speed * h.mods.speedMul * slow;
+				const packetElapsed = clamp(this.time - (h.hordeMoveAt ?? 0), 0, 1);
+				const stale = packetElapsed > HORDE_POS_JITTER_SECONDS;
+				// Ordinary jitter may catch up. A stale packet gets only the current tick,
+				// never movement backdated across warnings or a queued formation's birth.
+				const budgetElapsed = stale ? 1 / TICK_HZ : packetElapsed;
+				const credit = stale ? 0 : (h.hordeMoveCredit ?? 30 * slow);
+				h.hordeMoveCredit = Math.min(speed * 1.1 + 30 * slow,
+					credit + speed * budgetElapsed * 1.1);
+				h.hordeMoveAt = this.time;
+				maxStep = h.hordeMoveCredit;
+			}
 			const dx = tx - h.x, dy = ty - h.y;
 			const d = Math.hypot(dx, dy);
+			// Credit belongs to this position interval. Standing still cannot bank it for a later leap.
+			if (this.isHorde) h.hordeMoveCredit = 0;
 			if (d > 0.5) {
 				h.mvx = dx / d;
 				h.mvy = dy / d;
@@ -698,6 +843,7 @@ export class Room {
 				h.y += (dy / d) * maxStep;
 			}
 			if (this.fin) [h.x, h.y] = clampToRing(h.x, h.y, this.fin.cx, this.fin.cy, this.fin.r - PLAYER_RADIUS);
+			this.horde?.confine(h, PLAYER_RADIUS);
 			h.lastPosT = this.time;
 			if (Number.isSafeInteger(msg.seq) && msg.seq > 0) h.posAck = msg.seq;
 		}
@@ -1409,7 +1555,7 @@ export class Room {
 	guardKilled(e) { guardKilled(this, e); }
 	openOutpostChest(p) { return openOutpostChest(this, p); }
 	closeOutposts() { closeOutposts(this); }
-	confineGuard(e) { confineGuard(e); }
+	confineGuard(e) { confineOutpostGuard(e); confineCaravanGuard(e); }
 
 	// --- simulation ---
 
@@ -1435,16 +1581,21 @@ export class Room {
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
 
-		this.updatePeaks(alive);
-		this.updateFinale(dt, alive);
-		this.events.tick(alive);
+		if (this.isHorde) this.horde.tick(dt, alive);
+		else {
+			this.updatePeaks(alive);
+			this.updateFinale(dt, alive);
+			updateCaravan(this, alive, dt);
+			this.events.tick(alive);
+			if (alive.length) this.spawn(dt, alive);
+		}
 		if (alive.length) {
-			this.spawn(dt, alive);
 			this.moveEnemies(dt, alive);
 		}
 		if (this.fin) this.finaleWall();
 		this.rebuildGrid();
 		this.updateHostile(dt);
+		this.horde?.combat.tick(dt);
 		this.updatePlayers(dt, alive);
 		this.updateProjectiles(dt);
 		this.updateColdWaves(dt);
@@ -1453,18 +1604,22 @@ export class Room {
 		this.updateTimers();
 		this.updateTraps(dt);
 		this.updatePuddles(dt);
-		for (const e of this.enemies) if (e.outpost) confineGuard(e);
+		for (const e of this.enemies) {
+			if (e.outpost || e.caravan) this.confineGuard(e);
+			this.horde?.confine(e);
+		}
+		this.horde?.retireFar(alive);
 		this.compactEnemies();
 		this.updateGems(dt, alive);
 		this.updateItems(dt, alive);
 		this.updateRevive(dt);
 		if (alive.length) {
 			if (this.fin) this.nextEliteT = this.nextInvasionT = Infinity; // no elites or invasions from the prelude on
-			if (this.time >= this.nextEliteT) {
+			if (!this.isHorde && this.time >= this.nextEliteT) {
 				this.nextEliteT = this.time + (this.nt >= 600 ? ELITE_EVERY_LATE : ELITE_EVERY) / this.tscale;
 				this.makeElite(alive);
 			}
-			if (this.time >= this.nextInvasionT) {
+			if (!this.isHorde && this.time >= this.nextInvasionT) {
 				this.nextInvasionT = this.time + INVASION.every / this.tscale;
 				if (!this.nearPeak()) this.invasion(alive);
 			}
@@ -1475,6 +1630,7 @@ export class Room {
 		}
 
 		this.runLog?.tick(this);
+		if (this.horde?.bossKilled) { this.finish(true, 2, 'boss'); return; }
 		// The Lord fell this tick: dawn comes at once, even if the last hero fell with him.
 		if (this.fin?.killed) {
 			this.burnAll();
@@ -1484,7 +1640,7 @@ export class Room {
 		if (this.checkAllDown()) return;
 		if (this.time >= this.runLength) {
 			if (this.peaks.some((p) => p.burn)) this.burnAll();
-			this.finish(true, 1);
+			this.finish(true, 1, this.isHorde ? 'time' : null);
 			return;
 		}
 		if (this.tickNo % SNAPSHOT_EVERY === 0) this.snapshot();
@@ -1492,15 +1648,28 @@ export class Room {
 	}
 
 	randomRingPos(alive) {
+		if (this.isHorde) {
+			let best = null, farthest = -1;
+			for (let i = 0; i < 48; i++) {
+				const h = alive[i % alive.length], a = Math.random() * Math.PI * 2;
+				const d = HORDE_LIMITS.spawnDistance + 80 + Math.random() * 240;
+				const p = i < 24 ? clampHordePosition(h.x + Math.cos(a) * d, h.y + Math.sin(a) * d, MAX_ENEMY_R)
+					: clampHordePosition(HORDE_ARENA.minX + Math.random() * (HORDE_ARENA.maxX - HORDE_ARENA.minX), HORDE_ARENA.minY + Math.random() * (HORDE_ARENA.maxY - HORDE_ARENA.minY), MAX_ENEMY_R);
+				const nearest = Math.min(...alive.map((o) => dist2(p.x, p.y, o.x, o.y)));
+				if (nearest > farthest) { best = p; farthest = nearest; }
+				if (nearest >= HORDE_LIMITS.spawnDistance ** 2) return [p.x, p.y];
+			}
+			return [best.x, best.y];
+		}
 		const p = alive[Math.floor(Math.random() * alive.length)];
 		const a = Math.random() * Math.PI * 2;
 		const d = (SPAWN_DISTANCE.min + Math.random() * (SPAWN_DISTANCE.max - SPAWN_DISTANCE.min)) * (this.peak?.spawnDist ?? 1);
 		return [p.x + Math.cos(a) * d, p.y + Math.sin(a) * d];
 	}
 
-	spawnEnemy(type, alive, hpMul) {
+	spawnEnemy(type, alive, hpMul, position = null) {
 		const E = ENEMIES[type];
-		const [x, y] = this.randomRingPos(alive);
+		const [x, y] = position ?? this.randomRingPos(alive);
 		const hp = E.hp * hpMul * this.modeHp * (this.daily?.mods.enemyHp ?? 1);
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
@@ -1514,6 +1683,7 @@ export class Room {
 			fuseBy: null, exploded: false, auxT: 0, fa: 0, born: this.time,
 		};
 		if (E.ai === 'shield' && alive.length) e.fa = Math.atan2(alive[0].y - y, alive[0].x - x);
+		if (this.isHorde) { e.hordeNt = this.nt; e.hordeSource = 'ambient'; this.horde.confine(e); }
 		this.enemies.push(e);
 		return e;
 	}
@@ -1521,7 +1691,7 @@ export class Room {
 	// Outpost guards own a separate, bounded budget and never thin ordinary encounters.
 	ordinaryEnemyCount() {
 		let n = 0;
-		for (const e of this.enemies) if (!e.dead && !e.outpost) n++;
+		for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan) n++;
 		return n;
 	}
 
@@ -1570,7 +1740,7 @@ export class Room {
 			if (!cap || this.time < this.specialT[id]) continue;
 			this.specialT[id] = this.time + S.every / this.tscale;
 			let n = 0;
-			for (const e of this.enemies) if (!e.dead && !e.outpost && e.def === ENEMIES[id]) n++;
+			for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan && e.def === ENEMIES[id]) n++;
 			if (n >= cap) continue;
 			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
 			count++;
@@ -1866,24 +2036,26 @@ export class Room {
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
-				if (e.outpost && e.guardReadyAt > now) continue;
+				if (((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+					if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 					const d = dist2(e.x, e.y, p.x, p.y);
 					if (d < bd) {
 						bd = d;
 						best = p;
 					}
 				}
-				if (!e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
+				if (!this.isHorde && !e.outpost && !e.caravan && bd > FAR_DIST2 && e.ai !== 'flee') {
 					[e.x, e.y] = this.randomRingPos(alive);
 					e.windT = 0;
 					e.bs = 0;
 					continue;
 				}
-				if (!best && e.outpost) {
-					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
+				if (!best && (e.outpost || e.caravan)) {
+					const anchor = e.outpost ?? e.caravan;
+					const dx = anchor.x - e.x, dy = anchor.y - e.y, d = Math.hypot(dx, dy) || 1;
 					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
 					e.x += dx / d * step;
 					e.y += dy / d * step;
@@ -1908,6 +2080,7 @@ export class Room {
 				dy /= d;
 				// Stop at contact distance so enemies don't stack on the player.
 				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
+				speed *= this.horde?.combat.unitSpeedMul(e) ?? 1;
 				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
 				if (fog && this.events.inFog(e)) speed *= FOG_DEF.speedMul;
 				let maxStep = Math.max(0, d - e.r - PLAYER_RADIUS + 2);
@@ -1992,7 +2165,7 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally { confineGuard(e); }
+			} finally { this.confineGuard(e); this.horde?.confine(e); }
 		}
 	}
 
@@ -2093,7 +2266,7 @@ export class Room {
 	bossStep(e, dx, dy, speed, dt) {
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
-		confineGuard(e);
+		this.confineGuard(e);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -2166,7 +2339,8 @@ export class Room {
 		}
 		const tx = t.x, ty = t.y;
 		this.fx.push(['warn', Math.round(tx), Math.round(ty), E.call.ring + 20, round3(E.call.warn)]);
-		this.after(E.call.warn, () => !e.dead && this.summon(e, E.call, tx, ty));
+		this.after(E.call.warn, () => !e.dead && this.summon(e, E.call, tx, ty),
+			this.isHorde ? { x: tx, y: ty, r: E.call.ring + 20 } : null, e);
 		return false;
 	}
 
@@ -2175,6 +2349,16 @@ export class Room {
 		if (!alive.length) return;
 		const count = Math.round(call.count * (1 + 0.25 * (this.heroes.size - 1)));
 		const hpMul = enemyHpScale(this.nt, this.heroes.size);
+		if (this.isHorde) {
+			const c = this.horde.counts();
+			for (let i = 0; i < count && c.ambient < HORDE_LIMITS.ambient && c.total + c.reserved < HORDE_LIMITS.total; i++) {
+				const a = i / count * Math.PI * 2;
+				const m = this.spawnEnemy(call.type, alive, hpMul, [x + Math.cos(a) * call.ring, y + Math.sin(a) * call.ring]);
+				m.hordeSource = 'boss-add'; m.hordeReadyAt = this.time + HORDE_LIMITS.preparation;
+				c.ambient++; c.total++;
+			}
+			return;
+		}
 		// v21: in the arena the swarm stays near the packs' cap (weak devices, a crowded ring).
 		const cap = this.fin ? finaleAddCap(this.heroes.size) + FINALE.adds.callOver : MAX_ENEMIES + 60;
 		let ordinary = this.ordinaryEnemyCount();
@@ -2389,7 +2573,7 @@ export class Room {
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
-			confineGuard(e);
+			this.confineGuard(e);
 		}
 	}
 
@@ -2397,7 +2581,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.outpost || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
+			if (e.dead || e.outpost || e.caravan || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -2415,7 +2599,7 @@ export class Room {
 	}
 
 	setElite(e, affix) {
-		if (e.outpost) return;
+		if (e.outpost || e.caravan) return;
 		e.elite = affix;
 		e.hp *= ELITE_HP_MUL;
 		e.maxHp *= ELITE_HP_MUL;
@@ -2431,6 +2615,7 @@ export class Room {
 		let tb = null, td = Infinity;
 		for (const p of taunters) {
 			if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+			if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 			const d = dist2(e.x, e.y, p.x, p.y);
 			if (d < p.trait.taunt * p.trait.taunt && d < td) {
 				td = d;
@@ -2442,6 +2627,7 @@ export class Room {
 
 	// The single damage entry point: mark → crit → reactions → armor → hp → burn.
 	hurtEnemy(e, dmg, h, src = SRC_NONE) {
+		this.lastCrit = false;
 		if (e.dead || dmg <= 0) return 0;
 		if (e.ai === 'flee' && !h) return 0; // the golden shade is the players' catch only
 		if (e.immuneT > this.time) return 0; // the finale Lord while he comes out
@@ -2501,16 +2687,29 @@ export class Room {
 				reaction.flash *= m;
 			}
 		}
+		const beforeBarrier = dmg;
+		const fixedBeforeBarrier = reaction.fixed;
+		this.lastCrit = crit;
+		dmg = this.horde?.combat.barrier(e, dmg) ?? dmg;
+		if (dmg <= 0) return 0;
+		if (dmg < beforeBarrier) {
+			const remaining = dmg / beforeBarrier;
+			reaction.fixed *= remaining;
+			reaction.flash *= remaining;
+		}
 		const dealt = Math.min(dmg, e.hp);
+		const absorbed = beforeBarrier - dmg;
+		let withoutLocalMarkBeforeBarrier = beforeBarrier;
 		let withoutLocalMark = dmg;
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
-			withoutLocalMark = reaction.fixed + (dmg - reaction.fixed) / (1 + e.markMul);
+			withoutLocalMarkBeforeBarrier = fixedBeforeBarrier + (beforeBarrier - fixedBeforeBarrier) / (1 + e.markMul);
+			withoutLocalMark = Math.max(0, withoutLocalMarkBeforeBarrier - absorbed);
 			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
 		}
 		if (!src.raw && src.markSupport) {
 			// A reaction can carry another target's mark into this hit. Credit that
 			// inherited gain before the local mark, so their cross term is counted once.
-			const withoutEitherMark = withoutLocalMark - withoutLocalMark * src.markSupport.fraction;
+			const withoutEitherMark = Math.max(0, withoutLocalMarkBeforeBarrier * (1 - src.markSupport.fraction) - absorbed);
 			src.markSupport.owner.supportDamage += Math.max(0,
 				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
 		}
@@ -2725,7 +2924,9 @@ export class Room {
 		if (e.dead) return;
 		e.dead = true;
 		killedSwarmEnemy(this, e);
+		this.horde?.combat.onKilled(e, h, src);
 		if (e.outpost) this.guardKilled(e);
+		if (e.caravan) caravanGuardKilled(this, e);
 		this.kills++;
 		if (h) {
 			h.kills++;
@@ -2751,7 +2952,9 @@ export class Room {
 			e.exploded = true;
 			const E = e.def;
 			// Killed by a player: short fuse at the spot; fuse burnt out: blows up right away.
-			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, E.blastEnemyDmg, h, 1, e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
+			// In PvP every actual zone warns independently; friendly splash cannot start an unannounced recursive chain.
+			this.addBlast(e.x, e.y, E.blastR, E.blastDmg * e.dmgMul, this.isHorde ? 0 : E.blastEnemyDmg, h, 1,
+				this.isHorde ? Math.max(HORDE_COMBAT.warning, E.fuse) : e.fuseT > 0 || src === SRC_BLAST ? 0 : E.fuse);
 		}
 		if (e.elite && !e.outpost) {
 			if (e.elite === 'volatile') this.addBlast(e.x, e.y, VOLATILE_R, ENEMIES.bloater.blastDmg, ENEMIES.bloater.blastEnemyDmg, h, 2, ENEMIES.bloater.fuse);
@@ -2766,7 +2969,11 @@ export class Room {
 		const bi = this.bosses.indexOf(e);
 		if (bi >= 0) {
 			this.bosses.splice(bi, 1);
-			if (e.finLord) {
+			if (e.hordeBoss) {
+				this.runLog?.bossKilled(this, e);
+				this.bossKills++;
+				this.horde.bossKilled = true;
+			} else if (e.finLord) {
 				// The finale Lord leaves no chest: the run ends at the end of this tick (step()).
 				this.runLog?.bossKilled(this, e);
 				this.bossKills++;
@@ -3034,7 +3241,7 @@ export class Room {
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of near) {
-				if (e.dead || (e.outpost && e.guardReadyAt > now)) continue;
+				if (e.dead || ((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
 				const min = e.r + PLAYER_RADIUS;
 				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
@@ -3047,7 +3254,7 @@ export class Room {
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.hurtPlayer(h, cd * (1 - braced), e.caravan ? 'caravan' : e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -3097,6 +3304,7 @@ export class Room {
 			h.st = 1;
 			h.rev = 0;
 			h.downT = this.time;
+			this.horde?.combat.clearHero(h);
 			this.fx.push(['down', h.pid]);
 			this.events.onDown(h);
 		}
@@ -3817,7 +4025,7 @@ export class Room {
 				const force = Math.min(0.65, 52 / Math.max(1, Math.hypot(e.x - x, e.y - y)));
 				e.x += (x - e.x) * force;
 				e.y += (y - e.y) * force;
-				confineGuard(e);
+				this.confineGuard(e);
 				pulled++;
 			}
 		}
@@ -4372,7 +4580,7 @@ export class Room {
 			const step = Math.min(d - ring, L.pull * (e.ai === 'shield' ? 0.5 : 1) * dt);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
-			confineGuard(e);
+			this.confineGuard(e);
 		}
 		this.orbitHits(h, { count: L.count, radius: L.ring, rps: L.rps, hitCd: L.hitCd, dmg: L.bladeDmg }, dmgMul, areaMul, amount, SRC.whirlwind);
 		w.t -= dt;
@@ -4467,8 +4675,8 @@ export class Room {
 		}
 	}
 
-	after(delay, fn) {
-		this.timers.push({ t: this.time + delay, fn });
+	after(delay, fn, warning = null, carrier = null) {
+		this.timers.push({ t: this.time + delay, fn, ...(warning ? { warning, carrier } : {}) });
 	}
 
 	updateTimers() {
@@ -4501,7 +4709,7 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
-		confineGuard(e);
+		this.confineGuard(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
@@ -5274,13 +5482,15 @@ export class Room {
 
 	checkAllDown() {
 		if (this.state !== 'play' || this.heroes.size === 0) return false;
+		if (this.horde?.bossKilled) { this.finish(true, 2, 'boss'); return true; }
 		for (const h of this.heroes.values()) if (h.st === 0) return false;
-		this.finish(false);
+		this.finish(false, 0, this.isHorde ? 'wipe' : null);
 		return true;
 	}
 
 	// This run's share of the hero-unlock stats (UNLOCKS) for one player; the client adds it to its totals.
 	runAchievements(h, win) {
+		if (this.isHorde) return undefined;
 		return {
 			wins: win ? 1 : 0,
 			// v19: a Knight lying at the end counts up to his last down; lifted ones go on counting.
@@ -5306,8 +5516,10 @@ export class Room {
 	}
 
 	// grade: 0 — the group fell, 1 — «Ночь пережита» (lived to the end), 2 — «Владыка повержен». `win` is true for both.
-	finish(win, grade = win ? 1 : 0) {
+	finish(win, grade = win ? 1 : 0, reason = null) {
+		if (this.state === 'over') return;
 		this.grade = grade;
+		this.resultReason = this.isHorde ? reason ?? (win ? 'time' : 'wipe') : null;
 		this.snapshot();
 		this.state = 'over';
 		this.paused = false;
@@ -5318,11 +5530,12 @@ export class Room {
 		}
 		const log = this.runLog?.build(this, win) ?? null;
 		this.lastLog = log;
-		const stats = [...this.heroes.values()].map((h) => ({
-			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level, ach: this.daily ? null : this.runAchievements(h, win),
+		const stats = [...this.resultHeroes().values()].map((h) => ({
+			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level,
+			...(!this.isHorde ? { ach: this.daily ? null : this.runAchievements(h, win) } : {}),
 		}));
 		// v22: the server keeps the totals of portal users; `tot` is a player's totals after this run.
-		if (this.onRunEnd) {
+		if (!this.isHorde && this.onRunEnd) {
 			const duos = new Map([...this.heroes.values()].map((h) => [h.pid, [...h.weapons.keys()].filter((id) => DUOS[id])]));
 			try {
 				const tot = this.onRunEnd({ win, grade, daily: this.daily, mode: this.mode, time: Math.round(this.time), players: stats.length, stats, duos });
@@ -5333,13 +5546,14 @@ export class Room {
 		}
 		let card = null;
 		try {
-			card = this.runLog?.card(this, log) ?? null;
+			card = this.isHorde ? null : this.runLog?.card(this, log) ?? null;
 		} catch (e) {
 			console.error('results card', e);
 		}
 		if (log) runStore.add(log, this.runUids, card);
 		this.overMsg = {
 			t: 'over', win, grade, daily: this.daily, fin: this.finaleResult(), card, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
+			ruleset: this.ruleset, directorPid: this.directorPid, directorWin: this.isHorde && !win, reason: this.resultReason,
 			stats,
 			runId: log?.id ?? null, log,
 		};
@@ -5348,7 +5562,7 @@ export class Room {
 
 	enemyState(en) {
 		const t = this.time;
-		let st = en.outpost ? ST.guard : 0;
+		let st = en.outpost || en.caravan ? ST.guard : 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
 		if (stormMarked(en, t)) st |= ST.stormMarked;
@@ -5369,6 +5583,7 @@ export class Room {
 	snapshot() {
 		const ps = [...this.heroes.values()];
 		const visible = (x, y) => {
+			if (this.isHorde) return true;
 			for (const h of ps) if (dist2(x, y, h.x, h.y) < VIEW_DIST2) return true;
 			return false;
 		};
@@ -5412,7 +5627,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it,
+			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
@@ -5515,7 +5730,8 @@ export class Hub {
 		const out = [];
 		for (const r of this.rooms.values()) {
 			if (r.state !== 'lobby' || r.size === 0) continue;
-			out.push({ code: r.code, host: r.members.get(r.host)?.name ?? '', players: r.size, state: r.state, mode: r.mode });
+			out.push({ code: r.code, host: r.members.get(r.host)?.name ?? '', players: r.size, state: r.state, mode: r.mode,
+				ruleset: r.ruleset, heroCount: r.heroCount, directorPresent: r.directorPid !== null });
 		}
 		return out;
 	}
@@ -5556,12 +5772,14 @@ export class Hub {
 				this.send(pid, { t: 'rooms', rooms: this.roomList() });
 				return;
 			case 'create': {
+				if (msg.ruleset === HORDE_RULESET && !isCompatible(pid)) return err('Игра обновилась — обновите страницу (F5), чтобы играть за орду');
 				this.leaveRoom(pid);
 				const room = new Room(this.newCode(), this.send);
 				room.onRunEnd = this.onRunEnd;
 				room.setMode(msg.mode);
 				this.rooms.set(room.code, room);
 				room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes), p.uid);
+				if (msg.ruleset === HORDE_RULESET) { room.setRuleset(HORDE_RULESET); room.sendLobby(); }
 				p.room = room;
 				this.pushRooms();
 				return;
@@ -5570,12 +5788,14 @@ export class Hub {
 				const code = typeof msg.code === 'string' ? msg.code.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) : '';
 				const room = this.rooms.get(code);
 				if (!room) return err('Комната не найдена');
+				if (room.isHorde && !isCompatible(pid)) return err('Игра обновилась — обновите страницу (F5), чтобы играть за орду');
 				if (p.room === room) {
 					room.resync(pid);
 					return;
 				}
 				if (room.state !== 'lobby') return err('Игра в этой комнате уже идёт');
-				if (room.size >= MAX_PLAYERS) return err('Комната заполнена');
+				if (room.size >= room.maxMembers) return err('Комната заполнена');
+				if (room.isHorde && p.uid !== null && p.uid !== undefined && [...room.members.values()].some((m) => m.uid !== null && m.uid !== undefined && String(m.uid) === String(p.uid))) return err('В Орде один пользователь может занимать только одно место');
 				this.leaveRoom(pid);
 				const e = room.addPlayer(pid, p.name, msg.hero, sanitizeUnlocked(msg.heroes), p.uid);
 				if (e) return err(e);
@@ -5590,7 +5810,7 @@ export class Hub {
 				const room = p.room;
 				if (!room) return;
 				room.handle(pid, msg);
-				if (msg.t === 'start' || msg.t === 'again' || msg.t === 'mode') this.pushRooms();
+				if (['start', 'again', 'mode', 'ruleset', 'role'].includes(msg.t)) this.pushRooms();
 			}
 		}
 	}

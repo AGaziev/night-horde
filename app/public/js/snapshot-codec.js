@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 30; // Daily contracts require a UI newer than the combat-only PROTO 29 page.
+export const PROTO = 32; // Daily contracts plus merged Horde recovery/movement and v37 caravans require the current UI.
 // 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
 // 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 

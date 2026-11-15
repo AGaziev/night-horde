@@ -11,15 +11,30 @@ import WebSocket from 'ws';
 
 test('CEO54-3 real transport: old normal client works, daily join and active downgrade are denied', async t => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daily-legacy-'));
-	const port = 34612, url = `http://127.0.0.1:${port}`;
-	const server = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], {
-		env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: 'ignore',
+	const preload = path.join(dir, 'listen.mjs');
+	fs.writeFileSync(preload, `import { Server } from 'node:http';
+const listen = Server.prototype.listen;
+Server.prototype.listen = function (...args) {
+ if (typeof args[0] === 'number') {
+  args[0] = 0;
+  this.once('listening', () => console.log('TEST_LISTENING:' + this.address().port));
+ }
+ return listen.apply(this, args);
+};`);
+	let output = '', port, url;
+	const server = spawn(process.execPath, ['--import', new URL('../../pm/test-runtime.mjs', import.meta.url).pathname, '--import', preload, new URL('./server.js', import.meta.url).pathname], {
+		env: { ...process.env, PORT: '3000', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	const exit = once(server, 'exit'); const sockets = [];
+	server.stdout.on('data', data => { output += data; port = Number(output.match(/TEST_LISTENING:(\d+)/)?.[1]); });
+	server.stderr.on('data', data => { output += data; });
 	t.after(async () => { for (const ws of sockets) ws.terminate(); server.kill(); await exit; fs.rmSync(dir, { recursive: true, force: true }); });
 	let ready = false;
-	for (let i = 0; i < 50 && !ready; i++) { ready = await fetch(url + '/health').then(r => r.ok, () => false); if (!ready) await wait(50); }
-	assert.ok(ready);
+	for (let i = 0; i < 50 && !ready; i++) {
+		if (port) { url = `http://127.0.0.1:${port}`; ready = await fetch(url + '/health', { signal: AbortSignal.timeout(2000) }).then(r => r.ok, () => false); }
+		if (!ready) await wait(50);
+	}
+	assert.ok(ready, output);
 	async function connection(sid, protocol) {
 		const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?sid=${sid}&v=${protocol}`), messages = [];
 		sockets.push(ws); ws.on('error', () => {}); ws.on('message', raw => messages.push(JSON.parse(raw.toString())));

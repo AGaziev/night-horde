@@ -14,7 +14,7 @@ Math.random = () => ((seed = (seed * 16807) % 2147483647) - 1) / 2147483646;
 let wall = 0;
 Object.defineProperty(globalThis, 'performance', { value: { now: () => wall * 1000 }, configurable: true, writable: true });
 const file = new URL('../public/js/game.js', import.meta.url);
-const source = fs.readFileSync(file, 'utf8').replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+const source = fs.readFileSync(file, 'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 const S = ENEMIES.sniper, FAN = S.fan, dt = 1 / TICK_HZ, EVERY = Math.round(TICK_HZ / SNAPSHOT_HZ);
@@ -209,7 +209,7 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 
 // 4. A page opened before this fix (PROTO 24 ages lanes by its capped frame dt) reloads on the server's welcome.
 {
-	assert.equal(PROTO, 30);
+	assert.equal(PROTO, 32);
 	const netFile = new URL('../public/js/net.js', import.meta.url);
 	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
 	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
@@ -231,5 +231,5 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 		assert.equal(reloads, 1, 'the current page is not reloaded'); assert.equal(emitted, 1);
 		delete globalThis.sessionStorage; delete globalThis.location;
 	}
-	console.log('PROTO 30: old PROTO 24/25/28/29 pages reload on welcome, the current one goes on: OK');
+	console.log('PROTO 32: old PROTO 24/25/28 pages reload on welcome, the current one goes on: OK');
 }

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 // The server stands still while paused (menu, solo level-up offer), so the warnings of what it will do next
 // (Трубач lanes, warn circles) must not fade on the client meanwhile: after the pause they keep their remaining time.
 const file = new URL('../public/js/game.js', import.meta.url);
-const source = fs.readFileSync(file, 'utf8').replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+const source = fs.readFileSync(file, 'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const g = new Game({ send() {} }); g.me = 1;
 g.begin({ players: [{ pid: 1, hero: 'knight', name: 'One', x: 0, y: 0 }] });
