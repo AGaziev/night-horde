@@ -88,7 +88,7 @@ for (const mode of ['lunch', 'night']) test(`Swarm/${mode}: lost fusion cancel r
 	room.addProjectile(hero, 'knife', 0, 400, 10, 1, 2, null);
 	const [retired, independent] = room.projectiles;
 	const requests = [], net = Object.create(Net.prototype);
-	Object.assign(net, { snapDec: new SnapshotDecoder(), keyAskedAt: -Infinity, handlers: new Map() });
+	Object.assign(net, { snapDec: new SnapshotDecoder(), keyAskedAt: -Infinity, handlers: new Map(), outbox: [] });
 	net.send = msg => requests.push(msg);
 	const game = new Game(net); game.me = 1; game.begin(room.startMsg());
 	let decoded;

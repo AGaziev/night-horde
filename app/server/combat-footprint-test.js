@@ -4,7 +4,7 @@ const r=new Room('HIT',()=>{});r.addPlayer(1,'P','knight');r.start();r.time=10;
 const h=r.heroes.get(1);h.x=h.y=0;h.perk.readyAt=Infinity;h.ward=0;h.hp=100;
 r.hostile=[{id:1,x:-60,y:0,vx:3600,vy:0,life:2,dmg:10}];
 r.updateHostile(1/30);assert.equal(h.hp,90,'shot crosses player within one tick');
-h.hp=100;h.iframes=0;h.x=60;h.dashPath={x:-60,y:0};
+h.hp=100;h.iframes=0;h.x=60;h.hostilePos={x:-60,y:0};
 r.hostile=[{id:2,x:0,y:-60,vx:0,vy:3600,life:2,dmg:10}];
 r.updateHostile(1/30);assert.equal(h.hp,90,'relative paths cross for moving player');
 r.enemies=[];h.x=25;h.y=-8;r.slash(h,1,100,40,10);
@@ -38,7 +38,8 @@ g.shotEvent(['eshot',9,0,0,600,0,1,10]);g.shotEvent(['epend',9,10.02]);assert.eq
  const end=room.fx.findLast(e=>e[0]==='epend');assert.ok(end[2]>=born[7]);assert.ok(hero.hp<100);
  const client=new Game({send(){}});client.shotEvent(born);client.shotEvent(end);client.view.tm=end[2];client.advanceHostile();
  assert.equal(client.hostile.size,0);assert.equal(client.rings.length,1,'short-lived hit remains visible as impact, never a ghost projectile');
- hero.hp=100;hero.iframes=0;hero.x=0;hero.dashPath={x:100,y:0};
+ // Isolate the short-lived projectile from the still-living shooter's body contact.
+ room.enemies=[];hero.hp=100;hero.iframes=0;hero.x=0;hero.dashPath={x:100,y:0,duration:1/30,moveX:-100,moveY:0};
  room.hostile=[{id:999,x:0,y:0,vx:0,vy:0,life:.003,dmg:10}];
  room.time+=1/30;room.updateHostile(1/30);assert.equal(hero.hp,100,'hero cannot collide after the projectile has expired');
 }

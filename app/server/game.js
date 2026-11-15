@@ -1,6 +1,5 @@
 import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot, swarmResultSnapshot } from './daily-swarm.js';
 import { dailyFor, dailyInMode } from '../public/shared/daily.js';
-import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
 	REVIVE_RADIUS, REVIVE_SECONDS, REVIVE_HP_FRACTION, PLAYER_IFRAMES, MAX_LEVEL,
@@ -33,6 +32,8 @@ import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec
 import { HordeMode } from './horde-mode.js';
 import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_COMBAT, clampHordePosition } from '../public/shared/horde-content.js';
 import { movingCircleImpact, circleOverlapsRect } from '../public/shared/combat-geometry.js';
+import { requestDash, stepMobility, mobilitySnapshot, dashContactTime, hasActualDash } from './mobility.js';
+import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 
 const SNAPSHOT_EVERY = Math.max(1, Math.round(TICK_HZ / SNAPSHOT_HZ));
 const HORDE_POS_JITTER_SECONDS = 0.2;
@@ -475,10 +476,11 @@ export class Room {
 	startMsg() {
 		return {
 			t: 'start', mode: this.mode, len: this.runLength, daily: this.daily, paused: this.frozen, menu: this.paused,
+			mobilityRun: this.runLog?.id, serverNow: Date.now(),
 			ruleset: this.ruleset, directorPid: this.directorPid, arena: this.isHorde ? HORDE_ARENA : null,
 			roundId: this.horde?.roundId ?? null,
 			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
-			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y) })),
+			players: [...this.heroes.values()].map((h) => ({ pid: h.pid, name: h.name, hero: h.hero, color: h.color, x: Math.round(h.x), y: Math.round(h.y), fx: h.fx, fy: h.fy, dashRequest: h.dashRequest ?? 0 })),
 			broken: this.brokenList ?? [],
 		};
 	}
@@ -598,6 +600,9 @@ export class Room {
 			case 'pos':
 				this.onPos(pid, msg);
 				break;
+			case 'dash':
+				requestDash(this, pid, msg);
+				break;
 			case 'pick':
 				this.onPick(pid, msg);
 				break;
@@ -644,6 +649,7 @@ export class Room {
 		this.frozen = false;
 		this.kills = 0;
 		this.tickNo = 0;
+		this.contactFrames = null;
 		this.nextId = 1;
 		this.enemies = [];
 		this.projectiles = [];
@@ -810,6 +816,7 @@ export class Room {
 		if (this.state !== 'play' || this.frozen) return;
 		const h = this.heroes.get(pid);
 		if (!h || h.st !== 0) return;
+		if (h.dash || (msg.epoch ?? 0) !== (h.moveEpoch ?? 0)) return;
 		const x = num(msg.x), y = num(msg.y);
 		if (x !== null && y !== null) {
 			const pos = this.isHorde ? clampHordePosition(x, y, PLAYER_RADIUS) : { x: clamp(x, -WORLD_LIMIT, WORLD_LIMIT), y: clamp(y, -WORLD_LIMIT, WORLD_LIMIT) };
@@ -1598,6 +1605,7 @@ export class Room {
 		if (this.tickNo % SNAPSHOT_EVERY === 1 % SNAPSHOT_EVERY) this.reactFx = 0;
 		const alive = [];
 		for (const h of this.heroes.values()) if (h.st === 0) alive.push(h);
+		stepMobility(this, dt);
 
 		if (this.isHorde) this.horde.tick(dt, alive);
 		else {
@@ -2043,6 +2051,10 @@ export class Room {
 	}
 
 	moveEnemies(dt, alive) {
+		// Capture the whole cohort before any AI side effects; read endpoints after finally/confineGuard.
+		if (alive.some(hasActualDash)) {
+			for (const e of this.enemies) if (!e.dead) e.dashMotion = { x: e.x, y: e.y, tick: this.tickNo, warped: false };
+		}
 		// A direct AI step also starts a new contribution interval for native callers.
 		this.controlCredited.clear();
 		this.rebuildGrid();
@@ -2072,6 +2084,7 @@ export class Room {
 				}
 				if (!this.isHorde && !e.outpost && !e.caravan && bd > FAR_DIST2 && e.ai !== 'flee') {
 					[e.x, e.y] = this.randomRingPos(alive);
+					if (e.dashMotion) e.dashMotion.warped = true;
 					e.windT = 0;
 					e.bs = 0;
 					continue;
@@ -2280,6 +2293,7 @@ export class Room {
 					e.bt -= dt;
 					if (e.bt <= 0) {
 						this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+						if (e.dashMotion && (e.x !== e.tx || e.y !== e.ty)) e.dashMotion.warped = true;
 						e.x = e.tx;
 						e.y = e.ty;
 						e.bs = 0;
@@ -2561,7 +2575,22 @@ export class Room {
 		// Early AI hazards keep their legacy phase priority; preserve their new grant.
 		for (const [h, frame] of frames) if (h.iframes > frame.protectedUntil - frame.start + 1e-9)
 			frame.protectedUntil = Math.max(frame.protectedUntil, this.time + h.iframes);
-		const events = [], motions = new Map();
+		const events = [], motions = new Map(), now = this.time, frameStart = now - dt;
+		const order = (a,b) => a.at - b.at || a.id - b.id || a.kind - b.kind || a.h.pid - b.h.pid;
+		// Dash bodies join the existing projectile timeline; ordinary bodies retain main's endpoint phase.
+		for (const h of this.heroes.values()) {
+			if (h.st !== 0 || !hasActualDash(h)) continue;
+			for (const e of this.enemies) {
+				if (e.dead || e.born > now || ((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
+				const motion = e.dashMotion?.tick === this.tickNo ? e.dashMotion : null, radius = e.r + PLAYER_RADIUS;
+				// AI can create a body at the frame endpoint (Twin halves, summons). It has no earlier path.
+				const from = Math.min(dt,Math.max(0,Math.max(e.born ?? frameStart, e.hordeReadyAt ?? frameStart, (e.outpost || e.caravan) ? e.guardReadyAt ?? frameStart : frameStart)-frameStart)), fraction = dt>0 ? from/dt : 1;
+				const sx = motion ? motion.x+(e.x-motion.x)*fraction : e.x, sy = motion ? motion.y+(e.y-motion.y)*fraction : e.y;
+				const at = motion?.warped ? (dist2(e.x,e.y,h.x,h.y) < radius ** 2 ? dt : null)
+					: dashContactTime(h,sx,sy,e.x,e.y,dt,radius,from,dt);
+				if (at !== null) events.push({at:frameStart+at,h,e,id:e.id,kind:0});
+			}
+		}
 		for (const s of this.hostile) {
 			const start = Math.max(this.time - dt, s.bornAt ?? this.time - dt);
 			const elapsed = Math.max(0, this.time - start), step = Math.min(elapsed, Math.max(0, s.life));
@@ -2573,20 +2602,56 @@ export class Room {
 			const from = dt > 0 ? (start - (this.time - dt)) / dt : 1, to = Math.min(1, from + step / dt);
 			for (const h of this.heroes.values()) {
 				if (h.st !== 0) continue;
-				const prev = h.dashPath ?? h.hostilePos ?? h;
-				const hx0 = prev.x + (h.x - prev.x) * from, hy0 = prev.y + (h.y - prev.y) * from;
-				const hx1 = prev.x + (h.x - prev.x) * to, hy1 = prev.y + (h.y - prev.y) * to;
-				const t = movingCircleImpact(ox, oy, s.x, s.y, hx0, hy0, hx1, hy1, (s.r ?? HOSTILE_R) + PLAYER_RADIUS);
-				if (t !== null) events.push({s, h, at: start + t * step});
+				const radius = (s.r ?? HOSTILE_R) + PLAYER_RADIUS;
+				let at;
+				if (hasActualDash(h)) {
+					// Follow the real dash ray and later wall projection; birth and TTL share main's motion clip.
+					const t = dashContactTime(h,ox,oy,s.x,s.y,dt,radius,start-frameStart,start-frameStart+step);
+					at = t === null ? null : frameStart+t;
+				} else {
+					const prev = h.hostilePos ?? h;
+					const hx0 = prev.x + (h.x - prev.x) * from, hy0 = prev.y + (h.y - prev.y) * from;
+					const hx1 = prev.x + (h.x - prev.x) * to, hy1 = prev.y + (h.y - prev.y) * to;
+					const t = movingCircleImpact(ox,oy,s.x,s.y,hx0,hy0,hx1,hy1,radius);
+					at = t === null ? null : start+t*step;
+				}
+				if (at !== null) events.push({s,h,at,id:s.id,kind:1});
 			}
 		}
-		events.sort((a,b) => a.at - b.at || a.s.id - b.s.id || a.h.pid - b.h.pid);
+		events.sort(order);
 		const impacts = new Map();
-		for (const {s,h,at} of events) {
-			if (impacts.has(s) || h.st !== 0) continue;
-			impacts.set(s, at); // Protection consumes a projectile, just as endpoint contact did.
-			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from, at));
+		this.dashContactChanged = new Set();
+		try {
+		while (events.length) {
+			const {s,h,e,at} = events.shift();
+			if (h.st !== 0 || e?.dead || s && impacts.has(s)) continue;
+			if (s) {
+				impacts.set(s,at); // A protected entry still consumes its projectile, exactly as on main.
+				applyContact(h,frames.get(h),at,()=>this.hurtPlayer(h,s.dmg,s.from,at));
+			} else if (e.ai === 'exploder') {
+				if (e.fuseT <= 0) {e.fuseT=e.def.fuse;e.fuseBy=null;}
+			} else if (e.dmg > 0 && !(e.immuneT > now)) {
+				if (e.frozenT > now) {
+					// Observe only an available body hit; a suppressed event grants no protection.
+					if (at >= frames.get(h).protectedUntil - 1e-9) controlTick(e,now,dt,'lock',this.controlCredited);
+				} else applyContact(h,frames.get(h),at,()=>this.bodyContact(h,e,at));
+			}
+			// A real impulse invalidates future body trajectories; do not sweep across the teleport itself.
+			if (this.dashContactChanged.size) {
+				for (const changed of this.dashContactChanged) {
+					for(let i=events.length-1;i>=0;i--) if(events[i].e===changed) events.splice(i,1);
+					if (changed.dead || changed.born > now || ((changed.outpost || changed.caravan) && changed.guardReadyAt > now) || changed.hordeReadyAt > now) continue;
+					for (const hero of this.heroes.values()) {
+						if (hero.st !== 0 || !hasActualDash(hero)) continue;
+						const entry = dashContactTime(hero,changed.x,changed.y,changed.x,changed.y,dt,
+							changed.r+PLAYER_RADIUS,Math.min(dt,Math.max(0,at-frameStart,Math.max(changed.born ?? frameStart, changed.hordeReadyAt ?? frameStart, (changed.outpost || changed.caravan) ? changed.guardReadyAt ?? frameStart : frameStart)-frameStart)),dt);
+						if (entry !== null) events.push({at:frameStart+entry,h:hero,e:changed,id:changed.id,kind:0});
+					}
+				}
+				this.dashContactChanged.clear();events.sort(order);
+			}
 		}
+		} finally {this.dashContactChanged=null;}
 		let j = 0;
 		for (const s of this.hostile) {
 			const {start, step, ox, oy} = motions.get(s), at = impacts.get(s);
@@ -2600,6 +2665,13 @@ export class Room {
 		for (const [h,frame] of frames) {
 			finishContactFrame(h,frame);h.contactFrameEnd=this.time;h.hostilePos={x:h.x,y:h.y};
 		}
+	}
+
+	bodyContact(h, e, contactAt = this.time) {
+		const fog = this.events.active?.id === 'fog';
+		const cd = (e.steamT > this.time && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
+		const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
+		this.hurtPlayer(h, cd * (1 - braced), e.caravan ? 'caravan' : e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e), contactAt);
 	}
 
 	eliteTick(e, target, dt) {
@@ -2619,6 +2691,7 @@ export class Room {
 			const d = Math.hypot(dx, dy) || 1;
 			const step = Math.min(BLINK_DIST, Math.max(0, d - e.r - PLAYER_RADIUS - 20));
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
+			if (step > 0 && e.dashMotion) e.dashMotion.warped = true;
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
 			this.confineGuard(e);
@@ -3292,11 +3365,14 @@ export class Room {
 			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
 			if (h.mods.regen > 0) h.hp = Math.min(h.maxHp, h.hp + h.mods.regen * dt);
 
-			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
-			for (const e of near) {
+			// A fast crossing enemy can end outside the hero segment's grid cells.
+			// Only real dash travel uses the early body pass; a wholly rejected ray keeps ordinary endpoint contact.
+			const contacts = hasActualDash(h) ? [] : this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
+			for (const e of contacts) {
 				if (e.dead || ((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
 				const min = e.r + PLAYER_RADIUS;
-				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
+				const distance = dist2(e.x, e.y, h.x, h.y);
+				if (distance >= min * min) continue;
 				if (e.ai === 'exploder') {
 					if (e.fuseT <= 0) {
 						e.fuseT = e.def.fuse;
@@ -3308,9 +3384,7 @@ export class Room {
 				// have established this hero's actual endpoint protection.
 				if (e.frozenT > now && h.iframes <= 0 && e.dmg > 0 && !(e.immuneT > now)) controlTick(e, now, dt, 'lock', this.controlCredited);
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
-				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
-				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.caravan ? 'caravan' : e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.bodyContact(h, e);
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -4777,11 +4851,13 @@ export class Room {
 		if (e.knockT > this.time) return;
 		e.knockT = this.time + KNOCK_EVERY;
 		if (e.elite) dist *= 0.5;
+		const oldX = e.x, oldY = e.y;
 		const dx = e.x - fromX, dy = e.y - fromY;
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
 		this.confineGuard(e);
+		if (e.x !== oldX || e.y !== oldY) this.dashContactChanged?.add(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
@@ -5699,7 +5775,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
+			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, mob: mobilitySnapshot(this), cv: caravanSnapshot(this),
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
