@@ -38,3 +38,7 @@ The 180 Swarm-factor trials distinguish density-only, XP-only and the combined v
 From this directory run `python3 verify.py`. It checks archive digests, exact member sets, raw byte lengths and hashes without extracting or executing any contents. The recorded `verification.json` is the publisher's readback; reviewers can rerun the same independent byte checks. Recompute gameplay summaries using the included report scripts and their recorded inputs; do not substitute a summary for raw terminal checks.
 
 Only isolated QA data is published. No production environment files, application credentials, tokens, installed dependencies or live player data are included. A credential-pattern scan ran before archiving; original raw bytes were not rewritten to disguise an input or outcome.
+
+## MR38: remaining two causes, 2026-11-15
+
+[v37-horde-two-residuals](v37-horde-two-residuals/) supersedes the earlier broad READY wording for e727. On f1011dd/base5af92ad, held-pos movement and displaced-sniper recovery are now directly reproduced and fixed. Includes original REDs, separate commits, current66/66 ServerCI primary, independent9 native WS scenes+2 controls, nine selected production-browser checks, source carry and cleanup. First CI65/66 and the browser Lord-count harness failure remain preserved; no old result is silently promoted. Prior archives remain historical and unchanged. No main merge, deployment or full PvP-balance acceptance.

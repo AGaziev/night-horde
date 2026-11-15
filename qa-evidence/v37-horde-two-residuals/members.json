@@ -1,0 +1,2031 @@
+{
+  "name": "v37-horde-two-residuals",
+  "inputs": [
+    "../pr38-review-residuals-20261115"
+  ],
+  "primaryBytesPreserved": true,
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "qaScreenshotsIncluded": true,
+  "excludedFileKinds": {
+    ".tap": 1,
+    ".png": 84
+  },
+  "sourceReconstruction": "Use the public Git commit recorded by each source manifest; output-only source variants are included. Binary source assets, original source .tar duplicates and node_modules are omitted. Isolated QA PNG screenshots are included only with the explicit opt-in flag.",
+  "files": [
+    {
+      "path": "pr38-review-residuals-20261115/REPORT.md",
+      "bytes": 9981,
+      "sha256": "424ad4d34e5b616516558d8c4f1f5c6cbc196b702509b28155119d2164f0643d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-execution.log",
+      "bytes": 3517,
+      "sha256": "bcf5ef17cd4baf1fbda22319880cddfb55d07dd6ffcb03308bd4ff73fce5c950"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-final-summary.json",
+      "bytes": 6659,
+      "sha256": "2995d7546b645415a96f3ac301da1ed7106a4ae32bbfdbe04a94ac71f3eab753"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-lord-only-execution.log",
+      "bytes": 808,
+      "sha256": "57a41fa865c27ff96bc2dac630f3e2ef5236c63541c644c1afa1f84da9f680b0"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-lord-only-report.json",
+      "bytes": 1256,
+      "sha256": "c724436616ac842edd83c59c375e6a6953796c4e8008346abead568b907ad249"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-lord-only.mjs",
+      "bytes": 3972,
+      "sha256": "9f36052c492a2b7173a959679512d937bb2def498f3270d28d6ee28d49b9c36c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser-report.json",
+      "bytes": 5521,
+      "sha256": "1d12f1c17b607e7406381d0346cac5969dd64ce09765199a2904e8d6b8b9a722"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/browser.mjs",
+      "bytes": 7704,
+      "sha256": "73ff1318a19a245157172cbf24826e82148ece6d65026e7f9dca9a2be0583837"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/contact-order-test.log",
+      "bytes": 1464,
+      "sha256": "c47122ad51c4a8e794f1d5d5bd91213e441af97e49262f6bbace22f1b773e4ac"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/deploy-vibecode-test.log",
+      "bytes": 2058,
+      "sha256": "0f05008ec8f85513a9b82b26342e3c0199570dc6ac3611dbd6e64ef69eaa7378"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/display-test.log",
+      "bytes": 627,
+      "sha256": "0e9818ac51c24731277cef01afb135216cc73bee80d521edffb0e82c36ba5203"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/feedback-test.log",
+      "bytes": 327,
+      "sha256": "f35f8e376f182befa4514e1574211333ef6b1055069f30aeb996d21ac61c2a06"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/finale-test.log",
+      "bytes": 404,
+      "sha256": "0fbe19e03542aec0f3200ab67a32858d85c873d0e6cf3e23b283bfcee13b4abd"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/flash-support-test.log",
+      "bytes": 660,
+      "sha256": "51d49967f112290f86162c0479487018834e56f8003bb3e19c517b71265e095a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/forge-log-test.log",
+      "bytes": 571,
+      "sha256": "77a13e209b6d3300ec7348fa5397f404006a9a9d81b6f602ca9ecf0681a796a0"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/fusion-inheritance-test.log",
+      "bytes": 103,
+      "sha256": "46e15cb26aa5e389dd51efcbe1956f602e1df17eeb83b1b830ee924f04cb9c11"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-client-test.log",
+      "bytes": 1177,
+      "sha256": "e1e4fbd6026d424d4de961ef8ebdc49eef267340e3f9d5faf8460a43e45f2c92"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-client-transport-test.log",
+      "bytes": 1388,
+      "sha256": "f34861eb6b009eb4e2a7eab922b062e3733026d896d21aa1c32dfb65946f2952"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-combat-test.log",
+      "bytes": 2658,
+      "sha256": "7f1f79e1ecd88f58896a5c846e3bc6fd3fe37b46c7c961946119d1125ef8b5e4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-compatibility-test.log",
+      "bytes": 568,
+      "sha256": "c25b9a2ec340d3c583992df76dee0fd10ac26e731138e5171e1a97b6c6ff4f7e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-mode-test.log",
+      "bytes": 1929,
+      "sha256": "81d0cee6098f93112e702ded2035e8823d3f0a099a4e638959f7c238da9dd1b3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-movement-gap-test.log",
+      "bytes": 595,
+      "sha256": "921a7d1c012d9531aa2b36b0227d6649aafe36e0b2fc719df3171648b9228e75"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-resync-test.log",
+      "bytes": 1070,
+      "sha256": "6c660c9d8af6dbaa8a3ccc94495c0d1aa87bc6e4de455b83243dd78834bc0ed7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-review-game-test.log",
+      "bytes": 983,
+      "sha256": "1d45693558b77054229d40a83d0363f3a079acf99ac718438028ce914d5313ae"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-round-test.log",
+      "bytes": 422,
+      "sha256": "26249f3806b1e8bb25bb99fcdd59ff7ccabd8f4b7559bf078240ee278f1b1aa9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-sniper-origin-test.log",
+      "bytes": 727,
+      "sha256": "c904963b1d630846589047786e519cca4eb02ecbf586210373a0a3ff3eba4304"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/horde-transport-test.log",
+      "bytes": 237,
+      "sha256": "174f712a5883fefdc844f5f7f463bd3c4449b1795400a7a383e19ef2c7a379eb"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/lobby-invites-client-test.log",
+      "bytes": 1186,
+      "sha256": "41fdbe12c1872ce8f9152c590477ec302f674e40149347954f257382a676fece"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "2bd2aab11c9f9c90ac25a74eb1bd06b9a2ee266f5fb9929ad47e37ba097ccf44"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/lobby-invites-test.log",
+      "bytes": 1954,
+      "sha256": "4fe1c6db1372eed5a98c8338d955da2e7309e8228b32d955f5d24e210530d09e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/movement-client-test.log",
+      "bytes": 818,
+      "sha256": "30df50cdc6856a1745566e18f870d9453c3fd48efa5f9a314d71c6e503ad3c35"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/movement-net-test.log",
+      "bytes": 220,
+      "sha256": "41478679a8a75f3094f7ddb9fed81088191a45c19333f8d4f4dbb88fa0c75c2e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/mr1-review-test.log",
+      "bytes": 859,
+      "sha256": "090260a7ad5ab5d4d08c070dbeb6dba401a64f84618bbb7d535ee2a7c91d0388"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/offer-identity-test.log",
+      "bytes": 317,
+      "sha256": "b44dd97158925a1beead03915d434e97c1a3c65493214629efc72dc5427e394c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/offer-refresh-client-test.log",
+      "bytes": 672,
+      "sha256": "275f6e987d5dc8a54662ea03edf1a0ab05e7488beb242311b6ba5514e856e442"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-duo-offer-test.log",
+      "bytes": 1041,
+      "sha256": "2bf4edf304a25b2ae2366a8c45f717d161ec86b66fcfbdc2b0c081dc75337c91"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/projectile-expiry-test.log",
+      "bytes": 476,
+      "sha256": "6bdce73e091678d51d2d15bbab5b181d78169141eb9550f1cc4fcb0bca8b8e8b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/reaction-support-test.log",
+      "bytes": 750,
+      "sha256": "9730440d7aa1253e0afc88f4432b8db62da267bf5cf6bdb53374be99e591dee7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/results-test.log",
+      "bytes": 225,
+      "sha256": "e20178d13a4327e82dbbdeabe0b8b8157388019a14d2bca42b2ed0c25e6b4514"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/results.json",
+      "bytes": 6437,
+      "sha256": "4b7e73160ab33d8499e3c1492269c5d88729242893efc42315d3a0cab4fb3642"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/revisions.txt",
+      "bytes": 166,
+      "sha256": "116e4ab178d9a1fa57d516d041a2159cded12d8ba8853f08b57347083f9544eb"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/run-history-test.log",
+      "bytes": 680,
+      "sha256": "060e977f46f7f7b9c2cc5d4974853533e0db8af68760b2a06fad3b081f067600"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/sim-runner-test.log",
+      "bytes": 895,
+      "sha256": "1700a1139a14a72837021d18b51547b30d44617658feeb489197ce36fe8eb824"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/sim-test.log",
+      "bytes": 7081,
+      "sha256": "a83f42aac1752eb0bb9ff94d53ec9cf9637f44152ce85673d93cf2157ce5dd94"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/slash-corner-test.log",
+      "bytes": 1494,
+      "sha256": "927f6ce3719a83e1452993f07c00fda214d1085145375fd05b9b3bb2643bb80a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/sniper-lowfps-warning-test.log",
+      "bytes": 549,
+      "sha256": "36b6c26fc83dff5d75f43dc2dea7f6a8dc33afdd380276dd6b6815dbb7521f02"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/v29-test.log",
+      "bytes": 125,
+      "sha256": "a5b3f9c5dcfe175b77a092a395e2339d7994f9f8a1114f93129bbed8f3f30399"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-43690289810/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-checkout.json",
+      "bytes": 199,
+      "sha256": "eb41c98bc5a9efe4618ba924cb50c0226fb8c189b7c3c7e79d9538f04c6c4861"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/contact-order-test.log",
+      "bytes": 1464,
+      "sha256": "0d162731105f48628fd8ee1c25fd5a919df5a6c3ae04183e4f10a886c77f9876"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/deploy-vibecode-test.log",
+      "bytes": 2058,
+      "sha256": "2ceece97172fae40db4dc6bc94a465650091a78bc8cb759ebd4ded9fccae5f3c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/display-test.log",
+      "bytes": 627,
+      "sha256": "03df47e5314741fa7bf4ab7fccb03080aa1d750776bc94d1989fde02de34e58e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/feedback-test.log",
+      "bytes": 327,
+      "sha256": "97b2bf69a1921ca2f19b70607882da121a1bdd54d3fb2755509e84bd69ae9c42"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/finale-test.log",
+      "bytes": 404,
+      "sha256": "de9847b46e60024773ef9751e5b36f520e3d094553ddb6f2af5a4d87beae1593"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/flash-support-test.log",
+      "bytes": 661,
+      "sha256": "e63aa4736e4a8ebdd30526a75283732df0886f944021c6e6d9294606be278d5d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/forge-log-test.log",
+      "bytes": 571,
+      "sha256": "4a0261e973a54fb788ef32e2df6858946c811df7f3de28af4f4268339a0f396d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/fusion-inheritance-test.log",
+      "bytes": 103,
+      "sha256": "46e15cb26aa5e389dd51efcbe1956f602e1df17eeb83b1b830ee924f04cb9c11"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-client-test.log",
+      "bytes": 326899,
+      "sha256": "b027e30b4105d7c713bf86f79ad5856847a19313ff7824fe23152efdeacbd37b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-client-transport-test.log",
+      "bytes": 1388,
+      "sha256": "d3e663e640c86cf81e918830bb91b475d59d698be674d9e9978f223add454a35"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-combat-test.log",
+      "bytes": 2657,
+      "sha256": "c00734d1ec3cc769043b9ec56e0703ad4fdd256eead2be6fb9bf3cd1309b2b37"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-compatibility-test.log",
+      "bytes": 569,
+      "sha256": "f4bc19a773167251dae75629951f37a2b98bbea2bec90b3869b2e2ca95732c46"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-mode-test.log",
+      "bytes": 1928,
+      "sha256": "627bc9842e6c40fcc6dc8a3d13a3c34b0e2079e2d6ba80e48f9f0d01d861cefd"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-movement-gap-test.log",
+      "bytes": 596,
+      "sha256": "dd7f16cf275e4941e84caa5bc9ad3268c88e472c05de42adfe8ef616f01a093e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-resync-test.log",
+      "bytes": 1067,
+      "sha256": "6eeee1f6b0092f93d06adc02edc898a1e9520e837d865017e16767c1935d41d4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-review-game-test.log",
+      "bytes": 980,
+      "sha256": "8542ed2e2749cd91c00d58ec59da085af489dd933404ff64140af9766370fd20"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-round-test.log",
+      "bytes": 422,
+      "sha256": "6b317de90e65f7acc6b38ffed97e70228981d23a14e7fd4fb7e2bfc5cdba1e17"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-sniper-origin-test.log",
+      "bytes": 728,
+      "sha256": "30e9409dbd936e7135692acd858ea4608d63350f69c2af4e90f4ada2d33c6ded"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/horde-transport-test.log",
+      "bytes": 237,
+      "sha256": "b0e5bca440f3b5384a3bb922224dc6555d7bd6adf4f903cbe67cacc474d9a4cb"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/lobby-invites-client-test.log",
+      "bytes": 1186,
+      "sha256": "a8d8eaa44ac976f446399fde87a22d0d267e8c04133d84163b8bf87a73dbdf9d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "478b47dca1c8fb75606f7c75f871c38ff90dc4b2cf5df55aca159e062e16e412"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/lobby-invites-test.log",
+      "bytes": 1954,
+      "sha256": "f814fc4b8fb8a8da777360fc88df011af1651b4cd0bed66c3eea163448a8d0d3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/movement-client-test.log",
+      "bytes": 819,
+      "sha256": "84ded183e85473e9101e153ab5e7950216bd8cb25b910a15763605cbccff214d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/movement-net-test.log",
+      "bytes": 219,
+      "sha256": "f3dadddcb8b7f7a5205d8c031a92d89765f3701e3331af520937e7f17c84f0ba"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/mr1-review-test.log",
+      "bytes": 858,
+      "sha256": "13f97fae9d9fcc223e21a6585a871553ae82f2273f2e47d771075686a9bea016"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/offer-identity-test.log",
+      "bytes": 317,
+      "sha256": "b44dd97158925a1beead03915d434e97c1a3c65493214629efc72dc5427e394c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/offer-refresh-client-test.log",
+      "bytes": 672,
+      "sha256": "91d96aaa549d88e6676b7c42f8f42de3c0f6ca5a51fb37ec1be12e6d700abf18"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-duo-offer-test.log",
+      "bytes": 1038,
+      "sha256": "63ffe435524c23131dc234884479b4c2078a2d00dd0bc26392bce7fa3268d40a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/projectile-expiry-test.log",
+      "bytes": 477,
+      "sha256": "10239010340e7ae6c6cf501a4edb887a3ffcbb9556c9671402bc1874e229f268"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/reaction-support-test.log",
+      "bytes": 748,
+      "sha256": "cf091179876de144fd5f0fb0e3f93a8570f0b7574ec0a05823722f58a72d9220"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/results-test.log",
+      "bytes": 225,
+      "sha256": "ba8f6df4d4f8fc06ef2985c0c7d0bd9de8652059436cddc011618ddb357a2d47"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/results.json",
+      "bytes": 6437,
+      "sha256": "939609817c32a1ebdc388d832797fb6b83a8dbb0395021deba2a5234f6e2fb34"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/revisions.txt",
+      "bytes": 166,
+      "sha256": "7b3cc7c5613fb0b056d0d439d9b316a9901d120a40ec149d0bd5a5438ec92992"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/run-history-test.log",
+      "bytes": 679,
+      "sha256": "c4318ed9c6052754cdcc2f8a76ca42e2c75c23bb601e68901a09fe7d607d44f9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/sim-runner-test.log",
+      "bytes": 892,
+      "sha256": "03ab93472cb4dd078b07ee35674936056d394469aa7f1e41d31aa8c2afa46d74"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/sim-test.log",
+      "bytes": 7268,
+      "sha256": "15fd5c8536692380b39aa45c88c68e92220a3b8facd4fc3e4406509bf79d331e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/slash-corner-test.log",
+      "bytes": 1496,
+      "sha256": "c1e1fd6554d0b08795be7f7e2faf1aeb11c96be53b3bf56dcfc56b3264415241"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/sniper-lowfps-warning-test.log",
+      "bytes": 549,
+      "sha256": "36b6c26fc83dff5d75f43dc2dea7f6a8dc33afdd380276dd6b6815dbb7521f02"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/v29-test.log",
+      "bytes": 125,
+      "sha256": "f810da7bf1da51b2476b8ebdf45966791df25736727852949a87bb44429bb433"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-failed-43690094835/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-primary-proof.json",
+      "bytes": 8015,
+      "sha256": "fffa97ecf10c550ceb32103833ba7fffd4c4c39fb92628da1fd897bb59b3f473"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/ci-run.json",
+      "bytes": 2853,
+      "sha256": "c89b820bbd8cc0719bcaffa6cdf415a9d34ba1d26971e8f9eaefd3bd0ca671bc"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/cleanup-ports.json",
+      "bytes": 174,
+      "sha256": "cd81093616ff5f99b995ef3888463f51a7870c1af3fe4e5a80478fc2f0ae8068"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/fixture.mjs",
+      "bytes": 5540,
+      "sha256": "ba89c511b8bb0fa63500c4b924d93e768fc740424d42aa3c7971a8a1d15844d7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/horde-client-fixture-green.log",
+      "bytes": 1168,
+      "sha256": "3971821979ab6f1a27f56ef96d70dc108352f799ed5970d7c2b604a2c104e35b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/REPORT.md",
+      "bytes": 8434,
+      "sha256": "480fe21caa1904b2e73597a1db281dbbdaae51178e71ea25d193777fb856e51d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/candidate-controls.tap.log",
+      "bytes": 313,
+      "sha256": "b3cf8a028c09b0009bd498a763af8dbe66117ba9cacd0f493e6976670f0da53b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/candidate-native.jsonl",
+      "bytes": 10439,
+      "sha256": "6a515135d7fcdc34cee78ff11d471c4a4472a006e9afdec7bb2314516971765d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/manifest.json",
+      "bytes": 4301,
+      "sha256": "59f6066b8e30a220efd5b41ed01303950a7843b3d582a05933dd01da16133388"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/old-native.jsonl",
+      "bytes": 9611,
+      "sha256": "5bf9aa4504506c8bf1563a65a93e7540811c16cd219e3a9f45330f00223d753b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/residuals-independent.mjs",
+      "bytes": 12747,
+      "sha256": "86a4af3ce0ef3990787c3c09b801b8ef06d4b47db75dffa2f7d5efcdee55175a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-carry.json",
+      "bytes": 1887,
+      "sha256": "0344851899d56713cff8f7cf5777e52afa1ebf6750a7003f1e14a61a7a45bffd"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/ASYMMETRIC-QA.md",
+      "bytes": 7704,
+      "sha256": "b1096fc44512dd31f43f68f972b44b53df7a73bf27ec96638cce36119303e78e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/ASYMMETRIC-REVIEW.md",
+      "bytes": 9045,
+      "sha256": "5b8f97feb27251de9f909a7669ba0fcb860b80cfc1aeb4fb377e283746cfc110"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/ASYMMETRIC.md",
+      "bytes": 9821,
+      "sha256": "1ab3da458655e29ba0a69467d5872179846231b35382dee70d0df241bbdc2d81"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/DESIGN.md",
+      "bytes": 107656,
+      "sha256": "bf022aed2b8dedf72460db38704bb8a5a9a294e2c146c96495f9f0ce6908a878"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/HORDE-BUILDS.md",
+      "bytes": 9285,
+      "sha256": "68aba39256f89ae3fbffb8dd2453ba2be77c4ae55b8c58061ced0184c713e43a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/package-lock.json",
+      "bytes": 888,
+      "sha256": "12a3b4a9434ee8c7f666288c62c6f9b93b308d8cec1dd577c274ce53764fbf5b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/package.json",
+      "bytes": 212,
+      "sha256": "abfbe34e5828025131592c476837677ab857af0c7ee5fb4ecc5ba86a5e162fa0"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/index.html",
+      "bytes": 21489,
+      "sha256": "99a228fb94c53f7c368cb25ec810579b895e60f96a1e416d36618346a0f2e47f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/audio.js",
+      "bytes": 38393,
+      "sha256": "0b6d2c832c369ac8b11816d969afa38c798bde138a30cf4c10ad95a093ead0c2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/combinations.js",
+      "bytes": 3922,
+      "sha256": "6341b1a90ac7b7153998c56ee1f4ea6367d42c47b34986872ff01f7ce66cda10"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/display.js",
+      "bytes": 15342,
+      "sha256": "b250b25fdd2012987840348a2ca7fe1304a84c88b424b70507ff67f07a2b3d76"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/feedback.js",
+      "bytes": 2402,
+      "sha256": "789478d92f1ca844a5e359389dd845427d2cba75550310b7ee654a85e436e4d4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/game.js",
+      "bytes": 52817,
+      "sha256": "c3f5346ed3d7335bb44fcbf1e66324c97ff36358b4f7647cfb454e536b96b594"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/horde-ui.js",
+      "bytes": 21424,
+      "sha256": "9f00136ea1ae50783c9297834f5d9d68fa21bf21b09c4f390349e0c0f9a58539"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/input.js",
+      "bytes": 3785,
+      "sha256": "d3fb6981d98217f6d70afbb7997a894124918935a56c20130d6108836502da8a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/lobby-invites.js",
+      "bytes": 10562,
+      "sha256": "cf96191c330ca7901fca774236a5c9161012d018fad8313ddc08bf02d0f3c764"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/main.js",
+      "bytes": 27312,
+      "sha256": "81b2367445ba349a29fbc95bc29b576f44c0a672cdfedf126bcc7e00b9953405"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/net.js",
+      "bytes": 8430,
+      "sha256": "65d6de6355c0d712e3472f7619193f1163cd903b92e46e514764acdf92117b39"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/render.js",
+      "bytes": 141542,
+      "sha256": "e7e489a110fcd074c0962f3495807ad431d5b515a608f35eb46bee26544decbe"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/results.js",
+      "bytes": 20320,
+      "sha256": "5f785e42a9427ed4411de21086033e2fb3b5c96c2015fe32ef82bafca40c81da"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/run-history.js",
+      "bytes": 7118,
+      "sha256": "60d5d712ebe68465d0e7c8561bda3e3b6a272246d3402680a7529b4fce20dc4f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/snapshot-codec.js",
+      "bytes": 7004,
+      "sha256": "8a48f071a89ab263e45fbe13fb68225fcb727992f4c49443de12d6ce656a5e77"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/sprites.js",
+      "bytes": 7350,
+      "sha256": "16686eb11a9d0119e843fe9e40dbc1d72ff766953ab8c3f32174f06c52353699"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/ui.js",
+      "bytes": 51230,
+      "sha256": "e2bf182fc6103ba0dbf61c4997c349ee871225a934ef12e58d9157d4835cc340"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/js/visual.js",
+      "bytes": 2347,
+      "sha256": "6dc30e846b1890a8e86b33f38adb031f873875670ee135a48b28b6a1d975928f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/shared/combat-geometry.js",
+      "bytes": 943,
+      "sha256": "22e83740f312c1ea052a1b63eba3332c094929b5b82fb628bfb70f38e84571c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/shared/confluences.js",
+      "bytes": 4082,
+      "sha256": "b2c387cc483b0408bc7baf99aa352e67e98471c67b54ed875b3a821989773fd3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/shared/contact-time.js",
+      "bytes": 1020,
+      "sha256": "336dc6786e69fc7a82110796dec0e660ccb6974c457582d45426489f080342f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/shared/content.js",
+      "bytes": 99057,
+      "sha256": "94721977cce59b79cb9683d760e65a4b3b12e5a266dbfde495794081f789b264"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/shared/horde-content.js",
+      "bytes": 10605,
+      "sha256": "1a1174f6732107f219474264104328d3a6dc45ff17686923eaf8b990fde97328"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/sprites/manifest.json",
+      "bytes": 6728,
+      "sha256": "64bdfe573981cc2a003e1d5fe6e05d4b6853a0e4df55687e7e5e89cce7a2006a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/public/style.css",
+      "bytes": 53329,
+      "sha256": "d35943eccfe43744b88c43a11bf400b8a24d1a10af152aab6de718d12ddd1406"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/artifacts-test.js",
+      "bytes": 3408,
+      "sha256": "df8c0648f4c09165913f81b0b89c11433746a45cec2b344ef1e5e269c9cc6b17"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/builds-test.js",
+      "bytes": 6000,
+      "sha256": "572fd96d7e0138aa444edefbc424e98d387ddeaf127cbca863094d1c515228ad"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/caravan-placement-test.js",
+      "bytes": 5889,
+      "sha256": "6f068552435356f91cf25870e126c29cc287a9f803815ccd4f01cdbc0b457ada"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/caravans-client-test.js",
+      "bytes": 3419,
+      "sha256": "ab4f48eddbd03cc3fbec74d980083afd277b6e148ad186ad93b60aeb214b42b6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/caravans-test.js",
+      "bytes": 4290,
+      "sha256": "baad89b747fc79de866c3883fbfdc7b3bfa83a177b25e93e028f3f838de012d6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/caravans.js",
+      "bytes": 3918,
+      "sha256": "1d0f9881579f9a5ec165587f86fa2ea36cd7de9c215b3b887a14363c16ba98fa"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/codec-test.js",
+      "bytes": 5571,
+      "sha256": "9c7aeb75adebc13e8277fcfb39ec0af62ae2022eb09775953f58775555774eaf"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/combat-footprint-test.js",
+      "bytes": 3566,
+      "sha256": "4f6560c584ddbff11aff370df6c64e3aae39a6124c45eed80c8bef237ec7e686"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/confluences-test.js",
+      "bytes": 2018,
+      "sha256": "b143f00014cc3bc4e96e07fd5460596f47722d7ca99ed84abfc78059a0872609"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/confluences.js",
+      "bytes": 2998,
+      "sha256": "19a858957d0129533d1dc6f9c549d8dd683be9ca6c2983d5399648b31236b8e2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/contact-order-test.js",
+      "bytes": 5061,
+      "sha256": "72be2448fb3ff7b545bf0121a486c63d131753ed264c3bf843a6669abf8dba5b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/deploy-vibecode-test.js",
+      "bytes": 19000,
+      "sha256": "f72b178ab2af3fda670ed1a637c9930221e134dd62c2196dcd4be60286121bff"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/display-test.js",
+      "bytes": 3414,
+      "sha256": "e30377b7b7f207bd4fc5caadfefa2d8dddaec8159d6e36035abaa4f2fecff291"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/duos2-test.js",
+      "bytes": 18789,
+      "sha256": "79df642dceb3d7835e263fc096c8345f7ffa10ef6ffad8a42e67ed01e62571f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/events.js",
+      "bytes": 10939,
+      "sha256": "07be59df7624cdf4363fd5633185aa40f5623651cd4f7a541e6ff0ebd37118eb"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/feedback-test.js",
+      "bytes": 3555,
+      "sha256": "45c342bdde880f51fb124e14db69ac02b21368b638503c78aaf42a1b2c8592de"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/feedback.js",
+      "bytes": 529,
+      "sha256": "9a5ea97955fb836e0b34e45d0278ddfa4a110b25535c270f746b8858e41f3e5a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/finale-test.js",
+      "bytes": 23749,
+      "sha256": "4e28ea6f14b8f70d509ddc78b02ed776393feb30523f5fe10dd90aea3debd798"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/flash-support-test.js",
+      "bytes": 8112,
+      "sha256": "ae95712c3746b7884e70bc31701d140ba3f77696790a3c54d185f3bcadd784b6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/forge-log-test.js",
+      "bytes": 8855,
+      "sha256": "983072ec1831fb49c3bd7de94dd4167379a8c97d5fddc594b28d7e67467e0342"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/fortune-forge-test.js",
+      "bytes": 4000,
+      "sha256": "5cff962b35f3bb23fccc633498bc8f3c9ae987254ed5ca36ebe0d007268364b5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/fusion-inheritance-test.js",
+      "bytes": 2079,
+      "sha256": "b93dd87e93f0d6124deba3f1482c5c00457e59af4e580d041062556f294b9258"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/game.js",
+      "bytes": 230540,
+      "sha256": "84c06c212a5d6c173fd60c5af57319de9c9b777b6d83c9d88c66061b76541d6f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/hero-perks-test.js",
+      "bytes": 12454,
+      "sha256": "0428415f7c3e6746f97c577a5d2dd758caf5f4929e721498eb60a945b47e7b32"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/hero-perks.js",
+      "bytes": 8959,
+      "sha256": "050a71a57a0b8c04dc22c3f0c45b484d66d096328c57b5b40361270a36a3248b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-client-test.js",
+      "bytes": 14923,
+      "sha256": "cb5ffb9a56001f76e41a0aadbc81a046838ea05464da53051adba3fbd8bfad8a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-client-transport-test.js",
+      "bytes": 13792,
+      "sha256": "3ee0064e3758adc130b4f3f44bda618675b5379a571e9dfb739096cbb7233e1d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-combat-test.js",
+      "bytes": 22395,
+      "sha256": "fc71ed7fe275cb9719806c5681e2d7c273f4ea7be58397fc7cb9bb732b7d5ccf"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-combat.js",
+      "bytes": 14897,
+      "sha256": "519d4ab554a465ccef42dcd2083c91a5586be883a276642f905f11035279d379"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-compatibility-test.js",
+      "bytes": 8196,
+      "sha256": "c970439b2f92a03f455ead7e463f7304029b64adb1a32ff2f219e6556e230fd8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-mode-test.js",
+      "bytes": 22289,
+      "sha256": "e7040fd70966dd0b29ff8c521364cdba52e8bde0ea3cdfb23990d296bb53c820"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-mode.js",
+      "bytes": 16543,
+      "sha256": "d11fe062380ea029963a7b3303ed37bdcb7b905555d726fb6e3a99a87c98973c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-movement-gap-test.js",
+      "bytes": 2726,
+      "sha256": "403121a870bd1489f98a748ff23fd575062c533362b5d519e0e0d46275cde95e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-resync-test.js",
+      "bytes": 12721,
+      "sha256": "0813e8e8ade1f9525d3080017876d08dd12ef5bb7c988fa7fb1a267edfe86147"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-review-game-test.js",
+      "bytes": 7216,
+      "sha256": "03693ff89794628bf281a2d5a8174521ce649b2adc25c7097325d786eb6ef5e1"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-round-test.js",
+      "bytes": 3444,
+      "sha256": "5ea602e4c0bc546e6076fea68ec1dfbc5989b99afbadbf525abb0ad591c04813"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-sniper-origin-test.js",
+      "bytes": 9138,
+      "sha256": "37ef270553ec32542d1bb606dd76de96e326e244b4ec4140138489f14271413e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/horde-transport-test.js",
+      "bytes": 6572,
+      "sha256": "de078e1191fecbf87031da790e57e99ce4eaca3291b5a46ae3939a6dddf2f753"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/lobby-invites-client-test.js",
+      "bytes": 11573,
+      "sha256": "372f1915bf3f86220283513dce51749a8a7f41bfd0ac8842fde91b56b4f63d9b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/lobby-invites-http-test.js",
+      "bytes": 25490,
+      "sha256": "42fe635c3919d860fe0989341f0a6c5362e1bb6f80bb2e7c0cddb2216942bb29"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/lobby-invites-test.js",
+      "bytes": 18627,
+      "sha256": "a77885a4c9a51fcea063e83d6eae10ca7450bf6faab273e9f962c6b92f93a5c5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/lobby-invites.js",
+      "bytes": 5957,
+      "sha256": "d2a1d96d2ef392befda4b503ec8f6a4c0a63c777a39573a041bfe6a028ebb822"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/movement-client-test.js",
+      "bytes": 7831,
+      "sha256": "e429e9e3e0dfc072530670864106426d399a053e67ca369f441d6ad28c298e21"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/movement-net-test.js",
+      "bytes": 1246,
+      "sha256": "660d30d2117d672e4f80f1bf61f596ad48d844300a4da691f790249162ad951e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/mr1-review-test.js",
+      "bytes": 8977,
+      "sha256": "f893d3eba410001286963728bfa43d138185a7e5e11e1b7506a74272ef11c173"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/offer-identity-test.js",
+      "bytes": 14299,
+      "sha256": "3cbcae2cdf7664ccde58faa7d72ff2f5c8d597fe223b0fac5a100ab0a6422a0b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/offer-refresh-client-test.js",
+      "bytes": 15046,
+      "sha256": "444c2b98fa84941974700177b7fa60f3accb31503e9fed1c6bd280874582db73"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-client-test.js",
+      "bytes": 1516,
+      "sha256": "c048696cce70fddf0b6298cd2aec8d3be4dc64ac77a90297bbfac88b74314925"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-cohort-test.js",
+      "bytes": 4682,
+      "sha256": "50b2a0c32f453de16aa9fabf1b8b54394774faf90ba41dcee204a19e5de59789"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-duo-offer-test.js",
+      "bytes": 6076,
+      "sha256": "febc392d1c1377cb8ed7c149d7ea680bab7e581786c7b99b0d29d6fa8fa6eeb3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-safe-position-test.js",
+      "bytes": 6353,
+      "sha256": "6462ef7fe8ec01a3948161ab78adf663675d5affa1f3431b5697e604e419dce8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-sniper-test.js",
+      "bytes": 7368,
+      "sha256": "a5c5b290ae502cc3808f1d4be63e3c7ce76943a4a56f30ebef6c1dc6e40de323"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-sniper-warning-test.js",
+      "bytes": 2572,
+      "sha256": "138a69279a970d96dd2b85e28c589d750a287447d059f485c3cd5310da7356d6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outpost-spawn-budget-test.js",
+      "bytes": 2819,
+      "sha256": "dbc508377c448fed867cfb2d2238607ae80e8278fe6cbccd5b1e4fd001580646"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outposts-density-client-test.js",
+      "bytes": 5261,
+      "sha256": "0e0a3d669f3b0e322d0a67d9ba21c9ff15ec5e07dc9db9abe0ca4956810f81b9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outposts-density-test.js",
+      "bytes": 7367,
+      "sha256": "7ef437eac2bd47d2b305fb92caba7d11f09927622bd678ea593357e43a87df98"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outposts-test.js",
+      "bytes": 10005,
+      "sha256": "4aaf945317351d286ba1fe66190048b251c4f2dd4fe0d23dfeb3e46230ef6552"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/outposts.js",
+      "bytes": 8718,
+      "sha256": "630536a7eb8b4899efa6ef4e613b4e64e69ea774262cf6d085c1d1e6deed8f45"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/projectile-expiry-test.js",
+      "bytes": 1486,
+      "sha256": "c3be92704baa410b4e07ed5700550a3cfdef0e349252afed2e04698c1e775d92"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/reaction-support-test.js",
+      "bytes": 9027,
+      "sha256": "8d0e30401ea04f53378942090b6ad3f72e9ae829e97ec51c02a400ba36db9115"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/results-test.js",
+      "bytes": 7363,
+      "sha256": "7710175f2d6fde556e26c3d7a02052ec1f035b09c8d99f8162608ddcb8bd2dba"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/run-history-test.js",
+      "bytes": 6082,
+      "sha256": "d6c1e3188dbcd6299d90cc52894e22815f5befeeb2478a091236b49f5a6433bd"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/runlog.js",
+      "bytes": 43084,
+      "sha256": "5107c2edbd7c0e0987b59cdac61542e407997370aefad7133916993721fa04ff"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/server.js",
+      "bytes": 27499,
+      "sha256": "eaf49ad4dda5b85252c3662c2a8b358359efb498ea1a503c4e9309eabfaaf9f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/sim-runner-test.js",
+      "bytes": 4667,
+      "sha256": "ab35535356979d47429a94e9aae83fe0c37822c22a867a8a6cc1029509123c30"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/sim-test.js",
+      "bytes": 97263,
+      "sha256": "d680c2d7b9f5de6c5f8ece3572a532e23031c990dbb4157567bedb64a967e1b3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/slash-corner-test.js",
+      "bytes": 844,
+      "sha256": "ec0e7079a9f50582612f83dcfb6f442a775777f5c8cb5638074a9525a79b0ff4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/snapshot-codec.js",
+      "bytes": 6801,
+      "sha256": "102ba1309eb41b2d22a4f549b9445f50dd7e4193d32210679c7d4929058c6227"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/sniper-lowfps-warning-test.js",
+      "bytes": 14337,
+      "sha256": "e1979b5aeef1fb0614555bee1d59c4ee746b5e1045e94262ad150fdca7a67b0b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/sniper-thaw-warning-test.js",
+      "bytes": 7347,
+      "sha256": "7819be5303204799ff6274b6b2b0e555b3e806a989d06f813d004c9a60697823"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/storage.js",
+      "bytes": 16399,
+      "sha256": "ebccdb8deab8c566738903a71185f66f313ef19098003b2b65341196c4fce3c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/telegraph-pause-client-test.js",
+      "bytes": 1657,
+      "sha256": "97321fa11e994634c3cb7c320de8917bd6e10dab897cdc817b8f19fbfebc05a2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/v19-test.js",
+      "bytes": 9217,
+      "sha256": "54fa6e2a9af0bfdaee4e75338cc79a08c747d5e888766d8e03c5d9205e75d3c5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/v20-test.js",
+      "bytes": 22187,
+      "sha256": "c350c26e3d9953417abada28b7a2ad95fbd34d722a3d191b671665deea0e1e7a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/v22-test.js",
+      "bytes": 14734,
+      "sha256": "d70dc96448fb6d1489d21a847e63099c6c37b32db72d697b27e7ca10f3c8c552"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/v29-test.js",
+      "bytes": 2488,
+      "sha256": "3b5e8eadc6c39bc811f6b5e2838d55610ed9fdcfbcc51080235a33e0f5e2aded"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/visual-settings-test.js",
+      "bytes": 9199,
+      "sha256": "1735a2b6d40904064c6e60057f38ee686d95eda4b39ae782ccfe2da1df93ac1e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/wave2-test.js",
+      "bytes": 10434,
+      "sha256": "e257b102ce2fbafe1d24bbb9de4ba534468d2e1f4ba6bbe655c681566073d79a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/wave4-test.js",
+      "bytes": 21003,
+      "sha256": "327fc8a1288ad4303860009dca163bd236fc539d497f9f4548f093a3a4467c67"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/app/server/weapon-roles-test.js",
+      "bytes": 4288,
+      "sha256": "a36f8cbe48276a976dfcb856a2203f8aa0c5e1b84a71f61e6854ae18d1b7ae3d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-ccb6b59/pm/test-runtime.mjs",
+      "bytes": 419,
+      "sha256": "0be94f0b84a34fe1992dc3b07f28c902ea1f29d412e4e42fa7ff8b4e623b1ac6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/ASYMMETRIC-QA.md",
+      "bytes": 7704,
+      "sha256": "b1096fc44512dd31f43f68f972b44b53df7a73bf27ec96638cce36119303e78e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/ASYMMETRIC-REVIEW.md",
+      "bytes": 9045,
+      "sha256": "5b8f97feb27251de9f909a7669ba0fcb860b80cfc1aeb4fb377e283746cfc110"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/ASYMMETRIC.md",
+      "bytes": 9821,
+      "sha256": "1ab3da458655e29ba0a69467d5872179846231b35382dee70d0df241bbdc2d81"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/DESIGN.md",
+      "bytes": 107656,
+      "sha256": "bf022aed2b8dedf72460db38704bb8a5a9a294e2c146c96495f9f0ce6908a878"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/HORDE-BUILDS.md",
+      "bytes": 9285,
+      "sha256": "68aba39256f89ae3fbffb8dd2453ba2be77c4ae55b8c58061ced0184c713e43a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/package-lock.json",
+      "bytes": 888,
+      "sha256": "12a3b4a9434ee8c7f666288c62c6f9b93b308d8cec1dd577c274ce53764fbf5b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/package.json",
+      "bytes": 212,
+      "sha256": "abfbe34e5828025131592c476837677ab857af0c7ee5fb4ecc5ba86a5e162fa0"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/index.html",
+      "bytes": 20904,
+      "sha256": "ce221c87a6353c20c0f5fb33a7031436b3f4d49268d88cc0193be01c5c047771"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/audio.js",
+      "bytes": 38393,
+      "sha256": "0b6d2c832c369ac8b11816d969afa38c798bde138a30cf4c10ad95a093ead0c2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/combinations.js",
+      "bytes": 3922,
+      "sha256": "6341b1a90ac7b7153998c56ee1f4ea6367d42c47b34986872ff01f7ce66cda10"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/display.js",
+      "bytes": 6538,
+      "sha256": "d4f23bf6ea94fea6501d0c62e0a0a2cf21b89bfaee4dd761f7c42647d7c689f4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/feedback.js",
+      "bytes": 2402,
+      "sha256": "789478d92f1ca844a5e359389dd845427d2cba75550310b7ee654a85e436e4d4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/game.js",
+      "bytes": 52728,
+      "sha256": "b419b767f297e2c30562cfd2f5ba1aa51ddef47e6ced2c19c22290cc8a74966c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/horde-ui.js",
+      "bytes": 21424,
+      "sha256": "9f00136ea1ae50783c9297834f5d9d68fa21bf21b09c4f390349e0c0f9a58539"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/input.js",
+      "bytes": 3785,
+      "sha256": "d3fb6981d98217f6d70afbb7997a894124918935a56c20130d6108836502da8a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/lobby-invites.js",
+      "bytes": 10562,
+      "sha256": "cf96191c330ca7901fca774236a5c9161012d018fad8313ddc08bf02d0f3c764"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/main.js",
+      "bytes": 27312,
+      "sha256": "81b2367445ba349a29fbc95bc29b576f44c0a672cdfedf126bcc7e00b9953405"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/net.js",
+      "bytes": 8430,
+      "sha256": "65d6de6355c0d712e3472f7619193f1163cd903b92e46e514764acdf92117b39"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/render.js",
+      "bytes": 140086,
+      "sha256": "b4a3c6bdee55410e9547b2cd51bf11c11b62e064c2a84f9394c8b806f98d76b7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/results.js",
+      "bytes": 20320,
+      "sha256": "5f785e42a9427ed4411de21086033e2fb3b5c96c2015fe32ef82bafca40c81da"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/run-history.js",
+      "bytes": 7118,
+      "sha256": "60d5d712ebe68465d0e7c8561bda3e3b6a272246d3402680a7529b4fce20dc4f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/snapshot-codec.js",
+      "bytes": 7028,
+      "sha256": "7561b90cb6c8c1064c13b3bd0e4bed4ab3de41e92df3b28a924eabac456ff309"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/sprites.js",
+      "bytes": 7350,
+      "sha256": "16686eb11a9d0119e843fe9e40dbc1d72ff766953ab8c3f32174f06c52353699"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/ui.js",
+      "bytes": 50011,
+      "sha256": "3eee13952dd64dc7d6987f86528a5e7e4968ce9d9b874bc0aa32d96e445a6115"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/js/visual.js",
+      "bytes": 2347,
+      "sha256": "6dc30e846b1890a8e86b33f38adb031f873875670ee135a48b28b6a1d975928f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/shared/combat-geometry.js",
+      "bytes": 943,
+      "sha256": "22e83740f312c1ea052a1b63eba3332c094929b5b82fb628bfb70f38e84571c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/shared/confluences.js",
+      "bytes": 4082,
+      "sha256": "b2c387cc483b0408bc7baf99aa352e67e98471c67b54ed875b3a821989773fd3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/shared/contact-time.js",
+      "bytes": 1020,
+      "sha256": "336dc6786e69fc7a82110796dec0e660ccb6974c457582d45426489f080342f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/shared/content.js",
+      "bytes": 99057,
+      "sha256": "2ea085d1c40135a64be33ec7b9968b6715b95c3357632471ee3c930af87a4ccf"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/shared/horde-content.js",
+      "bytes": 10605,
+      "sha256": "1a1174f6732107f219474264104328d3a6dc45ff17686923eaf8b990fde97328"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/sprites/manifest.json",
+      "bytes": 6728,
+      "sha256": "64bdfe573981cc2a003e1d5fe6e05d4b6853a0e4df55687e7e5e89cce7a2006a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/public/style.css",
+      "bytes": 52572,
+      "sha256": "33df9a11647f839be8082781393113a678982a7a29a06c174cfe02d0b0d0d489"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/artifacts-test.js",
+      "bytes": 3408,
+      "sha256": "df8c0648f4c09165913f81b0b89c11433746a45cec2b344ef1e5e269c9cc6b17"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/builds-test.js",
+      "bytes": 6000,
+      "sha256": "572fd96d7e0138aa444edefbc424e98d387ddeaf127cbca863094d1c515228ad"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/codec-test.js",
+      "bytes": 5571,
+      "sha256": "9c7aeb75adebc13e8277fcfb39ec0af62ae2022eb09775953f58775555774eaf"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/combat-footprint-test.js",
+      "bytes": 3566,
+      "sha256": "4f6560c584ddbff11aff370df6c64e3aae39a6124c45eed80c8bef237ec7e686"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/confluences-test.js",
+      "bytes": 2018,
+      "sha256": "b143f00014cc3bc4e96e07fd5460596f47722d7ca99ed84abfc78059a0872609"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/confluences.js",
+      "bytes": 2998,
+      "sha256": "19a858957d0129533d1dc6f9c549d8dd683be9ca6c2983d5399648b31236b8e2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/contact-order-test.js",
+      "bytes": 5061,
+      "sha256": "72be2448fb3ff7b545bf0121a486c63d131753ed264c3bf843a6669abf8dba5b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/deploy-vibecode-test.js",
+      "bytes": 19000,
+      "sha256": "f72b178ab2af3fda670ed1a637c9930221e134dd62c2196dcd4be60286121bff"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/display-test.js",
+      "bytes": 3414,
+      "sha256": "e30377b7b7f207bd4fc5caadfefa2d8dddaec8159d6e36035abaa4f2fecff291"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/duos2-test.js",
+      "bytes": 18789,
+      "sha256": "79df642dceb3d7835e263fc096c8345f7ffa10ef6ffad8a42e67ed01e62571f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/events.js",
+      "bytes": 10939,
+      "sha256": "07be59df7624cdf4363fd5633185aa40f5623651cd4f7a541e6ff0ebd37118eb"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/feedback-test.js",
+      "bytes": 3555,
+      "sha256": "e278a6f56ab71aeaee219baa081275996436bd3bb8f8986c469a1fd72dc99755"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/feedback.js",
+      "bytes": 529,
+      "sha256": "9a5ea97955fb836e0b34e45d0278ddfa4a110b25535c270f746b8858e41f3e5a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/finale-test.js",
+      "bytes": 23749,
+      "sha256": "d6b515a5fe03647c4e45c4379a5e80cc3ff0a2a651f190465779c2b4ee940c6a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/flash-support-test.js",
+      "bytes": 8112,
+      "sha256": "ae95712c3746b7884e70bc31701d140ba3f77696790a3c54d185f3bcadd784b6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/forge-log-test.js",
+      "bytes": 8855,
+      "sha256": "983072ec1831fb49c3bd7de94dd4167379a8c97d5fddc594b28d7e67467e0342"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/fortune-forge-test.js",
+      "bytes": 4000,
+      "sha256": "5cff962b35f3bb23fccc633498bc8f3c9ae987254ed5ca36ebe0d007268364b5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/fusion-inheritance-test.js",
+      "bytes": 2079,
+      "sha256": "b93dd87e93f0d6124deba3f1482c5c00457e59af4e580d041062556f294b9258"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/game.js",
+      "bytes": 229528,
+      "sha256": "73eceab021918cc8875aa4891547c4088ed50ba58107ea7c99a9d81694e6535c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/hero-perks-test.js",
+      "bytes": 12454,
+      "sha256": "0428415f7c3e6746f97c577a5d2dd758caf5f4929e721498eb60a945b47e7b32"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/hero-perks.js",
+      "bytes": 8959,
+      "sha256": "050a71a57a0b8c04dc22c3f0c45b484d66d096328c57b5b40361270a36a3248b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-client-test.js",
+      "bytes": 14923,
+      "sha256": "cb5ffb9a56001f76e41a0aadbc81a046838ea05464da53051adba3fbd8bfad8a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-client-transport-test.js",
+      "bytes": 13792,
+      "sha256": "3ee0064e3758adc130b4f3f44bda618675b5379a571e9dfb739096cbb7233e1d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-combat-test.js",
+      "bytes": 22395,
+      "sha256": "fc71ed7fe275cb9719806c5681e2d7c273f4ea7be58397fc7cb9bb732b7d5ccf"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-combat.js",
+      "bytes": 14897,
+      "sha256": "519d4ab554a465ccef42dcd2083c91a5586be883a276642f905f11035279d379"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-compatibility-test.js",
+      "bytes": 8196,
+      "sha256": "c970439b2f92a03f455ead7e463f7304029b64adb1a32ff2f219e6556e230fd8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-mode-test.js",
+      "bytes": 22289,
+      "sha256": "e7040fd70966dd0b29ff8c521364cdba52e8bde0ea3cdfb23990d296bb53c820"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-mode.js",
+      "bytes": 16503,
+      "sha256": "6bf0d7f7f8e8cb7b3eabbaf3e36c8bea4cb4c03cf1fd39c7c1446afb1dac6122"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-resync-test.js",
+      "bytes": 12721,
+      "sha256": "0813e8e8ade1f9525d3080017876d08dd12ef5bb7c988fa7fb1a267edfe86147"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-review-game-test.js",
+      "bytes": 7216,
+      "sha256": "03693ff89794628bf281a2d5a8174521ce649b2adc25c7097325d786eb6ef5e1"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-round-test.js",
+      "bytes": 3444,
+      "sha256": "5ea602e4c0bc546e6076fea68ec1dfbc5989b99afbadbf525abb0ad591c04813"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/horde-transport-test.js",
+      "bytes": 6572,
+      "sha256": "de078e1191fecbf87031da790e57e99ce4eaca3291b5a46ae3939a6dddf2f753"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/lobby-invites-client-test.js",
+      "bytes": 11573,
+      "sha256": "372f1915bf3f86220283513dce51749a8a7f41bfd0ac8842fde91b56b4f63d9b"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/lobby-invites-http-test.js",
+      "bytes": 25490,
+      "sha256": "42fe635c3919d860fe0989341f0a6c5362e1bb6f80bb2e7c0cddb2216942bb29"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/lobby-invites-test.js",
+      "bytes": 18627,
+      "sha256": "a77885a4c9a51fcea063e83d6eae10ca7450bf6faab273e9f962c6b92f93a5c5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/lobby-invites.js",
+      "bytes": 5957,
+      "sha256": "d2a1d96d2ef392befda4b503ec8f6a4c0a63c777a39573a041bfe6a028ebb822"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/movement-client-test.js",
+      "bytes": 7831,
+      "sha256": "e429e9e3e0dfc072530670864106426d399a053e67ca369f441d6ad28c298e21"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/movement-net-test.js",
+      "bytes": 1246,
+      "sha256": "660d30d2117d672e4f80f1bf61f596ad48d844300a4da691f790249162ad951e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/mr1-review-test.js",
+      "bytes": 8977,
+      "sha256": "f893d3eba410001286963728bfa43d138185a7e5e11e1b7506a74272ef11c173"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/offer-identity-test.js",
+      "bytes": 13795,
+      "sha256": "f0ecb0bdc97551d9febd0e1e166028655b279bd25fdb127b281029a5565ffe8e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/offer-refresh-client-test.js",
+      "bytes": 15046,
+      "sha256": "444c2b98fa84941974700177b7fa60f3accb31503e9fed1c6bd280874582db73"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-client-test.js",
+      "bytes": 1516,
+      "sha256": "c048696cce70fddf0b6298cd2aec8d3be4dc64ac77a90297bbfac88b74314925"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-cohort-test.js",
+      "bytes": 4682,
+      "sha256": "50b2a0c32f453de16aa9fabf1b8b54394774faf90ba41dcee204a19e5de59789"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-duo-offer-test.js",
+      "bytes": 6076,
+      "sha256": "febc392d1c1377cb8ed7c149d7ea680bab7e581786c7b99b0d29d6fa8fa6eeb3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-safe-position-test.js",
+      "bytes": 6353,
+      "sha256": "6462ef7fe8ec01a3948161ab78adf663675d5affa1f3431b5697e604e419dce8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-sniper-test.js",
+      "bytes": 7368,
+      "sha256": "a5c5b290ae502cc3808f1d4be63e3c7ce76943a4a56f30ebef6c1dc6e40de323"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-sniper-warning-test.js",
+      "bytes": 2572,
+      "sha256": "138a69279a970d96dd2b85e28c589d750a287447d059f485c3cd5310da7356d6"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outpost-spawn-budget-test.js",
+      "bytes": 2819,
+      "sha256": "dbc508377c448fed867cfb2d2238607ae80e8278fe6cbccd5b1e4fd001580646"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outposts-density-client-test.js",
+      "bytes": 4896,
+      "sha256": "c87ea13bca083d28b8c5f9ee2d1090007b9d4fd5c6550b67d4641f1d6875e47e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outposts-density-test.js",
+      "bytes": 7367,
+      "sha256": "7ef437eac2bd47d2b305fb92caba7d11f09927622bd678ea593357e43a87df98"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outposts-test.js",
+      "bytes": 10005,
+      "sha256": "4aaf945317351d286ba1fe66190048b251c4f2dd4fe0d23dfeb3e46230ef6552"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/outposts.js",
+      "bytes": 8718,
+      "sha256": "630536a7eb8b4899efa6ef4e613b4e64e69ea774262cf6d085c1d1e6deed8f45"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/projectile-expiry-test.js",
+      "bytes": 1486,
+      "sha256": "c3be92704baa410b4e07ed5700550a3cfdef0e349252afed2e04698c1e775d92"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/reaction-support-test.js",
+      "bytes": 9027,
+      "sha256": "8d0e30401ea04f53378942090b6ad3f72e9ae829e97ec51c02a400ba36db9115"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/results-test.js",
+      "bytes": 7363,
+      "sha256": "7710175f2d6fde556e26c3d7a02052ec1f035b09c8d99f8162608ddcb8bd2dba"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/run-history-test.js",
+      "bytes": 6082,
+      "sha256": "d6c1e3188dbcd6299d90cc52894e22815f5befeeb2478a091236b49f5a6433bd"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/runlog.js",
+      "bytes": 43084,
+      "sha256": "5107c2edbd7c0e0987b59cdac61542e407997370aefad7133916993721fa04ff"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/server.js",
+      "bytes": 27499,
+      "sha256": "eaf49ad4dda5b85252c3662c2a8b358359efb498ea1a503c4e9309eabfaaf9f7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/sim-runner-test.js",
+      "bytes": 4667,
+      "sha256": "ab35535356979d47429a94e9aae83fe0c37822c22a867a8a6cc1029509123c30"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/sim-test.js",
+      "bytes": 97263,
+      "sha256": "d680c2d7b9f5de6c5f8ece3572a532e23031c990dbb4157567bedb64a967e1b3"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/slash-corner-test.js",
+      "bytes": 844,
+      "sha256": "ec0e7079a9f50582612f83dcfb6f442a775777f5c8cb5638074a9525a79b0ff4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/snapshot-codec.js",
+      "bytes": 6801,
+      "sha256": "102ba1309eb41b2d22a4f549b9445f50dd7e4193d32210679c7d4929058c6227"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/sniper-lowfps-warning-test.js",
+      "bytes": 14333,
+      "sha256": "4ac0b0be9010f8b33f2be465512ba1e5bf6539a40b4ed4d4a5b22e53916a4dfa"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/sniper-thaw-warning-test.js",
+      "bytes": 7347,
+      "sha256": "7819be5303204799ff6274b6b2b0e555b3e806a989d06f813d004c9a60697823"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/storage.js",
+      "bytes": 16399,
+      "sha256": "ebccdb8deab8c566738903a71185f66f313ef19098003b2b65341196c4fce3c9"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/telegraph-pause-client-test.js",
+      "bytes": 1657,
+      "sha256": "97321fa11e994634c3cb7c320de8917bd6e10dab897cdc817b8f19fbfebc05a2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/v19-test.js",
+      "bytes": 9217,
+      "sha256": "54fa6e2a9af0bfdaee4e75338cc79a08c747d5e888766d8e03c5d9205e75d3c5"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/v20-test.js",
+      "bytes": 22187,
+      "sha256": "e3854a10d74328be5c9b11dabc7f2ec787c23caa96c8666bc3ca923f965d9583"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/v22-test.js",
+      "bytes": 14734,
+      "sha256": "88d721db38042c26d77455396c44435c4a0e32067544be1aacf7bf68b72108fc"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/v29-test.js",
+      "bytes": 2488,
+      "sha256": "80836bd35f7d3235ebd7f475ebc04b79afc49f808c6004762827d75868493efa"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/visual-settings-test.js",
+      "bytes": 9199,
+      "sha256": "1735a2b6d40904064c6e60057f38ee686d95eda4b39ae782ccfe2da1df93ac1e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/wave2-test.js",
+      "bytes": 10434,
+      "sha256": "e257b102ce2fbafe1d24bbb9de4ba534468d2e1f4ba6bbe655c681566073d79a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/wave4-test.js",
+      "bytes": 21003,
+      "sha256": "327fc8a1288ad4303860009dca163bd236fc539d497f9f4548f093a3a4467c67"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/independent/source-e7271a2/app/server/weapon-roles-test.js",
+      "bytes": 4288,
+      "sha256": "a36f8cbe48276a976dfcb856a2203f8aa0c5e1b84a71f61e6854ae18d1b7ae3d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/lord-post-key.png",
+      "bytes": 804968,
+      "sha256": "dfc880cfb8224a2cac3c99e32ee443851b8b2de73e954ee9243d0d283482f684"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/lord-pre-key.png",
+      "bytes": 766506,
+      "sha256": "e778e3a271e89b7f9f14caa539001e0d636aa27ba558540bc66bde557f16c163"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/merge-targeted-green.log",
+      "bytes": 5309,
+      "sha256": "66443dda40bc3e8e7b9d281dbf06df975a6a5743df0c860542b6bd243aebbaca"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/merge-targeted.log",
+      "bytes": 9901,
+      "sha256": "96124490abe7e00eee2dae2fa52dee69e1fdd47018c68cc917d349abbd45f73a"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/movement-author/green.log",
+      "bytes": 1462,
+      "sha256": "8996d21d1abfacd163c991b49a976f760ec469d494f21272158014c43a81684f"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/movement-author/red.log",
+      "bytes": 3442,
+      "sha256": "06f80def13a5aebdeac11bc49e178d7a3e3c60f11953a9f4b5b2055f142e9c49"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/pr-body-before.md",
+      "bytes": 2583,
+      "sha256": "4a1843f7478ad72a88a9311e24019c61d04826de253e6733c36e66f35c9d4dd1"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/pre-key.png",
+      "bytes": 767647,
+      "sha256": "20cae7b036a22d81ca171469e8acc24f60dadc57b4d1e294931a4cfd4e69e48d"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/publication-build.json",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/server-lord-only.log",
+      "bytes": 95,
+      "sha256": "3bb87fbe901389328ea8b6fd442327870c2ba191a2b742ab09f6296b88f931e4"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/server.log",
+      "bytes": 95,
+      "sha256": "479d273b75de382dd04b19aae8e96fac779b064e496bb2b4dd0f4d0a1b88b855"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/author-report.json",
+      "bytes": 2374,
+      "sha256": "2e544bacb83f694f0ca049f4fd4e154a2840dfd917957a828e60df45bbc839e0"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/green-result.json",
+      "bytes": 318,
+      "sha256": "7228e25e84dfd88d1bc9b57ffec051f0cb16738ae9d47b7a488f4f00c91be8e7"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/green.log",
+      "bytes": 727,
+      "sha256": "dd3ab8f4b5b1b39e1a95e133e449a22fbf5e272af2b498a63ca737450f81fd58"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/horde-mode.js",
+      "bytes": 16543,
+      "sha256": "d11fe062380ea029963a7b3303ed37bdcb7b905555d726fb6e3a99a87c98973c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/horde-sniper-origin-test.js",
+      "bytes": 9138,
+      "sha256": "37ef270553ec32542d1bb606dd76de96e326e244b4ec4140138489f14271413e"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/original-red-result.json",
+      "bytes": 261,
+      "sha256": "14ddf205f2c7f92467cce5333c35a04d3425002e09bfcfe59f6204e8aed26be2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/original-red-v2-result.json",
+      "bytes": 261,
+      "sha256": "14ddf205f2c7f92467cce5333c35a04d3425002e09bfcfe59f6204e8aed26be2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/original-red-v2.log",
+      "bytes": 2915,
+      "sha256": "a9cfe785807e65fa355298822afe86c83d4ec0b66fa1934741b511c9644db3f2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/original-red.log",
+      "bytes": 2639,
+      "sha256": "dd849d088ea95a8098d45a8e09e5a45224b8d91b82a234eb9ab1bf38a307b931"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/positive-controls-result.json",
+      "bytes": 1004,
+      "sha256": "7819e1a0e1f7b9e56665bd0c21ea8c2bb457678e171449fb2d944c7e0dcc6051"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/positive-controls.log",
+      "bytes": 413,
+      "sha256": "c7f0c2459950d71acf3ffd22c7999bdf2671b725c22145aaf9d3f12c7083579c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/red-result.json",
+      "bytes": 261,
+      "sha256": "14ddf205f2c7f92467cce5333c35a04d3425002e09bfcfe59f6204e8aed26be2"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-author/red.log",
+      "bytes": 2827,
+      "sha256": "e47b6715f6a9626f9525109d5cc9eb6be992f3fb536c15d0fa8bf33708cc7880"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-control.png",
+      "bytes": 787826,
+      "sha256": "2d7a772d36c171073e0e610ef1e61b972d281f47b3c19877859c03ee54d99df8"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-displaced.png",
+      "bytes": 785257,
+      "sha256": "f01e6e28413424a288667457996c54e77bad657bd0e3db007bd6b637c66af34c"
+    },
+    {
+      "path": "pr38-review-residuals-20261115/sniper-root-green.log",
+      "bytes": 1685,
+      "sha256": "feaed6af5aae04c08eed99ed5e4d1fb261da584801c56a368453f7cd6c0abfeb"
+    }
+  ]
+}
