@@ -105,7 +105,7 @@ try {
   const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
   assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
   assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
-  assert.equal(welcome.v,32,'server and current browser announce the current client-state protocol');
+  assert.equal(welcome.v,33,'server and current browser announce the current client-state protocol');
   storage.clear();
   const previous=Object.create(PreviousNet.prototype);previous.emit=()=>emitted++;previous.dispatch(welcome);
   assert.equal(reloads,2,'PROTO24 page reloads to load movement acknowledgements and bounded prediction');
@@ -120,15 +120,23 @@ try {
   assert.equal(emitted,0,'the previous client contract cannot resume before reload');
   storage.clear();
   const combat29=Object.create(Combat29Net.prototype);combat29.emit=()=>emitted++;combat29.dispatch(welcome);
-  assert.equal(reloads,5,'current main PROTO29 pages reload before entering the updated feature contract');
-  assert.equal(emitted,0,'combat geometry support alone does not imply updated feature support');
+  assert.equal(reloads,5,'main PROTO29 reloads before using the updated feature contract');
+  assert.equal(emitted,0,'main client cannot resume an unsupported feature contract');
+  for (const version of [30, 31, 32]) {
+   storage.clear();
+   const legacySource=oldSource.replace('const PROTO = 23;', `const PROTO = ${version};`);
+   const {Net:LegacyNet}=await import('data:text/javascript;base64,'+Buffer.from(legacySource).toString('base64'));
+   const legacy=Object.create(LegacyNet.prototype);legacy.emit=()=>emitted++;legacy.dispatch(welcome);
+   assert.equal(reloads,version-24,`PROTO${version} reloads before using the merged signature contract`);
+   assert.equal(emitted,0,'previous main and feature clients cannot resume before reload');
+  }
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
-  assert.equal(reloads,5,'matching current browser is not reloaded');assert.equal(emitted,1);
+  assert.equal(reloads,8,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
   if(previousStorage)Object.defineProperty(globalThis,'sessionStorage',previousStorage);else delete globalThis.sessionStorage;
   if(previousLocation)Object.defineProperty(globalThis,'location',previousLocation);else delete globalThis.location;
  }
- console.log('Client protocol: actual welcome reloads PROTO23/24/25/28/29 browsers and resumes current browser: OK');
+ console.log('Client protocol: actual welcome reloads PROTO23/24/25/28/29/30/31/32 browsers and resumes current browser: OK');
 }
 
 // Real chronological Room -> actual main handlers -> Game -> UI.showOffer path.

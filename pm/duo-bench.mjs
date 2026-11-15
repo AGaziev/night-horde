@@ -49,7 +49,8 @@ function dps(weapons, layout, seed = 1, opt = {}) {
 			e.x = x; e.y = y; e.speed = 60; e.dmg = 0; e.shotT = 1e9;
 			home.push(e);
 		};
-		if (layout === 'boss') add('brute', 200, 0);
+		if (layout === 'boss') { add('brute', 200, 0); home[0].boss = true; home[0].bk = null; }
+		else if(layout === 'target') add('ghoul',200,0);
 		else for (let i = 0; i < 50; i++) {
 			const a = rnd() * Math.PI * 2, d = 40 + Math.sqrt(rnd()) * 280;
 			add('ghoul', Math.cos(a) * d, Math.sin(a) * d);
@@ -84,7 +85,7 @@ function dps(weapons, layout, seed = 1, opt = {}) {
 }
 
 export const avg = (w, layout, opt) => (dps(w, layout, 1, opt) + dps(w, layout, 2, opt) + dps(w, layout, 3, opt)) / 3;
-export { DUOS };
+export { DUOS, dps };
 
 // One pair per rule: Тиски, Перекрёстный огонь, Пропитка, Отдача, Вязкость, Наводка (DUOS-v2-design.md, п. 6).
 const AFF_SAMPLE = ['whip+frost', 'bolt+knives', 'flask+traps', 'bolt+whip', 'whip+flask', 'knives+lantern'];
