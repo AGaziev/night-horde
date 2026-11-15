@@ -19,7 +19,8 @@ import {
 	AFFINITY, AFFINITY_IDS, AFFINITY_WINDOW, AFFINITY_EVERY, affinityOf,
 	DUO_INHERIT_POWER, DUO_SIGNATURE_POWER, duoPartLevel,
 } from '../public/shared/content.js';
-import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard as confineOutpostGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
+import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot } from './caravans.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -628,6 +629,8 @@ export class Room {
 		this.bossPlan = shuffle([...BOSS_POOL]);
 		this.hostile = [];
 		this.outposts = null;
+		this.caravan = null;
+		this.nextCaravanTry = 0;
 		this.blasts = [];
 		this.traps = [];
 		this.items = [];
@@ -1491,7 +1494,7 @@ export class Room {
 	guardKilled(e) { guardKilled(this, e); }
 	openOutpostChest(p) { return openOutpostChest(this, p); }
 	closeOutposts() { closeOutposts(this); }
-	confineGuard(e) { confineGuard(e); }
+	confineGuard(e) { confineOutpostGuard(e); confineCaravanGuard(e); }
 
 	// --- simulation ---
 
@@ -1520,6 +1523,7 @@ export class Room {
 		else {
 			this.updatePeaks(alive);
 			this.updateFinale(dt, alive);
+			updateCaravan(this, alive, dt);
 			this.events.tick(alive);
 			if (alive.length) this.spawn(dt, alive);
 		}
@@ -1539,7 +1543,7 @@ export class Room {
 		this.updateTraps(dt);
 		this.updatePuddles(dt);
 		for (const e of this.enemies) {
-			if (e.outpost) confineGuard(e);
+			if (e.outpost || e.caravan) this.confineGuard(e);
 			this.horde?.confine(e);
 		}
 		this.horde?.retireFar(alive);
@@ -1625,7 +1629,7 @@ export class Room {
 	// Outpost guards own a separate, bounded budget and never thin ordinary encounters.
 	ordinaryEnemyCount() {
 		let n = 0;
-		for (const e of this.enemies) if (!e.dead && !e.outpost) n++;
+		for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan) n++;
 		return n;
 	}
 
@@ -1673,7 +1677,7 @@ export class Room {
 			if (!cap || this.time < this.specialT[id]) continue;
 			this.specialT[id] = this.time + S.every / this.tscale;
 			let n = 0;
-			for (const e of this.enemies) if (!e.dead && !e.outpost && e.def === ENEMIES[id]) n++;
+			for (const e of this.enemies) if (!e.dead && !e.outpost && !e.caravan && e.def === ENEMIES[id]) n++;
 			if (n >= cap) continue;
 			const e = this.spawnEnemy(id, alive, enemyHpScale(this.nt, this.heroes.size));
 			count++;
@@ -1968,24 +1972,26 @@ export class Room {
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
-				if ((e.outpost && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
+				if (((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+					if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 					const d = dist2(e.x, e.y, p.x, p.y);
 					if (d < bd) {
 						bd = d;
 						best = p;
 					}
 				}
-				if (!this.isHorde && !e.outpost && bd > FAR_DIST2 && e.ai !== 'flee') {
+				if (!this.isHorde && !e.outpost && !e.caravan && bd > FAR_DIST2 && e.ai !== 'flee') {
 					[e.x, e.y] = this.randomRingPos(alive);
 					e.windT = 0;
 					e.bs = 0;
 					continue;
 				}
-				if (!best && e.outpost) {
-					const dx = e.outpost.x - e.x, dy = e.outpost.y - e.y, d = Math.hypot(dx, dy) || 1;
+				if (!best && (e.outpost || e.caravan)) {
+					const anchor = e.outpost ?? e.caravan;
+					const dx = anchor.x - e.x, dy = anchor.y - e.y, d = Math.hypot(dx, dy) || 1;
 					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
 					e.x += dx / d * step;
 					e.y += dy / d * step;
@@ -2095,7 +2101,7 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally { confineGuard(e); this.horde?.confine(e); }
+			} finally { this.confineGuard(e); this.horde?.confine(e); }
 		}
 	}
 
@@ -2196,7 +2202,7 @@ export class Room {
 	bossStep(e, dx, dy, speed, dt) {
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
-		confineGuard(e);
+		this.confineGuard(e);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -2503,7 +2509,7 @@ export class Room {
 			this.fx.push(['blink', Math.round(e.x), Math.round(e.y)]);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
-			confineGuard(e);
+			this.confineGuard(e);
 		}
 	}
 
@@ -2511,7 +2517,7 @@ export class Room {
 	makeElite(alive) {
 		const cand = [];
 		for (const e of this.enemies) {
-			if (e.dead || e.outpost || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
+			if (e.dead || e.outpost || e.caravan || e.boss || e.elite || e.ai === 'exploder' || e.def.special) continue;
 			for (const h of alive) {
 				if (dist2(e.x, e.y, h.x, h.y) < ELITE_PICK_DIST2) {
 					cand.push(e);
@@ -2529,7 +2535,7 @@ export class Room {
 	}
 
 	setElite(e, affix) {
-		if (e.outpost) return;
+		if (e.outpost || e.caravan) return;
 		e.elite = affix;
 		e.hp *= ELITE_HP_MUL;
 		e.maxHp *= ELITE_HP_MUL;
@@ -2545,6 +2551,7 @@ export class Room {
 		let tb = null, td = Infinity;
 		for (const p of taunters) {
 			if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
+			if (e.caravan && dist2(p.x, p.y, e.caravan.x, e.caravan.y) > CARAVAN.pursuit ** 2) continue;
 			const d = dist2(e.x, e.y, p.x, p.y);
 			if (d < p.trait.taunt * p.trait.taunt && d < td) {
 				td = d;
@@ -2854,6 +2861,7 @@ export class Room {
 		e.dead = true;
 		this.horde?.combat.onKilled(e, h, src);
 		if (e.outpost) this.guardKilled(e);
+		if (e.caravan) caravanGuardKilled(this, e);
 		this.kills++;
 		if (h) {
 			h.kills++;
@@ -3168,7 +3176,7 @@ export class Room {
 
 			this.grid.query(h.x, h.y, PLAYER_RADIUS + MAX_ENEMY_R, near);
 			for (const e of near) {
-				if (e.dead || (e.outpost && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
+				if (e.dead || ((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
 				const min = e.r + PLAYER_RADIUS;
 				if (dist2(e.x, e.y, h.x, h.y) >= min * min) continue;
 				if (e.ai === 'exploder') {
@@ -3181,7 +3189,7 @@ export class Room {
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
-				this.hurtPlayer(h, cd * (1 - braced), e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
+				this.hurtPlayer(h, cd * (1 - braced), e.caravan ? 'caravan' : e.outpost ? 'outpost' : e.elite ? 'elite' : e.finLord && e.bs === 'dash' ? 'boss:dash' : enemyKey(e));
 				if (h.st !== 0) break;
 			}
 			if (h.st !== 0) continue;
@@ -3952,7 +3960,7 @@ export class Room {
 				const force = Math.min(0.65, 52 / Math.max(1, Math.hypot(e.x - x, e.y - y)));
 				e.x += (x - e.x) * force;
 				e.y += (y - e.y) * force;
-				confineGuard(e);
+				this.confineGuard(e);
 				pulled++;
 			}
 		}
@@ -4507,7 +4515,7 @@ export class Room {
 			const step = Math.min(d - ring, L.pull * (e.ai === 'shield' ? 0.5 : 1) * dt);
 			e.x += (dx / d) * step;
 			e.y += (dy / d) * step;
-			confineGuard(e);
+			this.confineGuard(e);
 		}
 		this.orbitHits(h, { count: L.count, radius: L.ring, rps: L.rps, hitCd: L.hitCd, dmg: L.bladeDmg }, dmgMul, areaMul, amount, SRC.whirlwind);
 		w.t -= dt;
@@ -4636,7 +4644,7 @@ export class Room {
 		const d = Math.hypot(dx, dy) || 1;
 		e.x += (dx / d) * dist;
 		e.y += (dy / d) * dist;
-		confineGuard(e);
+		this.confineGuard(e);
 	}
 
 	// Lightning from the sky into `t` (or the nearest enemy if it already died), then a chain.
@@ -5489,7 +5497,7 @@ export class Room {
 
 	enemyState(en) {
 		const t = this.time;
-		let st = en.outpost ? ST.guard : 0;
+		let st = en.outpost || en.caravan ? ST.guard : 0;
 		if (en.burnT > t) st |= ST.burn;
 		if (en.resonanceT > t) st |= ST.resonance;
 		if (stormMarked(en, t)) st |= ST.stormMarked;
@@ -5554,7 +5562,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it,
+			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),

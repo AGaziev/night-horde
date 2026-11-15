@@ -92,6 +92,7 @@ try {
  const {Net:PreviousNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 24;')).toString('base64'));
  const {Net:ReleasedNet}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 25;')).toString('base64'));
  const {Net:Contract28Net}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 28;')).toString('base64'));
+ const {Net:Combat29Net}=await import('data:text/javascript;base64,'+Buffer.from(oldSource.replace('const PROTO = 23;', 'const PROTO = 29;')).toString('base64'));
  const {Net}=await import('data:text/javascript;base64,'+Buffer.from(netSource).toString('base64'));
  const {Hub}=await import('./game.js');
  let welcome;const hub=new Hub((pid,msg)=>{if(msg.t==='welcome')welcome=msg;});hub.addPlayer(1,'One');hub.welcome(1);
@@ -117,13 +118,17 @@ try {
   const contract28=Object.create(Contract28Net.prototype);contract28.emit=()=>emitted++;contract28.dispatch(welcome);
   assert.equal(reloads,4,'PROTO28 pages reload before using the new feature contract');
   assert.equal(emitted,0,'the previous client contract cannot resume before reload');
+  storage.clear();
+  const combat29=Object.create(Combat29Net.prototype);combat29.emit=()=>emitted++;combat29.dispatch(welcome);
+  assert.equal(reloads,5,'current main PROTO29 pages reload before entering the updated feature contract');
+  assert.equal(emitted,0,'combat geometry support alone does not imply updated feature support');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
-  assert.equal(reloads,4,'matching current browser is not reloaded');assert.equal(emitted,1);
+  assert.equal(reloads,5,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
   if(previousStorage)Object.defineProperty(globalThis,'sessionStorage',previousStorage);else delete globalThis.sessionStorage;
   if(previousLocation)Object.defineProperty(globalThis,'location',previousLocation);else delete globalThis.location;
  }
- console.log('Client protocol: actual welcome reloads PROTO23/24/25 browsers and resumes current browser: OK');
+ console.log('Client protocol: actual welcome reloads PROTO23/24/25/28/29 browsers and resumes current browser: OK');
 }
 
 // Real chronological Room -> actual main handlers -> Game -> UI.showOffer path.

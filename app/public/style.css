@@ -988,3 +988,10 @@ input[type="text"]:focus { border-color: var(--accent); }
 	.horde .hud-allies { width: 105px; }
 	.director .hud-boss { top: 106px; }
 }
+/* Independent overlay: expanding the objective never changes the HP row's width. */
+.hud-caravan { position: absolute; top: 136px; left: max(52px, calc(env(safe-area-inset-left) + 48px)); width: min(290px, calc(100vw - 64px)); padding: 0 10px; border: 1px solid #b7974e; border-radius: 10px; color: #ffe082; background: #161b2af2; pointer-events: auto; font-size: .72rem; line-height: 1.4; }
+.hud-caravan summary { min-height: 44px; padding: 10px 0; cursor: pointer; }
+.hud-caravan summary:focus-visible { outline: 3px solid #ffe082; outline-offset: 2px; }
+.hud-caravan p { margin: 0 0 10px; color: var(--text); }
+
+@media (max-height: 420px) { .hud-caravan { top: 96px; max-height: calc(100dvh - 108px); overflow-y: auto; overscroll-behavior: contain; } }

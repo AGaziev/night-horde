@@ -214,7 +214,7 @@ console.log(`pause between frames and with frames running, ${cases} cases: lanes
 	const codecUrl = new URL('../public/js/snapshot-codec.js', import.meta.url).href;
 	const netSource = fs.readFileSync(netFile, 'utf8').replace("'./snapshot-codec.js'", JSON.stringify(codecUrl));
 	const { Net } = await import('data:text/javascript;base64,' + Buffer.from(netSource).toString('base64'));
-	for (const legacy of [24, 25, 28]) {
+	for (const legacy of [24, 25, 28, 29]) {
 		const oldSource = `const PROTO = ${legacy};\n` + netSource.replace('import { PROTO, SnapshotDecoder }', 'import { SnapshotDecoder }');
 		const { Net: OldNet } = await import('data:text/javascript;base64,' + Buffer.from(oldSource).toString('base64'));
 		let welcome;
