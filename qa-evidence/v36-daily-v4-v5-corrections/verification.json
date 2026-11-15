@@ -1,0 +1,26 @@
+{
+  "files": 8463,
+  "rawBytes": 47278796,
+  "archiveBytes": 12433396,
+  "sha256": "c97a65fb1bc84fba38c2ca69a06e0d26b830b063f05f6cf17ac522cedf0e08fb",
+  "archive": "/Users/s.konev/Documents/Codex/2026-11-10/vibecode-vibecode-deploy-api-api-vibe/outputs/issue-split/publication/v36-daily-v4-v5-corrections/v36-daily-v4-v5-corrections.tar.gz",
+  "primaryPhysicalAttempts": 840,
+  "status": "PASS_LOCAL_ARCHIVE",
+  "archiveMemberCountIncludingManifest": 8464,
+  "allMemberHashesAndCurrentLocalBytesEqual": true,
+  "secondBuildByteIdentical": true,
+  "forbiddenPaths": [],
+  "binarySourceAssetsIncluded": false,
+  "textAliases": 6,
+  "excludedKinds": {
+    ".tar": 4,
+    ".png": 213,
+    ".plist": 6,
+    ".jpg": 108,
+    "dependency-or-cache": 1
+  },
+  "publication": "NOT_PERFORMED; remote transfer/availability NOT_VERIFIED",
+  "futureMainComposition": "NOT_VERIFIED",
+  "publisherRootIndependentRead": "PASS_SHA256_AND_ALL_SAFE_REGULAR_MEMBERS",
+  "publicTransfer": "PENDING"
+}
