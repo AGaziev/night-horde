@@ -3,7 +3,7 @@ import {Room} from './game.js';
 import {DUOS} from '../public/shared/content.js';
 import fs from 'node:fs';
 const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8')
- .replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+ .replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const {Game} = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 for(const [id,d] of Object.entries(DUOS)) {
  const r=new Room('SIG',()=>{});r.addPlayer(1,'A','knight');r.start(); const h=r.heroes.get(1);

@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import {Room} from './game.js';
 import {Net} from '../public/js/net.js';
 import {SnapshotDecoder} from '../public/js/snapshot-codec.js';
-const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8').replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 test('CEO31.3 lost cancel is recovered by a requested wire key, unrelated shots survive',()=>{
  const wire=[];const r=new Room('KEY',(_pid,_msg,json)=>{if(json&&_pid===1)wire.push(JSON.parse(json));});r.addPlayer(1,'One','knight');r.addPlayer(2,'Ally','ranger');r.start();r.time=100;
