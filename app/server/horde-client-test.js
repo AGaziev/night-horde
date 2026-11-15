@@ -18,6 +18,7 @@ const uiUrl = moduleUrl(browserSource('ui.js')
 const { UI, knownDuos, rememberDuo } = await import(uiUrl);
 const { setupLobbyInvites } = await import(moduleUrl(browserSource('lobby-invites.js').replace("'./ui.js'", JSON.stringify(uiUrl))));
 const { historyResult, renderHordeHistory } = await import(moduleUrl(browserSource('run-history.js')
+	.replace("'./daily-records.js'", JSON.stringify(moduleUrl(browserSource('daily-records.js'))))
 	.replace("'./ui.js'", JSON.stringify(uiUrl)).replace("import { renderResults } from './results.js';", '')));
 
 test('a full horde lobby can release and transfer its director role without removing a participant', (t) => {

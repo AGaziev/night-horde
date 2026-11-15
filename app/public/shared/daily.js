@@ -1,0 +1,38 @@
+// Server chooses the UTC day. Clients only display the received contract.
+export const DAILY_VERSION = 5;
+const rule = (id, name, description, mods) => Object.freeze({ id, name, description, mods: Object.freeze(mods) });
+export const DAILY_RULES = Object.freeze([
+	rule('glass', 'Хрупкая мощь', 'Максимум здоровья −30%, ваш урон +20%.', { hp: 0.7, damage: 1.2 }),
+	rule('swarm', 'Щедрая орда', 'Враги появляются на 15% чаще. В первых двух натисках уничтожьте не менее 70% их врагов до конца: каждому 15% уровня за успешный натиск.', { enemyRate: 1.15 }),
+	rule('armor', 'Тяжёлый доспех', 'Броня +1, скорость передвижения −10%.', { armor: 1, speed: 0.9 }),
+	rule('gather', 'Охота за опытом', 'Радиус сбора опыта +30%, здоровье всех врагов +15%.', { pickup: 1.3, enemyHp: 1.15 }),
+]);
+export function dailyFor(now = Date.now()) {
+	const date = new Date(now);
+	const day = date.toISOString().slice(0, 10);
+	const index = ((Math.floor(date.getTime() / 86400000) % DAILY_RULES.length) + DAILY_RULES.length) % DAILY_RULES.length;
+	return Object.freeze({ version: DAILY_VERSION, day, ...DAILY_RULES[index] });
+}
+// Resolve only the new contract; reconnects and already locked older versions
+// retain their original rules. The lobby and start use the same displayed terms.
+export function dailyInMode(daily, mode) {
+	const lunch = mode === 'lunch';
+	if ([4, 5].includes(daily.version) && daily.id === 'glass') return Object.freeze({ ...daily,
+		description: lunch ? 'Максимум здоровья −30%, ваш урон +10%.' : 'Максимум здоровья −30%, ваш урон +20%.',
+		mods: Object.freeze({ ...daily.mods, damage: lunch ? 1.1 : 1.2 }),
+	});
+	if (daily.version === 5 && daily.id === 'armor') return Object.freeze({ ...daily,
+		description: lunch ? 'Броня +0,5, скорость передвижения −10%.' : 'Броня +1, скорость передвижения −10%.',
+		mods: Object.freeze({ ...daily.mods, armor: lunch ? .5 : 1 }),
+	});
+	return daily;
+}
+export function dailyKey(daily) {
+	return `${daily.version}:${daily.day}:${daily.mode}:${daily.players}`;
+}
+// A personal best, never a promise of identical drops or a global leaderboard.
+export function compareDaily(a, b) {
+	return (a.grade ?? (a.win ? 1 : 0)) - (b.grade ?? (b.win ? 1 : 0))
+		|| a.time - b.time || (a.kills ?? 0) - (b.kills ?? 0);
+}
+export const dailyLabel = (daily) => `Испытание ${daily.day} (UTC): ${daily.name}`;

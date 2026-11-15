@@ -77,21 +77,33 @@ test('завершённый забег сохраняет участников 
 	const log = room.lastLog;
 	assert.doesNotMatch(JSON.stringify(messages), /12345678|87654321/);
 
-	const port = 10_000 + Math.floor(Math.random() * 10_000);
-	const server = spawn(process.execPath, [new URL('./server.js', import.meta.url).pathname], {
-		env: { ...process.env, PORT: String(port), HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: 'ignore',
+	const preload = path.join(dir, 'listen.mjs');
+	fs.writeFileSync(preload, `import { Server } from 'node:http';
+const listen = Server.prototype.listen;
+Server.prototype.listen = function (...args) {
+ if (typeof args[0] === 'number') {
+  args[0] = 0;
+  this.once('listening', () => console.log('TEST_LISTENING:' + this.address().port));
+ }
+ return listen.apply(this, args);
+};`);
+	let output = '', port;
+	const server = spawn(process.execPath, ['--import', new URL('../../pm/test-runtime.mjs', import.meta.url).pathname, '--import', preload, new URL('./server.js', import.meta.url).pathname], {
+		env: { ...process.env, PORT: '3000', HORDE_RUNS_DIR: dir, VIBE_APP_KEY: '' }, stdio: ['ignore', 'pipe', 'pipe'],
 	});
 	const closed = once(server, 'exit');
+	server.stdout.on('data', data => { output += data; port = Number(output.match(/TEST_LISTENING:(\d+)/)?.[1]); });
+	server.stderr.on('data', data => { output += data; });
 	t.after(async () => { server.kill(); await closed; });
 	const request = (route, uid) => fetch('http://127.0.0.1:' + port + route, {
 		headers: uid ? { 'X-Vibe-User-Id': uid } : {},
 	});
 	let ready = false;
 	for (let i = 0; i < 50 && !ready; i++) {
-		ready = await request('/health').then((r) => r.ok, () => false);
+		if (port) ready = await request('/health').then((r) => r.ok, () => false);
 		if (!ready) await setTimeout(50);
 	}
-	assert.ok(ready, 'сервер запустился с архивом из предыдущего процесса');
+	assert.ok(ready, 'сервер запустился с архивом из предыдущего процесса: ' + output);
 	const history = async (uid, query = '') => {
 		const res = await request('/api/runs/history' + query, uid);
 		assert.equal(res.status, 200);

@@ -134,6 +134,7 @@ export class Game {
 	}
 
 	reset() {
+		this.daily = null;
 		this.clearHordeCombat();
 		this.snaps.length = 0;
 		this.resetClock();
@@ -183,6 +184,7 @@ export class Game {
 
 	begin(msg) {
 		this.reset();
+		this.daily = msg.ruleset === HORDE_RULESET ? null : msg.daily ?? null;
 		this.players.clear();
 		this.ruleset = msg.ruleset === HORDE_RULESET ? HORDE_RULESET : 'pve';
 		this.roundId = this.ruleset === HORDE_RULESET && typeof msg.roundId === 'string' ? msg.roundId : null;
@@ -295,7 +297,7 @@ export class Game {
 	passiveVal(id) { return this.pvals[id] ?? PASSIVES[id].perLevel * this.passiveLevel(id); }
 	speedMul() {
 		const speed = 1 + this.passiveVal('swift') + (this.inBanner() ? EVOS.banner.levels[0].speedBuff : 0);
-		return this.ruleset === HORDE_RULESET ? speed * (1 - (this.hordeStatus(this.me)?.slow || 0)) : speed;
+		return this.ruleset === HORDE_RULESET ? speed * (1 - (this.hordeStatus(this.me)?.slow || 0)) : speed * (this.daily?.mods.speed ?? 1);
 	}
 
 	clearHordeCombat() {
@@ -472,6 +474,8 @@ export class Game {
 			it: Array.isArray(msg.it) ? msg.it : EMPTY,
 			fx: Array.isArray(msg.fx) ? msg.fx : EMPTY,
 			boss: Array.isArray(msg.boss) ? msg.boss : null,
+			swarm: msg.swarm ?? null,
+			swarmResult: msg.swarmResult ?? null,
 			pk: Array.isArray(msg.pk) && PEAKS[msg.pk[0]] ? msg.pk : null,
 			ev: Array.isArray(msg.ev) && EVENTS[msg.ev[0]] ? msg.ev : null,
 			applied: false,

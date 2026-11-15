@@ -63,6 +63,12 @@
 				<h2>Режим</h2>
 				<div id="lobby-mode" class="mode-pick" role="radiogroup" aria-label="Режим забега"></div>
 				<p id="lobby-mode-hint" class="muted small mode-hint"></p>
+				<div class="daily-pick">
+					<label class="daily-toggle"><input id="lobby-daily" type="checkbox" aria-describedby="lobby-daily-description lobby-daily-hint"> Испытание дня</label>
+					<p id="lobby-daily-title" class="daily-title"></p>
+					<p id="lobby-daily-description" class="small"></p>
+					<p id="lobby-daily-hint" class="muted small" role="status"></p>
+				</div>
 			</div>
 			<div id="lobby-role-box" hidden>
 				<h2>Ваша сторона</h2>
@@ -148,6 +154,11 @@
 				<button id="run-history-mine" class="btn btn-small" aria-pressed="true">Мои</button>
 				<button id="run-history-recent" class="btn btn-small" aria-pressed="false">Общие</button>
 			</div>
+			<div class="run-history-actions" role="group" aria-label="Вид забегов">
+				<button id="run-history-normal" class="btn btn-small" aria-pressed="true">Обычные</button>
+				<button id="run-history-daily" class="btn btn-small" aria-pressed="false">Испытания</button>
+			</div>
+			<div id="run-history-best" class="daily-records small" hidden></div>
 			<p id="run-history-status" class="muted small" role="status"></p>
 			<ul id="run-history-list" class="run-history-list"></ul>
 		</div>
@@ -210,6 +221,10 @@
 					<span id="horde-exit-hint"></span>
 				</div>
 				<ul id="hud-allies" class="hud-allies"></ul>
+			</div>
+			<div class="hud-challenge" aria-live="polite">
+				<div id="hud-daily" class="hud-mode" hidden></div>
+				<div id="hud-swarm" class="hud-mode" hidden></div>
 			</div>
 		</div>
 		<details id="hud-caravan" class="hud-caravan" hidden>
