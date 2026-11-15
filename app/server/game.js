@@ -21,7 +21,7 @@ import {
 	DUO_SIGNATURE_POWER, duoPartLevel, duoLineagePower,
 } from '../public/shared/content.js';
 import { OUTPOST, updateOutposts, guardKilled, openOutpostChest, closeOutposts, confineGuard as confineOutpostGuard, outpostSnapshot, boundGuardShot } from './outposts.js';
-import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot } from './caravans.js';
+import { CARAVAN, updateCaravan, caravanGuardKilled, confineCaravanGuard, caravanSnapshot, boundCaravanShot } from './caravans.js';
 import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
@@ -398,6 +398,9 @@ export class Room {
 		const cohortNt = this.outposts?.creationNt ?? nt;
 		const guardHpK = (enemyHpScale(cohortNt, to) / enemyHpScale(cohortNt, from)) * (hpNew / hpOld);
 		const guardDmgK = (enemyDmgScale(cohortNt, to) / enemyDmgScale(cohortNt, from)) * (dmgNew / dmgOld);
+		const caravanNt = this.caravan?.creationNt ?? nt;
+		const caravanHpK = (enemyHpScale(caravanNt, to) / enemyHpScale(caravanNt, from)) * (hpNew / hpOld);
+		const caravanDmgK = (enemyDmgScale(caravanNt, to) / enemyDmgScale(caravanNt, from)) * (dmgNew / dmgOld);
 		if (this.fin?.lord) this.finDmg = finaleDmgMul(to);
 		for (const e of this.enemies) {
 			if (e.dead) continue;
@@ -413,12 +416,12 @@ export class Room {
 				continue;
 			}
 			// The finale Lord also follows his own per-group multiplier; the arena keeps its size.
-			const k = e.outpost ? guardHpK : e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
+			const k = e.outpost ? guardHpK : e.caravan ? caravanHpK : e.finLord ? bossK * (finaleHpMul(this.mode, to) / finaleHpMul(this.mode, from)) : e.boss ? bossK : hpK;
 			e.hp *= k;
 			e.maxHp *= k;
 			if (e.barMax) e.barMax *= k;
-			e.dmg *= e.outpost ? guardDmgK : dmgK;
-			e.dmgMul *= e.outpost ? guardDmgK : dmgK;
+			e.dmg *= e.outpost ? guardDmgK : e.caravan ? caravanDmgK : dmgK;
+			e.dmgMul *= e.outpost ? guardDmgK : e.caravan ? caravanDmgK : dmgK;
 		}
 		this.runLog?.groupChange(this, from, to);
 	}
@@ -1102,6 +1105,12 @@ export class Room {
 		const item = pool[Math.floor(Math.random() * pool.length)];
 		if (!item) {
 			h.lastReforge = { t: 'reforge', source, result: null };
+			if (source === 'caravan') {
+				h.rerolls++;
+				h.lastReforge.fallback = { kind: 'reroll', amount: 1 };
+				this.runLog?.reforged(this, h, source, { fallback: 'reroll', amount: 1 });
+				if (h.offer) this.sendOffer(h);
+			}
 			this.send(h.pid, h.lastReforge);
 			return null;
 		}
@@ -2494,6 +2503,7 @@ export class Room {
 			life: E.shotLife, dmg: E.shotDmg * e.dmgMul * (this.events.inFog(e) ? FOG_DEF.dmgMul : 1), from: (e.elite ? 'elite' : enemyKey(e)) + ':shot',
 		};
 		boundGuardShot(e, s);
+		boundCaravanShot(e, s);
 		s.bornAt = this.time;
 		this.hostile.push(s);
 		this.fx.push(['eshot', s.id, Math.round(s.x), Math.round(s.y), Math.round(s.vx), Math.round(s.vy), round3(s.life), round3(this.time)]);

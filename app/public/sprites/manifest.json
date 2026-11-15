@@ -497,6 +497,19 @@
     ],
     "bodyRadius": 21
   },
+  "caravan": {
+    "file": "caravan.png",
+    "cell": [
+      192,
+      136
+    ],
+    "frames": 1,
+    "fps": 0,
+    "anchor": [
+      79,
+      124
+    ]
+  },
   "goldshade": {
     "file": "goldshade.png",
     "cell": [

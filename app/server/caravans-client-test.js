@@ -18,7 +18,7 @@ try {
 		fs.writeFileSync(path.join(tmp, name), source);
 	}
 	const { Game } = await import(pathToFileURL(path.join(tmp, 'game.js')));
-	const { UI } = await import(pathToFileURL(path.join(tmp, 'ui.js')));
+	const { UI, reforgeMessage } = await import(pathToFileURL(path.join(tmp, 'ui.js')));
 	const { Renderer } = await import(pathToFileURL(path.join(tmp, 'render.js')));
 	const game = new Game({ send() {} }); game.me = 1;
 	game.begin({ players: [{ pid: 1, hero: 'knight', x: 0, y: 0 }] });
@@ -30,7 +30,11 @@ try {
 	ui.cache = { passives: '{}', embers: '{}', allies: '' };
 	ui.set = (id, prop, value) => written.set(`${id}.${prop}`, value);
 	ui.updateHud(game);
-	assert.equal(written.get('hud-caravan-status.text'), '◆ Караван · охрана 0/14 · 120 с · необязательно');
+	assert.equal(written.get('hud-caravan-status.text'), '◆ Караван · охрана 0/14 · 120 с · перековка каждому · необязательно');
+	const reforge = { name: 'Клинок', from: 3, to: 4, bonus: '+1 переброс' };
+	assert.match(reforgeMessage({ source: 'caravan', result: reforge }), /Караван.*Легендарная перековка.*Клинок 3 → 4.*\+1 переброс.*25%.*20%/);
+	assert.match(reforgeMessage({ source: 'caravan', result: null, fallback: { kind: 'reroll', amount: 1 } }), /Караван.*максимальны.*\+1 переброс/);
+	assert.equal(reforgeMessage({ source: 'forge', result: reforge }), '⚒ Легендарная перековка: Клинок 3 → 4 ур. · +1 переброс');
 	const renderer = Object.create(Renderer.prototype);
 	Object.assign(renderer, { vx0: -1e6, vx1: 1e6, vy0: -1e6, vy1: 1e6, arrowBuf: [], allyArrows: [], itemArrows: [], tmp: {} });
 	renderer.toScreen = () => ({ x: -100, y: 0 });
