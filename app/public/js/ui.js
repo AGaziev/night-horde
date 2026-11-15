@@ -5,6 +5,14 @@ import { HORDE_RULESET, HORDE_MAX_HEROES, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from 
 
 // Duos the player has ever opened (per browser): unknown ones show as «???» in card hints.
 const DUO_STORE = 'nh.duos';
+export function reforgeMessage(msg) {
+	const r = msg.result, caravan = msg.source === 'caravan';
+	const prefix = caravan ? '◆ Караван · ' : '⚒ ';
+	const text = r ? `Легендарная перековка: ${r.name} ${r.from} → ${r.to} ур. · ${r.bonus}`
+		: msg.fallback?.kind === 'reroll' ? 'Все подходящие предметы максимальны · +1 переброс'
+			: 'Перековка: все подходящие предметы уже максимального уровня';
+	return prefix + text + (caravan ? ' · опыт +25% уровня · лечение живым 20% HP' : '');
+}
 export function knownDuos() {
 	try { return new Set(JSON.parse(localStorage.getItem(DUO_STORE) || '[]')); } catch { return new Set(); }
 }
@@ -870,7 +878,7 @@ export class UI {
 		const cv = snap.cv;
 		if (!cv) this.resetCaravan();
 		else this.set('hud-caravan', 'hidden', false);
-		if (cv) this.set('hud-caravan-status', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с · необязательно`);
+		if (cv) this.set('hud-caravan-status', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с · перековка каждому · необязательно`);
 		const result = snap.swarmResult && snap.tm >= snap.swarmResult.end && snap.tm < snap.swarmResult.end + 6 ? snap.swarmResult : null;
 		this.set('hud-swarm', 'hidden', !snap.swarm && !result);
 		if (snap.swarm) this.set('hud-swarm', 'text', `Рой: ${snap.swarm.killed}/${snap.swarm.spawned} · 70% к концу натиска`);

@@ -82,8 +82,9 @@ export function claimCaravan(room) {
 	c.status = 'claimed';
 	clearShots(room, c);
 	for (const h of room.heroes.values()) {
-		room.addXp(h, xpForNext(h.level, room.heroes.size) * .15);
-		if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * .1);
+		room.legendaryReforge(h, 'caravan');
+		room.addXp(h, xpForNext(h.level, room.heroes.size) * .25);
+		if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * .2);
 	}
 	return true;
 }

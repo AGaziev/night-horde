@@ -5,7 +5,7 @@ import { Net } from './net.js';
 import { Input, isVisualRadio } from './input.js';
 import { Game, P } from './game.js';
 import { Renderer } from './render.js';
-import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime } from './ui.js';
+import { UI, rememberDuo, rememberDuos, knownDuos, fmtTime, reforgeMessage } from './ui.js';
 import { Sound } from './audio.js';
 import { cardText, cardImage } from './results.js';
 import { setupRunHistory } from './run-history.js';
@@ -323,7 +323,7 @@ function showOver(msg) {
 net.on('reforge', (msg) => {
 	if (!game.running) return;
 	const r = msg.result;
-	ui.toast(r ? `⚒ Легендарная перековка: ${r.name} ${r.from} → ${r.to} ур. · ${r.bonus}` : '⚒ Перековка: все подходящие предметы уже максимального уровня', 'info');
+	ui.toast(reforgeMessage(msg), 'info');
 	if (r) sound.legendary();
 });
 

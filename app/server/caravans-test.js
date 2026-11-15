@@ -30,7 +30,7 @@ for (const mode of ['lunch', 'night']) for (const n of [1, 2, 3, 4, 5, 6, 7, 8])
 	if (n > 1) { hs[1].st = 1; hs[1].hp = 0; }
 	const xp = xpForNext(hs[0].level, n);
 	assert.equal(claimCaravan(r), true); assert.equal(claimCaravan(r), false);
-	assert.equal(hs[0].xp, xp * .15); assert.equal(hs[0].hp, hs[0].maxHp * .6);
+	assert.equal(hs[0].xp, xp * .25); assert.equal(hs[0].hp, hs[0].maxHp * .7);
 	if (n > 1) assert.equal(hs[1].hp, 0, 'no resurrection reward');
 	assert.ok(hs.every(h => !h.victoryBanner && !h.forgeUsed)); assert.equal(caravanSnapshot(r), null);
 	r.start(); assert.equal(r.caravan, null);

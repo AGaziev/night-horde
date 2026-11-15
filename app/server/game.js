@@ -1095,6 +1095,12 @@ export class Room {
 		const item = pool[Math.floor(Math.random() * pool.length)];
 		if (!item) {
 			h.lastReforge = { t: 'reforge', source, result: null };
+			if (source === 'caravan') {
+				h.rerolls++;
+				h.lastReforge.fallback = { kind: 'reroll', amount: 1 };
+				this.runLog?.reforged(this, h, source, { fallback: 'reroll', amount: 1 });
+				if (h.offer) this.sendOffer(h);
+			}
 			this.send(h.pid, h.lastReforge);
 			return null;
 		}
