@@ -1,0 +1,26 @@
+{
+  "files": 5677,
+  "rawBytes": 56291658,
+  "archiveBytes": 14555913,
+  "sha256": "a105c84564d428dd88669fbb07fd447a6bee94e8865e1407570bdca3ae961a9f",
+  "archive": "/Users/s.konev/Documents/Codex/2026-11-10/vibecode-vibecode-deploy-api-api-vibe/outputs/issue-split/publication/v36-dash421-current600/v36-dash421-current600.tar.gz",
+  "primaryPhysicalAttempts": 600,
+  "status": "PASS_LOCAL_ARCHIVE",
+  "archiveMemberCountIncludingManifest": 5678,
+  "allMemberHashesAndCurrentLocalBytesEqual": true,
+  "secondBuildByteIdentical": true,
+  "forbiddenPaths": [],
+  "binarySourceAssetsIncluded": false,
+  "textAliases": 5,
+  "excludedKinds": {
+    ".stderr": 4,
+    ".tar": 1,
+    ".jpg": 36,
+    ".png": 57,
+    ".plist": 1
+  },
+  "publication": "NOT_PERFORMED; remote transfer/availability NOT_VERIFIED",
+  "futureMainComposition": "NOT_VERIFIED",
+  "publisherRootIndependentRead": "PASS_SHA256_AND_ALL_SAFE_REGULAR_MEMBERS",
+  "publicTransfer": "PENDING"
+}
