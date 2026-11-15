@@ -196,7 +196,7 @@ test('both lobby roles learn the scheduled boss before start, and the HUD retain
 	const nodes = new Map();
 	const previous = Object.getOwnPropertyDescriptor(globalThis, 'document');
 	Object.defineProperty(globalThis, 'document', { configurable: true, value: { getElementById: (id) => {
-		if (!nodes.has(id)) nodes.set(id, { childElementCount: 1, children: [], style: {} });
+		if (!nodes.has(id)) nodes.set(id, { childElementCount: 1, children: [], style: {}, contains(node) { return node === this || this.children.includes(node); } });
 		return nodes.get(id);
 	} } });
 	t.after(() => { if (previous) Object.defineProperty(globalThis, 'document', previous); else delete globalThis.document; });
