@@ -146,9 +146,10 @@ test('mark support through a flat barrier equals the actual additional HP damage
 		if (marked) { e.markT = room.time + 10; e.markMul = 0.2; e.markOwner = marker; }
 		const hp = e.hp;
 		room.hurtEnemy(e, 50, attacker, { weapon: 'whip', tags: [] });
-		return { dealt: hp - e.hp, support: marker.supportDamage };
+		return { dealt: hp - e.hp, support: marker.supportDamage, allyDamage: marker.support.allyDamage };
 	}
 	const control = strike(false), marked = strike(true);
 	assert.ok(marked.dealt > control.dealt);
 	close(marked.support, marked.dealt - control.dealt);
+	close(marked.allyDamage, marked.dealt - control.dealt);
 });

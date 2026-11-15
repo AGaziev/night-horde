@@ -27,6 +27,8 @@ import { Events, STREAK_MUL, FOG_DEF } from './events.js';
 import { castConfluence } from './confluences.js';
 import { blockHeroHit, heroShieldReady, canRepeatCast, onWeaponHit, repeatCast, scoutKnife, stormMarked } from './hero-perks.js';
 import { RunLog, runStore, enemyKey } from './runlog.js';
+import { projectControlPoint, projectControlSeparation, controlPointDiffers, controlScale as observedControlScale, lockDelivered } from './control-observation.js';
+import { newSupport, supportStats, activeWardGift, expireWardGift, canReceiveWardGift, deferWardGift, healSupport, controlTick, timedControl, resolveControl } from './support.js';
 import { SnapshotEncoder, PROTO, isLegacy, isCompatible } from './snapshot-codec.js';
 import { HordeMode } from './horde-mode.js';
 import { HORDE_ARENA, HORDE_LIMITS, HORDE_MAX_HEROES, HORDE_RULESET, HORDE_SECONDS, HORDE_BOSS_AT, HORDE_BOSS_TYPE, HORDE_COMBAT, clampHordePosition } from '../public/shared/horde-content.js';
@@ -248,7 +250,7 @@ function makeHero(member, x, y) {
 		perk: { readyAt: HERO_PERKS[member.hero]?.cooldown ?? 0, receivedBellAt: -Infinity },
 		passives: new Map(),
 		mods: baseMods(),
-		kills: 0, dmg: 0, dmgBy: {}, supportDamage: 0, revives: 0, knifeKills: 0,
+		kills: 0, dmg: 0, dmgBy: {}, supportDamage: 0, support: newSupport(), revives: 0, knifeKills: 0,
 		offer: null, queue: 0, boostQueue: 0, floors: [], offerBoost: false, offerFloor: 0, pval: {}, rerolls: REROLLS_START, lastOfferNewW: false, combos: [],
 		forgeUsed: false, forgeDefer: 0, buildChestDone: false, swapPending: false, swapUsed: false, fused: new Set(), duoDefer: {}, offerNo: 0, startWeapon: h.weapon, evolved: new Set(), embers: {}, ward: 0, wardMax: 0,
 		guard: 0, blockCharge: 0, bondMul: 1, bannerT: 0, fireW: !!WEAPONS[h.weapon].tags?.includes('fire'),
@@ -629,6 +631,7 @@ export class Room {
 
 	resetSim() {
 		this.time = 0;
+		this.controlCredited = new Set();
 		this.runHeroes = new Map();
 		this.bossKills = 0;
 		if (this.isHorde) this.runLength = HORDE_SECONDS;
@@ -1587,6 +1590,7 @@ export class Room {
 			if (this.frozen) return;
 		}
 		this.time += dt;
+		this.controlCredited.clear();
 		resolveSwarm(this);
 		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
@@ -2039,6 +2043,8 @@ export class Room {
 	}
 
 	moveEnemies(dt, alive) {
+		// A direct AI step also starts a new contribution interval for native callers.
+		this.controlCredited.clear();
 		this.rebuildGrid();
 		const near = this.q1;
 		const taunters = alive.filter((p) => p.trait.taunt > 0);
@@ -2047,10 +2053,13 @@ export class Room {
 		const fog = this.events.active?.id === 'fog';
 		for (const e of this.enemies) {
 			if (e.dead) continue;
+			let controlMotion = null, controlPlainEnd = null, controlRandomOverlap = false;
 			try {
 				if (e.burnT > now) this.burnTick(e, dt);
 				if (e.dead) continue;
 				if (((e.outpost || e.caravan) && e.guardReadyAt > now) || e.hordeReadyAt > now) continue;
+				resolveControl(e, 'slow', now);
+				resolveControl(e, 'drag', now);
 				let best = null, bd = Infinity;
 				for (const p of alive) {
 					if (e.outpost && dist2(p.x, p.y, e.outpost.x, e.outpost.y) > OUTPOST.pursuit ** 2) continue;
@@ -2070,7 +2079,13 @@ export class Room {
 				if (!best && (e.outpost || e.caravan)) {
 					const anchor = e.outpost ?? e.caravan;
 					const dx = anchor.x - e.x, dy = anchor.y - e.y, d = Math.hypot(dx, dy) || 1;
-					const step = e.frozenT > now || e.rootT > now ? 0 : Math.min(d, e.speed * dt);
+					const locked = e.frozenT > now || e.rootT > now;
+					const step = locked ? 0 : Math.min(d, e.speed * dt);
+					if (locked) {
+						const actualEnd = projectControlPoint(e, e.x, e.y, this.isHorde), plainStep = Math.min(d, e.speed * dt);
+						const plainEnd = projectControlPoint(e, e.x + dx / d * plainStep, e.y + dy / d * plainStep, this.isHorde);
+						if (controlPointDiffers(actualEnd[0], actualEnd[1], plainEnd)) controlTick(e, now, dt, 'lock', this.controlCredited);
+					}
 					e.x += dx / d * step;
 					e.y += dy / d * step;
 					e.bs = 0;
@@ -2080,6 +2095,7 @@ export class Room {
 				if (taunters.length) [best, bd] = this.tauntTarget(e, taunters, best, bd);
 				if (e.elite) this.eliteTick(e, best, dt);
 				if (e.frozenT > now || e.rootT > now) {
+					if (lockDelivered(e, best, alive, now, dt, speedMul * (this.horde?.combat.unitSpeedMul(e) ?? 1) * (fog && this.events.inFog(e) ? FOG_DEF.speedMul : 1), this.grid, e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS, this.isHorde)) controlTick(e, now, dt, 'lock', this.controlCredited);
 					// A locked sniper's windup runs on with its fading lanes: once they are gone, it aims anew after the lock,
 					// but not within a snapshot of their end, so the old lanes are off every screen before the new ones.
 					if (e.ai === 'sniper' && e.windT > 0 && (e.windT -= dt) <= 0) {
@@ -2093,6 +2109,7 @@ export class Room {
 				dx /= d;
 				dy /= d;
 				// Stop at contact distance so enemies don't stack on the player.
+				const controlScale = (e.slowT > now ? 1 - e.slow : 1) * (e.dragT > now ? 1 - e.drag : 1);
 				let speed = (e.slowT > now ? e.speed * (1 - e.slow) : e.speed) * speedMul;
 				speed *= this.horde?.combat.unitSpeedMul(e) ?? 1;
 				if (e.dragT > now) speed *= 1 - e.drag; // affinity «Вязкость»: a slow that is not cold
@@ -2156,10 +2173,15 @@ export class Room {
 					dy = zy / l;
 				}
 				const step = Math.min(speed * dt, maxStep);
+				if (controlScale < 1) {
+					const plainStep = Math.min(speed / controlScale * dt, maxStep);
+					if (step < plainStep) controlMotion = [e.x + dx * plainStep, e.y + dy * plainStep];
+				}
 				e.x += dx * step;
 				e.y += dy * step;
 
 				this.grid.query(e.x, e.y, e.r + MAX_ENEMY_R, near);
+				if (controlMotion) controlPlainEnd = projectControlSeparation(this.grid, e, controlMotion[0], controlMotion[1], e.r + MAX_ENEMY_R, SEPARATION_NEIGHBORS, this.isHorde);
 				let checked = 0;
 				for (let i = 0; i < near.length && checked < SEPARATION_NEIGHBORS; i++) {
 					const o = near[i];
@@ -2170,6 +2192,7 @@ export class Room {
 					if (dd >= min * min) continue;
 					checked++;
 					if (dd < 0.0001) {
+						controlRandomOverlap = true;
 						e.x += (Math.random() - 0.5) * 2;
 						continue;
 					}
@@ -2179,7 +2202,13 @@ export class Room {
 					e.x += (ox / l) * push * 0.5;
 					e.y += (oy / l) * push * 0.5;
 				}
-			} finally { this.confineGuard(e); this.horde?.confine(e); }
+			} finally {
+				// Compare independently projected separation, never the slowed displacement.
+				// Random-overlap frames have no identifiable deterministic counterfactual.
+				this.confineGuard(e);
+				this.horde?.confine(e);
+				if (controlPlainEnd && !controlRandomOverlap && controlPointDiffers(e.x, e.y, controlPlainEnd)) controlTick(e, now, dt, 'movement', this.controlCredited);
+			}
 		}
 	}
 
@@ -2233,11 +2262,11 @@ export class Room {
 					return true;
 				}
 				const [kmin, kmax] = E.keep;
-				if (d < kmin) this.bossStep(e, -dx, -dy, speed, dt);
+				if (d < kmin) this.bossStep(e, -dx, -dy, speed, dt, true);
 				else if (d <= kmax) {
 					const sg = Math.sin(e.phase + this.time * 0.3) >= 0 ? 1 : -1;
-					this.bossStep(e, -dy * sg, dx * sg, speed * 0.6, dt);
-				} else this.bossStep(e, dx, dy, speed, dt);
+					this.bossStep(e, -dy * sg, dx * sg, speed * 0.6, dt, true);
+				} else this.bossStep(e, dx, dy, speed, dt, true);
 				return true;
 			}
 			case 'twin':
@@ -2277,10 +2306,15 @@ export class Room {
 		return false;
 	}
 
-	bossStep(e, dx, dy, speed, dt) {
+	bossStep(e, dx, dy, speed, dt, controlled = false) {
+		const ox = e.x, oy = e.y;
+		const scale = controlled ? observedControlScale(e, this.time) : 1;
+		const plainEnd = scale < 1 ? projectControlPoint(e, ox + dx * speed / scale * dt, oy + dy * speed / scale * dt, this.isHorde) : null;
 		e.x += dx * speed * dt;
 		e.y += dy * speed * dt;
 		this.confineGuard(e);
+		const actualEnd = plainEnd ? projectControlPoint(e, e.x, e.y, this.isHorde) : null;
+		if (plainEnd && controlPointDiffers(actualEnd[0], actualEnd[1], plainEnd)) controlTick(e, this.time, dt, 'movement', this.controlCredited);
 	}
 
 	// Charge: a red lane for dashWarn seconds, a straight dash, then a rest. `allowed` — may start a new charge.
@@ -2551,7 +2585,7 @@ export class Room {
 		for (const {s,h,at} of events) {
 			if (impacts.has(s) || h.st !== 0) continue;
 			impacts.set(s, at); // Protection consumes a projectile, just as endpoint contact did.
-			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from));
+			applyContact(h, frames.get(h), at, () => this.hurtPlayer(h, s.dmg, s.from, at));
 		}
 		let j = 0;
 		for (const s of this.hostile) {
@@ -2718,14 +2752,17 @@ export class Room {
 		if (!src.raw && e.markT > now && e.markOwner && e.markMul > 0) {
 			withoutLocalMarkBeforeBarrier = fixedBeforeBarrier + (beforeBarrier - fixedBeforeBarrier) / (1 + e.markMul);
 			withoutLocalMark = Math.max(0, withoutLocalMarkBeforeBarrier - absorbed);
-			e.markOwner.supportDamage += Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+			const gain = Math.max(0, dealt - Math.min(e.hp, withoutLocalMark));
+			e.markOwner.supportDamage += gain;
+			if (h && h !== e.markOwner) e.markOwner.support.allyDamage += gain;
 		}
 		if (!src.raw && src.markSupport) {
 			// A reaction can carry another target's mark into this hit. Credit that
 			// inherited gain before the local mark, so their cross term is counted once.
 			const withoutEitherMark = Math.max(0, withoutLocalMarkBeforeBarrier * (1 - src.markSupport.fraction) - absorbed);
-			src.markSupport.owner.supportDamage += Math.max(0,
-				Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
+			const gain = Math.max(0, Math.min(e.hp, withoutLocalMark) - Math.min(e.hp, withoutEitherMark));
+			src.markSupport.owner.supportDamage += gain;
+			if (h && h !== src.markSupport.owner) src.markSupport.owner.support.allyDamage += gain;
 		}
 		const flashPart = Math.min(reaction.flash, dealt);
 		if (h) {
@@ -2780,8 +2817,7 @@ export class Room {
 		const A = AFFINITY[a];
 		if (a === 'recoil' && !e.boss) this.knock(e, h.x, h.y, A.kb);
 		else if (a === 'drag' && !e.boss) {
-			e.drag = Math.max(e.dragT > now ? e.drag : 0, A.slow);
-			e.dragT = now + A.dur;
+			timedControl(e, 'drag', A.slow, A.dur, h, now);
 		} else if (a === 'aim') e.aimT = now + A.dur;
 		else if (a === 'soak') {
 			e.soakT = now + A.dur;
@@ -2873,10 +2909,11 @@ export class Room {
 			this.reacted('cond', z.x, z.y, z.r);
 			this.splash(z.x, z.y, z.r, dmg * REACT.condFrac, h, this.reactionSource(e, SRC_R.cond, dmg, reaction.fixed), e);
 		}
-		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1))) this.reacted('icing', e.x, e.y, 0);
+		if (cold && e.wetT > now && !e.boss && e.frozenT <= now && this.freeze(e, REACT.icingFreeze * (h?.mods.ctrlMul ?? 1), h)) this.reacted('icing', e.x, e.y, 0);
 		if (!(e.steamT > now) && ((cold && e.burnT > now) || (fire && e.slowT > now && e.frozenT <= now))) {
 			e.burnT = 0;
 			e.slowT = 0;
+			e.slowSources?.clear();
 			e.steamT = now + REACT.steamLife;
 			this.reacted('steam', e.x, e.y, REACT.steamR);
 			if (this.steams.length >= MAX_STEAMS) this.steams.shift();
@@ -2906,8 +2943,9 @@ export class Room {
 		return false;
 	}
 
-	root(e, dur) {
+	root(e, dur, owner) {
 		if (e.boss || dur <= 0) return;
+		if(this.time + dur > e.rootT) e.rootOwner = owner;
 		e.rootT = Math.max(e.rootT, this.time + dur);
 	}
 
@@ -2929,9 +2967,9 @@ export class Room {
 		this.hurtEnemy(e, e.burnDps * BURN_TICK, e.burnOwner, SRC_BURN);
 	}
 
-	slowEnemy(e, slow, dur) {
-		if (e.slowT <= this.time || slow >= e.slow) e.slow = slow;
-		e.slowT = Math.max(e.slowT, this.time + dur);
+	slowEnemy(e, slow, dur, owner) {
+		slow = Math.min(e.boss ? 0.4 : 0.7, Math.max(0, slow));
+		timedControl(e, 'slow', slow, dur, owner, this.time);
 	}
 
 	killEnemy(e, h, src = SRC_NONE) {
@@ -3177,8 +3215,7 @@ export class Room {
 				const R = ITEMS.slowtime.radius;
 				for (const e of this.enemies) {
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= R * R) continue;
-					e.slow = ITEMS.slowtime.slow;
-					e.slowT = Math.max(e.slowT, now + ITEMS.slowtime.dur);
+					this.slowEnemy(e, ITEMS.slowtime.slow, ITEMS.slowtime.dur, h);
 				}
 				break;
 			}
@@ -3248,6 +3285,8 @@ export class Room {
 		const now = this.time;
 		const fog = this.events.active?.id === 'fog';
 		this.updateBuffs(alive);
+		// Settle endpoint gift reservations even for a recipient downed earlier in this tick.
+		for (const h of this.heroes.values()) expireWardGift(h, now);
 		for (const h of alive) {
 			if (h.st !== 0) continue;
 			if (h.contactFrameEnd !== now) h.iframes = Math.max(0, h.iframes - dt);
@@ -3265,6 +3304,9 @@ export class Room {
 					}
 					continue;
 				}
+				// Observe the body event that freeze suppresses only after early shots
+				// have established this hero's actual endpoint protection.
+				if (e.frozenT > now && h.iframes <= 0 && e.dmg > 0 && !(e.immuneT > now)) controlTick(e, now, dt, 'lock', this.controlCredited);
 				if (h.iframes > 0 || e.dmg <= 0 || e.frozenT > now || e.immuneT > now) continue;
 				const cd = (e.steamT > now && this.inSteam(e) ? e.dmg * REACT.steamContact : e.dmg) * (fog && this.events.inFog(e) ? FOG_DEF.dmgMul : 1);
 				const braced = this.time - h.movedT >= 0.45 ? Math.min(0.55, h.mods.brace) : 0;
@@ -3299,12 +3341,20 @@ export class Room {
 		}
 	}
 
-	hurtPlayer(h, dmg, from = 'other') {
-		if (h.ward > 0) {
-			this.wardAbsorb(h);
+	healSupport(owner, target, amount, field = false) { return healSupport(this, owner, target, amount, field); }
+
+
+	hurtPlayer(h, dmg, from = 'other', contactAt = this.time) {
+		// Swept contacts use their entry time; ordinary/early AI hazards use this.time.
+		// Only gift eligibility uses contactAt: do not rewind the room or other perks.
+		const gift = expireWardGift(h, contactAt);
+		const prevented = Math.min(h.hp, Math.max(1, dmg * (h.altarCurseT > this.time ? ALTAR_DEALS[1].takenMul : 1) * h.trait.dmgTaken - h.mods.armor - h.guard));
+		if (h.ward > 0 || gift) {
+			(gift?.owner ?? h).support.blocked += prevented;
+			this.wardAbsorb(h, contactAt);
 			return;
 		}
-		if (blockHeroHit(this, h)) return;
+		if (blockHeroHit(this, h)) { h.support.blocked += prevented; return; }
 		const guard = h.guard;
 		h.guard = 0;
 		if (h.altarCurseT > this.time) dmg *= ALTAR_DEALS[1].takenMul;
@@ -3588,7 +3638,7 @@ export class Room {
 				const r = L.radius * areaMul;
 				if (L.heal) {
 					for (const o of this.heroes.values()) {
-						if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < r * r) o.hp = Math.min(o.maxHp, o.hp + L.heal * L.tick);
+						if (o !== h && o.st === 0 && dist2(o.x, o.y, h.x, h.y) < r * r) this.healSupport(h, o, L.heal * L.tick, true);
 					}
 				}
 				const near = this.grid.query(h.x, h.y, r + MAX_ENEMY_R, this.q2);
@@ -3609,7 +3659,7 @@ export class Room {
 						}
 					}
 					this.hurtEnemy(e, dmg * heat, h, src);
-					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2);
+					if (chill && !e.dead) this.slowEnemy(e, AURA_CHILL, L.tick + 0.2, h);
 				}
 				this.breakAround(h.x, h.y, r, h);
 				if (oc === 'pulse') this.fx.push(['apulse', h.pid, Math.round(r)]);
@@ -3808,7 +3858,7 @@ export class Room {
 					const rr = r + e.r * 0.5;
 					if (e.dead || dist2(e.x, e.y, h.x, h.y) >= rr * rr) continue;
 					this.hurtEnemy(e, dmg, h, src);
-					if (!e.dead) this.slowEnemy(e, L.slow, L.tick + 0.2);
+					if (!e.dead) this.slowEnemy(e, L.slow, L.tick + 0.2, h);
 				}
 				this.breakAround(h.x, h.y, r, h);
 				w.t = L.tick;
@@ -3972,8 +4022,8 @@ export class Room {
 				wave.hit.add(e);
 				this.hurtEnemy(e, wave.dmg, wave.owner, wave.src);
 				if (e.dead) continue;
-				this.slowEnemy(e, wave.slow, wave.dur);
-				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze);
+				this.slowEnemy(e, wave.slow, wave.dur, wave.owner);
+				if (!e.boss && wave.freeze > 0) this.freeze(e, wave.freeze, wave.owner);
 				if (wave.resonance) { e.resonanceT = this.time + wave.dur; e.resonancePower = wave.resonance; e.resonanceWeapon = wave.src.weapon; }
 			}
 			if (wave.distance < wave.range) this.coldWaves[n++] = wave;
@@ -4170,14 +4220,18 @@ export class Room {
 	}
 
 	// A charge eats the whole hit; Ward bursts when the last charge breaks, Bastion on every charge and shares one.
-	wardAbsorb(h) {
+	wardAbsorb(h, contactAt = this.time) {
+		if(expireWardGift(h, contactAt)) {
+			h.sharedWard = null; h.iframes = PLAYER_IFRAMES;
+			this.fx.push(['ward', h.pid, h.ward]); return;
+		}
 		const id = [...h.weapons.keys()].find((k) => k === 'bastion' || DUOS[k]?.parts.includes('ward')) ?? 'ward';
 		const w = h.weapons.get(id), previous = this.weaponContext;
 		if(DUOS[id]) this.weaponContext={h,weapon:id,part:id,scale:(DUOS[id].signaturePower ?? DUO_SIGNATURE_POWER)*duoLineagePower(w.lvl,w.parts)};
-		try { this.wardAnswer(h,id,w); } finally { this.weaponContext=previous; }
+		try { this.wardAnswer(h,id,w,contactAt); } finally { this.weaponContext=previous; }
 	}
 
-	wardAnswer(h, id, w) {
+	wardAnswer(h, id, w, contactAt) {
 		const L = attackLevel(id, w?.lvl ?? 1, w?.oc, h.mods, w?.parts);
 		h.ward--;
 		if (h.mods.brace > 0) h.blockCharge = Math.min(3, h.blockCharge + 1);
@@ -4210,9 +4264,14 @@ export class Room {
 		}
 		if (id === 'bastion') {
 			for (const o of this.heroes.values()) {
-				if (o === h || o.st !== 0 || dist2(o.x, o.y, h.x, h.y) > L.share * L.share) continue;
-				o.ward = Math.min(Math.max(o.wardMax, 1), o.ward + 1);
-				this.fx.push(['ward', o.pid, o.ward]);
+				if (!canReceiveWardGift(h, o, L.share)) continue;
+				// A future AI eligibility read must not erase a token live at an earlier contact.
+				if (this.contactFrames ? activeWardGift(o, contactAt) : expireWardGift(o, contactAt)) continue;
+				const gift = { owner: h, grantedAt: contactAt, until: contactAt + 8, range: L.share };
+				// AI runs first, but its endpoint grant must wait behind earlier projectile contacts.
+				if (this.contactFrames) deferWardGift(o, gift);
+				else o.sharedWard = gift;
+				this.fx.push(['ward', o.pid, o.ward + 1]);
 				break;
 			}
 		}
@@ -4539,8 +4598,8 @@ export class Room {
 			if (e.dead || dist2(e.x, e.y, t.x, t.y) >= rr * rr) continue;
 			this.hurtEnemy(e, f.dmg, t.owner, src);
 			if (e.dead) continue;
-			this.slowEnemy(e, f.slow, f.dur);
-			if (!e.boss) this.freeze(e, f.freeze);
+			this.slowEnemy(e, f.slow, f.dur, t.owner);
+			if (!e.boss) this.freeze(e, f.freeze, t.owner);
 		}
 	}
 
@@ -4699,14 +4758,18 @@ export class Room {
 
 	// Control caps: an enemy that just thawed cannot be frozen again for FREEZE_IMMUNE seconds, and is knocked back
 	// at most once per KNOCK_EVERY (elites at half strength), so no build turns into a permanent wall.
-	freeze(e, dur) {
+	freeze(e, dur, owner) {
+		if(e.boss || dur <= 0) return false;
 		if (e.frozenT > this.time) {
-			e.frozenT = Math.max(e.frozenT, this.time + dur);
+			const end = Math.min(e.freezeLimit ?? e.frozenT, this.time + dur);
+			if(end > e.frozenT) { e.frozenT=end; e.frozenOwner=owner; }
+			e.thawT=e.frozenT+FREEZE_IMMUNE;
 			return true;
 		}
 		if (e.thawT > this.time) return false;
-		e.frozenT = this.time + dur;
-		e.thawT = e.frozenT + FREEZE_IMMUNE;
+		e.freezeLimit=this.time+2.5;
+		e.frozenT=Math.min(e.freezeLimit,this.time+dur);e.frozenOwner=owner;
+		e.thawT=e.frozenT+FREEZE_IMMUNE;
 		return true;
 	}
 
@@ -4799,7 +4862,7 @@ export class Room {
 		for (const e of this.grid.query(b.x, b.y, b.r + MAX_ENEMY_R, this.q3)) {
 			const rr = b.r + e.r * 0.5;
 			if (e.dead || e.boss || dist2(e.x, e.y, b.x, b.y) >= rr * rr) continue;
-			this.freeze(e, dur);
+			this.freeze(e, dur, h);
 			if (frozen.length < 8) frozen.push(e);
 		}
 		const shard = b.edmg * L.shardFrac;
@@ -4819,7 +4882,7 @@ export class Room {
 		const dur = L.freeze * h.mods.ctrlMul * h.mods.durMul;
 		for (const e of this.grid.query(h.x, h.y, R + MAX_ENEMY_R, this.q2)) {
 			const rr = R + e.r * 0.5;
-			if (!e.dead && !e.boss && dist2(e.x, e.y, h.x, h.y) < rr * rr) this.freeze(e, dur);
+			if (!e.dead && !e.boss && dist2(e.x, e.y, h.x, h.y) < rr * rr) this.freeze(e, dur, h);
 		}
 		this.fx.push(['frost', h.pid, Math.round(R)]);
 	}
@@ -5249,7 +5312,7 @@ export class Room {
 					p.critPierced = true;
 					p.pierce++;
 				}
-				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack);
+				if (p.freezeBack > 0 && p.outT <= 0 && !e.dead && !e.boss) this.freeze(e, p.freezeBack, p.owner);
 				if (p.kb && !e.dead && !e.boss && !(p.returns && p.outT <= 0)) this.knock(e, e.x - p.vx, e.y - p.vy, ram ? p.kb * p.owner.trait.spearKb : p.kb);
 				if (p.split) this.splitSpark(p, e);
 				if (p.burnHit && !e.dead) this.burn(e, p.owner, p.burnHit, 2);
@@ -5305,7 +5368,7 @@ export class Room {
 				// Wolf pit: a blast that roots everyone around.
 				this.explode({ x: t.x, y: t.y, r: t.blastR, pdmg: 0, edmg: t.dmg, owner: t.owner, kind: 5, src });
 				for (const e of this.grid.query(t.x, t.y, t.blastR + MAX_ENEMY_R, near)) {
-					if (!e.dead && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) this.root(e, t.root);
+					if (!e.dead && dist2(e.x, e.y, t.x, t.y) < (t.blastR + e.r) ** 2) this.root(e, t.root, t.owner);
 				}
 				continue;
 			}
@@ -5317,7 +5380,7 @@ export class Room {
 				continue;
 			}
 			this.fx.push(['snap', Math.round(t.x), Math.round(t.y)]);
-			this.root(victim, t.root);
+			this.root(victim, t.root, t.owner);
 			this.hurtEnemy(victim, t.dmg * (t.uses !== undefined && victim.boss ? 1.5 : 1), t.owner, src);
 			if (t.frost) this.frostWave(t, src);
 			if (stays) {
@@ -5331,7 +5394,7 @@ export class Room {
 					const rr = t.splash + e.r * 0.5;
 					if (e !== victim && !e.dead && dist2(e.x, e.y, t.x, t.y) < rr * rr) {
 						this.hurtEnemy(e, t.dmg * SPLASH_FRAC * (t.uses !== undefined && e.boss ? 1.5 : 1), t.owner, src);
-						if (rooted++ < t.rootTargets) this.root(e, t.root);
+						if (rooted++ < t.rootTargets) this.root(e, t.root, t.owner);
 					}
 				}
 			}
@@ -5382,8 +5445,7 @@ export class Room {
 						if (z.burn && !e.dead) this.burn(e, z.owner, z.burn, z.burnDur ?? 2);
 						if (z.resonance && !e.dead) { e.resonanceT = this.time + 1; e.resonancePower = z.resonance; e.resonanceWeapon = z.src.weapon; }
 						if (z.drag && !e.dead && !e.boss) {
-							e.drag = Math.max(e.dragT > this.time ? e.drag : 0, z.drag);
-							e.dragT = this.time + z.tick + 0.1;
+							timedControl(e, 'drag', z.drag, z.tick + 0.1, z.owner, this.time);
 						}
 						if (z.mark && !e.dead) {
 							if (e.markT <= this.time || z.mark > e.markMul) { e.markMul = z.mark; e.markOwner = z.owner; }
@@ -5395,7 +5457,7 @@ export class Room {
 			}
 			if (z.heal > 0) {
 				for (const o of this.heroes.values()) {
-					if (o !== z.owner && o.st === 0 && dist2(o.x, o.y, z.x, z.y) < z.r * z.r) o.hp = Math.min(o.maxHp, o.hp + z.heal * dt);
+					if (o !== z.owner && o.st === 0 && dist2(o.x, o.y, z.x, z.y) < z.r * z.r) this.healSupport(z.owner, o, z.heal * dt, true);
 				}
 			}
 			this.puddles[j++] = z;
@@ -5408,8 +5470,7 @@ export class Room {
 		for (const e of near) {
 			const rr = z.r + e.r * 0.5;
 			if (e.dead || dist2(e.x, e.y, z.x, z.y) >= rr * rr) continue;
-			if (e.slowT <= this.time || z.slow > e.slow) e.slow = z.slow;
-			e.slowT = Math.max(e.slowT, this.time + SLOW_HOLD);
+			this.slowEnemy(e, z.slow, SLOW_HOLD, z.owner);
 		}
 	}
 
@@ -5532,6 +5593,7 @@ export class Room {
 		this.resultReason = this.isHorde ? reason ?? (win ? 'time' : 'wipe') : null;
 		this.snapshot();
 		this.state = 'over';
+		this.controlCredited.clear();
 		this.paused = false;
 		this.frozen = false;
 		for (const h of this.heroes.values()) {
@@ -5639,8 +5701,9 @@ export class Room {
 		const msg = {
 			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
-			support: ps.filter((h) => h.supportDamage > 0).map((h) => [h.pid, Math.round(h.supportDamage)]),
+			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
+			wardGift: ps.flatMap(h => { const gift=activeWardGift(h,this.time);return gift?[[h.pid,gift.until]]:[]; }),
 		};
 		// Active peak: [index into PEAKS, seconds left, duration]; drives the client's eclipse mask, dawn tint and HUD.
 		if (this.peak) msg.pk = [this.peak.i, Math.round((this.peak.at + this.peak.dur - this.time) * 10) / 10, this.peak.dur];

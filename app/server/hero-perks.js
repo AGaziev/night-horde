@@ -32,10 +32,10 @@ function healOnHit(room, h) {
 	}
 	if (!target && h.hp >= h.maxHp) return;
 	h.perk.readyAt = room.time + cooldown;
-	h.hp = Math.min(h.maxHp, h.hp + self);
+	room.healSupport(h, h, self);
 	perkRing(room, h.x, h.y, 52, 4);
 	if (target) {
-		target.hp = Math.min(target.maxHp, target.hp + ally);
+		room.healSupport(h, target, ally);
 		target.perk.receivedBellAt = room.time;
 		perkRing(room, target.x, target.y, 32, 4);
 	}
