@@ -7,7 +7,7 @@ const { Net } = await import('data:text/javascript;base64,' + Buffer.from(source
 test('discarding paused SSE prediction preserves queued non-position commands and their order', async () => {
 	const net = Object.create(Net.prototype), originalFetch = globalThis.fetch, sent = [];
 	const pause = { t: 'pause', v: false }, pick = { t: 'pick', i: 1 };
-	net.sid = 'local'; net.posting = false;
+	net.sid = 'local'; net.posting = null; net.connected = true; net.attempt = 1;
 	net.outbox = [{ t: 'pos', seq: 1, x: 100 }, pause, { t: 'pos', seq: 2, x: 200 }, pick];
 	globalThis.fetch = async (url, options) => { sent.push(JSON.parse(options.body)); return Response.json({ ok: true }); };
 	try {

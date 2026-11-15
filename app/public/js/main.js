@@ -10,6 +10,8 @@ import { setupRunHistory } from './run-history.js';
 import { setupFeedback } from './feedback.js';
 import { setupCombinations } from './combinations.js';
 import { setupLobbyInvites } from './lobby-invites.js';
+import { HORDE_RULESET, HORDE_SECONDS } from '/shared/horde-content.js';
+import { HordeUI } from './horde-ui.js';
 import { VISUAL_KEY, loadVisual, saveVisual, syncVisual } from './visual.js';
 
 const $ = (id) => document.getElementById(id);
@@ -30,6 +32,7 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
+const hordeUI = new HordeUI({ game, net, renderer, canvas, ui });
 game.visual = loadVisual();
 
 // Hero unlocks live in this browser: totals of per-run stats the server sends in `over`.
@@ -60,9 +63,11 @@ const state = {
 function goMenu() {
 	lobbyInvites.update(null);
 	game.stop();
+	hordeUI.stop();
 	input.setEnabled(false);
 	state.lobby = null;
 	ui.show('menu');
+	$('horde-exit').hidden = true;
 	sound.setMode('menu');
 	net.send({ t: 'list' });
 	if (state.board) net.send({ t: 'top' });
@@ -75,7 +80,7 @@ function goGame() {
 		ui.resetHud();
 		ui.show('game');
 	}
-	input.setEnabled(true);
+	input.setEnabled(!game.isDirector());
 	sound.setMode('game');
 }
 
@@ -101,6 +106,7 @@ function joinInvitedRoom(currentCode) {
 // Network events
 
 net.on('status', ({ connected, transport }) => {
+	hordeUI.connection();
 	ui.setNet(transport, net.ping, connected);
 	ui.setConnecting(!connected);
 });
@@ -156,6 +162,8 @@ net.on('rooms', (msg) => {
 
 net.on('lobby', (msg) => {
 	game.stop();
+	hordeUI.stop();
+	$('horde-exit').hidden = true;
 	input.setEnabled(false);
 	state.lobby = msg;
 	state.host = msg.host;
@@ -183,15 +191,21 @@ net.on('start', (msg) => {
 	state.urlRoom = '';
 	clearTimeout(overTimer);
 	game.begin(msg);
-	const len = +msg.len || modeOf(msg.mode).seconds;
-	ui.modeText = `${modeOf(msg.mode).name} · до ${fmtTime(len)}`;
+	hordeUI.begin();
+	const horde = game.ruleset === HORDE_RULESET;
+	const len = +msg.len || (horde ? HORDE_SECONDS : modeOf(msg.mode).seconds);
+	ui.modeText = `${horde ? `Орда · ${game.isDirector() ? 'вы за орду' : 'вы герой'}` : modeOf(msg.mode).name} · до ${fmtTime(len)}`;
 	goGame();
+	ui.hud.classList.toggle('horde', horde);
+	ui.hud.classList.toggle('director', game.isDirector());
+	$('horde-exit').hidden = !horde;
+	$('horde-exit-hint').textContent = game.isDirector() ? 'Уход завершит матч победой героев' : 'Выход из текущего матча';
 	ui.showPause(game.menuPause);
 	if (invitedElsewhere) ui.toast('Откройте приглашение после текущего забега.', 'info');
 });
 
 net.on('pause', (msg) => {
-	if (!game.running) return;
+	if (!game.running || game.ruleset === HORDE_RULESET) return;
 	game.setPause(msg.on, msg.menu);
 	ui.showPause(game.menuPause);
 	input.setEnabled(!game.menuPause);
@@ -231,8 +245,13 @@ net.on('s', (msg) => {
 	}
 });
 
+net.on('horde', (msg) => hordeUI.receive(msg));
+net.on('horde-resync', (msg) => game.onHordeResync(msg));
+net.on('horde-status', (msg) => game.onHordeStatus(msg));
+net.on('horde-fx', (msg) => game.onHordeFx(msg));
+
 net.on('lvl', (msg) => {
-	if (!game.running) return;
+	if (!game.running || game.isDirector()) return;
 	if (msg.closed || !Array.isArray(msg.choices) || !msg.choices.length) {
 		game.offer = null;
 		ui.hideOffer();
@@ -256,13 +275,16 @@ net.on('emb', (msg) => {
 
 net.on('over', (msg) => {
 	input.setEnabled(false);
+	hordeUI.stop();
+	$('horde-exit').hidden = true;
 	clearTimeout(overTimer);
-	if (msg.win && game.dawnSeen && game.running) overTimer = setTimeout(() => showOver(msg), DAWN_HOLD_MS);
+	if (msg.win && game.dawnSeen && game.running && !game.isDirector()) overTimer = setTimeout(() => showOver(msg), DAWN_HOLD_MS);
 	else showOver(msg);
 });
 
 // Adds this run's stats to the browser's totals and returns heroes opened by it.
 function takeAchievements(msg) {
+	if (msg.ruleset === HORDE_RULESET) return [];
 	const mine = (Array.isArray(msg.stats) ? msg.stats : []).find((s) => s.pid === state.me);
 	// The server resends `over` on reconnect: a run counts once.
 	if (!mine?.ach || (msg.runId && store.get('nh.achRun') === msg.runId)) return [];
@@ -287,7 +309,8 @@ function showOver(msg) {
 	ui.renderOver({ ...msg, stats }, state.me, state.host === state.me);
 	feedback.forRun(msg.runId);
 	ui.show('over');
-	sound.setMode('over', msg.win, msg.grade === 2);
+	const ownWin = msg.ruleset === HORDE_RULESET && msg.directorPid === state.me ? msg.directorWin === true : msg.win;
+	sound.setMode('over', ownWin, msg.ruleset !== HORDE_RULESET && msg.grade === 2);
 	joinInvitedRoom(state.resumeRoom);
 }
 
@@ -298,7 +321,10 @@ net.on('reforge', (msg) => {
 	if (r) sound.legendary();
 });
 
-net.on('err', (msg) => ui.toast(msg.msg || 'Ошибка'));
+net.on('err', (msg) => {
+	hordeUI.denied();
+	ui.toast(msg.msg || 'Ошибка');
+});
 // v24: the first trigger of an affinity kind in this run.
 net.on('aff', (msg) => {
 	const A = AFFINITY[msg.id];
@@ -314,7 +340,7 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 			ui.banner(`Явился ${arg || 'босс'}!`);
 			break;
 		case 'chest':
-			ui.banner('Сундук! Всем — улучшение');
+			ui.banner(game.isDirector() ? 'Герои нашли сундук' : 'Сундук! Всем — улучшение');
 			break;
 		case 'outposts':
 			if (arg === 'arrive') {
@@ -330,7 +356,7 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 
 		case 'down':
 			if (arg === state.me) ui.banner('Вы пали!');
-			else ui.toast(`${game.meta(arg).name} пал — поднимите его!`, 'info');
+			else ui.toast(`${game.meta(arg).name} пал${game.isDirector() ? '' : ' — поднимите его!'}`, 'info');
 			break;
 		case 'up':
 			if (arg === state.me) ui.toast('Вас подняли!', 'info');
@@ -366,7 +392,7 @@ game.onEvent = (kind, arg, arg2, arg3) => {
 		case 'duo': {
 			const name = DUOS[arg2]?.name || 'связка';
 			if (arg === state.me) {
-				const first = rememberDuo(arg2);
+				const first = game.ruleset !== HORDE_RULESET && rememberDuo(arg2);
 				ui.banner(first ? `Новая связка: ${name}` : `Связка: ${name}`);
 				ui.flashWeapons();
 			} else {
@@ -486,6 +512,8 @@ ui.onHero = (id) => {
 	ui.selectHero(id, state.lobby?.players?.find((p) => p.pid === state.me)?.color || '#90a4ae');
 };
 ui.onMode = (id) => net.send({ t: 'mode', mode: id });
+ui.onRuleset = (id) => net.send({ t: 'ruleset', id });
+ui.onRole = (role) => net.send({ t: 'role', role });
 ui.buildHeroCards(state.hero);
 ui.setUnlocks(unlocked(), ach.stats);
 ui.setLords(ach.stats?.lords);
@@ -508,6 +536,11 @@ $('top-refresh').addEventListener('click', () => net.send({ t: 'top' }));
 $('lobby-ready').addEventListener('click', () => net.send({ t: 'ready', v: !state.myReady }));
 $('lobby-start').addEventListener('click', () => net.send({ t: 'start' }));
 $('lobby-leave').addEventListener('click', () => {
+	net.send({ t: 'leave' });
+	goMenu();
+});
+$('horde-leave').addEventListener('click', () => {
+	if (!game.running || game.ruleset !== HORDE_RULESET) return;
 	net.send({ t: 'leave' });
 	goMenu();
 });
@@ -696,6 +729,7 @@ function frame(now) {
 	const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
 	last = now;
 	try {
+		hordeUI.update(dt, input);
 		game.update(dt, input);
 		renderer.draw(game, dt);
 		if (ui.screen === 'game') ui.updateHud(game);
