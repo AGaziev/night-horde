@@ -425,6 +425,8 @@ input[type="text"]:focus { border-color: var(--accent); }
 	left: 50%; bottom: max(30px, calc(env(safe-area-inset-bottom) + 24px)); /* above the net indicator */
 	transform: translateX(-50%);
 	width: min(760px, calc(100vw - 16px));
+	/* Keep tall offers below health and the running coop clock at every viewport height. */
+	max-height: calc(100dvh - 110px); overflow-y: auto; overscroll-behavior: contain;
 	z-index: 8;
 	animation: rise 0.2s ease-out;
 }
@@ -911,6 +913,31 @@ input[type="text"]:focus { border-color: var(--accent); }
 .hud-trophy { color: #ffe082; font-size: 0.7rem; line-height: 1.4; text-shadow: 0 1px 4px #000; border-left: 2px solid #ffc107; padding-left: 6px; }
 @media (max-width: 600px) { .hud-outposts { max-width: 145px; font-size: 0.62rem; } .hud-trophy { font-size: 0.6rem; } }
 
+/* The daily choice stays readable on touch screens and during a scheduled start. */
+.daily-pick { border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px 14px; margin: 12px 0 18px; }
+.daily-toggle { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; cursor: pointer; }
+.daily-toggle input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
+.daily-pick p { margin: 5px 0; }
+.daily-title { color: var(--accent); font-weight: 600; }
+.daily-result { border-left: 3px solid var(--accent); padding: 8px 12px; margin: 0 0 14px; }
+
+.daily-records { border-bottom: 1px solid var(--panel-border); padding-bottom: 10px; margin-bottom: 14px; }
+.daily-records ul { padding-left: 20px; max-height: 220px; overflow: auto; }
+.daily-records li { margin: 8px 0; }
+
+/* Challenge text occupies its own row, so results and long UTC badges cannot size the health columns. */
+.hud-challenge { grid-column: 1 / -1; min-width: 0; display: grid; gap: 3px; text-align: center; }
+.hud-challenge .hud-mode { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) {
+ .hud-top { grid-template-columns: minmax(112px, 1fr) minmax(0, 1fr) auto; }
+ .hud-center { min-width: 0; }
+ .hud-center .hud-peak { max-width: 100%; white-space: normal; }
+ .hud-right { max-width: 100px; }
+}
+/* While the existing offer is open, use its footer gap for passive feedback rather than cover choice cards. */
+body:has(#levelup:not([hidden])) .hud-challenge { position: fixed; left: 88px; right: 8px; bottom: 3px; }
+body:has(#levelup:not([hidden])) #hud-daily { display: none; }
+body:has(#hud-swarm:not([hidden])) #levelup { bottom: max(54px, calc(env(safe-area-inset-bottom) + 48px)); }
 /* Asymmetric arena: the director has strategic controls instead of a hero inventory. */
 .director .hud-left, .director .hud-xp { display: none; }
 .director .hud-top { grid-template-columns: 1fr 1fr; }
