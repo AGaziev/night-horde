@@ -1,0 +1,1890 @@
+{
+  "name": "v37-caravan-risk-reward",
+  "inputs": [
+    "../caravan-rework-20261115/REPORT.md",
+    "../caravan-rework-20261115/asset/generation-report.md",
+    "../caravan-rework-20261115/asset/initial-worktree-generation-report.md",
+    "../caravan-rework-20261115/asset/original-caravan.png",
+    "../caravan-rework-20261115/asset/prepare-runtime.mjs",
+    "../caravan-rework-20261115/asset/runtime-export.json",
+    "../caravan-rework-20261115/balance-critique/REPORT.md",
+    "../caravan-rework-20261115/ci/final-proof.json",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/artifacts-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/builds-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/caravan-placement-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/caravan-reward-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/caravan-threat-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/caravans-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/caravans-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/checkout-commit.json",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/codec-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/combat-footprint-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/confluences-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/contact-order-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/control-boundaries-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/control-contact-phase-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/control-delivery-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/control-separation-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/control-shield-turn-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-armor-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-fusion-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-glass-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-horde-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-legacy-http-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-review-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-support-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-swarm-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/daily-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/deploy-vibecode-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/display-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/duos2-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/feedback-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/finale-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/flash-support-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/forge-log-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fortune-forge-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-effect-source-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-focus-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-inheritance-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-key-recovery-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-shield-state-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/fusion-signature-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/hero-perks-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-client-transport-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-combat-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-compatibility-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-mode-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-movement-gap-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-resync-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-review-game-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-round-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-sniper-origin-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/horde-transport-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-http-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-body-birth-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-body-clock-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-contact-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-coop-review-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-coop-scope-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-expiry-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-fusion-integration-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-guard-requeue-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-horde-integration-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-main45-integration-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-numeric-zero-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-projectile-boundary-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-request-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-ring-projection-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-ring-review-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-support-integration-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-target-review-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-time-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mobility-zero-body-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/movement-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/movement-net-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/mr1-review-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/offer-identity-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/offer-refresh-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-cohort-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-duo-offer-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-safe-position-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-sniper-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-sniper-warning-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outpost-spawn-budget-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outposts-density-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outposts-density-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/outposts-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/projectile-expiry-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/reaction-support-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/results-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/results.json",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/revisions.txt",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/run-history-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/run-metadata.json",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/sim-runner-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/sim-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/slash-corner-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/sniper-lowfps-warning-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/sniper-thaw-warning-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/solo-night-pressure-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-contact-time-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-control-state-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-fusion-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-gift-chain-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-gift-state-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-horde-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-mark-attacker-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/support-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/telegraph-pause-client-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/v19-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/v20-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/v22-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/v29-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/visual-settings-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/wave2-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/wave4-test.log",
+    "../caravan-rework-20261115/ci/pr77-5494ed8/weapon-roles-test.log",
+    "../caravan-rework-20261115/final-main-check/caravan-placement.log",
+    "../caravan-rework-20261115/final-main-check/caravan-reward.log",
+    "../caravan-rework-20261115/final-main-check/caravan-threat.log",
+    "../caravan-rework-20261115/final-main-check/caravans-client.log",
+    "../caravan-rework-20261115/final-main-check/caravans.log",
+    "../caravan-rework-20261115/final-main-check/codec.log",
+    "../caravan-rework-20261115/final-main-check/control-contact-phase.log",
+    "../caravan-rework-20261115/final-main-check/control-separation.log",
+    "../caravan-rework-20261115/final-main-check/daily-fusion.log",
+    "../caravan-rework-20261115/final-main-check/daily-support.log",
+    "../caravan-rework-20261115/final-main-check/finale.log",
+    "../caravan-rework-20261115/final-main-check/horde-compatibility.log",
+    "../caravan-rework-20261115/final-main-check/horde-transport.log",
+    "../caravan-rework-20261115/final-main-check/mobility-body-clock.log",
+    "../caravan-rework-20261115/final-main-check/mobility-fusion-integration.log",
+    "../caravan-rework-20261115/final-main-check/mobility-guard-requeue.log",
+    "../caravan-rework-20261115/final-main-check/mobility-numeric-zero.log",
+    "../caravan-rework-20261115/final-main-check/mobility-support-integration.log",
+    "../caravan-rework-20261115/final-main-check/offer-identity.log",
+    "../caravan-rework-20261115/final-main-check/results.json",
+    "../caravan-rework-20261115/final-main-check/sniper-lowfps-warning.log",
+    "../caravan-rework-20261115/final-main-check/support-contact-time.log",
+    "../caravan-rework-20261115/final-main-check/support-fusion.log",
+    "../caravan-rework-20261115/final-main-check/v20.log",
+    "../caravan-rework-20261115/final-main-check/v22.log",
+    "../caravan-rework-20261115/independent-review/REPORT.md",
+    "../caravan-rework-20261115/independent-review/baseline-duoOpenOfferFullPool.json",
+    "../caravan-rework-20261115/independent-review/baseline-eightSplitLoad.json",
+    "../caravan-rework-20261115/independent-review/baseline-notes.md",
+    "../caravan-rework-20261115/independent-review/baseline-soloLunch.json",
+    "../caravan-rework-20261115/independent-review/baseline-soloNight.json",
+    "../caravan-rework-20261115/independent-review/candidate-duoOpenOfferFullPool.json",
+    "../caravan-rework-20261115/independent-review/candidate-eightSplitLoad.json",
+    "../caravan-rework-20261115/independent-review/candidate-soloLunch.json",
+    "../caravan-rework-20261115/independent-review/candidate-soloNight.json",
+    "../caravan-rework-20261115/independent-review/cleanup-independent.json",
+    "../caravan-rework-20261115/independent-review/comparison.json",
+    "../caravan-rework-20261115/independent-review/final-caravan-reward-test.js.log",
+    "../caravan-rework-20261115/independent-review/final-caravan-threat-test.js.log",
+    "../caravan-rework-20261115/independent-review/final-caravans-client-test.js.log",
+    "../caravan-rework-20261115/independent-review/final-caravans-test.js.log",
+    "../caravan-rework-20261115/independent-review/final-slash-corner-test.js.log",
+    "../caravan-rework-20261115/independent-review/final-targeted-tests.json",
+    "../caravan-rework-20261115/independent-review/mobile-fallback.png",
+    "../caravan-rework-20261115/independent-review/mobile-guarded.png",
+    "../caravan-rework-20261115/independent-review/mobile-isolated-native-slash.png",
+    "../caravan-rework-20261115/independent-review/mobile-open.png",
+    "../caravan-rework-20261115/independent-review/native-event.mjs",
+    "../caravan-rework-20261115/independent-review/protocol.json",
+    "../caravan-rework-20261115/independent-review/result.json",
+    "../caravan-rework-20261115/independent-review/server.log",
+    "../caravan-rework-20261115/independent-review/source-integrity.json",
+    "../caravan-rework-20261115/independent-review/visual-command.log",
+    "../caravan-rework-20261115/independent-review/visual-fixture.mjs",
+    "../caravan-rework-20261115/issue.md",
+    "../caravan-rework-20261115/main59-check/caravan-placement.log",
+    "../caravan-rework-20261115/main59-check/caravan-reward.log",
+    "../caravan-rework-20261115/main59-check/caravan-threat.log",
+    "../caravan-rework-20261115/main59-check/caravans-client.log",
+    "../caravan-rework-20261115/main59-check/caravans.log",
+    "../caravan-rework-20261115/main59-check/codec.log",
+    "../caravan-rework-20261115/main59-check/control-separation.log",
+    "../caravan-rework-20261115/main59-check/daily-fusion.log",
+    "../caravan-rework-20261115/main59-check/daily-support.log",
+    "../caravan-rework-20261115/main59-check/finale.log",
+    "../caravan-rework-20261115/main59-check/fortune-forge.log",
+    "../caravan-rework-20261115/main59-check/horde-compatibility.log",
+    "../caravan-rework-20261115/main59-check/horde-transport.log",
+    "../caravan-rework-20261115/main59-check/offer-identity.log",
+    "../caravan-rework-20261115/main59-check/results.json",
+    "../caravan-rework-20261115/main59-check/sniper-lowfps-warning.log",
+    "../caravan-rework-20261115/main59-check/support-contact-time.log",
+    "../caravan-rework-20261115/main59-check/support-fusion.log",
+    "../caravan-rework-20261115/main59-check/support-gift-state.log",
+    "../caravan-rework-20261115/main59-check/v20.log",
+    "../caravan-rework-20261115/main59-check/v22.log",
+    "../caravan-rework-20261115/prerequisite-pr-state.json",
+    "../caravan-rework-20261115/reward-browser/REPORT.md",
+    "../caravan-rework-20261115/reward-browser/artifact-hashes.json",
+    "../caravan-rework-20261115/reward-browser/cleanup-independent.json",
+    "../caravan-rework-20261115/reward-browser/desktop-legendary.png",
+    "../caravan-rework-20261115/reward-browser/fixture-first-attempt.json",
+    "../caravan-rework-20261115/reward-browser/fixture-first-attempt.log",
+    "../caravan-rework-20261115/reward-browser/fixture.log",
+    "../caravan-rework-20261115/reward-browser/fixture.mjs",
+    "../caravan-rework-20261115/reward-browser/mobile-fallback.png",
+    "../caravan-rework-20261115/reward-browser/result.json",
+    "../caravan-rework-20261115/reward-browser/server.log",
+    "../caravan-rework-20261115/reward-browser/source.json",
+    "../caravan-rework-20261115/server-author/REPORT.md",
+    "../caravan-rework-20261115/server-author/baseline-red-caravan-reward-test.js.log",
+    "../caravan-rework-20261115/server-author/baseline-red-caravan-threat-test.js.log",
+    "../caravan-rework-20261115/server-author/baseline-red.json",
+    "../caravan-rework-20261115/server-author/cleanup.json",
+    "../caravan-rework-20261115/server-author/diagnostic-replay-comparison.json",
+    "../caravan-rework-20261115/server-author/initial-diagnostic-unknown.json",
+    "../caravan-rework-20261115/server-author/native-bench.mjs",
+    "../caravan-rework-20261115/server-author/native-final-baseline.json",
+    "../caravan-rework-20261115/server-author/native-final-baseline.log",
+    "../caravan-rework-20261115/server-author/native-final-candidate.json",
+    "../caravan-rework-20261115/server-author/native-final-candidate.log",
+    "../caravan-rework-20261115/server-author/native-final-exits.json",
+    "../caravan-rework-20261115/server-author/replay-baseline-eight-split-downed.json",
+    "../caravan-rework-20261115/server-author/replay-baseline-eight-split-downed.log",
+    "../caravan-rework-20261115/server-author/replay-baseline-solo-night-melee.json",
+    "../caravan-rework-20261115/server-author/replay-baseline-solo-night-melee.log",
+    "../caravan-rework-20261115/server-author/replay-candidate-eight-split-downed.json",
+    "../caravan-rework-20261115/server-author/replay-candidate-eight-split-downed.log",
+    "../caravan-rework-20261115/server-author/replay-candidate-solo-lunch-position.json",
+    "../caravan-rework-20261115/server-author/replay-candidate-solo-lunch-position.log",
+    "../caravan-rework-20261115/server-author/replay-candidate-solo-lunch.json",
+    "../caravan-rework-20261115/server-author/replay-candidate-solo-lunch.log",
+    "../caravan-rework-20261115/server-author/replay-lunch-position-exit.json",
+    "../caravan-rework-20261115/server-author/stage1/caravan-threat-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/caravans-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/contact-order-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/daily-fusion-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/daily-horde-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/daily-swarm-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/daily-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/horde-combat-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/horde-mode-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/outpost-cohort-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/outpost-sniper-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/outpost-sniper-warning-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/outpost-spawn-budget-test.js.log",
+    "../caravan-rework-20261115/server-author/stage1/results.json",
+    "../caravan-rework-20261115/server-author/stage2/caravan-placement-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/caravan-reward-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/caravan-threat-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/caravans-client-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/caravans-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/codec-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/contact-order-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/daily-fusion-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/daily-horde-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/daily-swarm-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/daily-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/forge-log-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/fortune-forge-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/horde-combat-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/horde-mode-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/outpost-cohort-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/outpost-duo-offer-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/outpost-spawn-budget-test.js.log",
+    "../caravan-rework-20261115/server-author/stage2/results.json",
+    "../caravan-rework-20261115/visual-author/REPORT.md",
+    "../caravan-rework-20261115/visual-author/cleanup-independent.json",
+    "../caravan-rework-20261115/visual-author/desktop-fallback.png",
+    "../caravan-rework-20261115/visual-author/desktop-guarded.png",
+    "../caravan-rework-20261115/visual-author/desktop-isolated-native-slash.png",
+    "../caravan-rework-20261115/visual-author/desktop-open.png",
+    "../caravan-rework-20261115/visual-author/fixture.log",
+    "../caravan-rework-20261115/visual-author/fixture.mjs",
+    "../caravan-rework-20261115/visual-author/iteration-original/cleanup-independent.json",
+    "../caravan-rework-20261115/visual-author/iteration-original/desktop-fallback.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/desktop-guarded.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/desktop-isolated-native-slash.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/desktop-open.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/fixture.log",
+    "../caravan-rework-20261115/visual-author/iteration-original/mobile-fallback.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/mobile-guarded.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/mobile-isolated-native-slash.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/mobile-open.png",
+    "../caravan-rework-20261115/visual-author/iteration-original/result.json",
+    "../caravan-rework-20261115/visual-author/iteration-original/server.log",
+    "../caravan-rework-20261115/visual-author/iteration-original/source.json",
+    "../caravan-rework-20261115/visual-author/mobile-fallback.png",
+    "../caravan-rework-20261115/visual-author/mobile-guarded.png",
+    "../caravan-rework-20261115/visual-author/mobile-isolated-native-slash.png",
+    "../caravan-rework-20261115/visual-author/mobile-open.png",
+    "../caravan-rework-20261115/visual-author/result.json",
+    "../caravan-rework-20261115/visual-author/server.log",
+    "../caravan-rework-20261115/visual-author/source.json",
+    "../caravan-rework-20261115/visual-author/verification.json",
+    "../caravan-rework-20261115/visual-investigation/REPORT.md",
+    "../caravan-rework-20261115/visual-investigation/cleanup-independent.json",
+    "../caravan-rework-20261115/visual-investigation/fixture.mjs",
+    "../caravan-rework-20261115/visual-investigation/native-caravan-and-blade.png",
+    "../caravan-rework-20261115/visual-investigation/result.json",
+    "../caravan-rework-20261115/visual-investigation/server.log",
+    "../caravan-rework-20261115/visual-investigation/source.json"
+  ],
+  "primaryBytesPreserved": true,
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "qaScreenshotsIncluded": true,
+  "excludedFileKinds": {},
+  "sourceReconstruction": "Use the public Git commit recorded by each source manifest; output-only source variants are included. Binary source assets, original source .tar duplicates and node_modules are omitted. Isolated QA PNG screenshots are included only with the explicit opt-in flag.",
+  "files": [
+    {
+      "path": "caravan-rework-20261115/REPORT.md",
+      "bytes": 15012,
+      "sha256": "e0e0dbf213eb8864054cdc5c35b0f5b09f4988fb28a202fb10ca145db1ff2269"
+    },
+    {
+      "path": "caravan-rework-20261115/asset/generation-report.md",
+      "bytes": 5665,
+      "sha256": "ddb50136d42622bcef20369ecfa0d9773ff7d7a0a191301d790ca9c0444a500a"
+    },
+    {
+      "path": "caravan-rework-20261115/asset/initial-worktree-generation-report.md",
+      "bytes": 4013,
+      "sha256": "957726fc1251186d8761909bcdaa21bd7a95b18f03608f7333c77dc4149a4c76"
+    },
+    {
+      "path": "caravan-rework-20261115/asset/original-caravan.png",
+      "bytes": 1385599,
+      "sha256": "df88e36c71fa8090688aa52f6070adaad7465b37e8ec801d5b1fd1f5f3dda183"
+    },
+    {
+      "path": "caravan-rework-20261115/asset/prepare-runtime.mjs",
+      "bytes": 3274,
+      "sha256": "425d401ac585f87e49e61cad359563a913dee78b0565eea9804e82b515419ee3"
+    },
+    {
+      "path": "caravan-rework-20261115/asset/runtime-export.json",
+      "bytes": 1049,
+      "sha256": "e8228f656c6eee4891dbf6238a4a584714a1126b3a3457cd1db405ef62731306"
+    },
+    {
+      "path": "caravan-rework-20261115/balance-critique/REPORT.md",
+      "bytes": 15138,
+      "sha256": "dbe5565ef714b34df11a0b4723ebb6e3b2378dbd4aab29fecc5caea3ffd1b04f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/final-proof.json",
+      "bytes": 550,
+      "sha256": "919a87411023aee42144374bc91e78f65b79d30c73f6120b131059a49383d536"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/caravan-reward-test.log",
+      "bytes": 811,
+      "sha256": "108edae1324af6c8beafae05f1fadfc259ae9215fabc62b92c63c9ca175cdd88"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/caravan-threat-test.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/checkout-commit.json",
+      "bytes": 2873,
+      "sha256": "a7b49188737d3987e4d86b9eacf15f178f8e6827a3ccbd2851869fb4f22bbf06"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/contact-order-test.log",
+      "bytes": 1462,
+      "sha256": "2f077f0d49644502e532476c8821d3020f9b7fe5c1bcde344498f3fe93907352"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/control-boundaries-test.log",
+      "bytes": 743,
+      "sha256": "8dd2d4f45b08b24d404b578156d87c5ebaf4e9050c54c0fa0ae488d5419a9c55"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/control-contact-phase-test.log",
+      "bytes": 1907,
+      "sha256": "a8d1fc28417ea3fa54dd1def904da4c6f8f657a4ed14e9ee09dcc8cc2bd1e164"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/control-delivery-test.log",
+      "bytes": 768,
+      "sha256": "4ff15d68ec99dbe7f1ebd0b9cf682631228e41114fc2294595268b1014f28621"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/control-separation-test.log",
+      "bytes": 667,
+      "sha256": "c93aab4b5fb6699d951d1509205cdc6936664725cf96523253337c7c2b7fcc0c"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/control-shield-turn-test.log",
+      "bytes": 316,
+      "sha256": "19b5b37bf9e453dc1db310f0b56800fdc3c63441a95de91aafbe7357bdc2c8ba"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-armor-test.log",
+      "bytes": 1814,
+      "sha256": "19ecd70d67640257cd6a27f2c1d2cae6831939bc43c85125adc7c0da5160d1ae"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-client-test.log",
+      "bytes": 94,
+      "sha256": "e88c86e548615adf55cefaf750c3e1324dedc9e88a16cd23a89827877890aac8"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-fusion-test.log",
+      "bytes": 1168,
+      "sha256": "8663a0a9e46de91ba9eb977f4057d335346b7adeb8b030d65353600089c80e67"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-glass-test.log",
+      "bytes": 2061,
+      "sha256": "33f3d25095054727e638fa6600a59c7f9f424a453a5d9ba70571e3a937f44438"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-horde-test.log",
+      "bytes": 439,
+      "sha256": "80aaa4170148ba7bd7f475d074ef8e848ff66c9c747b398e560cb1e31a2b763b"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-legacy-http-test.log",
+      "bytes": 352,
+      "sha256": "ffdbd3e0532f189882d3603c2ed079b2da094129df81447b1c2987733cb2a362"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-review-test.log",
+      "bytes": 870,
+      "sha256": "5294dcdfc3b1dfd1e9fcddff5baf23f59f3699f64c1f1345435c6eac4b35d3a5"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-support-test.log",
+      "bytes": 415,
+      "sha256": "399f126d00116b37976618bf78a613f84ed3b79d2acc9da3b6dd0a8661860bc0"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-swarm-test.log",
+      "bytes": 1503,
+      "sha256": "ace7f2f88bc49e4fd6092e4dfbb8fde2c7583a90d43386a3e234955587c8c0a9"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/daily-test.log",
+      "bytes": 929,
+      "sha256": "87fa39a94c01db4589a57ce2090ba484ba5b261bc3f7b7d25a1b52607143115e"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/deploy-vibecode-test.log",
+      "bytes": 2067,
+      "sha256": "e8fe2a23e878d822827ad800484cff2f896ce577d215066a15f4213a7c72fc75"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/display-test.log",
+      "bytes": 627,
+      "sha256": "f54d419a8b539f32798b11c36995f56a1d50e77a863723eb9a6c5b34a63ab63a"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/feedback-test.log",
+      "bytes": 327,
+      "sha256": "24cebef81d178df15a39584c5332c63e48b8e793f00dd4808d41e6b90643ced4"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/finale-test.log",
+      "bytes": 403,
+      "sha256": "ebd48ee8af1bc83f66f51afba6031234b56861cb2f4c4d43d5f4ba37ecfb78b4"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/flash-support-test.log",
+      "bytes": 662,
+      "sha256": "3cc2c2a7616ec261defcebb4862c71a70c05b6647895244d0d9961a88db5caa6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/forge-log-test.log",
+      "bytes": 573,
+      "sha256": "e999f53e423a8a49919133a22a41a1bcaa4b13afc2032475a66a76e24d378d8d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-effect-source-test.log",
+      "bytes": 291,
+      "sha256": "4f1a20e4c4d707337b8015db7a2ca01d4f37b18a509de0e2cdc661d0a15442bc"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-focus-test.log",
+      "bytes": 80,
+      "sha256": "ac9f3f97fa5f2d3548b7cbd240ac804f0ebab1cb900916b8447bb319094b71ea"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-inheritance-test.log",
+      "bytes": 91,
+      "sha256": "dc437b121542919f9e1c3309bd0950a6e98e9098be51ead280ba58ef2117117f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-key-recovery-test.log",
+      "bytes": 214,
+      "sha256": "e9dc43e654b9d57156a8ad6961520f797a9488160ef3a2e174cfb30b514b9f62"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-shield-state-test.log",
+      "bytes": 497,
+      "sha256": "77928f2ea8fa3416e37b0145c05b5c39475960bac970d0e57be80cd52e78f8fe"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/fusion-signature-test.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-client-test.log",
+      "bytes": 1175,
+      "sha256": "97bf10c93ba974a278a8cb7cf983559f590da2365ae59354f17037a285840c43"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-client-transport-test.log",
+      "bytes": 1388,
+      "sha256": "aaa6a5ff61f75fcb0276e8b4ac6125315310947496a21b572525f7fe77a07e14"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-combat-test.log",
+      "bytes": 2657,
+      "sha256": "97a00a8f394ae06fd3984cb34ca6552ddb4e4464821250af7e48d7c8c2fcabec"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-compatibility-test.log",
+      "bytes": 568,
+      "sha256": "f1538273de6e02616ef126991b71802bb56f342d72c5ed10300ec68ff64dd15a"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-mode-test.log",
+      "bytes": 1929,
+      "sha256": "2a414abf7ac05390c7553eb22bac434de032c1216b7759630007799cb8eb8f0f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-movement-gap-test.log",
+      "bytes": 593,
+      "sha256": "6672ca0e826d76a8ffbf1a5569fe4e0c2a7171f06718fc1c3a682c6364463f6a"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-resync-test.log",
+      "bytes": 1071,
+      "sha256": "77080a43487c360f346dc2612666a8c63a3df731493952053212efb7b93070c2"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-review-game-test.log",
+      "bytes": 979,
+      "sha256": "480399f53a8694cf1ca09e1b1a91c18e2acbb5539d68606ed8b474ff81c39cdd"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-round-test.log",
+      "bytes": 422,
+      "sha256": "bc64e1c9257caff50b63413ddc0be66e8b5f0eecd77ff46423156c4b29698475"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-sniper-origin-test.log",
+      "bytes": 726,
+      "sha256": "e20e29f301a4a669af1156301847b4ffb0cba6b4b5f3c2f45a0bfcab152dc4f6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/horde-transport-test.log",
+      "bytes": 237,
+      "sha256": "e26b9b54f27a3b2dbd904ea6fa120e59a60d2ce62a15d6c5f9ff1bfa2c665231"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-client-test.log",
+      "bytes": 1185,
+      "sha256": "5cc6e8cf1bf9cbc102b2a818cc0e072857509351ba17e11ec66fda3e8feef5bb"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "6a0a8b2c0cc2a3b64029bd40a408fdcd134a96635025295bf607f25fd1f9882a"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/lobby-invites-test.log",
+      "bytes": 1954,
+      "sha256": "a4363434639f64610729d7179fdb161b30b19ca40a8f575c10375a360722d7d0"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-body-birth-test.log",
+      "bytes": 1110,
+      "sha256": "87943f6761d17aae0c0c763e5b857a9b19b6f8ea7d616e5184cb198af2cb7fcb"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-body-clock-test.log",
+      "bytes": 329,
+      "sha256": "d9adda64c3ac82d71b556c4406d9098d815e7f58858c932d1baad258d47f0736"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-client-test.log",
+      "bytes": 1713,
+      "sha256": "133b3926c911ec239bbee1be48422e0ecf1c93b179ba7d876df474a0e3e3592d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-contact-test.log",
+      "bytes": 1320,
+      "sha256": "f071cf958b83cd7e94e9e6376f818c836a43078e8952a37678bc48470ec05a70"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-coop-review-test.log",
+      "bytes": 415,
+      "sha256": "5c064124c9caf3e34148c0a36c6005d4c18b916448806ba63711d0ed5985a859"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-coop-scope-test.log",
+      "bytes": 791,
+      "sha256": "26daf93da57b226d02460c2cb1a562a0fa1f9c326d124ac92051b655f07b7774"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-expiry-test.log",
+      "bytes": 891,
+      "sha256": "c30931ddb296d8fd307b0d772d288c71924897577b89ed6d4d7f87e2c23e53ec"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-fusion-integration-test.log",
+      "bytes": 283,
+      "sha256": "c613e27fab1d7a3da9d1a746ee7cb42ec21a938da7c1b69dbff74bb542538837"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-guard-requeue-test.log",
+      "bytes": 302,
+      "sha256": "bbedd2cbba4162b0a505415bd2a622e5358777d21bced514b55d95716c40714c"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-horde-integration-test.log",
+      "bytes": 687,
+      "sha256": "50f810b61bc84cec7ff7357a1d02e81f6fb5ad178dbbfaa3d4f41d77d3285f84"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-main45-integration-test.log",
+      "bytes": 6442,
+      "sha256": "9c8ecda0eddbb2e9c2fd81d82a9c91b014c94cac6d661bc538e8b332b770e7f3"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-numeric-zero-test.log",
+      "bytes": 1263,
+      "sha256": "2c354b3ecf85aeb5f13c8a25e80cc4eee88388627645eeec1b774cd4376465c4"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-projectile-boundary-test.log",
+      "bytes": 2072,
+      "sha256": "99ac413157c13a1fda2a87ef95b26f483f2a03b3318108283e27235e90ec628e"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-request-test.log",
+      "bytes": 323,
+      "sha256": "2359623b47b26afb4a5fcd2ecc8dd9612d62441f3966565201e9dc052bfd61a5"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-ring-projection-test.log",
+      "bytes": 2457,
+      "sha256": "34cceba654e1c688309cb70de7b5467e8761346593594fad0d6d4b3cb6320816"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-ring-review-test.log",
+      "bytes": 904,
+      "sha256": "9cd9e22f5f71ac98c78d07eb07f301d20d2ea16c4703257121d205e4f41e557f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-support-integration-test.log",
+      "bytes": 1350,
+      "sha256": "a6dd619e817da5633ec151614969ed31506b7f8d52a083d9fe87093ffd9b875e"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-target-review-test.log",
+      "bytes": 959,
+      "sha256": "1417aa854255b61b5425195487a84b6e1afc90a361347e0b9ebd1ea0d68ba4b7"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-test.log",
+      "bytes": 89,
+      "sha256": "6df11ab6f0ce077809d5185d9b0ab888d3bea7c6f71f08f498e2fee3761cd492"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-time-test.log",
+      "bytes": 1628,
+      "sha256": "08334a591ce64e771e989ee02aaf9f763aaa63bea74f04692185cc859a0b9c5f"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mobility-zero-body-test.log",
+      "bytes": 1935,
+      "sha256": "e990d6cd02658c70aeab2548db6f52da0a5e5e07abacf91a2b6aa19d0f98d31b"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/movement-client-test.log",
+      "bytes": 821,
+      "sha256": "8b3dac9b80c5160d2bf93593dcf2c89b8deee5e3b97162d6bd1de7101513af32"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/movement-net-test.log",
+      "bytes": 220,
+      "sha256": "a4cce86a85f56a7ef7522f2b7ef259101f16118f6b28760a33a1efa58c445576"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/mr1-review-test.log",
+      "bytes": 826,
+      "sha256": "219a83a03744f5b9d346088143cfbc0c9a7921ac88468cb9ba1dbb07b3d6f93c"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/offer-identity-test.log",
+      "bytes": 335,
+      "sha256": "3243c313cdb743147dd555dc925fdb3743d3f92d1550090e1ac35198f4509017"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/offer-refresh-client-test.log",
+      "bytes": 673,
+      "sha256": "a259490ed4549eba97752d727f7b46e732e82c718d97f812561b66d9bfa795b1"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-duo-offer-test.log",
+      "bytes": 1041,
+      "sha256": "051f8cb812be5ddc7647bf461ff1ded2f3513c41d81b8005371660e1a62f1512"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/projectile-expiry-test.log",
+      "bytes": 475,
+      "sha256": "74403f114b3db6f75acfe830100cc83bc80bf348093624efde8f91120ff0b314"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/reaction-support-test.log",
+      "bytes": 751,
+      "sha256": "e0584a0a0f37a505d642c4520e1deeeddcaa30109a390d001074c37c2d1ae863"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/results-test.log",
+      "bytes": 225,
+      "sha256": "06b842251555bf06ce8b1fa21fc0a83c7ff433505ea36751871abe8057664521"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/results.json",
+      "bytes": 11798,
+      "sha256": "3fda5415e4b70729f6607c775d90b9bf4df54e1b033fc3e2b561dcd1d38cc7e2"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/revisions.txt",
+      "bytes": 166,
+      "sha256": "2902fdb1b50563ba8dadfb1a02cb109a00c1d47d4268026c3ba19b4d7773a386"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/run-history-test.log",
+      "bytes": 680,
+      "sha256": "52b04145c743f1382fabe5f8309196fa758c7f6d37c94ad3be4acb7973d3f1ce"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/run-metadata.json",
+      "bytes": 4166,
+      "sha256": "6266fd09fa58d25d256252cdb4914e42b71b737ae4b2520081c823d494568ed2"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/sim-runner-test.log",
+      "bytes": 895,
+      "sha256": "0c6ab7afee61ab89c4ca1bf82d3b65095a77f2839ee709ddd2fee6d04646793e"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/sim-test.log",
+      "bytes": 7358,
+      "sha256": "e233887667599b3a39f294718aea049e25263337f5c1c53f157e3df9cbf748fd"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/slash-corner-test.log",
+      "bytes": 1495,
+      "sha256": "a6d4a7f660a65f714c87934ba48d1bd8acec75a008e55a15e25d8f98ede2cdad"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/sniper-lowfps-warning-test.log",
+      "bytes": 570,
+      "sha256": "96a10737a26713b762dad3afebec357870c356cab33ecbae6c20e6fcb9fb5613"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/solo-night-pressure-test.log",
+      "bytes": 505,
+      "sha256": "5897195d54abcf546144b89c582f6534787df3b1ae3331ff054541f8f91c2dd6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-client-test.log",
+      "bytes": 493,
+      "sha256": "17a291acbc0f323bca295641f5ccd7c4b6c7763dbc3a118da223783349a89c46"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-contact-time-test.log",
+      "bytes": 1064,
+      "sha256": "3f6bc46da32ff8444ca9807e1b5f5e91fd6e2e5f42a4414af70564b422193818"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-control-state-test.log",
+      "bytes": 461,
+      "sha256": "81ca71978e31c4ffe90bc7d10d4b6dd45616d73a7597d4a783a46bb62fb6ac47"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-fusion-test.log",
+      "bytes": 801,
+      "sha256": "1a5ee2a2d57217a3d80f4a182f7cff867a72f55d06e929034efb8d6d2f051ebf"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-gift-chain-test.log",
+      "bytes": 4316,
+      "sha256": "75cd39444894d2f2f8d090b8722b2919febd28c5368b751d607cf276f4d26fb4"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-gift-state-test.log",
+      "bytes": 687,
+      "sha256": "d2b150dd67a16c5b2ac02571fc9fd252e4cefe2e741c384ec6e0571f34bbd5cc"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-horde-test.log",
+      "bytes": 476,
+      "sha256": "6b62d3f07e547aa3fe2ab2ecd7cbff0581da4adb3ef6553f69c87a8f8442e73a"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-mark-attacker-test.log",
+      "bytes": 193,
+      "sha256": "7f551c832723b3a189212587884c9c0d08011c052db51557f12be476bf67a050"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/support-test.log",
+      "bytes": 80,
+      "sha256": "a7e74fb048a5bd9d73ec52429b5af4464de0dcc026fe3ddb11a00b5e05db0be0"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/v29-test.log",
+      "bytes": 125,
+      "sha256": "1caa1d73e852ae92340821be12db0e4cc36d41210a508d49a643fa1f60271194"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "caravan-rework-20261115/ci/pr77-5494ed8/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/caravan-placement.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/caravan-reward.log",
+      "bytes": 811,
+      "sha256": "a6c229559556c5b951c50855318aa8e9638b3af267011cf1d96926c680eab817"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/caravan-threat.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/caravans-client.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/caravans.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/codec.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/control-contact-phase.log",
+      "bytes": 1897,
+      "sha256": "8d792fc45b7c00659c5cc04dee10b0f206fafaf430cd27729557867f2b45031c"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/control-separation.log",
+      "bytes": 662,
+      "sha256": "e983691804a5ab805d3a408e79e659e1679e224f54ae64341e344e91166ff53b"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/daily-fusion.log",
+      "bytes": 1165,
+      "sha256": "2d498a78b919ac8ff48940c6d62833c64a34412d5f7ce920f923d3ceab724bff"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/daily-support.log",
+      "bytes": 412,
+      "sha256": "2bace874da5447928b3ed1a3ea82b6bc7eb22c5a419f350f6796a376af98edd9"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/finale.log",
+      "bytes": 403,
+      "sha256": "1f59c4bf045e57c42bdc0b3e777dda12ee8b46a81e2b8cd6162f34fc94fa2dfd"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/horde-compatibility.log",
+      "bytes": 569,
+      "sha256": "f98f54203cfdba8c409190d884baba32677a17df95d829a802cc63d35233d7a3"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/horde-transport.log",
+      "bytes": 237,
+      "sha256": "3663d9dc86b85e7d369392a59aaa4ac4bafe4b8320c2af7740272d6547ee586c"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/mobility-body-clock.log",
+      "bytes": 328,
+      "sha256": "51dee49034c1dbe7dda7b480386db44607e9c37ec2c57cfef2ed94e2bed5013d"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/mobility-fusion-integration.log",
+      "bytes": 281,
+      "sha256": "85d4a3315c4ab5c2aca492db1f8c78ab38f7cef38ead0574ae1928c1227f998b"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/mobility-guard-requeue.log",
+      "bytes": 300,
+      "sha256": "92f8ce5f540840fc591c401dfc7f47b1a67ece49825aaaffe572f1be33210663"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/mobility-numeric-zero.log",
+      "bytes": 1259,
+      "sha256": "57c5fca7ae34fc01d82e21fa12732cf98fa27e8d47d29f922912a198bfdc77d3"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/mobility-support-integration.log",
+      "bytes": 1352,
+      "sha256": "3cf1aab1730270898fd72099275b61e518901651814cf2605d63ba5eb9f123c7"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/offer-identity.log",
+      "bytes": 335,
+      "sha256": "3243c313cdb743147dd555dc925fdb3743d3f92d1550090e1ac35198f4509017"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/results.json",
+      "bytes": 8949,
+      "sha256": "7f1a62763986f24f6500f3ad7a5971c2b7bee9be6a3b53dd8b77d45be3e5d032"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/sniper-lowfps-warning.log",
+      "bytes": 570,
+      "sha256": "96a10737a26713b762dad3afebec357870c356cab33ecbae6c20e6fcb9fb5613"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/support-contact-time.log",
+      "bytes": 1063,
+      "sha256": "86727a4de3bfb3630d4f7d3c6b61a3ef7d80fc1571dd49017f7174ed27a5e590"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/support-fusion.log",
+      "bytes": 797,
+      "sha256": "a196d32ed26dd554ceb873ce98ed7c6bb8860988885841a12ee4465efd23b542"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/v20.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "caravan-rework-20261115/final-main-check/v22.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/REPORT.md",
+      "bytes": 10633,
+      "sha256": "9f395f2d2d98b866e7f9978b0740754bdc292adda43554b2e38cbb59e68442bd"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/baseline-duoOpenOfferFullPool.json",
+      "bytes": 32187,
+      "sha256": "7d92efadd6055f3169d7d88ef0f159eaf6d189e1dd71610da4e5f680292397af"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/baseline-eightSplitLoad.json",
+      "bytes": 22023,
+      "sha256": "7ef772c326db410a790dcb54c27f35aa67e4d1d8215c6c9e5074d543e740dcb8"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/baseline-notes.md",
+      "bytes": 2356,
+      "sha256": "1dc23872429c6425916fa6b877a3b95384ad506dca240a0f52a3e3059b8bfb1a"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/baseline-soloLunch.json",
+      "bytes": 5442,
+      "sha256": "867d8939bec598a5a303d4c80ee5dd53c6c32cd9a04430482c370ee22492bc10"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/baseline-soloNight.json",
+      "bytes": 5716,
+      "sha256": "794c4650e2d74428961d84f4cb7b9493eb9f07d34e697981001e2b68cda53c9b"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/candidate-duoOpenOfferFullPool.json",
+      "bytes": 37791,
+      "sha256": "bd48de9717b04e87b48dddfb8102b5666510e10bdb670d6798f823ce6ddc79d8"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/candidate-eightSplitLoad.json",
+      "bytes": 22525,
+      "sha256": "226951d8c5cdab4a343207fa1c478e46071ddc89ea0fca632ecdbd0fcd2bcc79"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/candidate-soloLunch.json",
+      "bytes": 5453,
+      "sha256": "335dc127c7ae2712a8c77881bd157ba6b3d620d39a5ea344535ce4ede68c115b"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/candidate-soloNight.json",
+      "bytes": 5809,
+      "sha256": "ad7bf711485d95aee64134b2c18803ec5c6f2ec2798441e859855852554129d9"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/cleanup-independent.json",
+      "bytes": 486,
+      "sha256": "ba8c8fe383ca717f771ecf462fcd02762c59b4e6cca8b2f4564df67479fb8caa"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/comparison.json",
+      "bytes": 2626,
+      "sha256": "319962d5c63f4bd4011f95d86742e460e4df2cc0251acfbdd849bd9af6db306e"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-caravan-reward-test.js.log",
+      "bytes": 812,
+      "sha256": "5c7b6e29758ae92729d3a3495188bcda89b7d965e41a87b3d712b33685d51396"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-caravan-threat-test.js.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-caravans-client-test.js.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-caravans-test.js.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-slash-corner-test.js.log",
+      "bytes": 1492,
+      "sha256": "cfe0f18d1b1f8abbd264cafa9c775e9b7e6aabf8caf9ce19883e77a6da63f484"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/final-targeted-tests.json",
+      "bytes": 445,
+      "sha256": "b7f31a58649915e48904d71be6414d6f84e9c3c0f4835e5ac765a62db7d29465"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/mobile-fallback.png",
+      "bytes": 67270,
+      "sha256": "2d069af4fc0c136deb8b82985a5d204d37a60788a8fea05755656df625b2c719"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/mobile-guarded.png",
+      "bytes": 291074,
+      "sha256": "032098a91fc7512cb0e7d93076a5a809b78b49eec7ed2d571c29c91f52225a6a"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/mobile-isolated-native-slash.png",
+      "bytes": 3337,
+      "sha256": "76b9c2faf2c74859d393a642a2490a4b11d832f778a299b94dfd2dc9cec5896c"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/mobile-open.png",
+      "bytes": 264834,
+      "sha256": "8af0a5e50eb8fc0169a930f9c10df48cb7158c5c4d8ddab4f2a1c6c9fe87d04b"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/native-event.mjs",
+      "bytes": 10578,
+      "sha256": "f4fa79e2a369a52e5b99952afb76c09bb6a42d53f61187c9af1efe4d2e4b1780"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/protocol.json",
+      "bytes": 5199,
+      "sha256": "401aff43adc9c6ed0868d26c88a2c7ea5c027bb19f4fbe46cd490a424d54cff5"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/result.json",
+      "bytes": 18636,
+      "sha256": "1df5e281ab5c1799a5c0cbbeb8cbf6d77cef605f3f0b697fb4e8469c4ccb975f"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/server.log",
+      "bytes": 77,
+      "sha256": "d3a9dae547daa580d530c09fa784687ba8df7a6619f4348da12f09dcb530ca4d"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/source-integrity.json",
+      "bytes": 23279,
+      "sha256": "a667272161645f9422a167978697620dae8fce81d35a3f2ac14621543c966ee2"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/visual-command.log",
+      "bytes": 134,
+      "sha256": "fac4a5e00372fcfae88aef9e93703ce5e732af26b11aacef5867fd5c1a92d89e"
+    },
+    {
+      "path": "caravan-rework-20261115/independent-review/visual-fixture.mjs",
+      "bytes": 9732,
+      "sha256": "bdca9d7f16ea4fb6d349d45944820c633b7e518c2768102e53349be2831029fc"
+    },
+    {
+      "path": "caravan-rework-20261115/issue.md",
+      "bytes": 3506,
+      "sha256": "10d3136c260b298df67eff9f97a7145093728b024378c5b8b0e7b3d36c4e9a3c"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/caravan-placement.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/caravan-reward.log",
+      "bytes": 810,
+      "sha256": "baad3fbe7f695b7f4307e7c539769deb112a962ffb57094733a6b3716dab01e2"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/caravan-threat.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/caravans-client.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/caravans.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/codec.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/control-separation.log",
+      "bytes": 667,
+      "sha256": "0a384b69b564f43125603aa3f3c6de1730c0ea7de41cf8042a0076248d60b9b3"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/daily-fusion.log",
+      "bytes": 1160,
+      "sha256": "9c51774ac440d704b5fd583299401bccd92cb211dbcaac289b1363a2243b2cf0"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/daily-support.log",
+      "bytes": 411,
+      "sha256": "62e64d96345cb532cbf3e55f5107a6f4a04e753e195c5d0251846394e5006fbf"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/finale.log",
+      "bytes": 403,
+      "sha256": "48fcd23436ee10c05197ea4edc57ae7c387d0cd940f8135c5a8f17edb57198e8"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/fortune-forge.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/horde-compatibility.log",
+      "bytes": 566,
+      "sha256": "cd0672555071d673bd9a3d4dd8680eb8dbb22f423839a1e365cee5848fe8b015"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/horde-transport.log",
+      "bytes": 234,
+      "sha256": "74e7dde5f224f7986ccbaceeee0e2060111fb1cd67d42ae148c34dc4fcaaae37"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/offer-identity.log",
+      "bytes": 332,
+      "sha256": "4f6daf70064b73460718dff3fd998aeea22ead0c449958da48bc4d39e9ca669e"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/results.json",
+      "bytes": 7367,
+      "sha256": "ebd13c7a61bab83c76440da558de7a2b0d46485eeff23d8daf2d5d231d56ad6d"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/sniper-lowfps-warning.log",
+      "bytes": 567,
+      "sha256": "45387eb43796ff41b6543446946e17d39f008587ccc0a8d25e9eb777f9b815cf"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/support-contact-time.log",
+      "bytes": 1063,
+      "sha256": "ed7bbbb1a30a3de2bdb31fb01f64659d916540d0de19b49485f66437d8d60bc7"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/support-fusion.log",
+      "bytes": 797,
+      "sha256": "fb52d5d5e8ab7d1a14791bafe5f7297d8472c1ce6a13a7ef83326d5abbe1fbe3"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/support-gift-state.log",
+      "bytes": 684,
+      "sha256": "b2f200911af9b38ab726fb489bfb2ffa8d69211b95fd8d468d33c344c46fbf9f"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/v20.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "caravan-rework-20261115/main59-check/v22.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "caravan-rework-20261115/prerequisite-pr-state.json",
+      "bytes": 445,
+      "sha256": "a83e0922c38c8284efc269741288cdfe8f89bcaca96db9624150228e64a7b3ba"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/REPORT.md",
+      "bytes": 3182,
+      "sha256": "37fd4f40186f46de8db056aa45f48f209e99ae41805df21fe99bf99df080c256"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/artifact-hashes.json",
+      "bytes": 528,
+      "sha256": "213cc41bad4d18a0b4a4200d725165e0470f94a3e3848d0009c3b4fa47292dca"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/cleanup-independent.json",
+      "bytes": 146,
+      "sha256": "dc151a930644c07c91e9c92c409db870fa53164c7fe16cc5fbcfb6b67c32d911"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/desktop-legendary.png",
+      "bytes": 692588,
+      "sha256": "b2a1c6d6304524c629395450ab483f2f1c5070de64620d465bdcf68721753c3e"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/fixture-first-attempt.json",
+      "bytes": 4043,
+      "sha256": "9ea2ab97f3abb9a5040acf7b485f0ca40e0e51328981f06b6980b25aa892d57d"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/fixture-first-attempt.log",
+      "bytes": 478,
+      "sha256": "7dc859415dc657b60431dc0d86f800edb0b553268187e0541635136d9fdbdd79"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/fixture.log",
+      "bytes": 133,
+      "sha256": "515742a323c728ace07fbc3ea9dc8b5fb9599d30a7891d311a47101c31d97028"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/fixture.mjs",
+      "bytes": 10498,
+      "sha256": "870d9ec20b11848864dd8de247f9ab1bfd51a85f5dac32c5cf612036ef716c2a"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/mobile-fallback.png",
+      "bytes": 258008,
+      "sha256": "f8fd36a445315e047fba4cfb188000e4c9b21dc3294b587de8d9f53780411a1b"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/result.json",
+      "bytes": 6810,
+      "sha256": "6e75a9c7b54965e9bae82042c5e93b9292c03633e08d8a758f30c6015e8fc170"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/server.log",
+      "bytes": 77,
+      "sha256": "5b6d0d2067882bdb9b94f34d748a91e90af478cc556019649126ea3407018d0d"
+    },
+    {
+      "path": "caravan-rework-20261115/reward-browser/source.json",
+      "bytes": 797,
+      "sha256": "ac38355a7a757149ed9c296bbbaf7f8b2a1d31e97fc4328bbf49676bd7324d05"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/REPORT.md",
+      "bytes": 17041,
+      "sha256": "1901cd3d2e6095a3890a3dcbe38b36f1af138b5029c12bafb08d01da429be950"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/baseline-red-caravan-reward-test.js.log",
+      "bytes": 6117,
+      "sha256": "0b8e211cbe03e0f1cfadcf6cef0105af7b2d8ac2d422c57ae805aee6b611f144"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/baseline-red-caravan-threat-test.js.log",
+      "bytes": 1004,
+      "sha256": "41a076a756be90371b803335a15b5872490caa182cc4f8514803c966308c6126"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/baseline-red.json",
+      "bytes": 215,
+      "sha256": "4f015997a76629565fac9975e7010d3d17aee1592ab5d059079d7707ed77103c"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/cleanup.json",
+      "bytes": 705,
+      "sha256": "fd494dd990a9675c68096c1ab9a87912110316ffd3d6344b93d9182ed40b7b88"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/diagnostic-replay-comparison.json",
+      "bytes": 687,
+      "sha256": "bf05042886230180d066ee98fbc3fae93ad53a0462dc01b0e3f61220847f871d"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/initial-diagnostic-unknown.json",
+      "bytes": 750,
+      "sha256": "e23fb7ab2c33ac58e76973f30c5fc07f0e5785281a3818948e588c17a3cc626f"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-bench.mjs",
+      "bytes": 12673,
+      "sha256": "45c334a27f254ad7fc5daddcf10d2031257f68c00f38e2bc8276d7888fef9b44"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-final-baseline.json",
+      "bytes": 14609,
+      "sha256": "907f2aebe371e6d01d453dc6eb09446fb33185af356a77736599bae440f3a27e"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-final-baseline.log",
+      "bytes": 387,
+      "sha256": "507b3242ca58a1ab03c9e1264fef9813dc1f80d12e0a0247f70ca57db38cc602"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-final-candidate.json",
+      "bytes": 17946,
+      "sha256": "93806b033b3b54ad6458a474ee90ec38e99387a43be9750631164786a2b31d0b"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-final-candidate.log",
+      "bytes": 401,
+      "sha256": "326ba823af99acde3ecb88895a603d0335482ef474632c57381ea4677cf8786e"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/native-final-exits.json",
+      "bytes": 2545,
+      "sha256": "2f4536a5a08c49226f030c53eba705b18f8d90a1f7a6a7922b9065622a7a2835"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-baseline-eight-split-downed.json",
+      "bytes": 14292,
+      "sha256": "25c9b18c035ef686f26eed4ad8f856258f995a5393aa99389f3f1dafc929aa74"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-baseline-eight-split-downed.log",
+      "bytes": 111,
+      "sha256": "8432277cb426648d7cdfa8a56dbfda4c7ea1953b691f25fd083161bbc4ce7efe"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-baseline-solo-night-melee.json",
+      "bytes": 4002,
+      "sha256": "70452ca7123530136f8748e7f016f1b7705dbe66734047f0919367ab8083756d"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-baseline-solo-night-melee.log",
+      "bytes": 109,
+      "sha256": "d078f1eaef8dc0fdbd6fbb84b25624f149248ae89eb7bef3fc7086824efafe9c"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-eight-split-downed.json",
+      "bytes": 16201,
+      "sha256": "d25c0142e9cf2dbec80c911c900418dbb091b3f84f841d235ea93e31cf7a3ec0"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-eight-split-downed.log",
+      "bytes": 111,
+      "sha256": "7d431f614b11b592cc6a58f53d22a2591434d5456abac6076e46f0f8979dcbe8"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-solo-lunch-position.json",
+      "bytes": 8259,
+      "sha256": "d3458eb103922f7ddfa6a218134f5b54d277f1b5dbd1f59e22e459a50a52d9c1"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-solo-lunch-position.log",
+      "bytes": 103,
+      "sha256": "70ca3e2ff6be83c1db5a2306958316a79aa8c492242e606d95564dac0aefd1c7"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-solo-lunch.json",
+      "bytes": 5554,
+      "sha256": "3a2a3b158c68e9eba0d697ce11d3412ae2514b0fd62af54b02841c9b83f107db"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-candidate-solo-lunch.log",
+      "bytes": 103,
+      "sha256": "70ca3e2ff6be83c1db5a2306958316a79aa8c492242e606d95564dac0aefd1c7"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/replay-lunch-position-exit.json",
+      "bytes": 767,
+      "sha256": "3c5a241cc61cb02c8bdb9d580ad404c1e0eac4b75e0573afeb76fbeca0c66d47"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/caravan-threat-test.js.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/caravans-test.js.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/contact-order-test.js.log",
+      "bytes": 1463,
+      "sha256": "03a2a2cd824c3169ea4023ddf5ce391f3c37b8391c8c855e115669dd53393c6e"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/daily-fusion-test.js.log",
+      "bytes": 1164,
+      "sha256": "c3b4d308db480a00e8096a1c2aa5e07854ac694a9eeac6972c089d7564671e33"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/daily-horde-test.js.log",
+      "bytes": 436,
+      "sha256": "cbe95a858335d8c67c8a27dc88b41ff10fbc36c9ddc0ef64e7aec2ad82cf3936"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/daily-swarm-test.js.log",
+      "bytes": 1507,
+      "sha256": "5c3d2494a9cd92fb1c0ec9d202f0d4085d859726162f36d3927bc10c808d9482"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/daily-test.js.log",
+      "bytes": 930,
+      "sha256": "ca612c59b7fff33df7af34806517b67d32056f006311de664cc0e794477bcbd6"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/horde-combat-test.js.log",
+      "bytes": 2652,
+      "sha256": "513a1e017b99de9e6c03a82191a6ca5f660f62c17a1887bf905a20758aeafeef"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/horde-mode-test.js.log",
+      "bytes": 1930,
+      "sha256": "c72baaaa60f7f63ee75ed5d2a740e1e5fe467d03c92d4e283f2562c02ace289a"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/outpost-cohort-test.js.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/outpost-sniper-test.js.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/outpost-sniper-warning-test.js.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/outpost-spawn-budget-test.js.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage1/results.json",
+      "bytes": 992,
+      "sha256": "f16ecac8422ec6d20d2fb3f80d7305c988d87320dcc7f28ef21b7645cadb73ee"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/caravan-placement-test.js.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/caravan-reward-test.js.log",
+      "bytes": 810,
+      "sha256": "fc9116aaba0887df9654e4fe7fb77bccc9ff487f91f57583cdea58b02bc91922"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/caravan-threat-test.js.log",
+      "bytes": 170,
+      "sha256": "bea3bef89b88fcd315dce5327f002ff4b8ca34d231939a513d5db7dbdd5bffd5"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/caravans-client-test.js.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/caravans-test.js.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/codec-test.js.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/contact-order-test.js.log",
+      "bytes": 1464,
+      "sha256": "2ff869bd84cbe3f0fde8abd742f2411bc191daf64e0647ea987bdf5d6d4d7665"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/daily-fusion-test.js.log",
+      "bytes": 1164,
+      "sha256": "b0e4ef3b54a3d86137f2f285d8ee57102f4c4653847c05e52de554fe34fbd586"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/daily-horde-test.js.log",
+      "bytes": 433,
+      "sha256": "0ff378f58d1373ff2d3dc242c5978f673d36146d25eb8d2503674fdb91ea9436"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/daily-swarm-test.js.log",
+      "bytes": 1504,
+      "sha256": "85ed3b5da56c8e31ea54e29c55120a4aaca3d9753e4659871f754b8c98016d7c"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/daily-test.js.log",
+      "bytes": 931,
+      "sha256": "0b63b169d943fbef7d328ced207c899975ea16086aa2275b83fd6ee9559a2d81"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/forge-log-test.js.log",
+      "bytes": 570,
+      "sha256": "6cb0dab502c65b9a93dd1a659cbae49e407ffc0cd7a54e37142aa52e0dd935d9"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/fortune-forge-test.js.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/horde-combat-test.js.log",
+      "bytes": 2654,
+      "sha256": "a7f7d62f7ab7fa6a6c77badc415945ee133771425f6b4d8fc5eea5ff7ed020cd"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/horde-mode-test.js.log",
+      "bytes": 1927,
+      "sha256": "109dd6dc74b81dcf721f06cc546448b71aa2442dcaf8bdd20a4c23bb3b68aab2"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/outpost-cohort-test.js.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/outpost-duo-offer-test.js.log",
+      "bytes": 1039,
+      "sha256": "bd4f5fed2e1c2919cf608b8424c62ad28d869c0c5c461f994f605a8f68746387"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/outpost-spawn-budget-test.js.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "caravan-rework-20261115/server-author/stage2/results.json",
+      "bytes": 1326,
+      "sha256": "19571627c1555390dbf287e7c6dbfc3b84cbfe21f53f9fe670854d147bb44d50"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/REPORT.md",
+      "bytes": 4425,
+      "sha256": "e5b289e96dc3215697e6eef4dba247d39f7aca309f1797bbfb273cea46b78406"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/cleanup-independent.json",
+      "bytes": 210,
+      "sha256": "586dc3e2eac80562432c872e258443420b43fc7c4c877b62c5b18823bb8cb60b"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/desktop-fallback.png",
+      "bytes": 114516,
+      "sha256": "75bd724027f8ca6f6146d2f4dae7b7c87100a57fdad6b8cfb70d39b25cfd2dd0"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/desktop-guarded.png",
+      "bytes": 739758,
+      "sha256": "74892eb267f29d41fe94af3b828febf9ceb0790c96c3b3417be5487ca8cd2bb1"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/desktop-isolated-native-slash.png",
+      "bytes": 3337,
+      "sha256": "76b9c2faf2c74859d393a642a2490a4b11d832f778a299b94dfd2dc9cec5896c"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/desktop-open.png",
+      "bytes": 693894,
+      "sha256": "6718cca71f194b6d4a808df21975a1af8d568aa8daeee611ee5ce3afc73b8519"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/fixture.log",
+      "bytes": 119,
+      "sha256": "ac3faaa5bac645936ad4cf4eb03819d30521c9a630769cf2cfbaa62025c501e1"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/fixture.mjs",
+      "bytes": 9688,
+      "sha256": "47fab4df8a6a5c5e48f225f8d1012189f10140b109945409994b1c5fea375e81"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/cleanup-independent.json",
+      "bytes": 150,
+      "sha256": "9a1c2de91c607d790e8b4dbd946f528afad7077e0cd2220dfe7a5d227bd79eb6"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/desktop-fallback.png",
+      "bytes": 114467,
+      "sha256": "7c7ec6e10b21023a3d7047d1551fca78508e9453414725e4eacaa2cd81a79eb6"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/desktop-guarded.png",
+      "bytes": 739169,
+      "sha256": "00f3c3fc9966503deda1bae9bb0ac4416c625248192e3a912913d6f45d7277b8"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/desktop-isolated-native-slash.png",
+      "bytes": 3337,
+      "sha256": "76b9c2faf2c74859d393a642a2490a4b11d832f778a299b94dfd2dc9cec5896c"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/desktop-open.png",
+      "bytes": 692148,
+      "sha256": "5717076353315467d54efd27b8bb1aeb494dc882a215d89b20cfbe0cbad6094a"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/fixture.log",
+      "bytes": 119,
+      "sha256": "ac3faaa5bac645936ad4cf4eb03819d30521c9a630769cf2cfbaa62025c501e1"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/mobile-fallback.png",
+      "bytes": 63598,
+      "sha256": "74ec312a3023b3ab74433ce623868f54480fe453e9133090fe11aaae80cc6cf0"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/mobile-guarded.png",
+      "bytes": 273099,
+      "sha256": "d67e609b3aba0fef3519e268bdc86dc755f9ed8650b011247118bc941265efca"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/mobile-isolated-native-slash.png",
+      "bytes": 3337,
+      "sha256": "76b9c2faf2c74859d393a642a2490a4b11d832f778a299b94dfd2dc9cec5896c"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/mobile-open.png",
+      "bytes": 262186,
+      "sha256": "c68604c64eb44d3bd22d867e0fe04966ef4928079f44c55d03ca66c422ca9726"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/result.json",
+      "bytes": 35687,
+      "sha256": "4da35c7acb12742a9091136c95675e841256bd87d46c45ced0501c149226f2c1"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/server.log",
+      "bytes": 77,
+      "sha256": "1c1462e182f656d7a111c8fb1fd9000de02cdfb8fcec96b320485bce4160e221"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/iteration-original/source.json",
+      "bytes": 629,
+      "sha256": "c57fbcca7d51a8a9a1d556e12295270971731d45789289f6477c79677c08b0b0"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/mobile-fallback.png",
+      "bytes": 63683,
+      "sha256": "0844f3ac91d2dda2db16cd651fa4e3e7a076cc0d4769f59ffa85e36a0ea65e9b"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/mobile-guarded.png",
+      "bytes": 273323,
+      "sha256": "d50a9c0559e2f58f58f1331816aeca0101604799658ff0b3a7038908243a63cb"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/mobile-isolated-native-slash.png",
+      "bytes": 3337,
+      "sha256": "76b9c2faf2c74859d393a642a2490a4b11d832f778a299b94dfd2dc9cec5896c"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/mobile-open.png",
+      "bytes": 261904,
+      "sha256": "f430cdcd29ad0a3e9b3070fb0c7b37c8dea20e5417e5dbd84ce9699ccf04b6bc"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/result.json",
+      "bytes": 35694,
+      "sha256": "c4025b61266376b73bfae8848d435442c601b9c2c327235561439ccf86742848"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/server.log",
+      "bytes": 77,
+      "sha256": "ab5a4df089ddd5d07923151bd1064d9180ac9184ca07848049f8d18c49747ff6"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/source.json",
+      "bytes": 626,
+      "sha256": "3b2cba0e53d36f48f01747d0a3faffb7100f407b5d564844b7494f66b8e028c9"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-author/verification.json",
+      "bytes": 771,
+      "sha256": "5b66681f54996616927aea55188bc40629a65e589adcf4a52f5e893dc9a3daaa"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/REPORT.md",
+      "bytes": 4281,
+      "sha256": "e4e45e33ae7105f4f7656deef7f9ba1673d4fb1d19dea5248bc497982c14724f"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/cleanup-independent.json",
+      "bytes": 1007,
+      "sha256": "e8df4367c06fe50f8e342a2b5f5ab593fb9f85ef4608eb13fcb93dcb75746784"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/fixture.mjs",
+      "bytes": 6256,
+      "sha256": "f766852b13df0e9e80c80be350e29ee0736af32387f3f70d32cdbebd6ff28d6c"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/native-caravan-and-blade.png",
+      "bytes": 726440,
+      "sha256": "65e8152cad88ef8f37d992eb5c9236d4eaad72bc21b30c0631b7b8f7f2694ebf"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/result.json",
+      "bytes": 10410,
+      "sha256": "cb556321737cbe98b9e760bbf6421b87993ab6046f1c3ddc8dae42ec891bdcc3"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/server.log",
+      "bytes": 77,
+      "sha256": "077d933456ac87e56423c4a419203a9f27d2246519a3bea15e17fb9df26a82fc"
+    },
+    {
+      "path": "caravan-rework-20261115/visual-investigation/source.json",
+      "bytes": 527,
+      "sha256": "b10701273dfba904fff1cd42de37e4e7c65a86e912ce067986c8aa8ae9452615"
+    }
+  ]
+}
