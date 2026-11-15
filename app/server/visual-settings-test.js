@@ -82,7 +82,7 @@ assert.equal(isTyping({ target: { tagName: 'CANVAS' }, code: 'ArrowRight' }), fa
 // The real browser state module; only its browser-root imports are adapted for Node.
 const url = (p) => JSON.stringify(new URL(p, import.meta.url).href);
 const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8')
-	.replace("'/shared/content.js'", url('../public/shared/content.js'));
+	.replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 
 function play(visual) {

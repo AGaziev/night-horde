@@ -10,6 +10,7 @@ export const KEY_EVERY = 10;
 // pid -> protocol the client announced on connect; absent means the current one (tests, bots).
 export const clientProto = new Map();
 export const isLegacy = (pid) => (clientProto.get(pid) ?? PROTO) < PROTO;
+export const isCompatible = (pid) => (clientProto.get(pid) ?? PROTO) === PROTO;
 
 const FX_ID = new Map(FX_NAMES.map((n, i) => [n, i + 1]));
 const MAX_INT = 2 ** 40;

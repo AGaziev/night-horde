@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { test } from 'node:test';
 import { Room } from './game.js';
 import { HEROES } from '../public/shared/content.js';
-const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8').replace("'/shared/content.js'", JSON.stringify(new URL('../public/shared/content.js', import.meta.url).href));
+const source = fs.readFileSync(new URL('../public/js/game.js', import.meta.url), 'utf8').replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const { Game } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const dt = 1 / 60;
 function fixture() {

@@ -1,17 +1,21 @@
 // Read-only contribution observers. They never advance AI, mutate an actor or draw RNG.
 import {PLAYER_RADIUS} from '../public/shared/content.js';
 import {OUTPOST} from './outposts.js';
-export function projectControlPoint(e,x,y) {
+import {CARAVAN} from './caravans.js';
+import {clampHordePosition} from '../public/shared/horde-content.js';
+export function projectControlPoint(e,x,y,horde=false) {
  if(e.outpost){const p=e.outpost,dx=x-p.x,dy=y-p.y,d=Math.hypot(dx,dy);if(d>OUTPOST.leash){x=p.x+dx/d*OUTPOST.leash;y=p.y+dy/d*OUTPOST.leash;}}
+ if(e.caravan){const p=e.caravan,dx=x-p.x,dy=y-p.y,d=Math.hypot(dx,dy);if(d>CARAVAN.leash){x=p.x+dx/d*CARAVAN.leash;y=p.y+dy/d*CARAVAN.leash;}}
+ if(horde){const p=clampHordePosition(x,y,e.r??PLAYER_RADIUS);x=p.x;y=p.y;}
  return [x,y];
 }
 export const controlPointDiffers=(x,y,p)=>Math.abs(x-p[0])>1e-9||Math.abs(y-p[1])>1e-9;
 export const controlScale=(e,now)=>(e.slowT>now?1-e.slow:1)*(e.dragT>now?1-e.drag:1);
-const moved=(e,x,y,grid,radius,limit)=>{const a=projectControlPoint(e,e.x,e.y),b=grid?projectControlSeparation(grid,e,x,y,radius,limit):projectControlPoint(e,x,y);return b!==null&&controlPointDiffers(a[0],a[1],b);};
+const moved=(e,x,y,grid,radius,limit,horde)=>{const a=projectControlPoint(e,e.x,e.y,horde),b=grid?projectControlSeparation(grid,e,x,y,radius,limit,horde):projectControlPoint(e,x,y,horde);return b!==null&&controlPointDiffers(a[0],a[1],b);};
 
 // A lock can prevent locomotion or an available action. Contact root does not stop
 // ordinary body damage; freeze does. Pending actions are inspected, never replayed.
-export function lockDelivered(e,target,alive,now,dt,speedMul,grid,radius,limit) {
+export function lockDelivered(e,target,alive,now,dt,speedMul,grid,radius,limit,horde=false) {
  // Body prevention is observed in updatePlayers after early projectiles, where
  // actual protection/contact eligibility is known. This observer covers AI only.
  let dx=target.x-e.x,dy=target.y-e.y;const d=Math.hypot(dx,dy)||1;dx/=d;dy/=d;
@@ -39,21 +43,21 @@ export function lockDelivered(e,target,alive,now,dt,speedMul,grid,radius,limit) 
   [dx,dy]=[-dy*side-dx*out,dx*side-dy*out];const l=Math.hypot(dx,dy)||1;dx/=l;dy/=l;maxStep=Infinity;
  }
  if(e.zig){const s=Math.sin(now*5+e.phase)*.9,zx=dx-dy*s,zy=dy+dx*s,l=Math.hypot(zx,zy)||1;dx=zx/l;dy=zy/l;}
- const step=Math.min(speed*dt,maxStep);return moved(e,e.x+dx*step,e.y+dy*step,grid,radius,limit);
+ const step=Math.min(speed*dt,maxStep);return moved(e,e.x+dx*step,e.y+dy*step,grid,radius,limit,horde);
 }
 
 // Read the same bucket order and candidate limit as Grid.query/separation, but
 // project local numbers only. Never touch shared query arrays, actors or caches.
 // A coincident overlap requires an unobserved RNG draw: null means unresolved,
 // not proof of no effect, and is conservatively not credited.
-export function projectControlSeparation(grid,e,x,y,radius,limit) {
+export function projectControlSeparation(grid,e,x,y,radius,limit,horde=false) {
  const x0=Math.floor((x-radius)*grid.inv),x1=Math.floor((x+radius)*grid.inv),y0=Math.floor((y-radius)*grid.inv),y1=Math.floor((y+radius)*grid.inv);
  let checked=0;
  for(let cx=x0;cx<=x1;cx++)for(let cy=y0;cy<=y1;cy++){
   const key=(Math.max(-32000,Math.min(32000,cx))+32768)*65536+(Math.max(-32000,Math.min(32000,cy))+32768);
   const bucket=grid.cells.get(key);if(!bucket)continue;
   for(const o of bucket){
-   if(checked>=limit)return projectControlPoint(e,x,y);
+   if(checked>=limit)return projectControlPoint(e,x,y,horde);
    if(o===e)continue;
    const ox=x-o.x,oy=y-o.y,min=e.r+o.r,dd=ox*ox+oy*oy;
    if(dd>=min*min)continue;
@@ -62,5 +66,5 @@ export function projectControlSeparation(grid,e,x,y,radius,limit) {
    x+=(ox/length)*push*.5;y+=(oy/length)*push*.5;
   }
  }
- return projectControlPoint(e,x,y);
+ return projectControlPoint(e,x,y,horde);
 }

@@ -4,7 +4,7 @@ import { Room } from './game.js';
 import { passiveValue } from '../public/shared/content.js';
 
 const source=fs.readFileSync(new URL('../public/js/game.js',import.meta.url),'utf8')
- .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href));
+ .replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href);
 const {Game}=await import('data:text/javascript;base64,'+Buffer.from(source).toString('base64'));
 const random=Math.random;
 Math.random=()=>0;
@@ -105,7 +105,7 @@ try {
   const old=Object.create(OldNet.prototype);old.emit=()=>emitted++;old.dispatch(welcome);
   assert.equal(reloads,1,'PROTO23 page reloads for epoch-capable server instead of entering a permanent offer rejection loop');
   assert.equal(emitted,0,'outdated welcome is not used to resume the old UI');
-  assert.equal(welcome.v,30,'server and current browser announce the current client-state protocol');
+  assert.equal(welcome.v,32,'server and current browser announce the current client-state protocol');
   storage.clear();
   const previous=Object.create(PreviousNet.prototype);previous.emit=()=>emitted++;previous.dispatch(welcome);
   assert.equal(reloads,2,'PROTO24 page reloads to load movement acknowledgements and bounded prediction');
@@ -120,8 +120,8 @@ try {
   assert.equal(emitted,0,'the previous client contract cannot resume before reload');
   storage.clear();
   const combat29=Object.create(Combat29Net.prototype);combat29.emit=()=>emitted++;combat29.dispatch(welcome);
-  assert.equal(reloads,5,'main PROTO29 reloads before using the updated feature contract');
-  assert.equal(emitted,0,'main client cannot resume an unsupported feature contract');
+  assert.equal(reloads,5,'current main PROTO29 pages reload before entering the updated feature contract');
+  assert.equal(emitted,0,'combat geometry support alone does not imply updated feature support');
   const current=Object.create(Net.prototype);current.emit=()=>emitted++;current.dispatch(welcome);
   assert.equal(reloads,5,'matching current browser is not reloaded');assert.equal(emitted,1);
  } finally {
@@ -136,7 +136,7 @@ try {
 {
  const gameUrl='data:text/javascript;base64,'+Buffer.from(source).toString('base64');
  const uiSource=fs.readFileSync(new URL('../public/js/ui.js',import.meta.url),'utf8')
-  .replace("'/shared/content.js'",JSON.stringify(new URL('../public/shared/content.js',import.meta.url).href))
+  .replaceAll("'/shared/", "'" + new URL('../public/shared/', import.meta.url).href)
   .replace("import { drawHeroPreview } from './render.js';",'')
   .replace("import { sprites } from './sprites.js';",'')
   .replace("import { renderResults } from './results.js';",'')
