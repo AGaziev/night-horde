@@ -11,13 +11,13 @@ for (const mode of ['lunch', 'night']) for (const n of [1, 2, 3, 4, 5, 6, 7, 8])
 	const { r, hs } = setup(n, mode);
 	r.time = r.runLength * CARAVAN.from - .01; updateCaravan(r, hs, 1 / 30); assert.equal(r.caravan, null);
 	r.time += .01; updateCaravan(r, hs, 1 / 30); const c = r.caravan; assert.ok(c);
-	assert.equal(c.total, 12 + 2 * (n - 1));
+	assert.equal(c.total, 32 + 4 * (n - 1));
 	assert.equal(r.enemies.filter(e => e.caravan).length, c.total);
 	assert.equal(r.ordinaryEnemyCount(), 0, 'finite guard budget never replaces ordinary waves');
-	assert.ok(hs.every(h => Math.hypot(h.x - c.ax, h.y - c.ay) >= 1000));
+	assert.ok(hs.every(h => Math.hypot(h.x - c.ax, h.y - c.ay) >= 2200));
 	assert.ok(Math.hypot(c.bx - c.ax, c.by - c.ay) <= 900.001);
 	const e = r.enemies.find(e => e.def === ENEMIES.skel);
-	assert.ok(Math.abs(e.maxHp - ENEMIES.skel.hp * enemyHpScale(r.nt, n) * r.modeHp * 1.35) < 1e-6);
+	assert.ok(Math.abs(e.maxHp - ENEMIES.skel.hp * enemyHpScale(r.nt, n) * r.modeHp * 1.6) < 1e-6);
 	const x = e.x, y = e.y; hs.forEach(h => { h.x = 50000; h.y = 50000; });
 	r.moveEnemies(1, hs); assert.ok(Math.hypot(e.x - x, e.y - y) < 500, 'guards do not teleport after far heroes');
 	r.knock(e, c.x, c.y, 10000); assert.ok(Math.hypot(e.x - c.x, e.y - c.y) <= CARAVAN.leash + 1e-6);

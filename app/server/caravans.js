@@ -1,18 +1,38 @@
 import { enemyHpScale, xpForNext } from '../public/shared/content.js';
 
-export const CARAVAN = Object.freeze({ from: .35, until: .55, speed: 45, route: 900, pursuit: 650, leash: 480, preparation: .8 });
+export const CARAVAN = Object.freeze({
+	from: .35, until: .55, speed: 45, route: 900, pursuit: 720, leash: 520, preparation: 1.2,
+	spawnMin: 2600, spawnMax: 3200, minDistance: 2200, routeDistance: 1800, world: 99000,
+	hp: 1.6, damage: 1.25, shotLife: 2.4, shotRange: 720,
+});
 const d2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
 function create(room, alive) {
-	// Far from every participant, including split/downed heroes; never appear on top of a player.
 	const heroes = [...room.heroes.values()];
-	for (let i = 0; i < 64; i++) {
-		const h = alive[i % alive.length], a = Math.random() * Math.PI * 2, distance = 1200 + (i % 8) * 100;
+	const candidate = (h, a, distance) => {
 		const x = h.x + Math.cos(a) * distance, y = h.y + Math.sin(a) * distance;
 		const ex = x - Math.sin(a) * CARAVAN.route, ey = y + Math.cos(a) * CARAVAN.route;
-		if (Math.max(Math.abs(x), Math.abs(y), Math.abs(ex), Math.abs(ey)) > 99000 || heroes.some(p => d2(p, { x, y }) < 1000 ** 2)) continue;
+		if (Math.max(Math.abs(x), Math.abs(y), Math.abs(ex), Math.abs(ey)) > CARAVAN.world) return null;
+		// The closest point on the entire route must be safe for split and downed participants too.
+		for (const p of heroes) {
+			const t = Math.max(0, Math.min(1, ((p.x - x) * (ex - x) + (p.y - y) * (ey - y)) / CARAVAN.route ** 2));
+			if (d2(p, { x, y }) < CARAVAN.minDistance ** 2
+				|| d2(p, { x: x + (ex - x) * t, y: y + (ey - y) * t }) < CARAVAN.routeDistance ** 2) return null;
+		}
 		return { status: 'guarded', x, y, ax: x, ay: y, bx: ex, by: ey, direction: 1, progress: 0,
-			total: 12 + 2 * (room.heroes.size - 1), killed: 0, expires: room.runLength * CARAVAN.until };
+			total: 32 + 4 * (room.heroes.size - 1), killed: 0, creationNt: room.nt, expires: room.runLength * CARAVAN.until };
+	};
+	for (let i = 0; i < 64; i++) {
+		const c = candidate(alive[i % alive.length], Math.random() * Math.PI * 2,
+			CARAVAN.spawnMin + Math.random() * (CARAVAN.spawnMax - CARAVAN.spawnMin));
+		if (c) return c;
+	}
+	// Fixed, bounded fallback finds edge pockets without relaxing distance or extending the event.
+	for (const h of alive) for (const distance of [CARAVAN.spawnMin, (CARAVAN.spawnMin + CARAVAN.spawnMax) / 2, CARAVAN.spawnMax]) {
+		for (let i = 0; i < 32; i++) {
+			const c = candidate(h, i * Math.PI / 16, distance);
+			if (c) return c;
+		}
 	}
 	return null;
 }
@@ -27,11 +47,14 @@ export function updateCaravan(room, alive, dt) {
 		const c = create(room, alive);
 		if (!c) return;
 		room.caravan = c;
+		const n = room.heroes.size, brutes = n + 3, shields = 2, ranged = Math.min(4, n + 1);
 		for (let i = 0; i < c.total; i++) {
 			const a = i * Math.PI * 2 / c.total, r = 230 + (i % 3) * 35;
-			const e = room.spawnEnemy(i < 2 ? 'brute' : i === 2 ? 'shield' : 'skel', alive, enemyHpScale(room.nt, room.heroes.size) * 1.35);
-			Object.assign(e, { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r, caravan: c, guardReadyAt: room.time + CARAVAN.preparation });
-			e.dmg *= 1.1; e.dmgMul *= 1.1;
+			const type = i < brutes ? 'brute' : i < brutes + shields ? 'shield' : i < brutes + shields + ranged ? 'spitter' : 'skel';
+			const e = room.spawnEnemy(type, alive, enemyHpScale(c.creationNt, n) * CARAVAN.hp,
+				[c.x + Math.cos(a) * r, c.y + Math.sin(a) * r]);
+			Object.assign(e, { caravan: c, guardReadyAt: room.time + CARAVAN.preparation });
+			e.dmg *= CARAVAN.damage; e.dmgMul *= CARAVAN.damage;
 			room.fx.push(['warn', Math.round(e.x), Math.round(e.y), e.r + 14, CARAVAN.preparation]);
 		}
 	}
@@ -57,6 +80,7 @@ export function claimCaravan(room) {
 	const c = room.caravan;
 	if (!c || c.status !== 'open' || room.fin || room.time >= c.expires) return false;
 	c.status = 'claimed';
+	clearShots(room, c);
 	for (const h of room.heroes.values()) {
 		room.addXp(h, xpForNext(h.level, room.heroes.size) * .15);
 		if (h.st === 0) h.hp = Math.min(h.maxHp, h.hp + h.maxHp * .1);
@@ -69,7 +93,27 @@ export function closeCaravan(room) {
 	if (!c || c.status === 'claimed' || c.status === 'expired') return;
 	c.status = 'expired';
 	for (const e of room.enemies) if (e.caravan === c) e.dead = true;
-	room.hostile = room.hostile.filter(s => s.caravan !== c);
+	clearShots(room, c);
+}
+
+function clearShots(room, c) {
+	room.hostile = room.hostile.filter(s => {
+		if (s.caravan !== c) return true;
+		room.fx.push(['epend', s.id, room.time, s.x, s.y, 0]);
+		return false;
+	});
+}
+
+export function boundCaravanShot(e, s) {
+	if (!e.caravan) return s;
+	s.caravan = e.caravan;
+	s.from = 'caravan:shot';
+	// Fix the circle at launch: the moving wagon never extends a shot's path or lifetime.
+	const dx = s.x - e.caravan.x, dy = s.y - e.caravan.y;
+	const v2 = s.vx ** 2 + s.vy ** 2, dot = dx * s.vx + dy * s.vy;
+	const edge = v2 ? (-dot + Math.sqrt(Math.max(0, dot ** 2 + v2 * (CARAVAN.shotRange ** 2 - dx ** 2 - dy ** 2)))) / v2 : 0;
+	s.life = Math.max(0, Math.min(s.life, CARAVAN.shotLife, edge));
+	return s;
 }
 
 export function confineCaravanGuard(e) {
