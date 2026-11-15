@@ -1,3 +1,4 @@
+import { dailyLabel } from '/shared/daily.js';
 // v23 results screen: group numbers, awards, the finale, a tab per player with small canvas charts, events,
 // plus the shareable text and PNG card. Data: `over.card` from the server (server/runlog.js, card()).
 import { modeOf, PLAYER_COLORS } from '/shared/content.js';
@@ -51,6 +52,12 @@ export function renderResults(root, value, me, cols) {
 
 	const colorByPlayer = new Map(c.players.map((p, i) => [p.pid, cols?.get(p.pid) ?? PLAYER_COLORS[i % PLAYER_COLORS.length]]));
 	const colorOf = (pid) => colorByPlayer.get(pid) ?? '#90a4ae';
+	if (c.daily) {
+		const note = el('div', 'daily-result');
+		note.append(el('b', '', (c.win ? '✓ Испытание пройдено · ' : 'Испытание дня · ') + c.daily.day + ' UTC'),
+			el('p', 'small', c.daily.name + ': ' + c.daily.description), el('p', 'res-note', 'Обычный прогресс не начисляется. Можно попробовать снова.'));
+		root.append(note);
+	}
 	root.append(groupBlock(c), awardsBlock(c, me, colorOf));
 	const fin = finaleBlock(c, colorOf);
 	if (fin) root.appendChild(fin);
@@ -343,6 +350,7 @@ function drawChart(cv, p, color) {
 export function resultsText(c) {
 	const out = [];
 	const len = c.len || modeOf(c.mode).seconds;
+	if (c.daily) out.push(`${dailyLabel(c.daily)} · ${c.daily.description} Обычный прогресс не начисляется.`);
 	out.push(`🌙 Ночная орда — ${TITLE(c)} (${modeOf(c.mode).name}, ${mmss(c.time)} из ${mmss(len)})`);
 	const g = c.group ?? {};
 	out.push(`Убито ${fmtNum(c.kills)} · падений ${g.downs ?? 0}${c.players.length > 1 ? ` · подняли друг друга ${times(g.revives ?? 0)}` : ''}`);
@@ -384,7 +392,7 @@ export function resultsCanvas(c, colorOf) {
 	};
 	g.textBaseline = 'alphabetic';
 	const titleColor = c.grade === 2 ? '#ffe082' : c.win ? '#ffb74d' : '#ef5350';
-	text('НОЧНАЯ ОРДА', W / 2, 70, 26, '#8d92ad', 700, 'center');
+	text(c.daily ? `НОЧНАЯ ОРДА · ИСПЫТАНИЕ ${c.daily.day}` : 'НОЧНАЯ ОРДА', W / 2, 70, c.daily ? 22 : 26, '#8d92ad', 700, 'center');
 	if (c.grade === 2) {
 		g.shadowColor = 'rgba(255,193,7,0.8)';
 		g.shadowBlur = 24;

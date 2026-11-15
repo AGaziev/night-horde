@@ -1,3 +1,4 @@
+import { dailyLabel } from '/shared/daily.js';
 // DOM screens, HUD, level-up panel, toasts.
 import { ENEMIES, ENEMY_TYPES, HEROES, HERO_PERKS, WEAPONS, PASSIVES, MAX_PLAYERS, MAX_WEAPONS, MAX_PASSIVES, DUOS, DUO_BY_PAIR, duoKey, weaponDef, ROMAN, EVOS, EVO_BY_WEAPON, RARITIES, MODES, MODE_IDS, modeOf, modeLabel, UNLOCKS, unlockProgress, ALTAR_DEALS, OVERCLOCKS, EMBERS, forgeRecipe, ROLES, AFFINITY, AFFINITY_IDS, affinityOf } from '/shared/content.js';
 import { HORDE_RULESET, HORDE_MAX_HEROES, HORDE_BOSS_AT, HORDE_BOSS_TYPE } from '/shared/horde-content.js';
@@ -368,13 +369,20 @@ export class UI {
 			}
 		}
 		const isHost = lobby.host === me;
-		this.renderRuleset(horde, isHost, lobby.bossSchedule);
+		this.renderRuleset(horde, isHost && lobby.startsAt == null, lobby.bossSchedule);
 		$('lobby-pve-mode').hidden = horde;
 		$('lobby-role-box').hidden = !horde;
 		$('lobby-hero-box').hidden = horde && mine?.role === 'director';
 		$('duo-book').hidden = horde && mine?.role === 'director';
 		if (horde) this.renderRole(mine?.role || 'hero', director, heroes.length, me);
-		this.renderMode(lobby.mode, isHost);
+		this.renderMode(lobby.mode, isHost && lobby.startsAt == null);
+		const toggle = $('lobby-daily');
+		toggle.checked = lobby.dailySelected === true;
+		toggle.disabled = horde || !isHost || lobby.startsAt != null;
+		$('lobby-daily-title').textContent = lobby.daily ? dailyLabel(lobby.daily) : '';
+		$('lobby-daily-description').textContent = lobby.daily?.description ?? '';
+		$('lobby-daily-hint').textContent = (lobby.startsAt != null ? 'Условия зафиксированы до старта. ' : isHost ? 'Выбирает хост. ' : 'Условия выбирает хост. ')
+			+ 'В испытании повторы без ограничений. Отдельные рекорды и отметка за победу; обычный прогресс не начисляется. Случайные находки могут отличаться.';
 		this.renderDuoBook();
 		const readyBtn = $('lobby-ready');
 		readyBtn.textContent = myReady ? '✓ Готов' : 'Готов';
@@ -772,7 +780,7 @@ export class UI {
 			const reason = { boss: 'Герои повергли босса', time: 'Герои продержались 15 минут', wipe: 'Все герои пали', 'director-left': 'Игрок за орду покинул матч', 'heroes-left': 'Все герои покинули матч' }[msg.reason];
 			sub = `Орда против героев · ${director ? 'Вы играли за орду' : 'Вы играли за героя'} · ${fmtTime(msg.time)}${reason ? ` · ${reason}` : ''}`;
 		}
-		$('over-sub').textContent = sub;
+		$('over-sub').textContent = (msg.daily ? dailyLabel(msg.daily) + ' · ' : '') + sub;
 		const share = new Map((fin?.by ?? []).map((b) => [b.pid, b.share]));
 		$('over-lord-th').hidden = !fin;
 		const box = $('over-unlock');
@@ -863,6 +871,10 @@ export class UI {
 		if (!cv) this.resetCaravan();
 		else this.set('hud-caravan', 'hidden', false);
 		if (cv) this.set('hud-caravan-status', 'text', `◆ Караван · ${cv.status === 'open' ? 'заберите груз' : `охрана ${cv.killed}/${cv.total}`} · ${Math.max(0, Math.ceil(cv.expires - snap.tm))} с · необязательно`);
+		const result = snap.swarmResult && snap.tm >= snap.swarmResult.end && snap.tm < snap.swarmResult.end + 6 ? snap.swarmResult : null;
+		this.set('hud-swarm', 'hidden', !snap.swarm && !result);
+		if (snap.swarm) this.set('hud-swarm', 'text', `Рой: ${snap.swarm.killed}/${snap.swarm.spawned} · 70% к концу натиска`);
+		else if (result) this.set('hud-swarm', 'text', result.success ? `Натиск выполнен: ${result.killed}/${result.spawned} · каждому +15% опыта уровня` : `Натиск завершён: ${result.killed}/${result.spawned} · цель не выполнена`);
 		const op = snap.op;
 		this.set('hud-outposts', 'hidden', !op);
 		if (op) {

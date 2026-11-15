@@ -1,3 +1,5 @@
+import { initSwarm, tagSwarmEnemy, killedSwarmEnemy, resolveSwarm, swarmSnapshot, swarmResultSnapshot } from './daily-swarm.js';
+import { dailyFor, dailyInMode } from '../public/shared/daily.js';
 import { contactFrame, applyContact, finishContactFrame } from '../public/shared/contact-time.js';
 import {
 	TICK_HZ, SNAPSHOT_HZ, MAX_PLAYERS, RUN_SECONDS, MAX_ENEMIES, MAX_GEMS, PLAYER_RADIUS,
@@ -265,6 +267,9 @@ export class Room {
 		this.code = code;
 		this.send = send;
 		this.mode = DEFAULT_MODE;
+		this.dailySelected = false;
+		this.dailyPreview = dailyFor();
+		this.daily = null;
 		this.ruleset = 'pve';
 		this.directorPid = null;
 		this.runLength = RUN_SECONDS; // setMode() or a sim may change it before start(); peaks, bosses and waves follow it
@@ -292,6 +297,7 @@ export class Room {
 
 	setRuleset(id) {
 		if (this.state !== 'lobby' || (id !== 'pve' && id !== HORDE_RULESET)) return 'Неизвестные правила игры';
+		if (this.startsAt !== null) return 'Остановите отсчёт перед изменением правил игры';
 		if (id === this.ruleset) return null;
 		if (id === HORDE_RULESET) {
 			if ([...this.members.keys()].some((pid) => !isCompatible(pid))) return 'Игра обновилась — обновите страницу (F5), чтобы играть за орду';
@@ -300,6 +306,8 @@ export class Room {
 			if (new Set(uids).size !== uids.length) return 'В Орде один пользователь может занимать только одно место';
 		}
 		this.ruleset = id;
+		this.dailySelected = false;
+		this.daily = null;
 		this.directorPid = this.isHorde ? this.host : null;
 		this.runLength = this.isHorde ? HORDE_SECONDS : MODES[this.mode].seconds;
 		this.startsAt = null;
@@ -332,7 +340,7 @@ export class Room {
 
 	setMode(id) {
 		const mode = sanitizeMode(id);
-		if (!mode) return false;
+		if (!mode || this.startsAt !== null) return false;
 		this.mode = mode;
 		this.runLength = this.isHorde ? HORDE_SECONDS : MODES[mode].seconds;
 		return true;
@@ -451,6 +459,7 @@ export class Room {
 	lobbyMsg() {
 		return {
 			t: 'lobby', code: this.code, host: this.host, mode: this.mode,
+			dailySelected: this.dailySelected, daily: this.isHorde ? null : this.daily ?? dailyInMode(this.dailyPreview, this.mode),
 			ruleset: this.ruleset, directorPid: this.directorPid,
 			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
 			startsAt: this.startsAt, serverNow: Date.now(),
@@ -465,7 +474,7 @@ export class Room {
 
 	startMsg() {
 		return {
-			t: 'start', mode: this.mode, len: this.runLength, paused: this.frozen, menu: this.paused,
+			t: 'start', mode: this.mode, len: this.runLength, daily: this.daily, paused: this.frozen, menu: this.paused,
 			ruleset: this.ruleset, directorPid: this.directorPid, arena: this.isHorde ? HORDE_ARENA : null,
 			roundId: this.horde?.roundId ?? null,
 			bossSchedule: this.isHorde ? { type: HORDE_BOSS_TYPE, at: HORDE_BOSS_AT } : null,
@@ -476,6 +485,7 @@ export class Room {
 
 	// Re-sends current state to a reconnected player.
 	resync(pid) {
+		if (this.daily && isLegacy(pid)) { this.send(pid, { t: 'err', msg: 'Обновите страницу, чтобы участвовать в испытании дня' }); return; }
 		if (this.isHorde && !isCompatible(pid)) {
 			this.send(pid, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
 			return;
@@ -543,6 +553,17 @@ export class Room {
 				// A hero opened during the session (end of a run): the client resends its list.
 				m.unlocked = sanitizeUnlocked(msg.heroes) ?? m.unlocked;
 				break;
+			case 'daily':
+				if (this.isHorde || this.state !== 'lobby' || this.startsAt !== null) break;
+				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Испытание выбирает хост' });
+				else if (typeof msg.enabled === 'boolean') {
+					this.dailySelected = msg.enabled;
+					this.dailyPreview = dailyFor();
+					this.daily = null;
+					for (const member of this.members.values()) member.ready = false;
+					this.sendLobby();
+				}
+				break;
 			case 'mode':
 				if (this.state !== 'lobby') break;
 				if (pid !== this.host) this.send(pid, { t: 'err', msg: 'Режим выбирает хост' });
@@ -596,6 +617,8 @@ export class Room {
 	}
 
 	toLobby() {
+		this.daily = null;
+		this.startsAt = null;
 		this.state = 'lobby';
 		if (!this.members.has(this.directorPid)) this.directorPid = null;
 		this.paused = false;
@@ -645,6 +668,7 @@ export class Room {
 		// v21 finale: plan (absolute times) or null for runs too short for it; this.fin lives from the prelude on.
 		const fight = this.isHorde ? 0 : finaleFight(this.runLength);
 		this.finPlan = fight ? { warn: this.runLength - fight - FINALE.prelude - FINALE.warn, pre: this.runLength - fight - FINALE.prelude, lord: this.runLength - fight, fight } : null;
+		this.swarm = initSwarm(this);
 		this.fin = null;
 		this.finWarned = false;
 		this.finDmg = 1;
@@ -681,12 +705,41 @@ export class Room {
 	cancelStart(startsAt = this.startsAt) {
 		if (this.state !== 'lobby' || startsAt === null || this.startsAt !== startsAt) return false;
 		this.startsAt = null;
+		this.daily = null;
 		this.inviteRevision++;
 		this.sendLobby();
 		return true;
 	}
 
+	lockDaily(now = Date.now(), contract = this.daily ?? dailyFor(now)) {
+		this.daily = !this.isHorde && this.dailySelected ? Object.freeze({ ...dailyInMode(contract, this.mode), mode: this.mode }) : null;
+	}
+
+	// Compare and lock the same UTC snapshot for direct and scheduled starts.
+	prepareDaily(now = Date.now()) {
+		if (this.isHorde) { this.dailySelected = false; this.daily = null; return true; }
+		if (this.dailySelected && !this.daily) {
+			const next = dailyFor(now);
+			if (next.day !== this.dailyPreview.day || next.version !== this.dailyPreview.version) {
+				this.dailyPreview = next;
+				for (const member of this.members.values()) member.ready = false;
+				this.sendLobby();
+				this.send(this.host, { t: 'err', msg: 'Условия дня изменились. Проверьте их и начните заново' });
+				return false;
+			}
+			this.lockDaily(now, next);
+		} else if (!this.dailySelected) this.daily = null;
+		return true;
+	}
+
 	start() {
+		if (this.dailySelected && [...this.members.keys()].some(pid => isLegacy(pid))) {
+			if (this.startsAt !== null) this.cancelStart();
+			this.send(this.host, { t: 'err', msg: 'Перед испытанием дня всем игрокам нужно обновить страницу' });
+			return false;
+		}
+		if (!this.prepareDaily()) return false;
+		if (this.daily) this.daily = Object.freeze({ ...this.daily, players: this.members.size });
 		this.startsAt = null;
 		if (this.isHorde && [...this.members.keys()].some((pid) => !isCompatible(pid))) {
 			this.send(this.host, { t: 'err', msg: 'Игра обновилась — обновите страницу (F5), чтобы играть за орду' });
@@ -707,7 +760,10 @@ export class Room {
 		list.forEach((m, i) => {
 			const a = (i / list.length) * Math.PI * 2;
 			const r = list.length > 1 ? 50 : 0;
-			this.heroes.set(m.pid, makeHero(m, Math.cos(a) * r, Math.sin(a) * r));
+			const h = makeHero(m, Math.cos(a) * r, Math.sin(a) * r);
+			this.recalcMods(h);
+			h.hp = h.maxHp;
+			this.heroes.set(m.pid, h);
 		});
 		if (this.isHorde) this.runHeroes = new Map(this.heroes);
 		this.runLog = new RunLog(this);
@@ -1500,7 +1556,12 @@ export class Room {
 		}
 		for (const [id, n] of Object.entries(h.embers ?? {})) m[EMBERS[id].stat] += EMBERS[id].value * n;
 		m.cdMul = Math.max(0.3, m.cdMul);
-		h.maxHp = h.baseHp + m.maxHp;
+		const daily = this.daily?.mods;
+		h.maxHp = (h.baseHp + m.maxHp) * (daily?.hp ?? 1);
+		m.dmgMul *= daily?.damage ?? 1;
+		m.speedMul *= daily?.speed ?? 1;
+		m.armor += daily?.armor ?? 0;
+		m.magnetMul *= daily?.pickup ?? 1;
 		delete m.maxHp;
 		if (h.victoryBanner) { m.dmgMul *= 1.25; m.areaMul *= 1.15; }
 		h.mods = m;
@@ -1530,6 +1591,7 @@ export class Room {
 		}
 		this.time += dt;
 		this.controlCredited.clear();
+		resolveSwarm(this);
 		this.contactFrames = new Map([...this.heroes.values()].map(h => [h, contactFrame(h, this.time, dt)]));
 		this.tickNo++;
 		this.lightBudget = 8; // death sparks and patches of lit enemies per tick
@@ -1626,7 +1688,7 @@ export class Room {
 	spawnEnemy(type, alive, hpMul, position = null) {
 		const E = ENEMIES[type];
 		const [x, y] = position ?? this.randomRingPos(alive);
-		const hp = E.hp * hpMul * this.modeHp;
+		const hp = E.hp * hpMul * this.modeHp * (this.daily?.mods.enemyHp ?? 1);
 		const e = {
 			id: this.nextId++, type: TYPE_INDEX[type], def: E, x, y, hp, maxHp: hp,
 			speed: E.speed * (0.9 + Math.random() * 0.2), dmg: E.dmg * enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg * this.finDmg, dmgMul: enemyDmgScale(this.nt, this.heroes.size) * this.modeDmg * this.finDmg, r: E.r, xp: E.xp * (this.peak?.xpMul ?? 1),
@@ -1668,7 +1730,7 @@ export class Room {
 		const wave = this.currentWave();
 		const pk = this.peak;
 		const peakMul = pk?.spawnMul ? 1 + (pk.spawnMul - 1) * Math.min(1, pk.ramp ? (this.time - pk.at) / pk.ramp : 1) : 1;
-		this.spawnAcc += wave.rate * spawnRateScale(spawnN) * peakMul * dt;
+		this.spawnAcc += wave.rate * spawnRateScale(spawnN) * peakMul * dt * (this.daily?.mods.enemyRate ?? 1);
 		if (this.spawnAcc < 1) return;
 		const hpMul = enemyHpScale(this.nt, n);
 		const cap = MAX_ENEMIES + (this.peak?.capAdd ?? 0);
@@ -1679,7 +1741,8 @@ export class Room {
 				this.spawnAcc = 0;
 				break;
 			}
-			this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			const enemy = this.spawnEnemy(this.waveType(wave), alive, hpMul);
+			tagSwarmEnemy(this, enemy);
 			count++;
 		}
 	}
@@ -1770,6 +1833,7 @@ export class Room {
 			this.fx.push(['pring', Math.round(cx), Math.round(cy), Math.round(r)]);
 			for (let i = 0; i < count && ordinary < MAX_ENEMIES + 120; i++) {
 				const e = this.spawnEnemy(R.type ?? this.waveType(wave), alive, hpMul);
+				tagSwarmEnemy(this, e);
 				const a = (i / count) * Math.PI * 2;
 				e.x = cx + Math.cos(a) * r;
 				e.y = cy + Math.sin(a) * r;
@@ -2911,6 +2975,7 @@ export class Room {
 	killEnemy(e, h, src = SRC_NONE) {
 		if (e.dead) return;
 		e.dead = true;
+		killedSwarmEnemy(this, e);
 		this.horde?.combat.onKilled(e, h, src);
 		if (e.outpost) this.guardKilled(e);
 		if (e.caravan) caravanGuardKilled(this, e);
@@ -5452,7 +5517,7 @@ export class Room {
 	}
 
 	addXp(h, xp) {
-		h.xp += xp;
+		h.xp += xp * (this.daily?.mods.xp ?? 1);
 		let need = xpForNext(h.level, this.heroes.size);
 		while (h.xp >= need) {
 			h.xp -= need;
@@ -5539,13 +5604,13 @@ export class Room {
 		this.lastLog = log;
 		const stats = [...this.resultHeroes().values()].map((h) => ({
 			pid: h.pid, name: h.name, hero: h.hero, kills: h.kills, dmg: Math.round(h.dmg), level: h.level,
-			...(!this.isHorde ? { ach: this.runAchievements(h, win) } : {}),
+			...(!this.isHorde ? { ach: this.daily ? null : this.runAchievements(h, win) } : {}),
 		}));
 		// v22: the server keeps the totals of portal users; `tot` is a player's totals after this run.
 		if (!this.isHorde && this.onRunEnd) {
 			const duos = new Map([...this.heroes.values()].map((h) => [h.pid, [...h.weapons.keys()].filter((id) => DUOS[id])]));
 			try {
-				const tot = this.onRunEnd({ win, grade, mode: this.mode, time: Math.round(this.time), players: stats.length, stats, duos });
+				const tot = this.onRunEnd({ win, grade, daily: this.daily, mode: this.mode, time: Math.round(this.time), players: stats.length, stats, duos });
 				for (const s of stats) if (tot?.has(s.pid)) s.tot = tot.get(s.pid);
 			} catch (e) {
 				console.error('run end hook', e);
@@ -5559,7 +5624,7 @@ export class Room {
 		}
 		if (log) runStore.add(log, this.runUids, card);
 		this.overMsg = {
-			t: 'over', win, grade, fin: this.finaleResult(), card, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
+			t: 'over', win, grade, daily: this.daily, fin: this.finaleResult(), card, time: Math.round(this.time * 10) / 10, host: this.host, mode: this.mode, len: this.runLength,
 			ruleset: this.ruleset, directorPid: this.directorPid, directorWin: this.isHorde && !win, reason: this.resultReason,
 			stats,
 			runId: log?.id ?? null, log,
@@ -5634,7 +5699,7 @@ export class Room {
 			bossBar = [Math.ceil(hp), Math.round(max), boss.type];
 		}
 		const msg = {
-			t: 's', tm: Math.round(this.time * 100) / 100, k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
+			t: 's', tm: Math.round(this.time * 100) / 100, swarm: swarmSnapshot(this), swarmResult: swarmResultSnapshot(this), k: this.kills, p, e, b, g, z, tr, it, cv: caravanSnapshot(this),
 			pa: ps.filter((h) => h.posAck !== undefined).map((h) => [h.pid, h.posAck, h.moveEpoch ?? 0]), syn: Math.round(this.synergy * 100),
 			support: ps.filter((h) => h.supportDamage > 0 || Object.values(h.support).some(n=>n>0)).map((h) => [h.pid, Math.round(h.supportDamage), ...Object.values(supportStats(h))]),
 			fx: this.fx, boss: bossBar, op: outpostSnapshot(this), trophy: ps.filter(h => h.victoryBanner).map(h => h.pid),
@@ -5665,6 +5730,7 @@ export class Room {
 		const out = this.snapCodec.encode(msg);
 		let delta = null, key = null, plain = null;
 		for (const pid of this.members.keys()) {
+			if (this.daily && isLegacy(pid)) continue;
 			let json;
 			if (isLegacy(pid)) json = plain ??= JSON.stringify(msg);
 			else if (out.isKey || this.needKey.has(pid)) json = key ??= JSON.stringify({ ...out.key(), consumedAttacks: [...(this.consumedAttacks?.values() ?? [])] });
@@ -5829,6 +5895,7 @@ export class Hub {
 
 	scheduleStart(room, pid, startsAt, batch = null) {
 		if (this.hostLobby(pid, room.code) !== room || room.startsAt !== null) return false;
+		if (!room.prepareDaily()) return false;
 		room.startsAt = startsAt;
 		room.inviteBatch = batch;
 		room.inviteRevision++;
