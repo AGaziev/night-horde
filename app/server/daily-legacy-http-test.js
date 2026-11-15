@@ -9,7 +9,7 @@ import { once } from 'node:events';
 import { setTimeout as wait } from 'node:timers/promises';
 import WebSocket from 'ws';
 
-test('CEO54-3 real transport: old normal client works, daily join and active downgrade are denied', async t => {
+for (const legacy of [24, PROTO - 1]) test(`CEO54-3 real transport: protocol ${legacy} normal client works, daily join and active downgrade are denied`, async t => {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'daily-legacy-'));
 	const preload = path.join(dir, 'listen.mjs');
 	fs.writeFileSync(preload, `import { Server } from 'node:http';
@@ -43,7 +43,7 @@ Server.prototype.listen = function (...args) {
 		return { ws, messages, until, send: msg => ws.send(JSON.stringify(msg)) };
 	}
 	const sid = (await (await fetch(url + '/api/session')).json()).sid;
-	let c = await connection(sid, 24); await c.until(m => m.t === 'welcome');
+	let c = await connection(sid, legacy); await c.until(m => m.t === 'welcome');
 	c.send({ t: 'create', hero: 'witch' }); await c.until(m => m.t === 'lobby');
 	c.send({ t: 'start' }); await c.until(m => m.t === 'start');
 	assert.ok(c.messages.some(m => m.t === 'start'), 'legacy ordinary mode remains supported');
@@ -51,11 +51,11 @@ Server.prototype.listen = function (...args) {
 	c = await connection(sid, PROTO); await c.until(m => m.t === 'lobby');
 	c.send({ t: 'daily', enabled: true }); const lobby = await c.until(m => m.t === 'lobby' && m.dailySelected);
 	const strangerSid = (await (await fetch(url + '/api/session')).json()).sid;
-	const stranger = await connection(strangerSid, 24); stranger.send({ t: 'join', code: lobby.code, hero: 'witch' });
+	const stranger = await connection(strangerSid, legacy); stranger.send({ t: 'join', code: lobby.code, hero: 'witch' });
 	await stranger.until(m => m.t === 'err' && /испытании/.test(m.msg));
 	assert.ok(!stranger.messages.some(m => m.t === 'lobby' && m.code === lobby.code));
 	c.send({ t: 'start' }); await c.until(m => m.t === 'start' && m.daily);
-	const old = await connection(sid, 24); await old.until(m => m.t === 'err'); await wait(100);
+	const old = await connection(sid, legacy); await old.until(m => m.t === 'err'); await wait(100);
 	assert.equal(old.ws.readyState, WebSocket.CLOSED);
 	assert.deepEqual(old.messages.filter(m => !['welcome', 'err'].includes(m.t)), [], 'no over, accepted pick, choices or FX reaches an unupdated client');
 	// An old progress handler has no run/FX input on which it could persist a duo or achievement.
