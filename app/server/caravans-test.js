@@ -56,7 +56,7 @@ console.log('Caravan: both modes, 1–8 heroes, finite escort, leash, reward-onc
  const snapshot = r.snapshot();
  assert.equal(snapshot.p[0].length, 15, 'caravan metadata preserves the original player row');
  assert.deepEqual(snapshot.cv, caravanSnapshot(r));
- assert.equal(snapshot.mob, undefined, 'caravan has no dependency on dash metadata');
+ assert.deepEqual(snapshot.mob.map(row => row[0]), hs.map(h => h.pid), 'mobility remains a separate channel from caravan and player rows');
  const c = r.caravan; r.resync(1); assert.equal(r.caravan, c, 'reconnect does not create a second caravan');
 }
 

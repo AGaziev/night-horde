@@ -57,6 +57,7 @@ test('optional movement epochs reject old acknowledgements without requiring a d
 		const old = f.room.snapshot(); old.pa = [[1, 10, 0]];
 		f.game.onSnapshot(old); assert.equal(f.game.local.x, 500);
 		f.game.pendingPositions.set(11, { x: 500, y: 0, epoch: 1 });
+		f.room.heroes.get(1).moveEpoch = 1; // Match the real mobility metadata to the current acknowledgement.
 		f.now(.1); const next = f.room.snapshot(); next.tm = .1; next.pa = [[1, 11, 1]];
 		f.game.onSnapshot(next); assert.equal(f.game.local.x, 0, 'a real server correction in current epoch still applies');
 	} finally { f.restore(); }

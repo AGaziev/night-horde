@@ -34,6 +34,13 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas, $('joystick'));
 const sound = new Sound();
 game.sound = sound;
+input.onDash = () => game.requestDash(input);
+net.on('dash', msg => game.acceptDash(msg));
+$('hud-dash').addEventListener('pointerdown', e => {
+	if (e.pointerType === 'mouse' && e.button !== 0) return;
+	e.preventDefault(); e.stopPropagation(); input.onDash();
+});
+$('hud-dash').addEventListener('click', e => { if (e.detail === 0) input.onDash(); });
 const hordeUI = new HordeUI({ game, net, renderer, canvas, ui });
 game.visual = loadVisual();
 
@@ -739,7 +746,17 @@ function frame(now) {
 		hordeUI.update(dt, input);
 		game.update(dt, input);
 		renderer.draw(game, dt);
-		if (ui.screen === 'game') ui.updateHud(game);
+		if (ui.screen === 'game') {
+			ui.updateHud(game);
+			const left = Math.ceil(game.dashRemaining()), dash = $('hud-dash');
+			dash.hidden = game.isDirector();
+			const disabled = !game.isAlive() || game.frozen || !!game.offer || !!game.dashWaiting || !!game.dashTravel || left > 0;
+			const label = left ? `Рывок · ${left}` : 'Рывок · пробел';
+			const accessible = left ? `Рывок, перезарядка ${left} с` : 'Рывок готов';
+			if (dash.disabled !== disabled) dash.disabled = disabled;
+			if (dash.textContent !== label) dash.textContent = label;
+			if (dash.getAttribute('aria-label') !== accessible) dash.setAttribute('aria-label', accessible);
+		}
 	} catch (err) {
 		// Keep the loop alive on unexpected data.
 		console.error(err);

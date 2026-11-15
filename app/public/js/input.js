@@ -19,10 +19,16 @@ export class Input {
 		this.onReroll = null;
 		this.onSkip = null;
 		this.onBan = null;
+		this.onDash = null;
 		this.out = { x: 0, y: 0 };
 
 		addEventListener('keydown', (e) => {
 			if (isTyping(e)) return;
+			if (e.code === 'Space' && this.enabled && e.target?.tagName !== 'BUTTON') {
+				e.preventDefault();
+				if (!e.repeat) this.onDash?.();
+				return;
+			}
 			const k = KEYS[e.code];
 			if (k) {
 				this.held[k] = true;

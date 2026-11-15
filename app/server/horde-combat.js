@@ -1,3 +1,4 @@
+import { hasActualDash, dashShotDistance2 } from './mobility.js';
 import { PLAYER_RADIUS } from '../public/shared/content.js';
 import { HORDE_COMBAT, HORDE_WEAPONS, HORDE_UPGRADE, hordeSynergies } from '../public/shared/horde-content.js';
 
@@ -216,7 +217,9 @@ export class HordeCombat {
 			shot.life -= dt; shot.x += shot.vx * dt; shot.y += shot.vy * dt;
 			let done = shot.life <= 0 || !this.mode.inside(shot.x, shot.y);
 			if (!done) for (const h of this.alive()) {
-				if (segmentDistance(h, x, y, shot.x, shot.y) > PLAYER_RADIUS + shot.r) continue;
+				const radius = PLAYER_RADIUS + shot.r;
+				const distance = hasActualDash(h) ? Math.sqrt(dashShotDistance2(h, x, y, shot.x, shot.y, dt)) : segmentDistance(h, x, y, shot.x, shot.y);
+				if (distance > radius) continue;
 				this.projectileHit(h, shot); done = true; break;
 			}
 			if (done) this.room.fx.push(['epend', shot.id, q(this.room.time)]);

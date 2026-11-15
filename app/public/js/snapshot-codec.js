@@ -2,7 +2,7 @@
 // fx packed into a token string. Shared by the client decoder and server/snapshot-codec.js.
 // Format reference: DESIGN.md, «Снимок s».
 
-export const PROTO = 35; // Refresh prior34 clients for caravan art, guard bounds and legendary cargo receipts.
+export const PROTO = 36; // Caravan sprites, stronger escorts and legendary cargo on the accepted dash/support/Daily base; reload main35 pages.
 // 25: telegraphs age on the server time of their snapshot; old pages reload (Issue #23).
 // 24: offer actions carry offerEpoch; old pages reload before asynchronous reforge replacements.
 
