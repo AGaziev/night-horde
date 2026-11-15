@@ -1,0 +1,8 @@
+{
+  "sha256": "5df3e9483a55b7fbcae30f7deff108e7007626e504b69a54a1ba2ce1f64edcac",
+  "members": 501,
+  "status": "PASS_ALL_SAFE_REGULAR_MEMBERS_AND_HASHES",
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "publicTransfer": "PENDING",
+  "sourceArchivesOmitted": "Frozen source SHA/hash proof included; source directories reconstructed from public Git commits."
+}

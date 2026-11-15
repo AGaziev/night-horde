@@ -1,0 +1,2617 @@
+{
+  "name": "v37-main58-integration-closure",
+  "inputs": [
+    "prepare-evidence.py",
+    "../review-remarks-20261115/protocol-browser.mjs",
+    "../review-remarks-20261115/protocol-browser-initial-results.json",
+    "../review-remarks-20261115/REPORT.md",
+    "../review-remarks-20261115/protocol-browser.log",
+    "../review-remarks-20261115/protocol-17-33.png",
+    "../review-remarks-20261115/protocol-browser-completed.log",
+    "../review-remarks-20261115/protocol-41-server.log",
+    "../review-remarks-20261115/snapshot.json",
+    "../review-remarks-20261115/protocol-browser-results.json",
+    "../review-remarks-20261115/protocol-17-server.log",
+    "../review-remarks-20261115/protocol-12-server.log",
+    "../review-remarks-20261115/protocol-12-33.png",
+    "../review-remarks-20261115/pr54.json",
+    "../review-remarks-20261115/pr58.json",
+    "../review-remarks-20261115/pr59.json",
+    "../review-remarks-20261115/protocol-browser-final.json",
+    "../review-remarks-20261115/pr55.json",
+    "../review-remarks-20261115/protocol-41-33.png",
+    "../review-remarks-20261115/daily-author",
+    "../review-remarks-20261115/dash-author",
+    "../review-remarks-20261115/support-author",
+    "../review-remarks-20261115/ci",
+    "../review-remarks-20261115/independent-review/17-codec.log",
+    "../review-remarks-20261115/independent-review/17-ws-seams.json",
+    "../review-remarks-20261115/independent-review/17-mobility-numeric-zero.log",
+    "../review-remarks-20261115/independent-review/preflight-main.stat",
+    "../review-remarks-20261115/independent-review/17-main-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/12-daily-fusion.log",
+    "../review-remarks-20261115/independent-review/controls.json",
+    "../review-remarks-20261115/independent-review/41-codec.log",
+    "../review-remarks-20261115/independent-review/12-daily-client.log",
+    "../review-remarks-20261115/independent-review/41-main-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/41-old-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/12-preflight-overlap.json",
+    "../review-remarks-20261115/independent-review/final-attribution.json",
+    "../review-remarks-20261115/independent-review/12-old-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/41-support-horde.log",
+    "../review-remarks-20261115/independent-review/ci-source-readback.json",
+    "../review-remarks-20261115/independent-review/12-main-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/protocol-transport.json",
+    "../review-remarks-20261115/independent-review/17-targeted-results.json",
+    "../review-remarks-20261115/independent-review/REPORT.md",
+    "../review-remarks-20261115/independent-review/worktrees-readback.json",
+    "../review-remarks-20261115/independent-review/SCOPE.md",
+    "../review-remarks-20261115/independent-review/17-fusion-key-recovery.log",
+    "../review-remarks-20261115/independent-review/12-protocol-server.log",
+    "../review-remarks-20261115/independent-review/accepted-main-source.json",
+    "../review-remarks-20261115/independent-review/17-horde-transport.log",
+    "../review-remarks-20261115/independent-review/41-protocol-server.log",
+    "../review-remarks-20261115/independent-review/41-horde-resync.log",
+    "../review-remarks-20261115/independent-review/dash-controls.mjs",
+    "../review-remarks-20261115/independent-review/cleanup-check.mjs",
+    "../review-remarks-20261115/independent-review/41-horde-transport.log",
+    "../review-remarks-20261115/independent-review/17-protocol-server.log",
+    "../review-remarks-20261115/independent-review/41-targeted-results.json",
+    "../review-remarks-20261115/independent-review/41-fusion-effect-source.log",
+    "../review-remarks-20261115/independent-review/12-horde-compatibility.log",
+    "../review-remarks-20261115/independent-review/dash-finite30.mjs",
+    "../review-remarks-20261115/independent-review/support-seams.json",
+    "../review-remarks-20261115/independent-review/12-horde-transport.log",
+    "../review-remarks-20261115/independent-review/17-preflight-overlap.json",
+    "../review-remarks-20261115/independent-review/17-old-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/support-seams.initial-harness-error.json",
+    "../review-remarks-20261115/independent-review/support-seams.mjs",
+    "../review-remarks-20261115/independent-review/12-targeted-results.json",
+    "../review-remarks-20261115/independent-review/17-mobility-horde-integration.log",
+    "../review-remarks-20261115/independent-review/12-daily-horde.log",
+    "../review-remarks-20261115/independent-review/41-preflight-overlap.json",
+    "../review-remarks-20261115/independent-review/17-old-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/frozen-sources.json",
+    "../review-remarks-20261115/independent-review/41-support-gift-chain.log",
+    "../review-remarks-20261115/independent-review/source-carry.json",
+    "../review-remarks-20261115/independent-review/41-support-contact-time.log",
+    "../review-remarks-20261115/independent-review/cleanup-final.json",
+    "../review-remarks-20261115/independent-review/41-ws-seams.json",
+    "../review-remarks-20261115/independent-review/12-old-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/41-control-separation.log",
+    "../review-remarks-20261115/independent-review/41-fusion-key-recovery.log",
+    "../review-remarks-20261115/independent-review/12-main-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/41-fusion-shield-state.log",
+    "../review-remarks-20261115/independent-review/protocol-transport.mjs",
+    "../review-remarks-20261115/independent-review/17-mobility-fusion-integration.log",
+    "../review-remarks-20261115/independent-review/12-fusion-key-recovery.log",
+    "../review-remarks-20261115/independent-review/41-support-client.log",
+    "../review-remarks-20261115/independent-review/run-targeted.mjs",
+    "../review-remarks-20261115/independent-review/41-old-to-frozen.stat",
+    "../review-remarks-20261115/independent-review/41-main-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/SHA256SUMS",
+    "../review-remarks-20261115/independent-review/source-carry.mjs",
+    "../review-remarks-20261115/independent-review/41-support-fusion.log",
+    "../review-remarks-20261115/independent-review/12-codec.log",
+    "../review-remarks-20261115/independent-review/12-ws-seams.json",
+    "../review-remarks-20261115/independent-review/dash-current-green.json",
+    "../review-remarks-20261115/independent-review/17-main-to-frozen.diff",
+    "../review-remarks-20261115/independent-review/ws-seams.mjs",
+    "../review-remarks-20261115/independent-review/12-daily-swarm.log"
+  ],
+  "primaryBytesPreserved": true,
+  "credentialPatternScan": "PASS; zero matches in included files",
+  "qaScreenshotsIncluded": true,
+  "excludedFileKinds": {
+    "no-suffix": 2,
+    ".stat": 7
+  },
+  "sourceReconstruction": "Use the public Git commit recorded by each source manifest; output-only source variants are included. Binary source assets, original source .tar duplicates and node_modules are omitted. Isolated QA PNG screenshots are included only with the explicit opt-in flag.",
+  "files": [
+    {
+      "path": "issue-split/prepare-evidence.py",
+      "bytes": 5345,
+      "sha256": "fd6efb0297ce751cf2e8d5840f3ee8e92b967622be58f852f46bedee9ebe6e18"
+    },
+    {
+      "path": "review-remarks-20261115/REPORT.md",
+      "bytes": 5472,
+      "sha256": "0c01c9dae6247f6d15e12ce793f3e1f47103ca0e561c7f1bc69c7ce201db45e7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/final-proof.json",
+      "bytes": 1719,
+      "sha256": "203d039bd8438528807e69c9d49b2dcdc146d01e830f288ad8595810971e110a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/checkout-commit.json",
+      "bytes": 2873,
+      "sha256": "ac952c3b3307c82fc365ba04e88f03627f7b94d0bf0df7e3a2d67d431de6c22a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/contact-order-test.log",
+      "bytes": 1465,
+      "sha256": "457719cc0614bcf07e7e2c6c35dc8cdf2ddf20f1783a853e0f1b7ec2c48ba254"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-armor-test.log",
+      "bytes": 1813,
+      "sha256": "8d81c6ead31ac2ac8d1c20b985e6c4a33417dd357d75143320a99f364a9c6ee7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-client-test.log",
+      "bytes": 94,
+      "sha256": "e88c86e548615adf55cefaf750c3e1324dedc9e88a16cd23a89827877890aac8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-fusion-test.log",
+      "bytes": 1164,
+      "sha256": "3e0359e5ec737ec0876424ef76114c8cb8c03ac558a8e6cfbd00c9fe63822099"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-glass-test.log",
+      "bytes": 2063,
+      "sha256": "92235bc93f00c38ee5660c05a8f4364abffc8b15a5f3ddc468ca684f181c36f1"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-horde-test.log",
+      "bytes": 439,
+      "sha256": "b4818e08c7a098c4c75690e1889561884d79932d6b5bd9c5781c4adb9253343b"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-legacy-http-test.log",
+      "bytes": 352,
+      "sha256": "6d76d69e4895eaea56373a06f8f4453cadc405e36e1da5f0eb85e34bcb5acc50"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-review-test.log",
+      "bytes": 870,
+      "sha256": "fc92688f165dcc1ee4591c23a692f05034e41f98cc19cc150f7c09cad6f91e68"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-swarm-test.log",
+      "bytes": 1506,
+      "sha256": "0464a1a38166b652339af7d908fbb95d35894f78a7350c2b775715382087df97"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/daily-test.log",
+      "bytes": 928,
+      "sha256": "28d80dc9b412ac733a8dbf8a953cf9bd9d891080a4a92266874ccc8a912396e6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/deploy-vibecode-test.log",
+      "bytes": 2064,
+      "sha256": "5c308d1eabb5b6105ffdb41a58c3722b91632cfb085519545d589459eae6a9ee"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/display-test.log",
+      "bytes": 624,
+      "sha256": "1504f31bbc2376823a6b11ab8d69381d086146e06cb5eebe804765260381df7d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/feedback-test.log",
+      "bytes": 327,
+      "sha256": "fc439f8bf82ed627820d9e7bb76096e5ea4ba55d3bac5634ebc5db69890ca31a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/finale-test.log",
+      "bytes": 403,
+      "sha256": "f7235e793f242a7ba91fc743618590650693b216eff644474ddaf255ca7932da"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/flash-support-test.log",
+      "bytes": 661,
+      "sha256": "5e8857b945e3de1b5bb69ac0a931bff741eb3b3750299c8a4ee31909eb55c3d5"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/forge-log-test.log",
+      "bytes": 573,
+      "sha256": "7900bc03329f284ee88d0cd9378c8de696f8286091d9330af11d69adafae8ce8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-effect-source-test.log",
+      "bytes": 291,
+      "sha256": "87fc59ec6524889fd6834f4424bb5121078c2c8ea6f48fbf0fa4c945abdf2266"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-focus-test.log",
+      "bytes": 80,
+      "sha256": "ac9f3f97fa5f2d3548b7cbd240ac804f0ebab1cb900916b8447bb319094b71ea"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-inheritance-test.log",
+      "bytes": 91,
+      "sha256": "dc437b121542919f9e1c3309bd0950a6e98e9098be51ead280ba58ef2117117f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-key-recovery-test.log",
+      "bytes": 212,
+      "sha256": "2d2f50c6d052e4b305feb24c2b6316258efb67c62307f39cdd86a629d11b8312"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-shield-state-test.log",
+      "bytes": 498,
+      "sha256": "b4edb90c513981cd1100cade4945d5607d37be6dbb92d4667fc1fb5ffcf19726"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/fusion-signature-test.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-client-test.log",
+      "bytes": 1176,
+      "sha256": "4ac822628946c68f2ba3852aa8a148bc05fe49cad17a4f5a91b711242c54bc51"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-client-transport-test.log",
+      "bytes": 1388,
+      "sha256": "908569385746fed6950d1fecc04bfc036972ed17c6de4b37166e6281f00b9a91"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-combat-test.log",
+      "bytes": 2657,
+      "sha256": "322fb8dde5e1a9aeeb3fdd52eb22368892f5b1af19fdd546e65c412df06abc27"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-compatibility-test.log",
+      "bytes": 568,
+      "sha256": "1c4bfa8b5d08d1e6411ac207ed6667af9aefedbe5e920b7bcf9d711562b0ccf4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-mode-test.log",
+      "bytes": 1928,
+      "sha256": "4df8a06a9e660d8058dd731ce99172e99c70a9524a114d0de3361e7117fcabcb"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-movement-gap-test.log",
+      "bytes": 596,
+      "sha256": "f3f5bfe5a8285a12039c10d8a0e235f554f471eec52260011047923d9703189d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-resync-test.log",
+      "bytes": 1070,
+      "sha256": "2e9c62c7c014337a0baba002f9c1ff12bccbdfb78ff415090f207cc2892cd14a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-review-game-test.log",
+      "bytes": 983,
+      "sha256": "cfadb687185e4aebc46c0a753360006c2527955198a263ba1bdbd90e1e86d5d3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-round-test.log",
+      "bytes": 423,
+      "sha256": "ad04d1714a192f735122c683b269050c762292227b2c981914b8b82b731f0641"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-sniper-origin-test.log",
+      "bytes": 727,
+      "sha256": "165683812402e9c607ed522995d717b1dc0316ef1adff680f29a98acf1289326"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/horde-transport-test.log",
+      "bytes": 237,
+      "sha256": "ffea3bcda58f28607284a43d71220c6f9fa11fb3b68f9ae6df7665a66d0cc115"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/lobby-invites-client-test.log",
+      "bytes": 1184,
+      "sha256": "bb0f78c0a06d65c3ffd747a0413f7e2c75bd4afc065f85a9fe51f34c4baf8790"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "65e1580cfe22a81ae572d60f03becbfb4189339d07c63772ebf431ca96595ff8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/lobby-invites-test.log",
+      "bytes": 1956,
+      "sha256": "b38054d538bf659edfd33ca791e3c698b2ba17711b89782d959868cffc35ba6e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/movement-client-test.log",
+      "bytes": 819,
+      "sha256": "66c3d4178a066de85c9fc0d858f64c1a85641384e92036eae057446cb6452645"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/movement-net-test.log",
+      "bytes": 219,
+      "sha256": "5dbdc3572147bdc6c6b97ba937e782405db72ccce58f4894e0303ac1e94092c7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/mr1-review-test.log",
+      "bytes": 826,
+      "sha256": "01314f6675528ff03f7f1c69c153423a7f2cc2013082c5065482492ad90807d0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/offer-identity-test.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/offer-refresh-client-test.log",
+      "bytes": 673,
+      "sha256": "bc6f3b13abfe74477e2666c7f2b98552828282f7dffec925458bac18675bceef"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-duo-offer-test.log",
+      "bytes": 1043,
+      "sha256": "0e51fe5ea21788f99e25a33c2b7b687a7333a982b103a5f7288b00fecef254e4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/projectile-expiry-test.log",
+      "bytes": 475,
+      "sha256": "a0d83e47ff429846c294fee4851e893cb528cffdda7b276489c8ea68caf137c3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/reaction-support-test.log",
+      "bytes": 749,
+      "sha256": "51c7f2d6fa02dfd87bf495e0659265291dd47f889dde9f954e363af6ddab037b"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/results-test.log",
+      "bytes": 225,
+      "sha256": "5726afc033a3a81961c7e6ac06d6da871dc4e6caad8a5d087f256c95c7593b2d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/results.json",
+      "bytes": 7904,
+      "sha256": "62aedc042d55e2ff3185e82ebe87a1980af2716ca3945aa4e4035b16cd89cc3c"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/revisions.txt",
+      "bytes": 166,
+      "sha256": "0da068368e5f5a955d5fe0a01949ec39d6728c978a07d71a7f3cd1f20574151b"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/run-history-test.log",
+      "bytes": 678,
+      "sha256": "c3d3887383a6a34035b6ee49ac2c5a0146e44bf0244d4398151e9ade167522bb"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/run-metadata.json",
+      "bytes": 4166,
+      "sha256": "5782fc81372f1a8b8059835d89a483284c4dfc76a013ed12eae20dd5780315b8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/sim-runner-test.log",
+      "bytes": 894,
+      "sha256": "071db7d49f89dfe2b3b4065e809a9074acecdb8377679b92625cead19fff5338"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/sim-test.log",
+      "bytes": 7311,
+      "sha256": "dfdda98e4416359c8ce2b568a158f148bce749a159f5ab0d186d6b26a46d2484"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/slash-corner-test.log",
+      "bytes": 1496,
+      "sha256": "1ca9108432874b0cd828e125792c6f50624ac7995c05bf0ad186cd489b16e1ad"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/sniper-lowfps-warning-test.log",
+      "bytes": 561,
+      "sha256": "8ca3b94d5360f25c3551e17dab6a99104bc48e3fa280661374707757264481c2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/solo-night-pressure-test.log",
+      "bytes": 504,
+      "sha256": "e1a1c961f418d7dfb3179de45ed4295db668d62bdfb4f98fc31820015bf0b2d6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/v29-test.log",
+      "bytes": 125,
+      "sha256": "01981cddb6bfba35efc5930185db14e9b996ce982aa1a41273fd10e775672c4f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr54-dbf008c/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/checkout-commit.json",
+      "bytes": 2873,
+      "sha256": "c63d5d70b55abcf7f86f88a173fdbc94b8c207cb2737a37ac7095ed028d60daa"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/contact-order-test.log",
+      "bytes": 1464,
+      "sha256": "fd1db7fc4be19df066d36c76fd8d14571a3df11ffa3d6b6a53e1812e56ca8767"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/deploy-vibecode-test.log",
+      "bytes": 2055,
+      "sha256": "7fe7ed19c0a843a5149ef7673a53e79f2bc5b76671019159281dd152d92ef6c5"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/display-test.log",
+      "bytes": 626,
+      "sha256": "7f744af428303770b669e1097c5e2eb2361da781e6417e59dedf74cc552988c7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/feedback-test.log",
+      "bytes": 326,
+      "sha256": "90c4c5756f8e70038d5ef7a4cf325e322e6038c981cc18b80bc31b57a348f136"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/finale-test.log",
+      "bytes": 403,
+      "sha256": "c2aaa4f13343786a6a15f313ff0c1912ccad60d02350f88cb7778ab404da09c0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/flash-support-test.log",
+      "bytes": 662,
+      "sha256": "983c3349f1072994b72b3abbfb0f601633322f2b191851f6e761bb0794f110ac"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/forge-log-test.log",
+      "bytes": 571,
+      "sha256": "c1f50ac3d0c9ce534711338b5c00f9d107eedbc12a266635a8e446ce2606a09f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-effect-source-test.log",
+      "bytes": 290,
+      "sha256": "58244d78f202b0f40ba5bbfc1f0323e62d64574aefaf7d787afe471994a8c6b8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-focus-test.log",
+      "bytes": 80,
+      "sha256": "ac9f3f97fa5f2d3548b7cbd240ac804f0ebab1cb900916b8447bb319094b71ea"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-inheritance-test.log",
+      "bytes": 91,
+      "sha256": "dc437b121542919f9e1c3309bd0950a6e98e9098be51ead280ba58ef2117117f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-key-recovery-test.log",
+      "bytes": 213,
+      "sha256": "596a782542892f633890eb3f42e268afe28cf38b1fe05feef7e399da0363e715"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-shield-state-test.log",
+      "bytes": 499,
+      "sha256": "2c6653e09d583f53acb8797aa150f3355b6ed9749efaa0c18f645b050c1e52ff"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/fusion-signature-test.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-client-test.log",
+      "bytes": 1176,
+      "sha256": "b9528ec096a452d36f7b1f4cb152f63590db62c9fa34aac205c255c929e8670e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-client-transport-test.log",
+      "bytes": 1387,
+      "sha256": "f6ce4253a99ad4752db83ca3a7858f4b6aef13a1bd43e6ba412f3f1a58843706"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-combat-test.log",
+      "bytes": 2657,
+      "sha256": "15c9cf908763f7f85276d234f7275485febb3ca0acd1bcd27984775945cd78db"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-compatibility-test.log",
+      "bytes": 567,
+      "sha256": "3c133f5f1784161b3c1efe34e9c3028543dd18eac5f2921c03d2b8041d87aadd"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-mode-test.log",
+      "bytes": 1929,
+      "sha256": "8c738131c526f93ff0aa585759de2d00e89ef51712c98b1be65d7fd8f8fc126e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-movement-gap-test.log",
+      "bytes": 596,
+      "sha256": "ef293493e063af617e528accf186fcad101a5a5ac5366649fa4f73ba10d79b49"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-resync-test.log",
+      "bytes": 1070,
+      "sha256": "1b5e78e6d8d6dfcbfde1b3609483d2d44de04681c016e21f435a7cf94f3e3c19"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-review-game-test.log",
+      "bytes": 982,
+      "sha256": "1668bb4df6e482ad59a730554155802a5a080ee7021305628b5454366a28c7de"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-round-test.log",
+      "bytes": 421,
+      "sha256": "0f980ab785ba798b916a808075a851c1f2d114894a0feeac3a90a84965f98b1c"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-sniper-origin-test.log",
+      "bytes": 727,
+      "sha256": "35631f1fbf2638592a238acc8ef7c631061bd5cfe870abe10e06b09c6451ddf7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/horde-transport-test.log",
+      "bytes": 237,
+      "sha256": "c6f9c1c33df28ecf9771fc4bdda4e1e38d4a0643aa6e99ce4982c68a53ffe75e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/lobby-invites-client-test.log",
+      "bytes": 1185,
+      "sha256": "d3bfcc77ccd88e3d0659bbae71bb165a83a6c7d95008d123b713dfe3849a8182"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "cfa90caac8a543cc55f0af2185ab5d86a239b698b556b78ea749052ae858f864"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/lobby-invites-test.log",
+      "bytes": 1956,
+      "sha256": "f76df9091daa5ff944a70073b6a9cd5c658f1e7a004ff1ab8920a3bf432eeaf0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-body-birth-test.log",
+      "bytes": 1109,
+      "sha256": "eea16401652ca9b99346bb2ba49e9788f0022c3fca6d57f12dbfb7a9979551c2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-body-clock-test.log",
+      "bytes": 328,
+      "sha256": "ffefbc6bcd5fa40eb5330aeaff80fdb1455d254c5ffd8750cec391e9bba0aa71"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-client-test.log",
+      "bytes": 1711,
+      "sha256": "4b1f53df8c038282996af71a8437bacff3af98f68cab4d088651ca6e8f7db50a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-contact-test.log",
+      "bytes": 1321,
+      "sha256": "9eae9dfa1866dcc6e5fb60261dbe884f7c840c44dc96a54d5ddc4f37524caed2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-coop-review-test.log",
+      "bytes": 415,
+      "sha256": "dca39c9123466b6994e4144cc77baae5609ea9e3ba63efd1b0c3271dc3cc14e5"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-coop-scope-test.log",
+      "bytes": 792,
+      "sha256": "223bbd163c324574c014028b1dec93b39504a49ef136934ba4dd5539ef7d6d91"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-expiry-test.log",
+      "bytes": 893,
+      "sha256": "662758734ba8e307193fabd51ee12c88928e1f68a5025b0b22dc54e40e0b9196"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-fusion-integration-test.log",
+      "bytes": 283,
+      "sha256": "537ea7df607d8bf31122a670fb738f0100aaaa3026851ca78aa9fc874ba7ef8f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-guard-requeue-test.log",
+      "bytes": 301,
+      "sha256": "fca1ff20cd6a5676656e4d5686c0b6b661e5d56da6a0ab12a0b7aa8f574ce685"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-horde-integration-test.log",
+      "bytes": 686,
+      "sha256": "23d6abc04787af94c36f53a9fbb97ee6fd0b42bcf871e8bbd239e642c6aeae23"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-main45-integration-test.log",
+      "bytes": 6456,
+      "sha256": "46efbde0edec748225bfee5df0826a121c8015249d11218848bd1c9f864eaa84"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-numeric-zero-test.log",
+      "bytes": 1262,
+      "sha256": "af7a236d20f6ad5dfae1b0e3193393f56f70e76e5546806b90fafeb108281348"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-projectile-boundary-test.log",
+      "bytes": 2073,
+      "sha256": "014e1e150cb8d6fc54aa5a6fb4ece0bb49d7c49a9add2dc0ad9baba0936f71f9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-request-test.log",
+      "bytes": 322,
+      "sha256": "a220e7ca6d2dd2a0a9eadd38dc27682836f48f3f1679dac9f22b2d3d7edad6e2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-ring-projection-test.log",
+      "bytes": 2455,
+      "sha256": "89fdf2ec36d1451cda5a1dc910408c39ad6d953a4f8d76e10efdd1f20d70cfdc"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-ring-review-test.log",
+      "bytes": 902,
+      "sha256": "d71f8403b3c9d3c6d829b8fffae73c4ed1a74ac367a823bcb79406b1ff707723"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-target-review-test.log",
+      "bytes": 961,
+      "sha256": "0b2cef6a16fd4c338113f41d45c29850bf9ac3c794d13a9c98daea1e5fdbd131"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-test.log",
+      "bytes": 89,
+      "sha256": "6df11ab6f0ce077809d5185d9b0ab888d3bea7c6f71f08f498e2fee3761cd492"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-time-test.log",
+      "bytes": 1630,
+      "sha256": "424f2d8bddc7df58ff5331d0ce7cb83602ad9c991f33ace0944fbe5c32179ec0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mobility-zero-body-test.log",
+      "bytes": 1933,
+      "sha256": "e0f98deb38aef4bc7cd855b54ab7475f0ca38dcc22050b9b2c5196e6c1669775"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/movement-client-test.log",
+      "bytes": 818,
+      "sha256": "e3972eaeee85518ad92ecbd68c4a64683a09758bb08d268ca3839c58ebfe43f2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/movement-net-test.log",
+      "bytes": 220,
+      "sha256": "ab849fe254d1ffd382b469fc268f4e87d450cdad24917ab3759b8b48a695a107"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/mr1-review-test.log",
+      "bytes": 824,
+      "sha256": "d6f2b31adf2822dc33c340cb2e47980bb551f555124e2744b8cd402d31ab9f50"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/offer-identity-test.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/offer-refresh-client-test.log",
+      "bytes": 673,
+      "sha256": "eb3badd7f26fc88c3d0a5792e115d60dc83b9ab0b579879b30daae9433dbd7a8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-duo-offer-test.log",
+      "bytes": 1042,
+      "sha256": "f9338bc346dc473db1c941d0fc397aa13eef180da39cb4877215e9922330db5f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/projectile-expiry-test.log",
+      "bytes": 477,
+      "sha256": "7b6810a77878e6376f7e4334c24a2d1eafa87708926215fc0827e103c1445c48"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/reaction-support-test.log",
+      "bytes": 751,
+      "sha256": "8c42bca7f9e2aa1a04be1d7160e9a0a3a29e2f3aa8d1cab619b685c2bb0e9d68"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/results-test.log",
+      "bytes": 225,
+      "sha256": "b3b50ab28a50510d876cc2b3b3ae7b94eacab71e7b013209f6bf1ac20fa792d2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/results.json",
+      "bytes": 9121,
+      "sha256": "3e8f2cb2fe61f9645d782cd67b80c390431533e345653ecdfd88afb13a2ea77a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/revisions.txt",
+      "bytes": 166,
+      "sha256": "0e41747e6ca286162755d06030abb2d92c4d679f6b52a1e263ff4441dfa5970a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/run-history-test.log",
+      "bytes": 680,
+      "sha256": "ef8bcb5eb516964663975efafacbb39cce90c547635cf35adc2ea027ce1adb01"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/run-metadata.json",
+      "bytes": 4166,
+      "sha256": "1622848a7cdfe61c8f9ee8d1727f9534dd1faab0fdd8d0a5c8b83f1ce27f99e8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/sim-runner-test.log",
+      "bytes": 894,
+      "sha256": "e626f5654f9c5b7b0fbfb4978cdf46064359b54107132055415a8f6a6aae0fcd"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/sim-test.log",
+      "bytes": 7228,
+      "sha256": "14a28125f7fee8f8b2b361f3aeb444db961a5c7e7a30c61c23b94a4219c8efab"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/slash-corner-test.log",
+      "bytes": 1494,
+      "sha256": "6e8daefa74720d719a40a2b6faf27c6495ff200104e311fc25b792516ca41bc2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/sniper-lowfps-warning-test.log",
+      "bytes": 561,
+      "sha256": "8ca3b94d5360f25c3551e17dab6a99104bc48e3fa280661374707757264481c2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/solo-night-pressure-test.log",
+      "bytes": 505,
+      "sha256": "4e6a713c5c72fbeaf229e66d7551846110aaaef89a616345b0de8494276d0e3e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/v29-test.log",
+      "bytes": 125,
+      "sha256": "de995a183dfc63eb62f30f294a636b188b31f2e1f534f3cae1a38a033bc49856"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr55-8661183/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/artifacts-test.log",
+      "bytes": 60,
+      "sha256": "a7f1deb76248989c1f9411039768446b2f74ed18f0d89407403023eb64db0d9d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/builds-test.log",
+      "bytes": 84,
+      "sha256": "5cc3e0c914edcfa047bf04a0936281ddc49e37fe596df4e2a43dcf35b4a86bed"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/caravan-placement-test.log",
+      "bytes": 174,
+      "sha256": "1b6e60230e0b0a3e2de4715600016b1b7d47b40544961fda89a2fbf378b121a4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/caravans-client-test.log",
+      "bytes": 98,
+      "sha256": "0fdf2404f5ba1c7dae94984d33e26d564f1de35ed7535eefb9b171c41caf891f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/caravans-test.log",
+      "bytes": 90,
+      "sha256": "79b2e1d72402fdced8470b03abed3345782863388fb54d5cbec2f85b485ce1f7"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/checkout-commit.json",
+      "bytes": 2873,
+      "sha256": "fd7076616ad33f7a5f15731fc68faeccf3d8952a65e36758ba4e1407c4564021"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/codec-test.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/combat-footprint-test.log",
+      "bytes": 64,
+      "sha256": "7d75a64554beef30503134e8a4109ff32c85bb37917d19cdb0b89e5cb0a0c058"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/confluences-test.log",
+      "bytes": 112,
+      "sha256": "92019db11185d4197a7167dafe095a95fa2b5817ed5e631cc903e3f213a91a80"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/contact-order-test.log",
+      "bytes": 1464,
+      "sha256": "ffa9a5767c796d8f4f9a066c1cad88a917bad477cfdbed7644a4f7b578c2a3f2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/control-boundaries-test.log",
+      "bytes": 743,
+      "sha256": "af0c038c3e76ad21f4e6488c5f401b80b898040dc94a46109c3f3bbd209c21f8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/control-contact-phase-test.log",
+      "bytes": 1905,
+      "sha256": "89ef96a9382b27743c9a95094ba42bc08cdc1fe12f54cba13c19d0453d0be944"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/control-delivery-test.log",
+      "bytes": 768,
+      "sha256": "0bbf107fd5c29e5ffe35524143f6146bc7372e5e2746f47f41a97eec77095b28"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/control-separation-test.log",
+      "bytes": 667,
+      "sha256": "306865f2d696ce277418b2af4b06b67dfd24dff72914965b23552435990d30d6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/control-shield-turn-test.log",
+      "bytes": 316,
+      "sha256": "db3f739cf85257acd13f04c66fd90fcc99ac4475943f5ef06d438750f5ec0d8a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/deploy-vibecode-test.log",
+      "bytes": 2069,
+      "sha256": "3cb273b7c206c6ec829e885a60fb2158cf3082cf99c5aa1915fec5234b1a2a95"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/display-test.log",
+      "bytes": 625,
+      "sha256": "b1220ca0940f8be3cc30d61cf9aa42b159a1ab7cd012c2fb03a48c708cced326"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/duos2-test.log",
+      "bytes": 339,
+      "sha256": "f5ede386e490fc86b790e390377f826c93b38911f1ebd49c739f402e0dcf23c9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/feedback-test.log",
+      "bytes": 327,
+      "sha256": "744696aafc9162b57eb1a9a7af4a7119902b319e710d2f7f546632459b1074ef"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/finale-test.log",
+      "bytes": 403,
+      "sha256": "dbf0a6bc1cf8687279fbf5ade6d91392570ccb0e6491fcd49401d1a1049cd821"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/flash-support-test.log",
+      "bytes": 660,
+      "sha256": "eb19ed36e3004ac98d0af1079c5c4d586fc38e6bf351ee230282048c7845b5d6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/forge-log-test.log",
+      "bytes": 572,
+      "sha256": "cd8d956e8063e38f089c61507c7eaf7500682478818e523752b5f6c3dcee420d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fortune-forge-test.log",
+      "bytes": 90,
+      "sha256": "254212034bb6cacefb3e49b1291bbdb89470309c76d489a40398ccdc5fb16734"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-effect-source-test.log",
+      "bytes": 291,
+      "sha256": "220f7f2e6368dbfdc054936b8b013904fcc6ca1d5c81c52b3b1cf923b85d41ff"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-focus-test.log",
+      "bytes": 80,
+      "sha256": "ac9f3f97fa5f2d3548b7cbd240ac804f0ebab1cb900916b8447bb319094b71ea"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-inheritance-test.log",
+      "bytes": 91,
+      "sha256": "dc437b121542919f9e1c3309bd0950a6e98e9098be51ead280ba58ef2117117f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-key-recovery-test.log",
+      "bytes": 213,
+      "sha256": "87676270008c1aaa319a16755b0582af4c539b01c2d1bf72d929645c5462ccf9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-shield-state-test.log",
+      "bytes": 498,
+      "sha256": "c2ce7b29fa42008efb89556c1c145946e2ad8e5e82f50b6b51501a2158aa0347"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/fusion-signature-test.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/hero-perks-test.log",
+      "bytes": 611,
+      "sha256": "af55922b3a6f073020510aa8b6d780b162d72a9d542614849be2f134e04298f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-client-test.log",
+      "bytes": 1174,
+      "sha256": "f642ae09f97fc80be58deef156cefa9859ef6d31b5ffc8056028c15c04022dc0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-client-transport-test.log",
+      "bytes": 1388,
+      "sha256": "fedd14c90f6124b830c45af1089cc8f981b2f8adbb2a9e26bae9c0c0470be901"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-combat-test.log",
+      "bytes": 2654,
+      "sha256": "b58c2a0d408b11bd295816d1ab29261f322183e89d664630a84507834390ff30"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-compatibility-test.log",
+      "bytes": 569,
+      "sha256": "03bbea743d508aad97c424310cd361ca4c37c8522586152082d5f6d0680282fb"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-mode-test.log",
+      "bytes": 1928,
+      "sha256": "6f186bd29114efd885f8c4c2445d36d409f37e3ba63f1c2f26b9f93eaf375de6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-movement-gap-test.log",
+      "bytes": 595,
+      "sha256": "fc3f177510b755f87d5530df0fc60004dccdad75863469d75ebb3f0b00491908"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-resync-test.log",
+      "bytes": 1070,
+      "sha256": "4200be63157b09b71e2e695f3d9d41552861709734b040450a0ffca9fc561728"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-review-game-test.log",
+      "bytes": 981,
+      "sha256": "fce8afd331d91f35e18fe112cde7a3d37215bb1fe08d7eef70d476728dd94948"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-round-test.log",
+      "bytes": 420,
+      "sha256": "dde877333ea1c6ec8c52cc737fa1e3ce91043bb476be997d8d00799615d6a374"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-sniper-origin-test.log",
+      "bytes": 728,
+      "sha256": "ce671dc1763e776dbd64cc85c6e854fcf99413c09d4b826d606b0b00304443bd"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/horde-transport-test.log",
+      "bytes": 236,
+      "sha256": "fa42451c9e515a34fa155e381ea827bd62db379dd0feb570c11cf055ca72a14e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/lobby-invites-client-test.log",
+      "bytes": 1185,
+      "sha256": "6904365dae38eefa5f02945498fa1f5692298eba360055d5bbe64902db7d6b29"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/lobby-invites-http-test.log",
+      "bytes": 291,
+      "sha256": "51b486eb8009473e76c0d1b4f88f95d23f14c2aa8390410567cd85a3a0092d9c"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/lobby-invites-test.log",
+      "bytes": 1953,
+      "sha256": "539f457c95f5beaa2840f1c634e38f4cb3802fb1d09d1ebf87c81bc17c3ee178"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/movement-client-test.log",
+      "bytes": 820,
+      "sha256": "2539b577654bf2bc4c28da6b292dd139c23292503da1d0aefe2c9c5cbe7faab8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/movement-net-test.log",
+      "bytes": 220,
+      "sha256": "c3f160be64942e73085307f28bca2065c6853da56207abf1fa97800f657a0b6a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/mr1-review-test.log",
+      "bytes": 824,
+      "sha256": "5869be4b1412a45127febe60adfb5a39a6b5fbbe629b88e8dd227a83e972789d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/offer-identity-test.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/offer-refresh-client-test.log",
+      "bytes": 673,
+      "sha256": "17932889a1d559799e1388cb236a4cf264849e7a6d81ae3021ef8e57cd87d4aa"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-client-test.log",
+      "bytes": 78,
+      "sha256": "93494d4e90211a66f043266a316eb1e669fe300db1432118eae437d9ad415281"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-cohort-test.log",
+      "bytes": 304,
+      "sha256": "98e075cb8cfc7279df5cb1d757af110b16e7591788298b7eab7fc3c09d8377f6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-duo-offer-test.log",
+      "bytes": 1042,
+      "sha256": "f6db66fa148f2c142c1fa156515e7240766b90139fdb8e67ee0c076ff102746a"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-safe-position-test.log",
+      "bytes": 776,
+      "sha256": "38378defa14fc7eb748795d5ba6c65b868fda1754e0b9d13a923a4ff39726cbc"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-sniper-test.log",
+      "bytes": 661,
+      "sha256": "1a1e7106c4a5589a706888854429b13f35dfbcb4aae86bfcfe48c7ed270fa56d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-sniper-warning-test.log",
+      "bytes": 99,
+      "sha256": "eef45d86f7fbe1de47ef5c9f969a8b4fffa1ca2ed1eb11e40e8a86eff7cbc5a8"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outpost-spawn-budget-test.log",
+      "bytes": 504,
+      "sha256": "bc231b80c7d78ff951d408406a97721d929ee5b5766f6aab8a00be2416af7128"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outposts-density-client-test.log",
+      "bytes": 105,
+      "sha256": "66ead02827eca54b40e2e249369cc5648cceeb9e0336788fb1b01cccb6b11b43"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outposts-density-test.log",
+      "bytes": 1837,
+      "sha256": "2ac4e8c500f87d9bf945a3f8dfe3a77ad2753d10d17e5749305f9b3712f7927d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/outposts-test.log",
+      "bytes": 108,
+      "sha256": "fbfe23e3d55420a86c98e779851014d01bf8deb9ddc1d3b3802f863f1c274f24"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/projectile-expiry-test.log",
+      "bytes": 476,
+      "sha256": "5494b1399f78bd67bd2d48665a91404de58f76c58a1a810aa67137786290efa0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/reaction-support-test.log",
+      "bytes": 750,
+      "sha256": "ea294c36c7067cb2b1544b459353c85859ced690cb5ac46ac2f18a95a412355e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/results-test.log",
+      "bytes": 225,
+      "sha256": "ee8076b20711afe37f98ce2160ff957ea659f3a1f5af7a3c5bee370d1e04e8ab"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/results.json",
+      "bytes": 8460,
+      "sha256": "b208cabc40edeca40b365aaad6edfa3dcf6eb23975ac33d98f021fdb5bfc58a4"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/revisions.txt",
+      "bytes": 166,
+      "sha256": "b0cf8fb5c3819f733b7aba71c85c6fb15eab3d7fbad53744831c9e12850855da"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/run-history-test.log",
+      "bytes": 680,
+      "sha256": "15fb0ffd288f0bca7731ec9e00d9dd8afabc144b3a040e5cf5e5b1f869f15cff"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/run-metadata.json",
+      "bytes": 4166,
+      "sha256": "5c5ec75be04b59cf6c435e0f6b491f08797509fc7abff9e5bbcd46c7f6208762"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/sim-runner-test.log",
+      "bytes": 896,
+      "sha256": "08f2be3a2b9b4895875d04f74fbbc8b135bcbf33b96d839d690ca2a5944f5501"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/sim-test.log",
+      "bytes": 7219,
+      "sha256": "15bbf749d5126a8e35aac0a575656f316ee94cbb9d44d276c36bda6f738fe442"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/slash-corner-test.log",
+      "bytes": 1495,
+      "sha256": "bc5f74a09f2e1a1b701ef4309d76f65fab2a16a5657fc0ce1b880a2d9be53943"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/sniper-lowfps-warning-test.log",
+      "bytes": 561,
+      "sha256": "8ca3b94d5360f25c3551e17dab6a99104bc48e3fa280661374707757264481c2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/sniper-thaw-warning-test.log",
+      "bytes": 8595,
+      "sha256": "23b7741a94fbf24b1d918c92d81a22af8b1f3b48bc2e7d120fbee02e305f42b9"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/solo-night-pressure-test.log",
+      "bytes": 505,
+      "sha256": "6d905413cda297c74f83cb8a4cb1abb93c4056121d937a3a6ef17c07bfe5d053"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-client-test.log",
+      "bytes": 492,
+      "sha256": "b433f8edc57c6735c639f96c6adc3aaa830524888a7019bee19ba9d45837bf32"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-contact-time-test.log",
+      "bytes": 1066,
+      "sha256": "fa4f901f78fc68bd4c3e5189ad2559fca6c7d1509f57f93bfa24e99716498373"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-control-state-test.log",
+      "bytes": 460,
+      "sha256": "fc5343d460f905bb19d2cd91627e0a15e483473f04d8d5cc7aba9ed411cd0cc2"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-fusion-test.log",
+      "bytes": 800,
+      "sha256": "a16414fe6805c6a52a5342e62dbcd6e36333295892f01790c37941f19cddd884"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-gift-chain-test.log",
+      "bytes": 4318,
+      "sha256": "deae42654381018127c162208bba69a3ddafdc3bf6a7a606c9eb3361a0ed3796"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-gift-state-test.log",
+      "bytes": 687,
+      "sha256": "c775663cb8fc69a3618fb67e99e2e13dd82b52ebf67e387295fdf3f69c075cbc"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-horde-test.log",
+      "bytes": 475,
+      "sha256": "0ea300b2d43517d601a49a7fb892e17542dc8889d3d8564705c2cff05e74c96f"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-mark-attacker-test.log",
+      "bytes": 196,
+      "sha256": "8896745c3ac77b03a4e8aa2a1502f03e8b02da512b7a191ad7a277671273c6df"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/support-test.log",
+      "bytes": 80,
+      "sha256": "a7e74fb048a5bd9d73ec52429b5af4464de0dcc026fe3ddb11a00b5e05db0be0"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/telegraph-pause-client-test.log",
+      "bytes": 109,
+      "sha256": "7821301b0777d09eecf894adf5d8a98ba1e991db43b63a077d4f564d0eb51bb6"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/v19-test.log",
+      "bytes": 136,
+      "sha256": "ac45a08e2d9e01fa7a415204baba5e1c6c0c9652c18164e3678a240b1fbc3638"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/v20-test.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/v22-test.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/v29-test.log",
+      "bytes": 125,
+      "sha256": "3ad6835a07c02c2823a2c0cefb3e17532e912ba70e56f72eb5ae83cf0030ec7e"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/visual-settings-test.log",
+      "bytes": 88,
+      "sha256": "bcd2beed7a1cc0e0ef0ffec22f50362f226ff41c1cd0a2111f2e5e4988caace3"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/wave2-test.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/wave4-test.log",
+      "bytes": 357,
+      "sha256": "5e091c501ba1cb17da128f0aaeb030abbc8fe10d5b1f59fe846a6b1f53f63e8d"
+    },
+    {
+      "path": "review-remarks-20261115/ci/pr59-7b46ace/weapon-roles-test.log",
+      "bytes": 130,
+      "sha256": "f8e9970c8f47fda0ed26e1cf7303ac79a133017723a387bcb80514a5ad9491b8"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/REPORT.txt",
+      "bytes": 5594,
+      "sha256": "f362f335add48159a29186ec4430c06951c41aa13029011a237ebaa181e3bf76"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/caravans-client-test.js.log",
+      "bytes": 360,
+      "sha256": "791367110f34817788813cbfa4b0bd25e369cf227426c3d03dafd1b2334ec78b"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/caravans-test.js.log",
+      "bytes": 345,
+      "sha256": "ea77761d3b0f379de1d8a1a7a043897c8e3a4c6bbf1e945584584b25426ecc7a"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/cleanup.json",
+      "bytes": 526,
+      "sha256": "16e139491bc4c450435166bae8139b44060d0f9c7c5516b02abb5acce1629a02"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/codec-test.js.log",
+      "bytes": 340,
+      "sha256": "ac9c099c21ee4a32a91be18fff0ecc21bfebe930c43f24d89d60238eb1085ed4"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-armor-test.js.log",
+      "bytes": 2069,
+      "sha256": "a38fd0d34633f5c3fcb1e82f158181dd7fea99fa8c903e98080fca326702b389"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-client-test.js.log",
+      "bytes": 353,
+      "sha256": "b87a8f5e248c048746fcb7f30e113672e3dfef5286cdac3936559b4dd2629bc7"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-fusion-test.js.log",
+      "bytes": 1422,
+      "sha256": "27f5f85f63d6b604348e54ab55ee9a85fca27ea0778348be6e3da03d0824e6c6"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-glass-test.js.log",
+      "bytes": 2321,
+      "sha256": "0ea458a703e83fd71cff8c7c08dcdaf89e27629d77aee9299a9cb6881018fdd4"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-horde-test.js.log",
+      "bytes": 696,
+      "sha256": "b7d7bf9a2742086291a8c10a8ea32c41f78a09dd27757eebc2ead932a220bc26"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-legacy-http-test.js.log",
+      "bytes": 614,
+      "sha256": "4729a49f8e6e23cd9ab140d2fb77f1fc98cfab88b2114eba17d8747cec55d41b"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-review-test.js.log",
+      "bytes": 1126,
+      "sha256": "c1bdae9cabe80c6173c4eddd2a32cd7ce7179deb113c11f0ebbeab5aa2a51be9"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-swarm-test.js.log",
+      "bytes": 1763,
+      "sha256": "2b9a4cb2d871114c0ebc776a1a70f16d923a91ac6947ee09271290c65b7c8efe"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/daily-test.js.log",
+      "bytes": 1181,
+      "sha256": "f0351ba9d31620f767c839cddaad898644919791cf7d33ea39e420140ca07242"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/finale-test.js.log",
+      "bytes": 655,
+      "sha256": "bb51339a6bb4dabf08346f0bc523a497c6196c98beda3589da830eb6c2d60d91"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/frozen-source.json",
+      "bytes": 721,
+      "sha256": "00e75d847e628b0b96db4a04dd868a41d4c730cc02a8abd497956c71064e8e27"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/frozen-source.log",
+      "bytes": 10303,
+      "sha256": "d489587682884419acdaaf214040c41d6c57a31ee39fa7ff24b354e3e4547cf4"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-effect-source-test.js.log",
+      "bytes": 557,
+      "sha256": "c7102c6ca93e36b7eafe2d82ae6cbc9a986603e302898b69f01f6fdf7e5d6232"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-focus-test.js.log",
+      "bytes": 339,
+      "sha256": "d71e3c921335753c5d0ac6444b62f042c7b6aa2e20daf5be4104d144b3275ebd"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-inheritance-test.js.log",
+      "bytes": 356,
+      "sha256": "cc5f1158498256a7439fa8985af085e5ae874c51b878d23a2b06ec4f385a217d"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-key-recovery-test.js.log",
+      "bytes": 478,
+      "sha256": "17927fab66e3ff92ae028e266054fa0ffd2cc2f47e038b47d001eff12942fa6b"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-shield-state-test.js.log",
+      "bytes": 764,
+      "sha256": "6b4d867aa89593769c276e75246c0273f271dd284e31bc9a346cbe0c85e432fe"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/fusion-signature-test.js.log",
+      "bytes": 322,
+      "sha256": "318af695eb73eef6e29f168cfa19f96e1ee2dedefabd070cb9ebb0005db8d7e2"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/hero-perks-test.js.log",
+      "bytes": 868,
+      "sha256": "be654cc6728d102b3c1a04c1fe7593c7a5d9cf82c690a73c5fb5236d5df2927a"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/horde-client-transport-test.js.log",
+      "bytes": 1646,
+      "sha256": "2ed99fb86a309cc09c819a01a5ab4ea8a839102522ebe3a76d9448148f915c94"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/horde-compatibility-test.js.log",
+      "bytes": 834,
+      "sha256": "0efa48fd4a4653d43c0312f785298dd24ec5f03252a3a51d49b341fc0c993a0f"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/horde-resync-test.js.log",
+      "bytes": 1327,
+      "sha256": "0430bea9e899f3375ac6d604b722a688f4ae011ca47fba1d296e4bd7eb4568ba"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/horde-review-game-test.js.log",
+      "bytes": 1242,
+      "sha256": "a790e89fcb4206bafc98095c4738139731f1b515a481be9ca9457946f9800e2f"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/horde-transport-test.js.log",
+      "bytes": 499,
+      "sha256": "5654926ef5153c463c3aac662fdc36d96da1ae8079adb7f50137870c82d47de7"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/merge.log",
+      "bytes": 500,
+      "sha256": "a6977e3af2f5ccf15b7a5da8d4952d8f9e5d54a79614159675777871bf545603"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/offer-identity-final.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/offer-identity-test.js.log",
+      "bytes": 584,
+      "sha256": "3b1a149cd5be9ee7a0689ae4746f4b01adc21399f461446305a0c6eeab0ae46b"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/offer-refresh-client-test.js.log",
+      "bytes": 939,
+      "sha256": "fff8b3acd268fa23cddacb5fb48f65a14a41a7b389b95acfbf0ca8ef2bc7380e"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/outpost-duo-offer-test.js.log",
+      "bytes": 1306,
+      "sha256": "bcde1c881eeb6158775e7358840415ab553a427339e7660f9c1c07d3677030af"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/preflight.log",
+      "bytes": 3528,
+      "sha256": "67a50a236acd41ed2ed9850bb5e9cd5c9cddc53e295f36d1e9a44493b20e5253"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/run-targeted.py",
+      "bytes": 2004,
+      "sha256": "9821ce56728546dd6d56773696f66aee328beac5d97b03a93f4343d8810c0e95"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/sniper-lowfps-warning-test.js.log",
+      "bytes": 829,
+      "sha256": "022e23286668235b79366d210b30e492e834caf3e9db5a017eda33bade0743b4"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/solo-night-pressure-test.js.log",
+      "bytes": 768,
+      "sha256": "373136da0c03092c8d9cc49ac5866e709a2c097f47220434cce6f9ede76b927a"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/supplemental-results.json",
+      "bytes": 1021,
+      "sha256": "66b0fc9b01bdd97b682b2150597b47133daa01c15c255d3d33ceea6e34fb3dd3"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/targeted-results.json",
+      "bytes": 2454,
+      "sha256": "41b9b7f5eb156915d151dd7b75b0304f695b15d1b03df5772e32ee82d1714ca9"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/v20-test.js.log",
+      "bytes": 484,
+      "sha256": "f69960950573c15995aa31ac577000f23d2a1d4a5ccc07ccec684daf933bdc20"
+    },
+    {
+      "path": "review-remarks-20261115/daily-author/v22-test.js.log",
+      "bytes": 263,
+      "sha256": "813fd2796f0d15abac593c7c6609469f8476b14a34d8394d46c213dcce603f88"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/REPORT.md",
+      "bytes": 3646,
+      "sha256": "fd6dfe41ba9a55ee5fc067da36fb1d5fc0c29a9c31408991ab0d580cba8c6b4e"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/final-mobility-results.json",
+      "bytes": 7673,
+      "sha256": "cd829478fe63a8e90c87a6690f5a9881c2beeb32fabb6dc266946eb0b9b88874"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/finale.initial.log",
+      "bytes": 402,
+      "sha256": "b4cfabc07a5667c3eb61b202bdbb20b24e3b0fefd4232df2f3cd150b2eca2fe8"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/fusion-effect-source.initial.log",
+      "bytes": 290,
+      "sha256": "72923a780f15996c550c923b1fcffdd4f3915a957c1feadfc8278631b5190321"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/fusion-key-recovery.initial.log",
+      "bytes": 212,
+      "sha256": "01607531daf40197c45cfc75f856d0040c0546a27ae2c65574a34a6c57f5c998"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/fusion-shield-state.initial.log",
+      "bytes": 497,
+      "sha256": "b1ed10ff8f5c7aa44cd3e28d3d2d92747feeecf7b8b51a30d96c49eeeff1dc66"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/fusion-signature.initial.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/horde-client-transport.initial.log",
+      "bytes": 1381,
+      "sha256": "a40a9455254ba1714585e724eb9270be2e9d1cdffd394dede80247d3e602849e"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/horde-compatibility.initial.log",
+      "bytes": 561,
+      "sha256": "d7971c17fffc247f7e7cc59514c71db9672050ccdbe25db0a5c0616c05632964"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/initial-results.json",
+      "bytes": 6271,
+      "sha256": "b11a96bb601ae5388b281e127b94eca348908078fa113182ea3d110a7909f22f"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-body-birth-test.final.log",
+      "bytes": 1109,
+      "sha256": "f17c66b291400eeed6bb8951fbfd55f572d0e0de385e2669a327e115e80ae7f0"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-body-clock-test.final.log",
+      "bytes": 328,
+      "sha256": "90693e2e2f3900d68c83d9482cca0955d51144c1250096e134942d71f4275d12"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-client-test.final.log",
+      "bytes": 1711,
+      "sha256": "be4ae8cfe05c34cb251d249733ab11c7d5ace6a441623f2ef7fa5cf90eaa8014"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-contact-test.final.log",
+      "bytes": 1315,
+      "sha256": "122e76c3cdc66c98e54490e4e52357b071e4b401246709d3c02cdfce383887db"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-coop-review-test.final.log",
+      "bytes": 414,
+      "sha256": "5d40e878a81068494e352ecbf01aec3cda50514f4b615ec0acaff5d0ecad636b"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-coop-scope-test.final.log",
+      "bytes": 786,
+      "sha256": "d77beabd04034e0b1583d97dc53a0537a6dbcb27aa93cb8124417c2dc7234025"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-expiry-test.final.log",
+      "bytes": 890,
+      "sha256": "76ef83d9a70ab0fd792b04eb22986f33e5ea82f4568ea37daac638e645abb3f7"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-fusion-integration-test.final.log",
+      "bytes": 282,
+      "sha256": "1bae1f6677aa26fbbf093cffa21b641361d14be0c4a0ccfd011698efb6e2f8d5"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-fusion.completed.log",
+      "bytes": 278,
+      "sha256": "4578fa92b99dfadb6c6d38717bfc6bf36de71c27c8d6399c8f22316d17d8ae02"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-fusion.fields-fixed.log",
+      "bytes": 2122,
+      "sha256": "63420dc1fd942ba7463d6922b58bfc837db56ef685e8996cad3880256b218976"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-fusion.final.log",
+      "bytes": 2111,
+      "sha256": "c8a692480b27a0bebcaaf8591091b66b25b353c8fd6e45a02790abce1ed0c9a9"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-fusion.initial.log",
+      "bytes": 316247,
+      "sha256": "d0c591c8ca42a2e37e1ab44ed33038748a8696c267da90d9436ec7a2f29a64de"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-guard-requeue-test.final.log",
+      "bytes": 300,
+      "sha256": "b23682d995d88fb41357ab5610b146542674d2cacacba0953120969ea30bdefd"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-horde-integration-test.final.log",
+      "bytes": 682,
+      "sha256": "750097947deb118f27e3f59d119e65013fb467686393dd71704bb852398b13f1"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-horde-integration.initial.log",
+      "bytes": 682,
+      "sha256": "ff2639bfabd0ad2eca5f5d96e179b60f581647108aff03a26fe8236b79027d8a"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-main45-integration-test.final.log",
+      "bytes": 6437,
+      "sha256": "f34970fce34091f645094973069ba2f258052d60ff88c0a2085f550d98123c5d"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-main45-integration.initial.log",
+      "bytes": 6439,
+      "sha256": "a49af695551cbd92b69fd04bef5ee2bd65048c4d48f791467a99e7fffaad367f"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-numeric-zero-test.final.log",
+      "bytes": 1261,
+      "sha256": "ec19aed07b8ffe9e5c99bc3f6eeb51627d5b61c101c124dfc3057820ee055c0e"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-numeric-zero.initial.log",
+      "bytes": 1253,
+      "sha256": "aaefeaf5ebf6db95b762b276ee57e7d356392a069dcb103aea22900280ebec66"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-projectile-boundary-test.final.log",
+      "bytes": 2070,
+      "sha256": "7920f83a638333c2bc6d2c8265d54d8a200f8a28dff0e95e7518e81968cc5e29"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-request-test.final.log",
+      "bytes": 323,
+      "sha256": "a08c7d52d4eee502dd8864d5a698329aaa8d01356fb5b8b14fdf110459e9753f"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-ring-projection-test.final.log",
+      "bytes": 2453,
+      "sha256": "597cdc6cd7559c699bcbe4501dce6ba025dbc04f9c7f78610b6abcd6498b97f1"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-ring-review-test.final.log",
+      "bytes": 898,
+      "sha256": "3c74e9e2d43b28222a6d8acf2f890804a2e65276341d4ffa35d820af29fd103d"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-target-review-test.final.log",
+      "bytes": 959,
+      "sha256": "ccfb0c4dc8830788228ec494ee8872b4a0aa72a69f2abc264a85591f9d7e467f"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-test.final.log",
+      "bytes": 89,
+      "sha256": "6df11ab6f0ce077809d5185d9b0ab888d3bea7c6f71f08f498e2fee3761cd492"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-time-test.final.log",
+      "bytes": 1627,
+      "sha256": "93f0d9a8072e1d9a115f0be71629b55f6127144c7e4a2dbf1b44d3c2d75b12dc"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-zero-body-test.final.log",
+      "bytes": 1926,
+      "sha256": "4a0458e5c1f8183548f61cbee9a04425d27d16393420e59cda3709541deb85ba"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-zero-body.final.log",
+      "bytes": 1929,
+      "sha256": "e17e033a4a88527d3d0da2b4eaecf7c7ed963b19530346225844c385e6b184c6"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/mobility-zero-body.initial.log",
+      "bytes": 6007,
+      "sha256": "579a7b34b85d5d19b1a4c02427ed7c64d8471fc62b77c4dc8afe2ba639554996"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/offer-identity.initial.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/sniper-lowfps-warning.initial.log",
+      "bytes": 561,
+      "sha256": "8ca3b94d5360f25c3551e17dab6a99104bc48e3fa280661374707757264481c2"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/solo-night-pressure.initial.log",
+      "bytes": 505,
+      "sha256": "55ab270c5e7c0246ef6e3f9192d20e83b647fe3d3f56fec1a391dd517cdd5054"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/v20.initial.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/v22.initial.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/verification-summary.json",
+      "bytes": 13162,
+      "sha256": "8f1fcda410253574460d42900282190a2e9dd46f3f230028ded83022a5dd3336"
+    },
+    {
+      "path": "review-remarks-20261115/dash-author/wave2.initial.log",
+      "bytes": 248,
+      "sha256": "6d874acbe67c8c5cf6ba8f077646382867d647fc89e589dfcf7e13fc4ede211d"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-codec.log",
+      "bytes": 927,
+      "sha256": "5423fe679eab9b3166591e91de32d2af7c5b4b98764ad23ef2c5afefdd918917"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-daily-client.log",
+      "bytes": 940,
+      "sha256": "ccd18cef67643ef78b4108035424fab5307868e959361a0d3a60174e4abea85b"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-daily-fusion.log",
+      "bytes": 2007,
+      "sha256": "c660b1335014b2a434446e6875fd396114b619f1b27c22e52c41a1a8151d2781"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-daily-horde.log",
+      "bytes": 1284,
+      "sha256": "c66f4270efd2b92914fc6f51f98333fff5b89bfa911327e1bccc44df82b79944"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-daily-swarm.log",
+      "bytes": 2341,
+      "sha256": "1230d5fd4eda2765c003deace061ef9c1ae53cc41512072501c2986c2822219a"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-fusion-key-recovery.log",
+      "bytes": 1062,
+      "sha256": "029ef02e56b0dd9bdf3cd9ccbb4dd429470731b314d8e7ef23dc9c2ad0db43e2"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-horde-compatibility.log",
+      "bytes": 1422,
+      "sha256": "33bc86193d6c67cbc7a084d616ecdf3fcae9fb203e5dec780b923e6b01f5802e"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-horde-transport.log",
+      "bytes": 1085,
+      "sha256": "6e8f93b595871e9bca75d06393a8660bb8a636d06d1201144696437f9c52d11b"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-main-to-frozen.diff",
+      "bytes": 144387,
+      "sha256": "2012cee37c89d4a9e3f4bc32083ca6819b19e1256b8b1cd375037b7d1b239702"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-old-to-frozen.diff",
+      "bytes": 113426,
+      "sha256": "ca67b5d266ccb1196206914317aad675dc61fa352b13c8d1ffb2badd99ebb8b8"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-preflight-overlap.json",
+      "bytes": 498,
+      "sha256": "dc04b5c8e4e048b2609f32a538c2082e5e6d2001aee735edadb7bcc28e8f1a9e"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-protocol-server.log",
+      "bytes": 91,
+      "sha256": "796d6634658b48d665c701fd4102ed33625b00bca1b430add3c07f08339ac7d7"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-targeted-results.json",
+      "bytes": 9815,
+      "sha256": "668f37a9f4783cfc339654f92b063ee28674e1d9313aa10cf2f23249a5f754ec"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/12-ws-seams.json",
+      "bytes": 2023,
+      "sha256": "2460c61c257041d6d7d2504d477074f7785405b2d3294df4020e3f04c555f8b8"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-codec.log",
+      "bytes": 927,
+      "sha256": "f366deec54251f9ebdb133316cc7eda79a69c4fe90b95037d4856deff77e1289"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-fusion-key-recovery.log",
+      "bytes": 1061,
+      "sha256": "d26bddf4b0eeedfb52b3a2d82c5d056f2d13ccc1df280a91a082a9fb3dbfe416"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-horde-transport.log",
+      "bytes": 1085,
+      "sha256": "4f93f339de0f33d1f7287756ea0c8a8624d11f899e3d76e522991d8dc70bb7e0"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-main-to-frozen.diff",
+      "bytes": 147877,
+      "sha256": "c2ff1ef196b0636dc5a2aa4d976264b96392907b2d9a68e4625d73b9e8241c52"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-mobility-fusion-integration.log",
+      "bytes": 1143,
+      "sha256": "1538aa61eb54a9a262a3f58cc13c13867fb16886e1eb0b3393e11ee2abc97e82"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-mobility-horde-integration.log",
+      "bytes": 1546,
+      "sha256": "564984cc68a4e385f979d5f3379a0ece17c45a5b00a35ae7234495eb1109a0c1"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-mobility-numeric-zero.log",
+      "bytes": 2112,
+      "sha256": "33b2eae0bb4d645c71a89290eceae44023f86a5c8fab6f0f319c98633540d4ec"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-old-to-frozen.diff",
+      "bytes": 111199,
+      "sha256": "d05747001e5c112df319ebd09bc17a11590dab955f17705afaf5d0f7ea598e61"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-preflight-overlap.json",
+      "bytes": 566,
+      "sha256": "b66c12e6e2f731de4894a1515990bd48c9c120f7b776056b32a00a28d2a1cc87"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-protocol-server.log",
+      "bytes": 91,
+      "sha256": "d7c77d4c5a56511947cfbfb0efd9564e63443b7ce02aeb4882c44c5562aba2d1"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-targeted-results.json",
+      "bytes": 7466,
+      "sha256": "c9cd927fb05baf6b4ab2cbeb05c3f4d44cdcfe2c72f5572bb81798fb5ca35121"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/17-ws-seams.json",
+      "bytes": 2628,
+      "sha256": "bb4da71f11bd5086db243798c81daa71eb8012128e1c260899946341584f8976"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-codec.log",
+      "bytes": 927,
+      "sha256": "35325e699f299ab8e43a1829cf778e61b3da31117fdb6210f25cf5411b782040"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-control-separation.log",
+      "bytes": 1516,
+      "sha256": "9507c33d8ea12b13897040b2cf849e0c95dbc84efcdcae4043b82435a66b73f9"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-fusion-effect-source.log",
+      "bytes": 1144,
+      "sha256": "a4080fa5797f9e4db4578ba1c375b58b8d296da432dffed0fdd1f4774c71aff1"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-fusion-key-recovery.log",
+      "bytes": 1065,
+      "sha256": "f700cc3d2196e37a0553fcd747c7486599730132ad6838b2b02372b602c41eb4"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-fusion-shield-state.log",
+      "bytes": 1350,
+      "sha256": "e72d12b4eedebf34821bdbbf2b8dbc40f2fd50d8678f40a5a31e5299ae2b55c2"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-horde-resync.log",
+      "bytes": 1910,
+      "sha256": "66e393fd5a44f6f3a6f0044739d2210aec4fa298bf6628e513f2fa7044bdbeb7"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-horde-transport.log",
+      "bytes": 1086,
+      "sha256": "4201e8dcc82a7dcd776b41914f3be39803ed252475da74f04289262c5c5f3bdd"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-main-to-frozen.diff",
+      "bytes": 128941,
+      "sha256": "c81f0c080491323e298cb9e6a1dff9b28b575551891d577c680e297435e38eca"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-old-to-frozen.diff",
+      "bytes": 110948,
+      "sha256": "e5d8dc9810750cf0211b7f008c77bc9d1cc0c97069de5b383f3917d6a608928b"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-preflight-overlap.json",
+      "bytes": 595,
+      "sha256": "23144a4178c0c3c0c49598e24a09e936b9981bac37077db8bc28b51c2e476cd0"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-protocol-server.log",
+      "bytes": 91,
+      "sha256": "684382f14bd1554631775751b7b3bebf053f2ab4c4cd566ba1704d719cb13dca"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-support-client.log",
+      "bytes": 1339,
+      "sha256": "c91c48c07ff6789bf1f5f6e8ff740e15ec0bbf4aeb8f67bba0cbf31e06f6d4df"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-support-contact-time.log",
+      "bytes": 1919,
+      "sha256": "a7d78c663d01dfb4b3816ad6b6efbb66eab461360d2f00eab3f91a2ec433baa9"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-support-fusion.log",
+      "bytes": 1647,
+      "sha256": "edac60aa870d8ec70973f945293ebdfce6e265a73f0be15041ff70e6412761b3"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-support-gift-chain.log",
+      "bytes": 5151,
+      "sha256": "64a1536b8c106e253c4f4658ac15d0ee7e87cd4a9a588e87282575e74fb11358"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-support-horde.log",
+      "bytes": 1319,
+      "sha256": "1064dc24392ee6389782cf7b988da7e7240d98465ecead677b4eed43413df238"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-targeted-results.json",
+      "bytes": 14810,
+      "sha256": "e4d2b272863db7f8cdf273b8686d58b8331ef6bbd73ca7bbdab82e912dd1b5b0"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/41-ws-seams.json",
+      "bytes": 2540,
+      "sha256": "46464281ba1f45dd57ad0ede10774123754c2958a76cc50109aecb809a75ae65"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/REPORT.md",
+      "bytes": 7597,
+      "sha256": "ec635b6287a93d38e939b1516f78a7c47824c6e6852c1aec741038b5c0a4c91e"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/SCOPE.md",
+      "bytes": 1366,
+      "sha256": "918eed462f12cbf638262cdc28fc272a7c7e13023b277bc089d98124c4892b9d"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/accepted-main-source.json",
+      "bytes": 506,
+      "sha256": "ef8bad92e1ec1f7fbee0ff6da35469feb0e4830939852ad5a01ece3402933659"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/ci-source-readback.json",
+      "bytes": 2658,
+      "sha256": "d6a7eb03827687b99800039d52892f302277c2f04f77c88152b14f80c5ab4d95"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/cleanup-check.mjs",
+      "bytes": 2658,
+      "sha256": "9e56bb7d7a92c5e653ae48a6f40d7f8afd5a64575f9ca73d1d1957b8b88e305b"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/cleanup-final.json",
+      "bytes": 6191,
+      "sha256": "8d25dee4c8f65d350131131b83405fe68c39cd730c749c2d41884d0108d1ce9a"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/controls.json",
+      "bytes": 4037,
+      "sha256": "5a0bafba76822e07eabcbd8964ce9b5e8387223ce1c00a13a2d56aecabcdcb37"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/dash-controls.mjs",
+      "bytes": 4397,
+      "sha256": "01bb66b564608b1664e7b689414be796ff3dfdabda09a0b0c9869f83d6d82144"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/dash-current-green.json",
+      "bytes": 9401,
+      "sha256": "3e316c6798c762b59d3b6b5269475817cf2a730328b7aeea6435a8af82732c8d"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/dash-finite30.mjs",
+      "bytes": 6606,
+      "sha256": "97fcecbec60b8e3ff35799c25d6c94ffdfa26462ddfb92ae869a6b6a7ce616ba"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/final-attribution.json",
+      "bytes": 45741,
+      "sha256": "0cf7f5961b11ed3ee724e0980aeab0dacdb6e9f4703e69bdda928145c50cf011"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/frozen-sources.json",
+      "bytes": 2718,
+      "sha256": "efb87228803e9e1e22dd811a8c94040e1955b2bc115de035d729da21ef34d707"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/protocol-transport.json",
+      "bytes": 4097,
+      "sha256": "45e98f2a8b1236cb845b4df2aa62f12125befcec14ab130ff5347a174fcccd3f"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/protocol-transport.mjs",
+      "bytes": 5208,
+      "sha256": "140cf0ace732f6a143075b49d64de3ecac0ef4f1e464ebe2be94b42d9c7aa4a8"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/run-targeted.mjs",
+      "bytes": 2417,
+      "sha256": "96bbc49caa206acc93213f0aab9343a5b9f284e09315022ffcc66cb25f271614"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/source-carry.json",
+      "bytes": 6631,
+      "sha256": "637aa8074a422cdc82b95b23ea1eade889f7a528c1cf803bf4b0cf24b3abcfd8"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/source-carry.mjs",
+      "bytes": 4156,
+      "sha256": "ee5097614b4c176695a0766b211ea76edca0f69f08c57a7f1bd2412b634689b0"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/support-seams.initial-harness-error.json",
+      "bytes": 1101,
+      "sha256": "3c8b4ded48a477035bd2e6121d7ec8d536c749f354446e058a8f6916fcd3494b"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/support-seams.json",
+      "bytes": 3478,
+      "sha256": "9d9b3156621abc703ac03530d556ba4e31a2b491c229ca86bae3b3b13abcca0d"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/support-seams.mjs",
+      "bytes": 4205,
+      "sha256": "8bb59d6c829d5911022ed01f1fa800c905583f635ebfa82345cda42b92686ecf"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/worktrees-readback.json",
+      "bytes": 600,
+      "sha256": "c32ac23e04f4d86865aa768f06ae63ebd77137848b07e04a86f2c55b786c1e42"
+    },
+    {
+      "path": "review-remarks-20261115/independent-review/ws-seams.mjs",
+      "bytes": 7954,
+      "sha256": "ac248150ecb7218ffb6c94ba0ef1eff1834e49a46ac9bad36455ce93a0167511"
+    },
+    {
+      "path": "review-remarks-20261115/pr54.json",
+      "bytes": 111025,
+      "sha256": "f0a53afc5707af81b379b9899976124e842c26dda6facdd9f89dadbf23bd273e"
+    },
+    {
+      "path": "review-remarks-20261115/pr55.json",
+      "bytes": 112515,
+      "sha256": "eaa2fa65af5c42f530c5b1a4ea022753edba4ebee612e005f5c0b3586f74435a"
+    },
+    {
+      "path": "review-remarks-20261115/pr58.json",
+      "bytes": 79947,
+      "sha256": "271983db33b541b1255f505877d13bdef53f0208beea94c4b90310b03f6d221c"
+    },
+    {
+      "path": "review-remarks-20261115/pr59.json",
+      "bytes": 108771,
+      "sha256": "9e1a34f9858e8f10e37933000d55ef7754d1f9ff01e6d98258b99a5816e71f62"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-12-33.png",
+      "bytes": 542516,
+      "sha256": "34230c9a84e91ec5ad098a3dc3b975b619d8656c0de373cf64c83c0680714ad7"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-12-server.log",
+      "bytes": 90,
+      "sha256": "8246b06c8a3ae2e9144f3c12485a81a6a25dff710e73386a6494f4767ba4db36"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-17-33.png",
+      "bytes": 277114,
+      "sha256": "c4e606216e799a32402f2e8533e5db2b0e7f7f0f28bad7c031f5dfd32f7cc773"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-17-server.log",
+      "bytes": 90,
+      "sha256": "20f871b38b01701e1bf772382bd3be7475af5c850249cf370a5c39ce094edec9"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-41-33.png",
+      "bytes": 542516,
+      "sha256": "34230c9a84e91ec5ad098a3dc3b975b619d8656c0de373cf64c83c0680714ad7"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-41-server.log",
+      "bytes": 90,
+      "sha256": "cbcbd8817d397201d71bb1ef3ca253cfc374a4baa071911a4c0297b31bf9433c"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser-completed.log",
+      "bytes": 81,
+      "sha256": "f6102f7ba9050410c8c8f730b37c729cddda158227a3720815706a02db4c3d3c"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser-final.json",
+      "bytes": 2073,
+      "sha256": "a871552d19bd24c51ab63e4e98019217a6372cc80305d0cdd9fe4bb1a5ba29d2"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser-initial-results.json",
+      "bytes": 1932,
+      "sha256": "723b3bb9130c36ff742f88b3377705b621db69b4560c0dabd24e07db2eff6494"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser-results.json",
+      "bytes": 850,
+      "sha256": "20f79690db8826a77184cdec628f223e75d6a8d8e094b529dc0deab3ffecb553"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser.log",
+      "bytes": 608,
+      "sha256": "df0bb900c69d6b2a42239063a8467c75d2d00196fb323b6f163047571a347d43"
+    },
+    {
+      "path": "review-remarks-20261115/protocol-browser.mjs",
+      "bytes": 6239,
+      "sha256": "ee9c17ec30ab548b6e85fcc69ca3d923853b73d79b8be93fd0ca6f202b10e566"
+    },
+    {
+      "path": "review-remarks-20261115/snapshot.json",
+      "bytes": 423287,
+      "sha256": "42928dbb2ece747827ffd6c29aa2226d340203ec333da45cb8ebbadacf25d714"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/REPORT.md",
+      "bytes": 5856,
+      "sha256": "652b6822509a00d69b0b0145065ef91bbada8470de54b41310fc7ff5a13edab4"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/checks-summary.json",
+      "bytes": 10380,
+      "sha256": "3eac2132fff5fcb14973896510494bac0c97451c93386afe6c5d25294d92758f"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/cleanup.json",
+      "bytes": 870,
+      "sha256": "d680055dc0128605c2a9f1b08ced5e661d044651718851f0e9b6842d52134772"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/codec-final.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/codec-minimum.log",
+      "bytes": 88,
+      "sha256": "109fbf72469596d7d4f0cb8dcc5b44e37b88798540eef4ad6c759d19f06addf9"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/contact-minimum-fixed.json",
+      "bytes": 16666,
+      "sha256": "43f71e816739faf456af0a051f8e2e3429cdb246341a8b82d4f899b62231a003"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/contact-minimum.json",
+      "bytes": 44,
+      "sha256": "074946b421fd3cd5343d0ce9b6c750ccdb296e0c48d37bc05f2f3a9f6d894c4d"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-boundaries-minimum-fixed.log",
+      "bytes": 743,
+      "sha256": "e569aec0d72ec6d1a83d7cb567e3a05eb988f3f64eba2c6ce9864dbe623d5324"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-contact-phase-minimum-fixed.log",
+      "bytes": 1893,
+      "sha256": "883b6363184c3a4b1ae3f1f5860ad604a23f95fa760049b896235c5a5d8de26d"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-delivery-minimum-fixed.log",
+      "bytes": 767,
+      "sha256": "3dbedef18b5b3b0088a8f287b979ae4386adbe687f7ad473492e8bf7aec2ef4f"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-separation-final.log",
+      "bytes": 665,
+      "sha256": "34b858ba5ea69a6cbc5e9236e7ebc2c7730d3f26c9a140b49fcd98c367869b1b"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-separation-minimum.log",
+      "bytes": 666,
+      "sha256": "56cdb0285b3e58766400dab635cb5a67829864adc484179d6d6edc6e3d9e73ca"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/control-shield-turn-minimum-fixed.log",
+      "bytes": 314,
+      "sha256": "57c29a4eedfdc86c1372d7085dc7aa66c8ff79bb39cf20ddeae6c62b454fa30a"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/final-checks.json",
+      "bytes": 3778,
+      "sha256": "9769fc664bea27b5002a4f132ec6f45785416ab242748f92beeebadb4a461786"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/finale-minimum-fixed.log",
+      "bytes": 403,
+      "sha256": "3e9d9c3d84ac0a7e4ca33839b3b4c517544377335ba3af73badcf0f9a3952912"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/flash-support-minimum-fixed.log",
+      "bytes": 661,
+      "sha256": "82d525d3afcd176cbd68eefdaf22bd09b23c16ab64f8a19deae2b2843ab47faf"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-effect-source-final.log",
+      "bytes": 290,
+      "sha256": "57255f0408e5a8a6c6de29d8d53408f0d64d1755d947747d439be431c43b9dee"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-effect-source-minimum.log",
+      "bytes": 288,
+      "sha256": "d0b909432a61944244558aeeac7dc1e8dd1f15925fe6177f947dacbeb23d4280"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-inheritance-minimum-fixed.log",
+      "bytes": 91,
+      "sha256": "dc437b121542919f9e1c3309bd0950a6e98e9098be51ead280ba58ef2117117f"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-key-recovery-final.log",
+      "bytes": 210,
+      "sha256": "12438972d291ffb358cf37e221ea5b39f3ec11bd309c03ed3b63512958ce91e1"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-key-recovery-minimum.log",
+      "bytes": 212,
+      "sha256": "242004784caf93ca6127dda1d64cd01a50eb868d7c76d8f5fe809f765a810849"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-shield-state-final.log",
+      "bytes": 497,
+      "sha256": "4e905ac2d32dfb80d23622f0a9ad2bc60667b6e8a2c4902186153e6476008075"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-shield-state-minimum.log",
+      "bytes": 498,
+      "sha256": "ac0bb93a0d1af1b46c866306d1f107de62fcc8842916fccaac73905978cad48c"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-signature-final.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/fusion-signature-minimum.log",
+      "bytes": 59,
+      "sha256": "c395eb5acb13a80d030f6ee546d5723ecca178f2eacfb1d642358c92d3b06066"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/horde-client-transport-final.log",
+      "bytes": 1383,
+      "sha256": "c4804cac0fa390d35744b4e44287683604c975fb482705bdc404bf3b26435f6e"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/horde-compatibility-final.log",
+      "bytes": 567,
+      "sha256": "e6601c07ef12d7e01d663ec95c46db44dc492837ae1944afa85093a7d932347c"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/horde-resync-final.log",
+      "bytes": 1068,
+      "sha256": "fed6b669c13398fdf89f3a9458dc672b0536fb4ca27131fde54b91c87fb20110"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/horde-review-game-final.log",
+      "bytes": 979,
+      "sha256": "358f25ec027c72d43d105b0a01bafb1b9745ef5a9ca882b462886cd79e1dca82"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/horde-transport-final.log",
+      "bytes": 237,
+      "sha256": "06cc75b1e7d5198dd37ab3bbe3fe316a490ce0f3fb2aa82c10c9bddd1f346efc"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/minimum-checks.json",
+      "bytes": 3166,
+      "sha256": "8059b3fb6823dbb8e064ac3b6ccded2680f1a5ad276679882e7d3d4307f91cf5"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/minimum-fixed-checks.json",
+      "bytes": 4354,
+      "sha256": "be76ac59472f9fe2dc9424b74bd0f5fdc666b5ac40028023e3280b58d55c9896"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/offer-identity-final.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/offer-identity-minimum.log",
+      "bytes": 326,
+      "sha256": "dcda8ffde40d17021e8fe471beb789a8fb76f816d57f3955dea35ac997277991"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/reaction-support-minimum-fixed.log",
+      "bytes": 750,
+      "sha256": "e4afe827ad76b263055526929555c3c3b90157807e2d7998f67ffeadfd4ab3d3"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/sim-minimum-fixed.log",
+      "bytes": 7281,
+      "sha256": "b18068f535f6edbc763ddd2cb58f24aa7e992e9069928069187500bcfe5dfb12"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/sniper-lowfps-warning-minimum-fixed.log",
+      "bytes": 561,
+      "sha256": "8ca3b94d5360f25c3551e17dab6a99104bc48e3fa280661374707757264481c2"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/solo-night-pressure-final.log",
+      "bytes": 501,
+      "sha256": "7f167b028a649e27745270bed82662a7541a46ad76944b93b7b2581351645995"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/solo-night-pressure-minimum.log",
+      "bytes": 504,
+      "sha256": "f1177da0eec8d6d6ebc64b9835fe282c6eab9894ef774bb72cfaa22063c2168b"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-client-minimum-fixed.log",
+      "bytes": 491,
+      "sha256": "bc64026d8a3e337fbe9239f048611b43508945413de672100415ad6b7965a508"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-client-minimum.log",
+      "bytes": 3217,
+      "sha256": "4ab157b731e213cb3af293f19811165e5b4be4e248a3da33f7c2cb77be56f744"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-contact-time-minimum-fixed.log",
+      "bytes": 1065,
+      "sha256": "c85f95c180c0d3da8b556b2df5d01679ddf1f7590206d990168dc0198cb45f4c"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-contact-time-minimum.log",
+      "bytes": 19928,
+      "sha256": "f1ad98bfb609e826ee48ef795716f59ff49e77a29f5e2b0212e66aba229b1108"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-control-state-final.log",
+      "bytes": 460,
+      "sha256": "093934ec6b958e96f999b1dc49385c43a0ad559c97864cc23476e28abd38e395"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-control-state-minimum.log",
+      "bytes": 460,
+      "sha256": "1c83ad997f0969632a42d8361bc6fc24298efd15470a9ee8cb2e92e1ff80b236"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-fusion-final.log",
+      "bytes": 800,
+      "sha256": "b38aa20d56b13b165dd90f76ec238773c7f163c59bbe6c57a1f37cd10e6c58d0"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-gift-chain-minimum-fixed.log",
+      "bytes": 4302,
+      "sha256": "caa5d370c2ef67b2a09e652c4437eb1909f9052931f98f5aa7336ab2ddae8bbb"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-gift-state-minimum-fixed.log",
+      "bytes": 686,
+      "sha256": "f0286b7bbe057d92e84522348817fcb78612a85aed78d0868de61d4f3b67efc7"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-gift-state-minimum.log",
+      "bytes": 10094,
+      "sha256": "da7efe8411515129158909efe848a8b126b9e94e647b94d2b963e71a6a5391e8"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-horde-minimum-fixed.log",
+      "bytes": 475,
+      "sha256": "43840816e136bffc55d0b0542919c931dd09dba9677d0d5ff5040bbc88957da5"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-horde-minimum.log",
+      "bytes": 2882,
+      "sha256": "89b256aef13784c3c4d67db46bfe872b6e9f108cdb09887ba71fcfb9cbebc9d3"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-mark-attacker-minimum-fixed.log",
+      "bytes": 192,
+      "sha256": "4af1005e84af49c3cd68c49c04480666f4399097730a99b877d0d360822c5b00"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-minimum-fixed.log",
+      "bytes": 80,
+      "sha256": "a7e74fb048a5bd9d73ec52429b5af4464de0dcc026fe3ddb11a00b5e05db0be0"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/support-test-minimum-fixed.log",
+      "bytes": 1295,
+      "sha256": "e4a2ceff8e69199679a88920f2a2d21855c1bce22738caea35f23ca366962735"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/v20-minimum-fixed.log",
+      "bytes": 234,
+      "sha256": "cc204915c6f396bc4a493453870b01465ba8aafc0d31b3317b365697b23f65d3"
+    },
+    {
+      "path": "review-remarks-20261115/support-author/v22-minimum-fixed.log",
+      "bytes": 13,
+      "sha256": "3d77c8c1d660528b35d574ac50e34669dafec0bb8d2f975ee36971521104b33d"
+    }
+  ]
+}
