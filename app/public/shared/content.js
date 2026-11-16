@@ -3,7 +3,7 @@ export { DASH, clipDash, dashBounds } from './mobility.js';
 import { CONFLUENCES } from './confluences.js';
 
 // The one place for the game version: run logs, summaries and /api/runs read it. Bump on every release.
-export const GAME_VERSION = 'v37';
+export const GAME_VERSION = 'v38';
 export const TICK_HZ = 30;
 export const SNAPSHOT_HZ = 10;
 export const POS_HZ = 15;
